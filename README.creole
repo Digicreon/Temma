@@ -7,7 +7,7 @@ Temma is a simple and efficient PHP MVC framework.
 * Discussions: http://groups.google.com/group/finemedia-oss
 * **More information**: http://www.temma.net
 
-=License=
+==License==
 It is placed under the terms of the [[http://www.opensource.org/licenses/mit-license.php|MIT License]].
 
 Copyright © 2007-2012, Amaury Bouchard, Fine Media
