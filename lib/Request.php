@@ -1,0 +1,184 @@
+<?php
+
+namespace Temma;
+
+/**
+ * Objet de gestion des requêtes HTTP dans le framework Temma.
+ *
+ * @author	Amaury Bouchard <amaury.bouchard@finemedia.fr>
+ * @copyright	© 2007-2011, Fine Media
+ * @package	Temma
+ * @version	$Id: Request.php 254 2011-07-28 11:05:55Z abouchard $
+ */
+class Request {
+	/** Nom du contrôleur demandé. */
+	private $_controller = null;
+	/** Nom de l'action demandée. */
+	private $_action = null;
+	/** Paramètres de l'action. */
+	private $_params = null;
+	/** Chemin depuis la racine du site. */
+	private $_sitePath = null;
+	/** Données JSON reçues. */
+	private $_json = null;
+	/** Données XML reçues. */
+	private $_xml = null;
+
+	/** Constructeur. */
+	public function __construct() {
+		\FineLog::log('temma', \FineLog::DEBUG, "Request creation.");
+		// extraction des informations de la requête
+		// récupération du chemin d'exécution du script
+		$rootPath = $_SERVER['SCRIPT_FILENAME'];
+		if (substr($rootPath, -10) == '/index.php')
+			$rootPath = substr($rootPath, 0, -10);
+		// extraction du chemin par rapport à la racine du site
+		// (éventuellement en retirant le chemin d'exécution du script ou les paramètres GET)
+		if (isset($_SERVER['PATH_INFO']) && !empty($_SERVER['PATH_INFO'])) {
+			$pathInfo = $_SERVER['PATH_INFO'];
+			if (substr($pathInfo, 0, strlen($rootPath)) == $rootPath)
+				$pathInfo = substr($pathInfo, strlen($rootPath));
+		} else if (isset($_SERVER['REQUEST_URI'])) {
+			$pathInfo = $_SERVER['REQUEST_URI'];
+			if (($offset = strpos($pathInfo, '?')) !== false)
+				$pathInfo = substr($pathInfo, 0, $offset);
+		} else
+			throw new \Temma\Exceptions\FrameworkException('No PATH_INFO nor REQUEST_URI environment variable.', \Temma\Exceptions\FrameworkExceptions::CONFIG);
+		\FineLog::log('temma', \FineLog::INFO, "URL : '$pathInfo'.");
+		// spécial référencement : si l'URL demandée se terminait par un slash, on fait une redirection
+		if ($pathInfo != '/' && $_SERVER['REQUEST_METHOD'] == 'GET' && substr($pathInfo, -1) == '/') {
+			$url = substr($pathInfo, 0, -1) . ((isset($_SERVER['QUERY_STRING']) && !empty($_SERVER['QUERY_STRING'])) ? ('?' . $_SERVER['QUERY_STRING']) : '');
+			\FineLog::log('temma', \FineLog::DEBUG, "Redirecting to '$url'.");
+			header('HTTP/1.1 301 Moved Permanently');
+			header("Location: $url");
+			exit();
+		}
+		// extraction des composantes de l'URL
+		$pathInfo = explode('/', $pathInfo);
+		array_shift($pathInfo);
+		$this->_controller = array_shift($pathInfo);
+		$this->_action = array_shift($pathInfo);
+		$this->_params = array();
+		foreach ($pathInfo as $chunk)
+			if (strlen(trim($chunk)) > 0)
+				$this->_params[] = $chunk;
+		// extraction du chemin depuis la racine du site
+		$this->_sitePath = dirname($_SERVER['SCRIPT_NAME']);
+	}
+
+	/* ***************** GETTERS *************** */
+	/**
+	 * Décode des données JSON reçues en POST.
+	 * @param	string	$key	Nom de la donnée à retourner. Si ce paramètre n'est pas fourni,
+	 *				l'ensemble des données JSON est retourné.
+	 * @return      mixed   La ou les donnée(s) JSON décodée(s).
+	 */
+	public function getJson($key=null) {
+		if (is_null($this->_json) && isset($GLOBALS['HTTP_RAW_POST_DATA']))
+			$this->_json = json_decode(urldecode($GLOBALS['HTTP_RAW_POST_DATA']));
+		if (!empty($key))
+			return ($this->_json->$key);
+		return ($this->_json);
+	}
+	/**
+	 * Décode les données XML reçues en POST.
+	 * @param	string	$key	Nom du noeud XML à retourner. Si ce paramètre n'est pas fourni,
+	 *				l'ensemble des données XML est retourné.
+	 * @return	mixed	La ou les données( ) XML décodée(s).
+	 */
+	public function getXml($key=null) {
+		if (is_null($this->_xml) && isset($GLOBALS['HTTP_RAW_POST_DATA']))
+			$this->_xml = new SimpleXMLElement(urldecode($GLOBALS['HTTP_RAW_POST_DATA']));
+		if (!empty($key))
+			return ($this->_xml->$key);
+		return ($this->_xml);
+	}
+
+	/**
+	 * Retourne le nom du contrôleur demandé.
+	 * @return	string	Le nom du contrôleur.
+	 */
+	public function getController() {
+		return ($this->_controller);
+	}
+	/**
+	 * Retourne le nom de l'action demandée.
+	 * @return	string	Le nom de l'action.
+	 */
+	public function getAction() {
+		return ($this->_action);
+	}
+	/**
+	 * Retourne le nombre de paramètres.
+	 * @return	int	Le nombre de paramètres.
+	 */
+	public function getNbrParams() {
+		return (is_array($this->_params) ? count($this->_params) : 0);
+	}
+	/**
+	 * Retourne les paramètres de l'action.
+	 * @return	array	La liste des paramètres.
+	 */
+	public function getParams() {
+		return ($this->_params);
+	}
+	/**
+	 * Retourne un paramètre de l'action.
+	 * @param	int	$index		Index du paramètre dans la liste de paramètres.
+	 * @param	mixed	$default	(optionel) Valeur par défaut si le paramètre demandé n'existe pas.
+	 * @return	string	Le paramètre demandé.
+	 */
+	public function getParam($index, $default=null) {
+		if (isset($this->_params[$index]))
+			return ($this->_params[$index]);
+		return ($default);
+	}
+	/**
+	 * Retourne le chemin depuis la racine du site.
+	 * @return	string	Le chemin depuis la racine.
+	 */
+	public function getSitePath() {
+		return ($this->_sitePath);
+	}
+
+	/* ***************** SETTERS *************** */
+	/**
+	 * Positionne le contenu qui aurait dû être reçu sur l'entrée standard.
+	 * @param	string	$content	Le contenu.
+	 */
+	public function setInputData($content) {
+		$GLOBALS['HTTP_RAW_POST_DATA'] = $content;
+	}
+	/**
+	 * Positionne le nom du contrôleur à utiliser.
+	 * @param	string	$name	Le nom du contrôleur.
+	 */
+	public function setController($name) {
+		$this->_controller = $name;
+	}
+	/**
+	 * Positionne le nom de l'action à exécuter.
+	 * @param	string	$name	Le nom de l'action.
+	 */
+	public function setAction($name) {
+		$this->_action = $name;
+	}
+	/**
+	 * Positionne tous les paramètres reçus sur l'URL.
+	 * @param	array	$data	Tableau de chaînes de caractères.
+	 */
+	public function setParams($data) {
+		if (is_array($data))
+			$this->_params = $data;
+	}
+	/**
+	 * Positionne un paramètre reçu sur l'URL.
+	 * @param	int	$index	Index du paramètre à modifier.
+	 * @param	string	$value	Valeur à positionner.
+	 */
+	public function setParam($index, $value) {
+		$this->_params[$index] = $value;
+	}
+}
+
+?>
