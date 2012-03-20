@@ -262,7 +262,7 @@ class Dao {
 			else if (is_null($value))
 				$set[] = "$field = NULL";
 			else
-				throw new \Temma\Exceptions\DaoException("Bad field value.", \Temma\Exceptions\DaoException::VALUE);
+				throw new \Temma\Exceptions\DaoException("Bad field '$field' value.", \Temma\Exceptions\DaoException::VALUE);
 		}
 		$sql .= implode(',', $set);
 		$sql .= ' WHERE ';

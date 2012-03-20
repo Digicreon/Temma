@@ -110,7 +110,9 @@ class DaoCriteria {
 				$values[] = "'" . $this->_db->quote($v) . "'";
 			$s = 'IN (' . implode(',', $values) . ')';
 			$this->_addCriteria($field, $s);
-		} else
+		} else if ($value === null)
+			$this->_addCriteria($field, 'IS NULL');
+		else
 			$this->_addCriteria($field, '=', $value);
 		return ($this);
 	}
@@ -128,7 +130,9 @@ class DaoCriteria {
 				$values[] = "'" . $this->_db->quote($v) . "'";
 			$s = 'NOT IN (' . implode(',', $values) . ')';
 			$this->_addCriteria($field, $s);
-		} else
+		} else if ($value === null)
+			$this->_addCriteria($field, 'IS NOT NULL');
+		else
 			$this->_addCriteria($field, '!=', $value);
 		return ($this);
 		
