@@ -6,13 +6,8 @@
  * @author	Amaury Bouchard <amaury.bouchard@finemedia.fr>
  * @copyright	© 2011, Fine Media
  * @package	Temma
- * @version	$Id: index.php 262 2012-03-15 10:47:10Z abouchard $
+ * @version	$Id: index.php 266 2012-04-04 13:33:25Z abouchard $
  */
-
-// chronométrage du temps d'exécution
-require_once('finebase/FineTimer.php');
-$timer = new FineTimer();
-$timer->start();
 
 // vérification des variables serveur
 if (!isset($_SERVER['SCRIPT_FILENAME']) && isset($_SERVER['ORIG_SCRIPT_FILENAME']))
@@ -21,6 +16,11 @@ if (!isset($_SERVER['SCRIPT_FILENAME']) && isset($_SERVER['ORIG_SCRIPT_FILENAME'
 // configuration du répertoire d'inclusion
 $libPath = realpath(dirname($_SERVER['SCRIPT_FILENAME']) . "/../lib");
 set_include_path($libPath . PATH_SEPARATOR . get_include_path());
+
+// chronométrage du temps d'exécution
+require_once('finebase/FineTimer.php');
+$timer = new FineTimer();
+$timer->start();
 
 // chargement des objets basiques
 require_once("finebase/FineLog.php");
