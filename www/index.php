@@ -6,16 +6,14 @@
  * @author	Amaury Bouchard <amaury.bouchard@finemedia.fr>
  * @copyright	© 2011, Fine Media
  * @package	Temma
- * @version	$Id: index.php 266 2012-04-04 13:33:25Z abouchard $
+ * @version	$Id: index.php 278 2012-07-04 12:21:30Z abouchard $
  */
 
 // vérification des variables serveur
 if (!isset($_SERVER['SCRIPT_FILENAME']) && isset($_SERVER['ORIG_SCRIPT_FILENAME']))
 	$_SERVER['SCRIPT_FILENAME'] = $_SERVER['ORIG_SCRIPT_FILENAME'];
-
-// configuration du répertoire d'inclusion
-$libPath = realpath(dirname($_SERVER['SCRIPT_FILENAME']) . "/../lib");
-set_include_path($libPath . PATH_SEPARATOR . get_include_path());
+// configuration du chemin d'inclusion
+set_include_path(dirname($_SERVER['SCRIPT_FILENAME']) . '/../lib' . PATH_SEPARATOR . get_include_path());
 
 // chronométrage du temps d'exécution
 require_once('finebase/FineTimer.php');
@@ -23,37 +21,27 @@ $timer = new FineTimer();
 $timer->start();
 
 // chargement des objets basiques
-require_once("finebase/FineLog.php");
-require_once("Temma/Framework.php");
-
+require_once('finebase/FineLog.php');
+require_once('finebase/FineAutoload.php');
 // configuration de l'autoloader
-spl_autoload_register(function($name) {
-	// transformation du namespace en chemin
-	$name = trim($name, '\\');
-	$name = str_replace('\\', DIRECTORY_SEPARATOR, $name);
-	$name = str_replace('_', DIRECTORY_SEPARATOR, $name);
-	// désactivation des logs de warning, pour gérer les objets introuvables
-	$errorReporting = error_reporting();
-	error_reporting($errorReporting & ~E_WARNING);
-	if (!include("$name.php"))
-		\FineLog::log("temma", \FineLog::DEBUG, "Unable to load object '$name'.");
-	// remise en place de l'ancien niveau de rapport d'erreurs
-	error_reporting($errorReporting);
-}, true, true);
+FineAutoload::autoload();
 
 // exécution du framework
+require_once('Temma/Framework.php');
+FineLog::log('temma', FineLog::DEBUG, "Processing URL '" . $_SERVER['REQUEST_URI'] . "'.");
 try {
-	$application = new \Temma\Framework($timer);
-	$application->process();
+	$temma = new \Temma\Framework($timer);
+	$temma->init();
+	$temma->process();
 } catch (Exception $e) {
 	// gestion d'erreur
-	FineLog::log("temma", FineLog::CRIT, "Critical error: '" . $e->getMessage() . "'");
+	FineLog::log('temma', FineLog::CRIT, "Critical error: '" . $e->getMessage() . "'.");
 	$errorCode = 404;
 	$errorPage = '';
 	if (is_a($e, '\Temma\Exceptions\HttpException'))
 		$errorCode = $e->getCode();
-	if (isset($application))
-		$errorPage = $application->getErrorPage($errorCode);
+	if (isset($temma))
+		$errorPage = $temma->getErrorPage($errorCode);
 	$errorStrings = array(
 		400	=> 'Bad Request',
 		401	=> 'Unauthorized',

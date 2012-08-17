@@ -8,14 +8,26 @@ namespace Temma;
  * @auhor	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2007-2011, Fine Media
  * @package	Temma
- * @version	$Id: View.php 232 2011-06-23 10:27:59Z abouchard $
+ * @version	$Id: View.php 277 2012-06-26 15:55:46Z abouchard $
  */
 abstract class View {
+	/** Liste de connexion à des sources de données. */
+	protected $_dataSources = null;
+	/** Configuration de l'application. */
+	protected $_config = null;
+	/** Connexion à la session. */
+	protected $_session = null;
+
 	/**
 	 * Constructeur.
-	 * @param	\Temma\Config	$config	Objet contenant la configuration du projet.
+	 * @param	array		$dataSources	Liste de connexions à des sources de données.
+	 * @param	\Temma\Config	$config		Objet contenant la configuration du projet.
+	 * @param	\FineSession	$session	(optionnel) Objet de connexion à la session.
 	 */
-	public function __construct(\Temma\Config $config) {
+	public function __construct($dataSources, \Temma\Config $config, \FineSession $session=null) {
+		$this->_dataSources = $dataSources;
+		$this->_config = $config;
+		$this->_session = $session;
 	}
 	/** Destructeur. */
 	public function __destruct() {

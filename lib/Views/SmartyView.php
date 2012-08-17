@@ -8,10 +8,10 @@ require_once('smarty/libs/Smarty.class.php');
  * Vue traitant les templates Smarty.
  *
  * @author	Amaury Bouchard <amaury.bouchard@finemedia.fr>
- * @copyright	© 2007-2011, Fine Media
+ * @copyright	© 2007-2012, Fine Media
  * @package	Temma
  * @subpackage	Views
- * @version	$Id: SmartyView.php 259 2012-03-07 10:25:46Z abouchard $
+ * @version	$Id: SmartyView.php 277 2012-06-26 15:55:46Z abouchard $
  * @link	http://smarty.php.net/
  */
 class SmartyView extends \Temma\View {
@@ -30,10 +30,12 @@ class SmartyView extends \Temma\View {
 
 	/**
 	 * Constructeur.
-	 * @param	\Temma\Config	$config	Objet de configuration.
+	 * @param	array		$dataSources	Liste de connexions à des sources de données.
+	 * @param	\Temma\Config	$config		Objet de configuration.
+	 * @param	\FineSession	$session	(optionnel) Objet de connexion à la session.
 	 */
-	public function __construct(\Temma\Config $config) {
-		parent::__construct($config);
+	public function __construct($dataSources, \Temma\Config $config, \FineSession $session=null) {
+		parent::__construct($dataSources, $config, $session);
 		// vérification de la présence des répertoires temporaires
 		$compiledDir = $config->tmpPath . '/' . self::COMPILED_DIR;
 		if (!is_dir($compiledDir) && !mkdir($compiledDir, 0755))
@@ -59,7 +61,7 @@ class SmartyView extends \Temma\View {
 	 * Indique si cette vue utilise des templates ou non.
 	 * Les vues qui n'ont pas besoin de template n'ont pas besoin de redéfinir cette méthode.
 	 * @return	bool	True si cette vue utilise des templates.
-	*/
+	 */
 	public function useTemplates() {
 		return (true);
 	}
@@ -94,18 +96,18 @@ class SmartyView extends \Temma\View {
 	}
 	/** Ecrit le corps du document sur la sortie standard. */
 	public function sendBody() {
-		if ($this->_isCacheable) {
-			$finecache = \FineCache::singleton();
+		if ($this->_isCacheable && ($dataSource = $this->_config->xtra('temma-cache', 'source')) &&
+		    isset($this->_dataSources[$dataSource]) && ($cache = $this->_dataSources[$dataSource])) {
 			// rendu du template par Smarty
 			$data = $this->_smarty->fetch($this->_template);
 			if (!empty($data)) {
 				// ajout du contenu de la page en cache
 				$cacheVarName = $_SERVER['HTTP_HOST'] . ':' . $_SERVER['REQUEST_URI'];
-				$finecache->setPrefix('temma-cache')->set($cacheVarName, $data)->setPrefix();
-				// écriture du contenu de la page
-				print($data);
-				return;
+				$cache->setPrefix('temma-cache')->set($cacheVarName, $data)->setPrefix();
 			}
+			// écriture du contenu de la page
+			print($data);
+			return;
 		}
 		$this->_smarty->display($this->_template);
 	}

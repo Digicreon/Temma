@@ -6,7 +6,7 @@ namespace Temma\Views;
  * Vue traitant les templates écrits en PHP.
  *
  * @author	Amaury Bouchard <amaury.bouchard@finemedia.fr>
- * @copyright	© 2011, Fine Media
+ * @copyright	© 2012, Fine Media
  * @package	Temma
  * @subpackage	Views
  * @version	$Id: SmartyView.php -1   $
@@ -65,11 +65,11 @@ class PhpView extends \Temma\View {
 		ob_end_clean();
 		ini_set('implicit_flush', true);
 		// gestion du cache
-		if (!empty($out) && $this->_isCacheable) {
-			$finecache = \FineCache::singleton();
+		if ($this->_isCacheable && !empty($out) && ($dataSource = $this->_config->xtra('temma-cache', 'source')) &&
+		    isset($this->_dataSources[$dataSource]) && ($cache = $this->_dataSources[$dataSource])) {
 			// ajout du contenu de la page en cache
 			$cacheVarName = $_SERVER['HTTP_HOST'] . ':' . $_SERVER['REQUEST_URI'];
-			$finecache->setPrefix('temma-cache')->set($cacheVarName, $out)->setPrefix();
+			$cache->setPrefix('temma-cache')->set($cacheVarName, $out)->setPrefix();
 		}
 		print($out);
 	}

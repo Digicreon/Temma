@@ -163,12 +163,17 @@ class Dao {
 	}
 	/**
 	 * Insère un élément dans la table.
-	 * @param	array	$data	Hash contenant les informations champ => valeur à insérer.
+	 * @param	array		$data		Hash contenant les informations champ => valeur à insérer.
+	 * @param	array|bool	$safeData	(optionnel) Données à utiliser pour gérer le safe-mode. Null par défaut.
+	 * 						Le safe-mode permet de ne pas bloquer sur une insertion qui génère une duplication de clé.
+	 *						Ce paramètre peut contenir un tableau listant les champs à mettre à jour en cas de
+	 *						duplication, ou un booléen valant TRUE pour mettre tous les champs à jour, ou toute autre
+	 *						valeur nulle pour que l'insertion ne bloque pas et ne fasse pas de mise à jour.
 	 * @return	int	La clé primaire de l'élément créé.
 	 * @throws	\Temma\Exceptions\DaoException	Si les données reçues sont mal formées.
 	 * @throws	DatabaseException		Si l'insertion s'est mal déroulée.
 	 */
-	public function create($data) {
+	public function create($data, $safeData=null) {
 		// effacement du cache pour cette DAO
 		$this->_flushCache();
 		// constitution et exécution de la requête
@@ -176,12 +181,37 @@ class Dao {
 			' SET ';
 		$set = array();
 		foreach ($data as $key => $value) {
-			if (!is_string($value) && !is_numeric($value) && !is_bool($value))
-				throw new \Temma\Exceptions\DaoException("Bad field value for key '$key'.", \Temma\Exceptions\DaoException::FIELD);
-			$key = (($field = array_search($key, $this->_fields)) === false || is_int($field)) ? $key : $field;
-			$set[] = "$key = '" . $this->_db->quote($value) . "'";
+			if (is_null($value))
+				$set[] = "$key = NULL";
+			else {
+				if (!is_string($value) && !is_numeric($value) && !is_bool($value))
+					throw new \Temma\Exceptions\DaoException("Bad field value for key '$key'.", \Temma\Exceptions\DaoException::FIELD);
+				$key = (($field = array_search($key, $this->_fields)) === false || is_int($field)) ? $key : $field;
+				$set[] = "$key = '" . $this->_db->quote($value) . "'";
+			}
 		}
-		$sql .= implode(', ', $set);
+		$dataSet = implode(', ', $set);
+		$sql .= $dataSet;
+		// gestion de la duplication d'index
+		if (!is_null($safeData)) {
+			$sql .= ' ON DUPLICATE KEY UPDATE ';
+			if ($safeData === true)
+				$sql .= $dataSet;
+			else if (is_string($safeData))
+				$sql .= "$key = '" . $this->_db->quote($data[$key]) . "'";
+			else if (is_array($safeData)) {
+				$set = array();
+				foreach ($safeData as $key) {
+					if (!isset($data[$key]))
+						continue;
+					$value = $data[$key];
+					$key = (($field = array_search($key, $this->_fields)) === false || is_int($field)) ? $key : $field;
+					$set[] = "$key = '" . $this->_db->quote($value) . "'";
+				}
+				$sql .= implode(', ', $set);
+			} else
+				$sql .= $this->_idField . ' = ' . $this->_idField;
+		}
 		$this->_db->exec($sql);
 		return ($this->_db->lastInsertId());
 	}

@@ -8,7 +8,7 @@ namespace Temma;
  * @author	Amaury Bouchard <amaury.bouchard@finemedia.fr>
  * @copyright	© 2007-2011, Fine Media
  * @package	Temma
- * @version	$Id: Response.php 212 2011-05-17 09:57:39Z abouchard $
+ * @version	$Id: Response.php 267 2012-04-19 10:20:46Z abouchard $
  */
 class Response {
 	/** Adresse de redirection. */
@@ -19,6 +19,8 @@ class Response {
 	private $_httpError = null;
 	/** Nom de la vue à utiliser pour traiter la réponse. */
 	private $_view = null;
+	/** Préfixe à ajouter au début du chemin de template. */
+	private $_templatePrefix = null;
 	/** Nom du template à utiliser pour traiter la réponse. */
 	private $_template = null;
 	/** Données qui seront interprétées par la vue à travers le template. */
@@ -58,6 +60,13 @@ class Response {
 	 */
 	public function setView($view) {
 		$this->_view = $view;
+	}
+	/**
+	 * Mpodifie le préfixe de template.
+	 * @param	string	$prefix	Le préfixe de template.
+	 */
+	public function setTemplatePrefix($prefix) {
+		$this->_templatePrefix = $prefix;
 	}
 	/**
 	 * Modifie le nom du template.
@@ -103,6 +112,13 @@ class Response {
 	 */
 	public function getView() {
 		return ($this->_view);
+	}
+	/**
+	 * Retourne le préfixe de template.
+	 * @return	string	Le préfixe de template.
+	 */
+	public function getTemplatePrefix() {
+		return ($this->_templatePrefix);
 	}
 	/**
 	 * Retourne le nom du template.

@@ -3,9 +3,8 @@
 namespace Temma;
 
 require_once('finebase/FineLog.php');
-require_once('finebase/FineDatabase.php');
+require_once('finebase/FineDatasource.php');
 require_once('finebase/FineSession.php');
-require_once('finebase/FineCache.php');
 require_once('Temma/Config.php');
 require_once('Temma/Request.php');
 require_once('Temma/Controller.php');
@@ -85,21 +84,37 @@ require_once('Temma/Response.php');
  * {
  *     // variables de définition générale de l'application
  *     application: {
+ *	 // Indique qu'on souhaite utiliser une base de données.
+ *	 // Optionnel : True si le paramètre "dsn" est rempli.
+ *	 enableDatabase: true,
+ *
  *	 // DSN de connexion à la base de données (cf. objet FineDatabase).
- *	 // Optionnel mais recommandé : existe-t-il des applications Web sans base de données ?
+ *	 // Optionnel : Cette information peut être définie en variable d'environnement (TEMMA_DSN).
  *	 dsn: "mysqli://user:passwd@localhost/toto",
  *
  *	 // Nom du cookie de session.
  *	 // Optionnel : "TemmaSession" par défaut.
  *	 sessionName: "TemmaSession",
  *
- *	 // Indique qu'on souhaite ne pas charger de sessions.
- *	 // Optionnel : À utiliser en étant certain de vouloir faire cela.
- *	 disableSessions: true,
+ *	 // Indique qu'on souhaite utiliser de sessions.
+ *	 // Optionnel : True par défaut.
+ *	 enableSessions: true,
  *
- *	 // Indique qu'on souhaite ne pas se connecter au cache.
- *	 // Optionnel : À utiliser en étant certain de vouloir faire cela.
- *	 disableCache: true,
+ *	 // Indique qu'on souhaite utiliser une base de données non relationnelle.
+ *	 // Optionnel : True si le paramètre "ndbDsn" est rempli.
+ *	 enableNDB: true,
+ *
+ *	 // Informations de connexion au serveur de base de données non relationnelle.
+ *	 // Optionnel : Cette information peut être définie en variable d'environnement (TEMMA_NDB_DSN).
+ *	 ndbDsn: "redis://localhost/0",
+ *
+ *	 // Indique qu'on souhaite utiliser au cache.
+ *	 // Optionnel : True si le paramètre "cacheDsn" est rempli.
+ *	 enableCache: true,
+ *
+ *	 // Informations de connexion au serveur de cache.
+ *	 // Optionnel : Cette information peut être définie en variable d'environnement (TEMMA_CACHE_DSN).
+ *	 cacheDsn: "192.168.0.1:11211;192.168.0.2:11211",
  *
  *	 // Nom du contrôleur par défaut à utiliser pour la racine du site.
  *	 // Optionnel. S'il n'est pas défini, le defaultController est utilisé.
@@ -112,6 +127,10 @@ require_once('Temma/Response.php');
  *	 // Nom du contrôleur à appeler systématiquement, même si celui demandé existe.
  *	 // Optionnel.
  *	 proxyController: "MainController",
+ *
+ *	 // Nom de la vue par défaut.
+ *	 // Optionnel : TemmaSmartyView par défaut.
+ *	 defaultView: "TemmaSmartyView"
  *     },
  *     // Définition des seuils de log à utiliser en fonction des classes
  *     // de log correspondantes (cf. objet FineLog).
@@ -205,37 +224,15 @@ require_once('Temma/Response.php');
  * @author	Amaury Bouchard <amaury.bouchard@finemedia.fr>
  * @copyright	© 2007-2010, Fine Media
  * @package	Temma
- * @version	$Id: Framework.php 258 2012-01-05 15:19:54Z abouchard $
+ * @version	$Id: Framework.php 278 2012-07-04 12:21:30Z abouchard $
  * @see		\Temma\Controller
  * @see		\Temma\View
  */
 class Framework {
+	/** Nom de l'objet local pouvant contenir la configuration de l'application. */
+	const CONFIG_OBJECT_FILE_NAME = '_TemmaConfig.php';
 	/** Nom du fichier local de configuration de l'application. */
 	const CONFIG_FILE_NAME = 'temma.json';
-	/** Nom du cookie stockant l'identifiant de session. */
-	const SESSION_NAME = 'TemmaSession';
-	/** Niveau de log par défaut. */
-	const LOG_LEVEL = 'WARN';
-	/** Nom du répertoire contenant les fichiers de configuration. */
-	const ETC_DIR = 'etc';
-	/** Nom par défaut du répertoire contenant les fichiers de log. */
-	const LOG_DIR = 'log';
-	/** Nom du fichier de log par défaut. */
-	const LOG_FILE = 'temma.log';
-	/** Nom par défaut du répertoire contenant les fichiers à inclure. */
-	const INCLUDES_DIR = 'lib';
-	/** Nom par défaut du répertoire contenant les contrôleurs. */
-	const CONTROLLERS_DIR = 'controllers';
-	/** Nom par défaut du répertoire contenant les vues. */
-	const VIEWS_DIR = 'views';
-	/** Nom par défaut du répertoire contenant les templates. */
-	const TEMPLATES_DIR = 'templates';
-	/** Nom par défaut du répertoire temporaire. */
-	const TEMP_DIR = 'tmp';
-	/** Nom par défaut du répertoire web. */
-	const WEB_DIR = 'www';
-	/** Nom du contrôleur par défaut. */
-	const DEFAULT_CONTROLLER = '\Temma\Controller';
 	/** Nom de l'action par défaut. */
 	const DEFAULT_ACTION = 'index';
 	/** Nom de l'action de proxy. */
@@ -246,8 +243,6 @@ class Framework {
 	const DEFAULT_VIEW = '\Temma\Views\SmartyView';
 	/** Extension par défaut des fichiers de template. */
 	const TEMPLATE_EXTENSION = '.tpl';
-	/** Préfix des configurations étendues. */
-	const XTRA_CONFIG_PREFIX = 'x-';
 	/** Nombre de récursions maximum pour la recherche de route. */
 	const ROUTE_MAX_DEPTH = 4;
 	/** Suffixe des noms de fichier des contrôleurs. */
@@ -260,22 +255,12 @@ class Framework {
 	private $_timer = null;
 	/** Configuration de l'application. */
 	private $_config = null;
-	/** Objet de connexion à la base de données. */
-	private $_db = null;
+	/** Liste des connexions à des sources de données. */
+	private $_dataSources = null;
 	/** Objet de gestion de la session. */
 	private $_session = null;
-	/** Objet de gestion du cache. */
-	private $_cache = null;
 	/** Objet de requête. */
 	private $_request = null;
-	/** Table de routage. */
-	private $_routes = null;
-	/** Configuration des plugins. */
-	private $_plugins = null;
-	/** Liste des fichiers à pré-charger. */
-	private $_preloadFiles = null;
-	/** Liste des URLs des pages d'erreur. */
-	private $_errorPages = null;
 	/** Objet contrôleur "neutre". */
 	private $_executorController = null;
 	/** Nom du contrôleur demandé initialement. */
@@ -303,33 +288,59 @@ class Framework {
 		$this->_timer = $timer;
 		$this->_controllers = array();
 		$this->_views = array();
-		// chargement de la configuration, initialisation du système de log
-		$this->_loadConfig();
-		// préchargement de fichiers
-		foreach ($this->_preloadFiles as $preloadFile)
-			require_once($preloadFile);
-		// connexion à la base de données
-		if (strlen($this->_config->dsn) > 0)
-			$this->_db = \FineDatabase::factory($this->_config->dsn);
-		// connexion au cache
-		if (!$this->_config->disableCache)
-			$this->_cache = \FineCache::singleton();
-		// récupération de la session
-		if (!$this->_config->disableSessions)
-			$this->_session = \FineSession::singleton($this->_cache, $this->_config->sessionName);
 	}
 	/** Destructeur. */
 	public function __destruct() {
 	}
-	/** Lance l'exécution du contrôleur. */
-	public function process() {
+	/** Initialisation du framework : lecture de la configuration, connexion aux sources de données, création de la session. */
+	public function init() {
+		// chargement de la configuration, initialisation du système de log
+		$this->_loadConfig();
+		// connexions aux sources de données
+		if (isset($this->_executorController))
+			$this->_dataSources = $this->_executorController->getDataSources();
+		else {
+			$this->_dataSources = array();
+			$foundDb = $foundCache = false;
+			foreach ($this->_config->dataSources as $name => $dsn)
+				$this->_dataSources[$name] = \FineDatasource::factory($dsn);
+		}
+		// récupération de la session
+		if ($this->_config->enableSessions) {
+			$sessionSource = (isset($this->_config->sessionSource) && isset($this->_dataSources[$this->_config->sessionSource])) ?
+					 $this->_dataSources[$this->_config->sessionSource] : null;
+			$this->_session = \FineSession::factory($sessionSource, $this->_config->sessionName);
+		}
+	}
+	/**
+	 * En cas de configuration automatique, cette méthode permet de définir l'objet de configuration à utiliser.
+	 * @param	\Temma\Config	$config	L'objet de configuration à utiliser.
+	 * @see		temma/bin/configObjectGenerator.php
+	 */
+	public function setConfig(\Temma\Config $config) {
+		$this->_config = $config;
+	}
+	/**
+	 * Lance l'exécution du contrôleur.
+	 * @param	\Temma\Request		$request	(optionnel) Requête à utiliser pour l'exécution. Crée automatiquement une
+	 *							requête à partir de l'URL courante si ce paramètre n'est pas fourni.
+	 * @param	\Temma\Controller	$controller	(optionnel) Contrôleur principal à utiliser pour l'exécution. Ce paramètre
+	 *							est à utiliser pour réutiliser les variables définies dans un contrôleur existant.
+	 */
+	public function process(\Temma\Request $request=null, \Temma\Controller $controller=null) {
 		/* *************** INITIALISATIONS ********** */
 		// extraction des paramètres de la requête
-		$this->_request = new \Temma\Request();
-		// création du contrôleur exécuteur
-		$this->_executorController = new \Temma\Controller($this->_db, $this->_session, $this->_cache, $this->_config, $this->_request);
+		$this->_request = isset($request) ? $request : new \Temma\Request();
+		// récupération ou création du contrôleur exécuteur
+		if (isset($controller))
+			$this->_executorController = $controller;
+		if (isset($this->_executorController)) {
+			$this->_executorController->setSession($this->_session);
+			$this->_executorController->setRequest($this->_request);
+		} else
+			$this->_executorController = new \Temma\Controller($this->_dataSources, $this->_session, $this->_config, $this->_request);
 		// initialisation des variables
-		$this->_executorController->set('URL', $_SERVER['REQUEST_URI']);
+		$this->_executorController->set('URL', $this->_request->getPathInfo());
 		$this->_executorController->set('CONTROLLER', $this->_request->getController());
 		$this->_executorController->set('ACTION', $this->_request->getAction());
 		// import des variables "autoimport" définies dans le fichier de configuration
@@ -437,10 +448,11 @@ class Framework {
 	 * @return	string	Le chemin complet vers la page, ou NULL s'il n'est pas défini.
 	 */
 	public function getErrorPage($code) {
-		if (isset($this->_errorPages[$code]) && !empty($this->_errorPages[$code]))
-			return ($this->_config->appPath . '/' . self::WEB_DIR . '/' . $this->_errorPages[$code]);
-		if (isset($this->_errorPages['default']) && !empty($this->_errorPages['default']))
-			return ($this->_config->appPath . '/' . self::WEB_DIR . '/' . $this->_errorPages['default']);
+		$errorPages = $this->_config->errorPages;
+		if (isset($errorPages[$code]) && !empty($errorPages[$code]))
+			return ($this->_config->webPath . '/' . $errorPages[$code]);
+		if (isset($errorPages['default']) && !empty($errorPages['default']))
+			return ($this->_config->webPath . '/' . $errorPages['default']);
 		return (null);
 	}
 
@@ -454,111 +466,22 @@ class Framework {
 		$appPath = realpath(dirname($_SERVER['SCRIPT_FILENAME']) . '/..');
 		if (empty($appPath) || !is_dir($appPath))
 			throw new \Temma\Exceptions\FrameworkException("Unable to find application's root path.", \Temma\Exceptions\FrameworkException::CONFIG);
-		$etcPath = $appPath . '/' . self::ETC_DIR;
+		$etcPath = $appPath . '/' . \Temma\Config::ETC_DIR;
+		// on cherche un fichier contenant le code de configuration
+		$configObject = $etcPath . '/' . self::CONFIG_OBJECT_FILE_NAME;
+		if (is_readable($configObject)) {
+			// charge l'objet - appelle automatiquement $temma->setConfig()
+			include($configObject);
+			$this->_config = new \_TemmaAutoConfig($this, $appPath, $etcPath);
+			$this->_executorController = $this->_config->executorController;
+			return;
+		}
 		// lecture du fichier de configuration
-		$configFileName = self::CONFIG_FILE_NAME;
-		$configFile = $etcPath . '/' . $configFileName;
+		$configFile = $etcPath . '/' . self::CONFIG_FILE_NAME;
 		if (!is_readable($configFile))
 			throw new \Temma\Exceptions\FrameworkException("Unable to read configuration file '$configFile'.", \Temma\Exceptions\FrameworkException::CONFIG);
-		$ini = json_decode(file_get_contents($configFile), true);
-		if (is_null($ini))
-			throw new \Temma\Exceptions\FrameworkException("No config file.", \Temma\Exceptions\FrameworkException::CONFIG);
-
-		// définition du fichier de log
-		$logPath = $appPath . '/' . self::LOG_DIR;
-		$logFile = self::LOG_FILE;
-		\FineLog::setLogFile($logPath . '/' . $logFile);
-		// vérification des seuils de log
-		if (isset($ini['loglevels']) && is_array($ini['loglevels'])) {
-			$loglevels = array();
-			foreach ($ini['loglevels'] as $class => $level) {
-				$threshold = eval("return (FineLog::$level);");
-				$loglevels[$class] = $threshold;
-			}
-			\FineLog::setThreshold($loglevels);
-		}
-
-		// récupération des pages d'erreur
-		$this->_errorPages = (isset($ini['errorPages']) && is_array($ini['errorPages'])) ? $ini['errorPages'] : array();
-
-		// vérification du besoin de charger les session
-		$disableSessions = false;
-		if (isset($ini['application']['disableSessions']) && $ini['application']['disableSessions'] === true)
-			$disableSessions = true;
-		// vérification du besoin de se connecter au cache
-		$disableCache = false;
-		if (isset($ini['application']['disableCache']) && $ini['application']['disableCache'] === true)
-			$disableCache = true;
-		// vérification du nom d'identifiant de session
-		if (!isset($ini['application']['sessionName']) || empty($ini['application']['sessionName']))
-			$ini['application']['sessionName'] = self::SESSION_NAME;
-
-		// ajout des chemins d'inclusion supplémentaire
-		$pathsToInclude = array();
-		// chemin des bibliothèques du projet
-		$includesPath = $appPath . '/' . self::INCLUDES_DIR;
-		if (is_dir($includesPath))
-			$pathsToInclude[] = $includesPath;
-		else
-			$includesPath = null;
-		// chemin des contrôleurs
-		$controllersPath = $appPath . '/' . self::CONTROLLERS_DIR;
-		if (is_dir($controllersPath))
-			$pathsToInclude[] = $controllersPath;
-		else
-			$controllersPath = null;
-		// chemin des vues
-		$viewsPath = $appPath . '/' . self::VIEWS_DIR;
-		if (is_dir($viewsPath))
-			$pathsToInclude[] = $viewsPath;
-		else
-			$viewsPath = null;
-		// chemins définis dans la configuration
-		if (isset($ini['includePaths']) && is_array($ini['includePaths']))
-			$pathsToInclude = array_merge($pathsToInclude, $ini['includePaths']);
-		// ajout des chemins d'inclusion supplémentaires
-		if (!empty($pathsToInclude))
-			set_include_path(get_include_path() . PATH_SEPARATOR . implode(PATH_SEPARATOR, $pathsToInclude));
-
-		// vérification du contrôleur par défaut
-		if (!isset($ini['application']['defaultController']) || empty($ini['application']['defaultController']))
-			$ini['application']['defaultController'] = self::DEFAULT_CONTROLLER;
-
-		// vérification des routes
-		if (isset($ini['routes']) && is_array($ini['routes']))
-			$this->_routes = $ini['routes'];
-
-		// vérification des déclarations de plugins
-		$this->_plugins = (isset($ini['plugins']) && is_array($ini['plugins'])) ? $ini['plugins'] : array();
-
-		// liste des fichiers à précharger
-		$this->_preloadFiles = (isset($ini['preload']) && is_array($ini['preload'])) ? $ini['preload'] : array();
-
-		// récupération de la configuration étendue
-		$extraConfig = array();
-		foreach ($ini as $key => $value) {
-			if (substr($key, 0, strlen(self::XTRA_CONFIG_PREFIX)) == self::XTRA_CONFIG_PREFIX)
-				$extraConfig[$key] = $value;
-		}
-
-		// création de l'objet de config
-		$this->_config = new \Temma\Config($disableSessions,
-						   $disableCache,
-						   (isset($ini['application']['sessionName']) ? $ini['application']['sessionName'] : null),
-						   (isset($ini['application']['dsn']) ? $ini['application']['dsn'] : null),
-						   $appPath,
-						   $etcPath,
-						   $logPath,
-						   $appPath . '/' . self::TEMP_DIR,
-						   $includesPath,
-						   $controllersPath,
-						   $viewsPath,
-						   $appPath . '/' . self::TEMPLATES_DIR,
-						   (isset($ini['application']['rootController']) ? $ini['application']['rootController'] : null),
-						   (isset($ini['application']['defaultController']) ? $ini['application']['defaultController'] : null),
-						   (isset($ini['application']['proxyController']) ? $ini['application']['proxyController'] : null),
-						   (isset($ini['autoimport']) ? $ini['autoimport'] : null),
-						   $extraConfig);
+		$this->_config = new \Temma\Config($appPath, $etcPath);
+		$this->_config->readConfigurationFile($configFile);
 	}
 
 	/* ********************* CHARGEMENT DES CONTROLEURS/PLUGINS ********************* */
@@ -576,12 +499,13 @@ class Framework {
 			if ($this->_controllerName != lcfirst($this->_controllerName))
 				throw new \Temma\Exceptions\HttpException("Bad name for controller '" . $this->_controllerName . "'.", 404);
 			// on regarde si le contrôleur demandé est en fait un contrôleur virtuel
+			$routes = $this->_config->routes;
 			for ($nbrLoops = 0, $routeName = $this->_controllerName, $routed = false;
-			     $nbrLoops < self::ROUTE_MAX_DEPTH && is_array($this->_routes) && array_key_exists($routeName, $this->_routes);
+			     $nbrLoops < self::ROUTE_MAX_DEPTH && is_array($routes) && array_key_exists($routeName, $routes);
 			     $nbrLoops++) {
-				$realName = $this->_routes[$routeName];
+				$realName = $routes[$routeName];
 				\FineLog::log('temma', \FineLog::INFO, "Routing '$routeName' to '$realName'.");
-				unset($this->_routes[$routeName]);
+				unset($routes[$routeName]);
 				$routeName = $realName;
 				$routed = true;
 			}
@@ -609,15 +533,16 @@ class Framework {
 	 * @return	array	Liste de noms.
 	 */
 	private function _generatePrePluginsList() {
-		$prePlugins = isset($this->_plugins['_pre']) ? $this->_plugins['_pre'] : array();
-		if (isset($this->_plugins[$this->_objectControllerName]['_pre']))
-			$prePlugins = array_merge($prePlugins, $this->_plugins[$this->_objectControllerName]['_pre']);
-		if (isset($this->_plugins[$this->_objectControllerName][$this->_actionName]['_pre']))
-			$prePlugins = array_merge($prePlugins, $this->_plugins[$this->_objectControllerName][$this->_actionName]['_pre']);
-		if (isset($this->_plugins[$this->_controllerName]['_pre']))
-			$prePlugins = array_merge($prePlugins, $this->_plugins[$this->_controllerName]['_pre']);
-		if (isset($this->_plugins[$this->_controllerName][$this->_actionName]['_pre']))
-			$prePlugins = array_merge($prePlugins, $this->_plugins[$this->_controllerName][$this->_actionName]['_pre']);
+		$plugins = $this->_config->plugins;
+		$prePlugins = isset($plugins['_pre']) ? $plugins['_pre'] : array();
+		if (isset($plugins[$this->_objectControllerName]['_pre']))
+			$prePlugins = array_merge($prePlugins, $plugins[$this->_objectControllerName]['_pre']);
+		if (isset($plugins[$this->_objectControllerName][$this->_actionName]['_pre']))
+			$prePlugins = array_merge($prePlugins, $plugins[$this->_objectControllerName][$this->_actionName]['_pre']);
+		if (isset($plugins[$this->_controllerName]['_pre']))
+			$prePlugins = array_merge($prePlugins, $plugins[$this->_controllerName]['_pre']);
+		if (isset($plugins[$this->_controllerName][$this->_actionName]['_pre']))
+			$prePlugins = array_merge($prePlugins, $plugins[$this->_controllerName][$this->_actionName]['_pre']);
 		\FineLog::log('temma', \FineLog::DEBUG, "Pre plugins: " . print_r($prePlugins, true));
 		return ($prePlugins);
 	}
@@ -626,15 +551,16 @@ class Framework {
 	 * @return	array	Liste de noms.
 	 */
 	private function _generatePostPluginsList() {
-		$postPlugins = isset($this->_plugins['_post']) ? $this->_plugins['_post'] : array();
-		if (isset($this->_plugins[$this->_objectControllerName]['_post']))
-			$postPlugins = array_merge($postPlugins, $this->_plugins[$this->_objectControllerName]['_post']);
-		if (isset($this->_plugins[$this->_objectControllerName][$this->_actionName]['_post']))
-			$postPlugins = array_merge($postPlugins, $this->_plugins[$this->_objectControllerName][$this->_actionName]['_post']);
-		if (isset($this->_plugins[$this->_controllerName]['_post']))
-			$postPlugins = array_merge($postPlugins, $this->_plugins[$this->_controllerName]['_post']);
-		if (isset($this->_plugins[$this->_controllerName][$this->_actionName]['_post']))
-			$postPlugins = array_merge($postPlugins, $this->_plugins[$this->_controllerName][$this->_actionName]['_post']);
+		$plugins = $this->_config->plugins;
+		$postPlugins = isset($plugins['_post']) ? $plugins['_post'] : array();
+		if (isset($plugins[$this->_objectControllerName]['_post']))
+			$postPlugins = array_merge($postPlugins, $plugins[$this->_objectControllerName]['_post']);
+		if (isset($plugins[$this->_objectControllerName][$this->_actionName]['_post']))
+			$postPlugins = array_merge($postPlugins, $plugins[$this->_objectControllerName][$this->_actionName]['_post']);
+		if (isset($plugins[$this->_controllerName]['_post']))
+			$postPlugins = array_merge($postPlugins, $plugins[$this->_controllerName]['_post']);
+		if (isset($plugins[$this->_controllerName][$this->_actionName]['_post']))
+			$postPlugins = array_merge($postPlugins, $plugins[$this->_controllerName][$this->_actionName]['_post']);
 		\FineLog::log('temma', \FineLog::DEBUG, "Post plugins: " . print_r($postPlugins, true));
 		return ($postPlugins);
 	}
@@ -650,7 +576,7 @@ class Framework {
 		try {
 			// vérification de l'existence du plugin
 			if (class_exists($pluginName) && is_subclass_of($pluginName, '\Temma\Controller')) {
-				$plugin = new $pluginName($this->_db, $this->_session, $this->_cache, $this->_config, $this->_request, $this->_executorController);
+				$plugin = new $pluginName($this->_dataSources, $this->_session, $this->_config, $this->_request, $this->_executorController);
 				$methodName = method_exists($plugin, $methodName) ? $methodName : 'plugin';
 				return ($plugin->$methodName());
 			}
@@ -729,7 +655,7 @@ class Framework {
 		}
 		// chargement de la vue
 		if (class_exists($name) && is_subclass_of($name, '\Temma\View'))
-			return (new $name($this->_config));
+			return (new $name($this->_dataSources, $this->_config, $this->_session));
 		\FineLog::log('temma', \FineLog::ERROR, "Unable to instantiate view '$name'.");
 		throw new \Temma\Exceptions\FrameworkException("Unable to load any view.", \Temma\Exceptions\FrameworkException::NO_VIEW);
 	}
@@ -747,10 +673,11 @@ class Framework {
 				$action = $this->_actionName ? $this->_actionName : self::PROXY_ACTION;
 				$template = $controller . '/' . $action . self::TEMPLATE_EXTENSION;
 			}
+			$templatePrefix = trim($response->getTemplatePrefix(), '/');
+			if (!empty($templatePrefix))
+				$template = $templatePrefix . '/' . $template;
 			\FineLog::log('temma', \FineLog::DEBUG, "Initializing view '" . get_class($view) . "' with template '$template'.");
-			$templatesPath = $this->_config->appPath . '/' . self::TEMPLATES_DIR;
-			$isSet = $view->setTemplate($templatesPath, $template);
-			if (!$isSet) {
+			if (!$view->setTemplate($this->_config->templatesPath, $template)) {
 				\FineLog::log('temma', \FineLog::ERROR, "No usable template.");
 				throw new \Temma\Exceptions\FrameworkException("No usable template.", \Temma\Exceptions\FrameworkException::NO_TEMPLATE);
 			}

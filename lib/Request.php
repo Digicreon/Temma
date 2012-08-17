@@ -8,9 +8,11 @@ namespace Temma;
  * @author	Amaury Bouchard <amaury.bouchard@finemedia.fr>
  * @copyright	© 2007-2011, Fine Media
  * @package	Temma
- * @version	$Id: Request.php 254 2011-07-28 11:05:55Z abouchard $
+ * @version	$Id: Request.php 277 2012-06-26 15:55:46Z abouchard $
  */
 class Request {
+	/** Information de pathInfo. */
+	private $_pathInfo = null;
 	/** Nom du contrôleur demandé. */
 	private $_controller = null;
 	/** Nom de l'action demandée. */
@@ -24,42 +26,53 @@ class Request {
 	/** Données XML reçues. */
 	private $_xml = null;
 
-	/** Constructeur. */
-	public function __construct() {
+	/**
+	 * Constructeur.
+	 * @param	string	$setUri	(optionnel) Chemin à utiliser pour déterminer l'exécution demandée,
+	 *				sans passer par l'analyse de l'URL courante.
+	 */
+	public function __construct($setUri=null) {
 		\FineLog::log('temma', \FineLog::DEBUG, "Request creation.");
-		// extraction des informations de la requête
-		// récupération du chemin d'exécution du script
-		$rootPath = $_SERVER['SCRIPT_FILENAME'];
-		if (substr($rootPath, -10) == '/index.php')
-			$rootPath = substr($rootPath, 0, -10);
-		// extraction du chemin par rapport à la racine du site
-		// (éventuellement en retirant le chemin d'exécution du script ou les paramètres GET)
-		if (isset($_SERVER['PATH_INFO']) && !empty($_SERVER['PATH_INFO'])) {
-			$pathInfo = $_SERVER['PATH_INFO'];
-			if (substr($pathInfo, 0, strlen($rootPath)) == $rootPath)
-				$pathInfo = substr($pathInfo, strlen($rootPath));
-		} else if (isset($_SERVER['REQUEST_URI'])) {
-			$pathInfo = $_SERVER['REQUEST_URI'];
-			if (($offset = strpos($pathInfo, '?')) !== false)
-				$pathInfo = substr($pathInfo, 0, $offset);
-		} else
-			throw new \Temma\Exceptions\FrameworkException('No PATH_INFO nor REQUEST_URI environment variable.', \Temma\Exceptions\FrameworkExceptions::CONFIG);
-		\FineLog::log('temma', \FineLog::INFO, "URL : '$pathInfo'.");
-		// spécial référencement : si l'URL demandée se terminait par un slash, on fait une redirection
-		if ($pathInfo != '/' && $_SERVER['REQUEST_METHOD'] == 'GET' && substr($pathInfo, -1) == '/') {
-			$url = substr($pathInfo, 0, -1) . ((isset($_SERVER['QUERY_STRING']) && !empty($_SERVER['QUERY_STRING'])) ? ('?' . $_SERVER['QUERY_STRING']) : '');
-			\FineLog::log('temma', \FineLog::DEBUG, "Redirecting to '$url'.");
-			header('HTTP/1.1 301 Moved Permanently');
-			header("Location: $url");
-			exit();
+		if (isset($setUri)) {
+			// utilisation du chemin fournit en paramètre
+			$requestUri = '/' . trim($setUri, '/') . '/';
+		} else {
+			// extraction du chemin par rapport à la racine du site
+			if (isset($_SERVER['REQUEST_URI']) && !empty($_SERVER['REQUEST_URI'])) {
+				$requestUri = $_SERVER['REQUEST_URI'];
+				if (($offset = strpos($requestUri, '?')) !== false)
+					$requestUri = substr($requestUri, 0, $offset);
+			} else if (isset($_SERVER['PATH_INFO']) && !empty($_SERVER['PATH_INFO'])) {
+				// récupération du chemin d'exécution du script
+				$rootPath = $_SERVER['SCRIPT_FILENAME'];
+				if (substr($rootPath, -10) == '/index.php')
+					$rootPath = substr($rootPath, 0, -10);
+				// récupération du chemin (éventuellement en retirant le chemin d'exécution du script ou les paramètres GET)
+				$requestUri = $_SERVER['PATH_INFO'];
+				$rootPathLen = strlen($rootPath);
+				if (substr($requestUri, 0, $rootPathLen) === $rootPath)
+					$requestUri = substr($requestUri, $rootPathLen);
+			} else
+				throw new \Temma\Exceptions\FrameworkException('No PATH_INFO nor REQUEST_URI environment variable.', \Temma\Exceptions\FrameworkExceptions::CONFIG);
+			// spécial référencement : si l'URL demandée se terminait par un slash, on fait une redirection
+			// hint: PATH_INFO n'est pas rempli quand on accède à la racine du projet Temma, qu'il soit à la racine du site ou dans un sous répertoire
+			if (isset($_SERVER['PATH_INFO']) && !empty($PATH_INFO) && substr($requestUri, -1) == '/') {
+				$url = substr($requestUri, 0, -1) . ((isset($_SERVER['QUERY_STRING']) && !empty($_SERVER['QUERY_STRING'])) ? ('?' . $_SERVER['QUERY_STRING']) : '');
+				\FineLog::log('temma', \FineLog::DEBUG, "Redirecting to '$url'.");
+				header('HTTP/1.1 301 Moved Permanently');
+				header("Location: $url");
+				exit();
+			}
 		}
+		\FineLog::log('temma', \FineLog::INFO, "URL : '$requestUri'.");
+		$this->_pathInfo = $requestUri;
 		// extraction des composantes de l'URL
-		$pathInfo = explode('/', $pathInfo);
-		array_shift($pathInfo);
-		$this->_controller = array_shift($pathInfo);
-		$this->_action = array_shift($pathInfo);
+		$chunkedUri = explode('/', $requestUri);
+		array_shift($chunkedUri);
+		$this->_controller = array_shift($chunkedUri);
+		$this->_action = array_shift($chunkedUri);
 		$this->_params = array();
-		foreach ($pathInfo as $chunk)
+		foreach ($chunkedUri as $chunk)
 			if (strlen(trim($chunk)) > 0)
 				$this->_params[] = $chunk;
 		// extraction du chemin depuis la racine du site
@@ -93,7 +106,13 @@ class Request {
 			return ($this->_xml->$key);
 		return ($this->_xml);
 	}
-
+	/**
+	 * Retourne le pathInfo.
+	 * @return 	string	Le pathInfo.
+	 */
+	public function getPathInfo() {
+		return ($this->_pathInfo);
+	}
 	/**
 	 * Retourne le nom du contrôleur demandé.
 	 * @return	string	Le nom du contrôleur.
