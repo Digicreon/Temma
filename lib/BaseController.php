@@ -8,7 +8,7 @@ namespace Temma;
  * @auhor	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2007-2012, Fine Media
  * @package	Temma
- * @version	$Id: BaseController.php 280 2012-07-04 13:54:03Z abouchard $
+ * @version	$Id: BaseController.php 290 2012-11-13 11:33:23Z abouchard $
  */
 class BaseController {
 	/** Constante indiquant de passer au plugin suivant. */
@@ -88,15 +88,6 @@ class BaseController {
 	 * A redéfinir dans chaque contrôleur.
 	 */
 	public function init() {
-	}
-	/**
-	 * Action par défaut.
-	 * A redéfinir dans chaque contrôleur.
-	 */
-	public function execIndex() {
-		\FineLog::log('temma', \FineLog::INFO, "Dummy Controller default action.");
-		$this->httpError(404);
-		return (self::EXEC_HALT);
 	}
 
 	/* ****************** GESTION DES DAO ************** */
@@ -183,6 +174,16 @@ class BaseController {
 			$this->_checkResponse();
 			$this->_response->setHttpError($code);
 		}
+	}
+	/**
+	 * Retourne l'erreur HTTP configurée.
+	 * @return	int	Le code d'erreur configuré (403, 404, 500, ...) ou NULL si aucune erreur n'a été configurée.
+	 */
+	final protected function getHttpError() {
+		if (isset($this->_executorController))
+			return ($this->_executorController->getHttpError());
+		$this->_checkResponse();
+		return ($this->_response->getHttpError());
 	}
 	/**
 	 * Indique une redirection HTTP (302).
