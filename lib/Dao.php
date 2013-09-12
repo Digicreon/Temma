@@ -171,7 +171,7 @@ class Dao {
 	 *						valeur nulle pour que l'insertion ne bloque pas et ne fasse pas de mise à jour.
 	 * @return	int	La clé primaire de l'élément créé.
 	 * @throws	\Temma\Exceptions\DaoException	Si les données reçues sont mal formées.
-	 * @throws	DatabaseException		Si l'insertion s'est mal déroulée.
+	 * @throws	Exception			Si l'insertion s'est mal déroulée.
 	 */
 	public function create($data, $safeData=null) {
 		// effacement du cache pour cette DAO
@@ -197,9 +197,12 @@ class Dao {
 			$sql .= ' ON DUPLICATE KEY UPDATE ';
 			if ($safeData === true)
 				$sql .= $dataSet;
-			else if (is_string($safeData))
-				$sql .= "$key = '" . $this->_db->quote($data[$key]) . "'";
-			else if (is_array($safeData)) {
+			else if (is_string($safeData)) {
+				if (isset($data[$safeData]))
+					$sql .= "$safeData = '" . $this->_db->quote($data[$safeData]) . "'";
+				else
+					$sql .= "$safeData = $safeData";
+			} else if (is_array($safeData)) {
 				$set = array();
 				foreach ($safeData as $key) {
 					if (!isset($data[$key]))
