@@ -8,7 +8,7 @@ namespace Temma;
  * @author	Amaury Bouchard <amaury.bouchard@finemedia.fr>
  * @copyright	© 2007-2011, Fine Media
  * @package	Temma
- * @version	$Id: Config.php 278 2012-07-04 12:21:30Z abouchard $
+ * @version	$Id: Config.php 285 2012-09-27 13:11:22Z abouchard $
  */
 class Config {
 	/** Niveau de log par défaut. */
@@ -197,6 +197,15 @@ class Config {
 	public function __get($name) {
 		$name = '_' . $name;
 		return ($this->$name);
+	}
+	/**
+	 * Indique si la variable demandée est définie.
+	 * @param	string	$name	Nom de la propriété à vérifier.
+	 * @return	bool	Indique si la variable est définie.
+	 */
+	public function __isset($name) {
+		$name = '_' . $name;
+		return (isset($this->$name));
 	}
 	/**
 	 * Getter pour la configuration étendue.
