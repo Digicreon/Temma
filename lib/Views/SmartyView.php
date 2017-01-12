@@ -48,13 +48,20 @@ class SmartyView extends \Temma\View {
 		$this->_smarty->compile_dir = $compiledDir;
 		$this->_smarty->cache_dir = $cacheDir;
 		// ajout des répertoires d'inclusion de plugins
-		$this->_smarty->plugins_dir[] = $config->appPath . '/' . self::PLUGINS_DIR;
+		$pluginPathList = array();
+		$pluginPathList[] = $config->appPath . '/' . self::PLUGINS_DIR;
 		$pluginsDir = $config->xtra('smarty-view', 'pluginsDir');
 		if (is_string($pluginsDir))
-			$this->_smarty->plugins_dir[] = $pluginsDir;
-		else if (is_array($pluginsDir)) {
-			foreach ($pluginsDir as $dir)
-				$this->_smarty->plugins_dir[] = $dir;
+			$pluginPathList[] = $pluginsDir;
+		else if (is_array($pluginsDir))
+			$pluginPathList = array_merge($pluginsPathList, $pluginsDir);
+		if (method_exists($this->_smarty, 'setPluginsDir')) {
+			$pluginPathList = array_merge($this->_smarty->getPluginsDir(), $pluginPathList);
+			$this->_smarty->setPluginsDir($pluginPathList);
+		} else {
+			foreach ($pluginPathList as $_path) {
+				$this->_smarty->plugins_dir[] = $_path;
+			}
 		}
 	}
 	/**
@@ -74,7 +81,12 @@ class SmartyView extends \Temma\View {
 	public function setTemplate($path, $template) {
 		\FineLog::log('temma', \FineLog::DEBUG, "Searching template '$template'.");
 		$this->_smarty->template_dir = $path;
-		if ($this->_smarty->template_exists($template)) {
+		if (method_exists($this->_smarty, 'templateExists')) {
+			if ($this->_smarty->templateExists($template)) {
+				$this->_template = $template;
+				return (true);
+			}
+		} else if ($this->_smarty->template_exists($template)) {
 			$this->_template = $template;
 			return (true);
 		}
