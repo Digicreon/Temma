@@ -85,9 +85,16 @@ class BaseController {
 	/**
 	 * Fonction d'initialisation, appelée pour chaque contrôleur
 	 * avant que l'action demandée ne soit exécutée.
-	 * A redéfinir dans chaque contrôleur.
+	 * À redéfinir dans chaque contrôleur.
 	 */
 	public function init() {
+	}
+	/**
+	 * Fonction de finalisation, appelée pour chaque contrôleur
+	 * après que l'action demandée ne soit exécutée.
+	 * À redéfinir dans chaque contrôleur.
+	 */
+	public function finalize() {
 	}
 
 	/* ****************** GESTION DES DAO ************** */
@@ -297,6 +304,13 @@ class BaseController {
 		if (method_exists($controller, $methodName)) {
 			\FineLog::log('temma', \FineLog::DEBUG, "Executing proxy action '" . \Temma\Framework::PROXY_ACTION . "'.");
 			$status = $obj->$methodName();
+			if ($status !== self::EXEC_QUIT) {
+				// appel à la fonction de finalisation
+				$finalStatus = $obj->finalize();
+				if ($status === self::EXEC_FORWARD ||
+				    ($finalStatus !== self::EXEC_FORWARD && $finalStatus > $status))
+					$status = $finalStatus;
+			}
 			return ($status);
 		}
 		// pas d'action proxy, on regarde si l'action demandée existe, ou s'il existe une action par défaut
