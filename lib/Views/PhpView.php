@@ -12,6 +12,8 @@ namespace Temma\Views;
  * @version	$Id: SmartyView.php -1   $
  */
 class PhpView extends \Temma\View {
+	/** Nom de la clé de configuration pour les headers. */
+	protected $_cacheKey = 'php';
 	/** Indique si on peut mettre la page en cache. */
 	private $_isCacheable = false;
 	/** Nom du template à utiliser. */

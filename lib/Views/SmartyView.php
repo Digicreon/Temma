@@ -21,6 +21,8 @@ class SmartyView extends \Temma\View {
 	const CACHE_DIR = 'templates_cache';
 	/** Chemin vers le répertoire de plugins Smarty. */
 	const PLUGINS_DIR = 'lib/smarty/plugins';
+	/** Nom de la clé de configuration pour les headers. */
+	protected $_cacheKey = 'smarty';
 	/** Indique si on peut mettre la page en cache. */
 	private $_isCacheable = false;
 	/** Objet Smarty. */

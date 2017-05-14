@@ -22,6 +22,8 @@ namespace Temma\Views;
  * @version	$Id$
  */
 class RssView extends \Temma\View {
+	/** Nom de la clé de configuration pour les headers. */
+	protected $_cacheKey = 'rss';
 	/** Titre du site. */
 	private $_title = null;
 	/** Adresse du site. */
@@ -49,8 +51,8 @@ class RssView extends \Temma\View {
 		$this->_articles = $response->getData('articles');
 	}
 	/** Ecrit les headers HTTP sur la sortie standard si nécessaire. */
-	public function sendHeaders() {
-		header('Content-Type: application/rss+xml; charset=UTF-8');
+	public function sendHeaders($headers=null) {
+		parent::sendHeaders(array('Content-Type' => 'application/rss+xml; charset=UTF-8'));
 	}
 	/** Ecrit le corps du document sur la sortie standard. */
 	public function sendBody() {

@@ -15,6 +15,8 @@ namespace Temma\Views;
  * @link	http://json.org/
  */
 class JsonView extends \Temma\View {
+	/** Nom de la clé de configuration pour les headers. */
+	protected $_cacheKey = 'json';
 	/** Donnée à envoyer encodée en JSON. */
 	private $_data = null;
 
@@ -27,8 +29,8 @@ class JsonView extends \Temma\View {
 		$this->_data = $response->getData('json');
 	}
 	/** Ecrit les headers HTTP sur la sortie standard si nécessaire. */
-	public function sendHeaders() {
-		header('Content-Type: text/x-json; charset=UTF-8');
+	public function sendHeaders($headers=null) {
+		parent::sendHeaders(array('Content-Type' => 'text/x-json; charset=UTF-8'));
 	}
 	/** Ecrit le corps du document sur la sortie standard. */
 	public function sendBody() {

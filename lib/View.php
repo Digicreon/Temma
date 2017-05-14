@@ -17,6 +17,8 @@ abstract class View {
 	protected $_config = null;
 	/** Connexion à la session. */
 	protected $_session = null;
+	/** Nom de la clé de configuration pour les headers. */
+	protected $_cacheKey = null;
 
 	/**
 	 * Constructeur.
@@ -59,12 +61,28 @@ abstract class View {
 	/**
 	 * Ecrit les headers HTTP sur la sortie standard si nécessaire.
 	 * Par défaut, envoie un header HTML avec désactivation du cache.
+	 * @param	array	$headers	(optionnel) Tableau de headers à envoyer par défaut.
 	 */
-	public function sendHeaders() {
-		header('Content-Type: text/html; charset=UTF-8');
-		header('Cache-Control: no-cache, no-store, must-revalidate, max-age=0, post-check=0, pre-check=0');
-		header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
-		header('Pragma: no-cache');
+	public function sendHeaders($headers=null) {
+		if (is_null($headers)) {
+			$headers = array(
+				'Content-Type'	=> 'text/html; charset=UTF-8',
+				'Cache-Control'	=> 'no-cache, no-store, must-revalidate, max-age=0, post-check=0, pre-check=0',
+				'Expires'	=> 'Mon, 26 Jul 1997 05:00:00 GMT',
+				'Pragma'	=> 'no-cache'
+			);
+		}
+		$headersSmarty = $this->_config->xtra('headers', 'smarty');
+		if (is_array($headers)) {
+			$headers = array_merge($headers, $headersSmarty);
+		}
+		$headersDefault = $this->_config->xtra('headers', 'default');
+		if (is_array($headers)) {
+			$headers = array_merge($headers, $headersDefault);
+		}
+		foreach ($headers as $headerName => $headerValue) {
+			header("$headerName: $headerValue");
+		}
 	}
 	/** Ecrit le corps du document sur la sortie standard. */
 	abstract public function sendBody();
