@@ -37,6 +37,8 @@ class SmartyView extends \Temma\View {
 	 * @param	\FineSession	$session	(optionnel) Objet de connexion à la session.
 	 */
 	public function __construct($dataSources, \Temma\Config $config, \FineSession $session=null) {
+		global $smarty;
+
 		parent::__construct($dataSources, $config, $session);
 		// vérification de la présence des répertoires temporaires
 		$compiledDir = $config->tmpPath . '/' . self::COMPILED_DIR;
@@ -47,6 +49,7 @@ class SmartyView extends \Temma\View {
 			throw new \Temma\Exceptions\FrameworkException("Unable to create directory '$cacheDir'.", \Temma\Exceptions\FrameworkException::CONFIG);
 		// création de l'objet Smarty
 		$this->_smarty = new \Smarty();
+		$smarty = $this->_smarty;
 		$this->_smarty->compile_dir = $compiledDir;
 		$this->_smarty->cache_dir = $cacheDir;
 		// ajout des répertoires d'inclusion de plugins
