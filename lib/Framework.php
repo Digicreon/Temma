@@ -586,11 +586,22 @@ class Framework {
 		\FineLog::log('temma', \FineLog::INFO, "Executing plugin '$pluginName'.");
 		try {
 			// vérification de l'existence du plugin
-			if (class_exists($pluginName) && is_subclass_of($pluginName, '\Temma\Controller')) {
-				$plugin = new $pluginName($this->_dataSources, $this->_session, $this->_config, $this->_request, $this->_executorController);
-				$methodName = method_exists($plugin, $methodName) ? $methodName : 'plugin';
-				return ($plugin->$methodName());
+			if (!class_exists($pluginName)) {
+				$defaultNamespace = $this->_config->defaultNamespace;
+				$fullPluginName = "$defaultNamespace\\" . $pluginName;
+				if (empty($defaultNamespace) || !class_exists($fullPluginName)) {
+					\FineLog::log('temma', \FineLog::DEBUG, "Plugin '$pluginName' doesn't exist.");
+					throw new \Exception();
+				}
+				$pluginName = $fullPluginName;
 			}
+			if (!is_subclass_of($pluginName, '\Temma\Controller')) {
+				\FineLog::log('temma', \FineLog::DEBUG, "Plugin '$pluginName' is not a subclass of \\Temma\\Controller.");
+				throw new \Exception();
+			}
+			$plugin = new $pluginName($this->_dataSources, $this->_session, $this->_config, $this->_request, $this->_executorController);
+			$methodName = method_exists($plugin, $methodName) ? $methodName : 'plugin';
+			return ($plugin->$methodName());
 		} catch (Exception $e) { }
 		\FineLog::log('temma', \FineLog::DEBUG, "Unable to execute plugin '$pluginName'::'$methodName'.");
 		throw new \Temma\Exceptions\HttpException("Unable to execute plugin '$pluginName'::'$methodName'.", 500);
