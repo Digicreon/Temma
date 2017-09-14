@@ -518,10 +518,21 @@ class Framework {
 			// pas de contrôleur demandé, on prend le contrôleur racine
 			$this->_objectControllerName = $this->_config->rootController;
 		}
-		if (empty($this->_objectControllerName) || !class_exists($this->_objectControllerName)) {
-			\FineLog::log('temma', \FineLog::INFO, "Controller '" . $this->_objectControllerName . "' doesn't exists.");
+		if (empty($this->_objectControllerName)) {
+			\FineLog::log('temma', \FineLog::INFO, "No controller found, use the default controller.");
 			// pas de contrôleur demandé, on prend le contrôleur par défaut
 			$this->_objectControllerName = $this->_config->defaultController;
+		} else if (!class_exists($this->_objectControllerName)) {
+			$defaultNamespace = $this->_config->defaultNamespace;
+			$fullControllerName = (!empty($defaultNamespace) ? "$defaultNamespace\\" : '') . $this->_objectControllerName;
+			if (empty($defaultNamespace) || !class_exists($fullControllerName)) {
+				\FineLog::log('temma', \FineLog::INFO, "Controller '$fullControllerName' doesn't exists.");
+				// pas de contrôleur demandé, on prend le contrôleur par défaut
+				$this->_objectControllerName = $this->_config->defaultController;
+			} else {
+				\FineLog::log('temma', \FineLog::INFO, "Controller name set to '$fullControllerName'.");
+				$this->_objectControllerName = $fullControllerName;
+			}
 		}
 		// vérification de l'orthographe du contrôleur
 		$this->_controllerReflection = new \ReflectionClass($this->_objectControllerName);

@@ -77,6 +77,8 @@ class Config {
 	protected $_defaultController = null;
 	/** Nom du contrôleur proxy. */
 	protected $_proxyController = null;
+	/** Nom du namespace par défaut des contrôleurs. */
+	protected $_defaultNamespace = null;
 	/** Configuration importée automatiquement. */
 	protected $_autoimport = null;
 	/** Extra-configurations. */
@@ -186,6 +188,7 @@ class Config {
 		$this->_webPath = $this->_appPath . '/' . self::WEB_DIR;
 		$this->_rootController = isset($ini['application']['rootController']) ? $ini['application']['rootController'] : null;
 		$this->_defaultController = isset($ini['application']['defaultController']) ? $ini['application']['defaultController'] : null;
+		$this->_defaultNamespace = isset($ini['application']['defaultNamespace']) ? $ini['application']['defaultNamespace'] : null;
 		$this->_proxyController = isset($ini['application']['proxyController']) ? $ini['application']['proxyController'] : null;
 		$this->_autoimport = isset($ini['autoimport']) ? $ini['autoimport'] : null;
 	}
