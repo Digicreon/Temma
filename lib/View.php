@@ -73,11 +73,11 @@ abstract class View {
 			);
 		}
 		$headersSmarty = $this->_config->xtra('headers', 'smarty');
-		if (is_array($headers)) {
+		if (is_array($headersSmarty)) {
 			$headers = array_merge($headers, $headersSmarty);
 		}
 		$headersDefault = $this->_config->xtra('headers', 'default');
-		if (is_array($headers)) {
+		if (is_array($headersDefault)) {
 			$headers = array_merge($headers, $headersDefault);
 		}
 		foreach ($headers as $headerName => $headerValue) {
