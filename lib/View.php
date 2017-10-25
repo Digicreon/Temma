@@ -80,8 +80,10 @@ abstract class View {
 		if (is_array($headersDefault)) {
 			$headers = array_merge($headers, $headersDefault);
 		}
-		foreach ($headers as $headerName => $headerValue) {
-			header("$headerName: $headerValue");
+		if (is_array($headers)) {
+			foreach ($headers as $headerName => $headerValue) {
+				header("$headerName: $headerValue");
+			}
 		}
 	}
 	/** Ecrit le corps du document sur la sortie standard. */
