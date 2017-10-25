@@ -2,7 +2,7 @@
 
 namespace Temma\Views;
 
-require_once('smarty/libs/Smarty.class.php');
+require_once('smarty3/Smarty.class.php');
 
 /**
  * Vue traitant les templates Smarty.
