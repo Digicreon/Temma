@@ -211,6 +211,19 @@ class Config {
 		return (isset($this->$name));
 	}
 	/**
+	 * Getter pour la configuration importée automatiquement.
+	 * @param	string	$key		Clé de sous-élément de configuration à retourner.
+	 * @param	mixed	$default	(optionnel) Valeur par défaut à retourner si l'élément n'existe pas.
+	 * @return	mixed	La valeur de la propriété demandée.
+	 */
+	public function autoimport($key, $default=null) {
+		if (!isset($this->_autoimport))
+			return ($default);
+		if (!isset($this->_autoimport[$key]))
+			return ($default);
+		return ($default);
+	}
+	/**
 	 * Getter pour la configuration étendue.
 	 * @param	string	$name		Nom de la configuration étendue (sans le préfixe "x-").
 	 * @param	string	$key		(optionnel) Clé de l'élément de configuration à retourner.
