@@ -217,10 +217,8 @@ class Config {
 	 * @return	mixed	La valeur de la propriété demandée.
 	 */
 	public function autoimport($key, $default=null) {
-		if (!isset($this->_autoimport))
-			return ($default);
-		if (!isset($this->_autoimport[$key]))
-			return ($default);
+		if (isset($this->_autoimport[$key]))
+			return ($this->_autoimport[$key]);
 		return ($default);
 	}
 	/**
