@@ -171,6 +171,14 @@ class BaseController {
 		return (null);
 	}
 	/**
+	 * Méthode magique permettant de savoir si une connexion à une source de données existe.
+	 * @param	string	$dataSource	Nom de la source de données.
+	 * @return	bool	True si la source de données existe.
+	 */
+	final public function __isset($dataSource) {
+		return (isset($this->_dataSources[$dataSource]));
+	}
+	/**
 	 * Indique une erreur HTTP (403, 404, 500, ...).
 	 * @param	int	$code	Le code d'erreur HTTP.
 	 */
