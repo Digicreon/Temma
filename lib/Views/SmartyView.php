@@ -52,6 +52,7 @@ class SmartyView extends \Temma\View {
 		$smarty = $this->_smarty;
 		$this->_smarty->compile_dir = $compiledDir;
 		$this->_smarty->cache_dir = $cacheDir;
+		$this->_smarty->error_reporting = E_ALL & ~E_NOTICE;
 		// ajout des répertoires d'inclusion de plugins
 		$pluginPathList = array();
 		$pluginPathList[] = $config->appPath . '/' . self::PLUGINS_DIR;
