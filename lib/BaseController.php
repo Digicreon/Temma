@@ -262,15 +262,21 @@ class BaseController {
 	}
 	/**
 	 * Ajoute une donnée qui pourra être traitée par la vue.
-	 * @param	string	$name	Nom de la donnée.
-	 * @param	mixed	$value	Valeur de la donnée.
+	 * @param	string|array	$name	Nom de la donnée, ou tableau associatif contenant les données à charger.
+	 * @param	mixed		$value	(optionnem) Valeur de la donnée, si le premier paramètre est une chaîne.
 	 */
-	final public function set($name, $value) {
+	final public function set($name, $value=null) {
 		if (isset($this->_executorController)) {
 			$this->_executorController->set($name, $value);
 		} else {
 			$this->_checkResponse();
-			$this->_response->setData($name, $value);
+			if (is_array($name)) {
+				foreach ($name as $key => $val) {
+					$this->_response->setData($key, $val);
+				}
+			} else {
+				$this->_response->setData($name, $value);
+			}
 		}
 	}
 	/**
