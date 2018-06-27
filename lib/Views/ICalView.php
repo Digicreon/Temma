@@ -57,6 +57,7 @@ class ICalView extends \Temma\View {
 				print('CREATED:' . gmdate('Ymd', strtotime($event['dateCreation'])) . 'T' . gmdate('His', strtotime($event['dateCreation'])) . "Z\r\n");
 			print('SUMMARY:' . $event['name'] . "\r\n");
 			$description = $event['description'] ?? '';
+			$description = str_replace("\n", "\\n", $description);
 			$description = wordwrap($description, 70, "\n", true);
 			$description = str_replace("\n", "\r\n  ", $description);
 			$description = str_replace("\r\r", "\r", $description);
