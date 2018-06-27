@@ -57,15 +57,20 @@ class ICalView extends \Temma\View {
 				print('CREATED:' . gmdate('Ymd', strtotime($event['dateCreation'])) . 'T' . gmdate('His', strtotime($event['dateCreation'])) . "Z\r\n");
 			print('SUMMARY:' . $event['name'] . "\r\n");
 			$description = $event['description'] ?? '';
+			$description = str_replace(' ', chr(7), $description);
 			$description = str_replace("\n", "\\n", $description);
 			$description = wordwrap($description, 70, "\n", true);
-			$description = str_replace("\n", "\r\n  ", $description);
+			$description = str_replace("\n", "\r\n ", $description);
 			$description = str_replace("\r\r", "\r", $description);
+			$description = str_replace(chr(7), ' ', $description);
 			print("DESCRIPTION:$description\r\n");
 			if (isset($event['html'])) {
+				$html = str_replace(' ', chr(7), $description);
 				$html = wordwrap($event['html'], 70, "\n", true);
-				$html = str_replace("\n", "\r\n  ", $html);
+				$html = str_replace(" \n", "\n ", $html);
+				$html = str_replace("\n", "\r\n ", $html);
 				$html = str_replace("\r\r", "\r", $html);
+				$html = str_replace(chr(7), ' ', $description);
 				print("X-ALT-DESC;FMTTYPE=text/html:$html\r\n");
 			}
 			print("TRANSP:TRANSPARENT\r\n");
