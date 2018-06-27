@@ -56,7 +56,17 @@ class ICalView extends \Temma\View {
 			if (isset($event['dateCreation']))
 				print('CREATED:' . gmdate('Ymd', strtotime($event['dateCreation'])) . 'T' . gmdate('His', strtotime($event['dateCreation'])) . "Z\r\n");
 			print('SUMMARY:' . $event['name'] . "\r\n");
-			print('DESCRIPTION:' . ($event['description'] ?? '') . "\r\n");
+			$description = $event['description'] ?? '';
+			$description = wordwrap($description, 70, "\n", true);
+			$description = str_replace("\n", "\r\n  ", $description);
+			$description = str_replace("\r\r", "\r", $description);
+			print("DESCRIPTION:$description\r\n");
+			if (isset($event['html'])) {
+				$html = wordwrap($event['html'], 70, "\n", true);
+				$html = str_replace("\n", "\r\n  ", $html);
+				$html = str_replace("\r\r", "\r", $html);
+				print("X-ALT-DESC;FMTTYPE=text/html:$html\r\n");
+			}
 			print("TRANSP:TRANSPARENT\r\n");
 			print("STATUS:CONFIRMED\r\n");
 			print("END:VEVENT\r\n");
