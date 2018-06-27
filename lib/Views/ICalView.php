@@ -67,7 +67,6 @@ class ICalView extends \Temma\View {
 			if (isset($event['html'])) {
 				$html = str_replace(' ', chr(7), $description);
 				$html = wordwrap($event['html'], 70, "\n", true);
-				$html = str_replace(" \n", "\n ", $html);
 				$html = str_replace("\n", "\r\n ", $html);
 				$html = str_replace("\r\r", "\r", $html);
 				$html = str_replace(chr(7), ' ', $description);
