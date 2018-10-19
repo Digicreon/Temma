@@ -42,41 +42,66 @@ class ICalView extends \Temma\View {
 		if (isset($this->_ical['description']))
 			print("X-WR-CALDESC:" . $this->_ical['description'] . "\r\n");
 		foreach ($this->_ical['events'] as $event) {
+			if (!isset($event['name']) || (!isset($event['date']) && (!isset($event['dateStart']) || !isset($event['dateEnd']))))
+				continue;
 			$uid = $event['uid'] ?? md5(uniqid(mt_rand(), true)) . '@temma.net';
 			print("BEGIN:VEVENT\r\n");
 			print("UID:$uid\r\n");
-			if (isset($event['date'])) {
-				print('DTSTART;VALUE=DATE:' . gmdate('Ymd', strtotime($event['date'])) . "\r\n");
-				print('DTEND;VALUE=DATE:' . gmdate('Ymd', strtotime($event['date'] . ' +1 day')) . "\r\n");
-			} else {
-				print('DTSTART:' . gmdate('Ymd', strtotime($event['dateStart'])) . 'T' . gmdate('His', strtotime($event['dateStart'])) . "Z\r\n");
-				print('DTEND:' . gmdate('Ymd' . strtotime($event['dateEnd'])) . 'T' . gmdate('His', strtotime($event['dateEnd'])) . "Z\r\n");
+			if (isset($event['organizerName'])) {
+				$organizer = 'ORGANIZER;CN=' . $event['organizerName'];
+				if (isset($event['organizerEmail']))
+					$organizer .= ':MAILTO:' . $event['organizerEmail'];
+				print(wordwrap($organizer, 70, "\n", true) . "\r\n");
 			}
-			print("DTSTAMP:" . gmdate('Ymd').'T'. gmdate('His') . "Z\r\n");
-			if (isset($event['dateCreation']))
-				print('CREATED:' . gmdate('Ymd', strtotime($event['dateCreation'])) . 'T' . gmdate('His', strtotime($event['dateCreation'])) . "Z\r\n");
-			print('SUMMARY:' . $event['name'] . "\r\n");
-			$description = $event['description'] ?? '';
-			$description = str_replace(' ', chr(7), $description);
-			$description = str_replace("\n", "\\n", $description);
-			$description = wordwrap($description, 70, "\n", true);
-			$description = str_replace("\n", "\r\n ", $description);
-			$description = str_replace("\r\r", "\r", $description);
-			$description = str_replace(chr(7), ' ', $description);
-			print("DESCRIPTION:$description\r\n");
+			if (isset($event['date'])) {
+				$start = $this->_escapeText('DTSTART;VALUE=DATE:', gmdate('Ymd', strtotime($event['date'])));
+				$end = $this->_escapeText('DTEND;VALUE=DATE:', gmdate('Ymd', strtotime($event['date'] . ' +1 day')));
+			} else {
+				$start = $this->_escapeText('DTSTART:', gmdate('Ymd', strtotime($event['dateStart'])) . 'T' . gmdate('His', strtotime($event['dateStart'])) . 'Z');
+				$end = $this->_escapeText('DTEND:', gmdate('Ymd' . strtotime($event['dateEnd'])) . 'T' . gmdate('His', strtotime($event['dateEnd'])) . 'Z');
+			}
+			print("$start\r\n$end\r\n");
+			$dtstamp = $this->_escapeText('DTSTAMP:', gmdate('Ymd') . 'T' . gmdate('His') . 'Z');
+			print("$dtstamp\r\n");
+			if (isset($event['dateCreation'])) {
+				$created = gmdate('Ymd', strtotime($event['dateCreation'])) . 'T' . gmdate('His', strtotime($event['dateCreation'])) . 'Z';
+				$created = $this->_escapeText('CREATED:', $created);
+				print("$created\r\n");
+			}
+			$summary = $this->_escapeText('SUMMARY:', $event['name'] ?? '');
+			print("$summary\r\n");
+			$description = $this->_escapeText('DESCRIPTION:', $event['description'] ?? '');
+			print("$description\r\n");
 			if (isset($event['html'])) {
-				$html = str_replace(' ', chr(7), $description);
-				$html = wordwrap($event['html'], 70, "\n", true);
-				$html = str_replace("\n", "\r\n ", $html);
-				$html = str_replace("\r\r", "\r", $html);
-				$html = str_replace(chr(7), ' ', $description);
-				print("X-ALT-DESC;FMTTYPE=text/html:$html\r\n");
+				$html = $this->_escapeText('X-ALT-DESC;FMTTYPE=text/html:', $event['html']);
+				print("$html\r\n");
 			}
 			print("TRANSP:TRANSPARENT\r\n");
 			print("STATUS:CONFIRMED\r\n");
 			print("END:VEVENT\r\n");
 		}
 		print("END:VCALENDAR\r\n");
+	}
+
+	/* ********** PRIVATE METHODS ********** */
+	/**
+	 * Transforme un texte en échappant les caractères et en le mettant à la bonne longueur.
+	 * @param	string	$attr	Nom de l'attribut (incluant le caractère ':' à la fin).
+	 * @param	string	$text	Texte à échapper.
+	 * @return	string	Le texte résultant.
+	 */
+	private function _escapeText($attr, $text) {
+		$text = str_replace(' ', chr(7), $text);
+		$text = str_replace("\\", "\\\\", $text);
+		$text = str_replace(',', '\,', $text);
+		$text = str_replace(';', '\;', $text);
+		$text = str_replace("\n", "\\n", $text);
+		$text = "$attr$text";
+		$text = wordwrap($text, 70, "\n", true);
+		$text = str_replace("\n", "\r\n ", $text);
+		$text = str_replace("\r\r", "\r", $text);
+		$text = str_replace(chr(7), ' ', $text);
+		return ($text);
 	}
 }
 
