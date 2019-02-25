@@ -534,9 +534,10 @@ class Framework {
 			// un contrôleur proxy a été défini
 			$this->_objectControllerName = $proxyName;
 		} else if (($this->_controllerName = $this->_request->getController())) {
-			// vérification que la première lettre est en minuscule
-			if ($this->_controllerName != lcfirst($this->_controllerName))
-				throw new \Temma\Exceptions\HttpException("Bad name for controller '" . $this->_controllerName . "'.", 404);
+			$lastBackslashPos = strrpos($this->_controllerName, '\\');
+			// vérification que la première lettre du nom du contrôleur est en minuscule (s'il n'y a pas de namespace)
+			if ($lastBackslashPos === false && $this->_controllerName != lcfirst($this->_controllerName))
+				throw new \Temma\Exceptions\HttpException("Bad name for controller '" . $this->_controllerName . "' (must start by a lower-case character).", 404);
 			// on regarde si le contrôleur demandé est en fait un contrôleur virtuel
 			$routes = $this->_config->routes;
 			for ($nbrLoops = 0, $routeName = $this->_controllerName, $routed = false;
@@ -549,10 +550,15 @@ class Framework {
 				$routed = true;
 			}
 			// on prend le contrôleur demandé
-			if ($routed && substr($routeName, -strlen(self::CONTROLLERS_SUFFIX)) == self::CONTROLLERS_SUFFIX)
+			if ($routed && substr($routeName, -strlen(self::CONTROLLERS_SUFFIX)) == self::CONTROLLERS_SUFFIX) {
 				$this->_objectControllerName = $routeName;
-			else
+			} else if ($lastBackslashPos !== false) {
+				$this->_objectControllerName = substr($this->_controllerName, 0, $lastBackslashPos + 1) .
+				                               ucfirst(substr($this->_controllerName, $lastBackslashPos + 1)) .
+				                               self::CONTROLLERS_SUFFIX;
+			} else {
 				$this->_objectControllerName = ucfirst($this->_controllerName) . self::CONTROLLERS_SUFFIX;
+			}
 		} else {
 			// pas de contrôleur demandé, on prend le contrôleur racine
 			$this->_objectControllerName = $this->_config->rootController;
