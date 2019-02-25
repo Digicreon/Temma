@@ -202,6 +202,17 @@ class Config {
 		return ($this->$name);
 	}
 	/**
+	 * Setter. Sert à définir certaines valeurs de configuration.
+	 * @param	string	$name	Nom de la propriété à modifier.
+	 * @param	mixed	$value	Nouvelle valeur pour la propriété.
+	 */
+	public function __set($name, $value) {
+		if (!in_array($name, ['defaultNamespace', 'errorPages', 'defaultController', 'rootController', 'proxyController']))
+			throw new \Exception("Bad property '$name'.");
+		$name = '_' . $name;
+		$this->$name = $value;
+	}
+	/**
 	 * Indique si la variable demandée est définie.
 	 * @param	string	$name	Nom de la propriété à vérifier.
 	 * @return	bool	Indique si la variable est définie.

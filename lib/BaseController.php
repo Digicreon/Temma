@@ -19,6 +19,17 @@ class BaseController {
 	const EXEC_HALT = 1;
 	/** Constante indiquant d'arrêter le traitement de tous les contrôleurs, plugins compris, et de n'exécuter aucune vue. */
 	const EXEC_QUIT = 2;
+	/**
+	 * Constante indiquant de redémarrer le traitement en cours (pré-plugins, contrôleur, ou post-plugins).
+	 * Le comportement dépend de la méthode qui a retourné cette valeur :
+	 * - Si c'est un pré-plugin, c'est la chaîne de tous les pré-plugins qui est traitée de nouveau.
+	 * - Si c'est l'init du contrôleur, l'init est ré-exécutée.
+	 * - Si c'est l'action, l'init est ré-exécutée (puis le reste de la chaîne d'exécution).
+	 * - Si c'est un post-plugin, c'est la chaîne de tous les post-plugins qui est traitée de nouveau.
+	 */
+	const EXEC_RESTART = 3;
+	/** Constante indiquant de redémarrer l'ensemble des traitements (pré-plugins + contrôleur + post-plugins). */
+	const EXEC_REBOOT = 4;
 	/** Liste des sources de données. */
 	protected $_dataSources = null;
 	/** Objet de gestion de session. */

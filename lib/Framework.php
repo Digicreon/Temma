@@ -362,30 +362,60 @@ class Framework {
 			next($prePlugins);
 			if (empty($pluginName))
 				continue;
-			if (($execStatus = $this->_execPlugin($pluginName, 'preplugin')) !== \Temma\Controller::EXEC_FORWARD)
+			// exécution du pré-plugin
+			$execStatus = $this->_execPlugin($pluginName, 'preplugin');
+			// si demandé, arrêt des traitements (des pré-plugins)
+			if ($execStatus === \Temma\Controller::EXEC_STOP ||
+			    $execStatus === \Temma\Controller::EXEC_HALT)
 				break;
-			// on regénère la liste des plugins si le contrôleur déclaré a été modifié par le plugin
-			if ($this->_request->getController() != $this->_initControllerName) {
+			// si demandé, reprise des traitements de tous les pré-plugins
+			if ($execStatus === \Temma\Controller::EXEC_RESTART) {
 				$this->_setControllerName();
 				$this->_setActionName();
 				$prePlugins = $this->_generatePrePluginsList();
 				reset($prePlugins);
 			}
+			// si demandé, on recommence tous les traitements à zéro
+			if ($execStatus === \Temma\Controller::EXEC_REBOOT) {
+				$this->process();
+				return;
+			}
+			// si demandé, arrêt total des traitement
+			if ($execStatus === \Temma\Controller::EXEC_QUIT) {
+				\FineLog::log('temma', \FineLog::DEBUG, "Premature but wanted end of processing.");
+				return;
+			}
+			// on recalcule le contrôleur et l'action (au cas où le plugin ait modifié
+			// le contrôleur, l'action, le namespace par défaut, ou encore les chemins d'inclusion)
+			$this->_setControllerName();
+			$this->_setActionName();
 		}
 
 		/* ************** CONTROLEUR ************* */
 		if ($this->_controllerReflection->getName() == 'Temma\Controller')
 			throw new \Temma\Exceptions\HttpException("The requested page doesn't exists.", 404);
-		if ($execStatus != \Temma\Controller::EXEC_HALT && $execStatus != \Temma\Controller::EXEC_QUIT) {
-			// on vérifie la méthode qui va être exécutée
-			$this->_checkActionMethod();
-			// on exécute le contrôleur
-			\FineLog::log('temma', \FineLog::DEBUG, "Controller processing.");
-			$execStatus = $this->_executorController->subProcess($this->_objectControllerName, $this->_actionName);
+		if ($execStatus === \Temma\Controller::EXEC_FORWARD) {
+			do {
+				// on vérifie la méthode qui va être exécutée
+				$this->_checkActionMethod();
+				// on exécute le contrôleur
+				\FineLog::log('temma', \FineLog::DEBUG, "Controller processing.");
+				$execStatus = $this->_executorController->subProcess($this->_objectControllerName, $this->_actionName);
+			} while ($execStatus === \Temma\Controller::EXEC_RESTART);
+			// si demandé, on recommence tous les traitements à zéro
+			if ($execStatus === \Temma\Controller::EXEC_REBOOT) {
+				$this->process();
+				return;
+			}
+			// si demandé, arrêt total des traitement
+			if ($execStatus === \Temma\Controller::EXEC_QUIT) {
+				\FineLog::log('temma', \FineLog::DEBUG, "Premature but wanted end of processing.");
+				return;
+			}
 		}
 
 		/* ************* POST-PLUGINS ************** */
-		if ($execStatus !== \Temma\Controller::EXEC_HALT && $execStatus !== \Temma\Controller::EXEC_QUIT) {
+		if ($execStatus === \Temma\Controller::EXEC_FORWARD) {
 			\FineLog::log('temma', \FineLog::DEBUG, "Processing of post-process plugins.");
 			// génération de la liste des plugins à exécuter
 			$postPlugins = $this->_generatePostPluginsList();
@@ -394,24 +424,33 @@ class Framework {
 				next($postPlugins);
 				if (empty($pluginName))
 					continue;
-				if (($execStatus = $this->_execPlugin($pluginName, 'postplugin')) !== \Temma\Controller::EXEC_FORWARD)
+				// exécution du post-plugin
+				$execStatus = $this->_execPlugin($pluginName, 'postplugin');
+				// si demandé, arrêt des traitements (des post-plugins)
+				if ($execStatus === \Temma\Controller::EXEC_STOP ||
+				    $execStatus === \Temma\Controller::EXEC_HALT)
 					break;
-				// on regénère la liste des plugins si le contrôleur déclaré a été modifié par le plugin
-				if ($this->_request->getController() != $this->_initControllerName) {
+				// si demandé, reprise des traitements de tous les post-plugins
+				if ($execStatus === \Temma\Controller::EXEC_RESTART) {
 					$this->_setControllerName();
 					$this->_setActionName();
 					$prePlugins = $this->_generatePrePluginsList();
 					reset($prePlugins);
 				}
+				// si demandé, on recommence tous les traitements à zéro
+				if ($execStatus === \Temma\Controller::EXEC_REBOOT) {
+					$this->process();
+					return;
+				}
+				// si demandé, arrêt total des traitement
+				if ($execStatus === \Temma\Controller::EXEC_QUIT) {
+					\FineLog::log('temma', \FineLog::DEBUG, "Premature but wanted end of processing.");
+					return;
+				}
 			}
 		}
 
 		/* ******************* REPONSE ****************** */
-		// arrêt des traitement si demandé
-		if ($execStatus == \Temma\Controller::EXEC_QUIT) {
-			\FineLog::log('temma', \FineLog::DEBUG, "Premature but wanted end of processing.");
-			return;
-		}
 		// récupération de la réponse
 		$response = $this->_executorController->getResponse();
 		// gestion des erreurs HTTP
