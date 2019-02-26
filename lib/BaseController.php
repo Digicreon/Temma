@@ -329,22 +329,18 @@ class BaseController {
 		if (method_exists($controller, $methodName)) {
 			\FineLog::log('temma', \FineLog::DEBUG, "Executing proxy action '" . \Temma\Framework::PROXY_ACTION . "'.");
 			$status = $obj->$methodName();
-			if ($status !== self::EXEC_QUIT) {
-				// appel à la fonction de finalisation
-				$finalStatus = $obj->finalize();
-				if ($status === self::EXEC_FORWARD ||
-				    ($finalStatus !== self::EXEC_FORWARD && $finalStatus > $status))
-					$status = $finalStatus;
-			}
-			return ($status);
+		} else {
+			// pas d'action proxy, on regarde si l'action demandée existe, ou s'il existe une action par défaut
+			// si aucune action n'a été spécifiée, on prend celle par défaut
+			if (empty($action))
+				$action = \Temma\Framework::DEFAULT_ACTION;
+			$methodName = \Temma\Framework::ACTION_PREFIX . ucfirst($action);
+			\FineLog::log('temma', \FineLog::DEBUG, "Executing action '$action'.");
+			$status = call_user_func_array(array($obj, $methodName), (isset($parameters) ? $parameters : $this->_request->getParams()));
 		}
-		// pas d'action proxy, on regarde si l'action demandée existe, ou s'il existe une action par défaut
-		// si aucune action n'a été spécifiée, on prend celle par défaut
-		if (empty($action))
-			$action = \Temma\Framework::DEFAULT_ACTION;
-		$methodName = \Temma\Framework::ACTION_PREFIX . ucfirst($action);
-		\FineLog::log('temma', \FineLog::DEBUG, "Executing action '$action'.");
-		$status = call_user_func_array(array($obj, $methodName), (isset($parameters) ? $parameters : $this->_request->getParams()));
+		if ($status !== self::EXEC_FORWARD)
+			return ($status);
+		$status = $obj->finalize();
 		return ($status);
 	}
 
