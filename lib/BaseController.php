@@ -202,6 +202,18 @@ class BaseController {
 		}
 	}
 	/**
+	 * Indique un code de retour HTTP.
+	 * @param	int	$code	Le code de retour HTTP.
+	 */
+	final protected function httpCode($code) {
+		if (isset($this->_executorController))
+			$this->_executorController->httpCode($code);
+		else {
+			$this->_checkResponse();
+			$this->_response->setHttpCode($code);
+		}
+	}
+	/**
 	 * Retourne l'erreur HTTP configurée.
 	 * @return	int	Le code d'erreur configuré (403, 404, 500, ...) ou NULL si aucune erreur n'a été configurée.
 	 */
@@ -210,6 +222,16 @@ class BaseController {
 			return ($this->_executorController->getHttpError());
 		$this->_checkResponse();
 		return ($this->_response->getHttpError());
+	}
+	/**
+	 * Retourne le code de retour HTTP.
+	 * @return	int	Le code de retour HTTP.
+	 */
+	final protected function getHttpCode() {
+		if (isset($this->_executorController))
+			return ($this->_executorController->getHttpCode());
+		$this->_checkResponse();
+		return ($this->_response->getHttpCode());
 	}
 	/**
 	 * Indique une redirection HTTP (302).

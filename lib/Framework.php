@@ -472,7 +472,7 @@ class Framework {
 		$this->_timer->stop();
 		$this->_executorController->set('TIMER', $this->_timer->getTime());
 		// récupération et initialisation de la vue
-		$view = $this->_loadView($response->getView());
+		$view = $this->_loadView($response);
 		$this->_initView($view, $response);
 		// envoit des headers
 		\FineLog::log('temma', \FineLog::DEBUG, "Writing of response headers.");
@@ -709,11 +709,12 @@ class Framework {
 	/* ******************************** VUE ************************************ */
 	/**
 	 * Charge une vue.
-	 * @param	string	$name	Nom de la vue à charger.
+	 * @param	\Temma\Response	$response	Paramètres de réponse retournés par le contrôleur.
 	 * @return	\Temma\View	Instance de la vue demandée.
 	 * @throws	\Temma\Exceptions\FrameworkException	Si aucune ne peut être chargée.
 	 */
-	private function _loadView($name) {
+	private function _loadView(\Temma\Response $response) {
+		$name = $response->getView();
 		\FineLog::log('temma', \FineLog::INFO, "Loading view '$name'.");
 		// si la vue n'est pas définie, on utilise la vue par défaut
 		if (empty($name)) {
@@ -722,7 +723,7 @@ class Framework {
 		}
 		// chargement de la vue
 		if (class_exists($name) && is_subclass_of($name, '\Temma\View'))
-			return (new $name($this->_dataSources, $this->_config, $this->_session));
+			return (new $name($this->_dataSources, $this->_config, $response));
 		\FineLog::log('temma', \FineLog::ERROR, "Unable to instantiate view '$name'.");
 		throw new \Temma\Exceptions\FrameworkException("Unable to load any view.", \Temma\Exceptions\FrameworkException::NO_VIEW);
 	}
@@ -749,7 +750,7 @@ class Framework {
 				throw new \Temma\Exceptions\FrameworkException("No usable template.", \Temma\Exceptions\FrameworkException::NO_TEMPLATE);
 			}
 		}
-		$view->init($response);
+		$view->init();
 	}
 }
 

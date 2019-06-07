@@ -34,12 +34,12 @@ class SmartyView extends \Temma\View {
 	 * Constructeur.
 	 * @param	array		$dataSources	Liste de connexions à des sources de données.
 	 * @param	\Temma\Config	$config		Objet de configuration.
-	 * @param	\FineSession	$session	(optionnel) Objet de connexion à la session.
+	 * @param	\Temma\Response	$response	Objet de réponse.
 	 */
-	public function __construct($dataSources, \Temma\Config $config, \FineSession $session=null) {
+	public function __construct($dataSources, \Temma\Config $config, \Temma\Response $response) {
 		global $smarty;
 
-		parent::__construct($dataSources, $config, $session);
+		parent::__construct($dataSources, $config, $response);
 		// vérification de la présence des répertoires temporaires
 		$compiledDir = $config->tmpPath . '/' . self::COMPILED_DIR;
 		if (!is_dir($compiledDir) && !mkdir($compiledDir, 0755))
@@ -99,13 +99,9 @@ class SmartyView extends \Temma\View {
 		\FineLog::log('temma', \FineLog::WARN, "No one template found with name '$template'.");
 		return (false);
 	}
-	/**
-	 * Fonction d'initialisation.
-	 * @param	\Temma\Response	$response	Réponse de l'exécution du contrôleur.
-	 * @param	string		$templatePath	Chemin vers le template à traiter.
-	 */
-	public function init(\Temma\Response $response) {
-		foreach ($response->getData() as $key => $value) {
+	/** Fonction d'initialisation. */
+	public function init() {
+		foreach ($this->_response->getData() as $key => $value) {
 			if (isset($key[0]) && $key[0] != '_')
 				$this->_smarty->assign($key, $value);
 			else if ($key == '_temmaCacheable' && $value === true)

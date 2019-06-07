@@ -15,8 +15,8 @@ abstract class View {
 	protected $_dataSources = null;
 	/** Configuration de l'application. */
 	protected $_config = null;
-	/** Connexion à la session. */
-	protected $_session = null;
+	/** Objet de réponse. */
+	protected $_response = null;
 	/** Nom de la clé de configuration pour les headers. */
 	protected $_cacheKey = null;
 
@@ -24,12 +24,12 @@ abstract class View {
 	 * Constructeur.
 	 * @param	array		$dataSources	Liste de connexions à des sources de données.
 	 * @param	\Temma\Config	$config		Objet contenant la configuration du projet.
-	 * @param	\FineSession	$session	(optionnel) Objet de connexion à la session.
+	 * @param	\Temma\Response	$response	Objet de réponse.
 	 */
-	public function __construct($dataSources, \Temma\Config $config, \FineSession $session=null) {
+	public function __construct($dataSources, \Temma\Config $config, \Temma\Response $response=null) {
 		$this->_dataSources = $dataSources;
 		$this->_config = $config;
-		$this->_session = $session;
+		$this->_response = $response;
 	}
 	/** Destructeur. */
 	public function __destruct() {
@@ -52,18 +52,18 @@ abstract class View {
 	public function setTemplate($path, $template) {
 		return (true);
 	}
-	/**
-	 * Fonction d'initialisation.
-	 * @param	\Temma\Response	$response		Réponse de l'exécution du contrôleur.
-	 * @param	string		$templatePath		Chemin vers le template à traiter.
-	 */
-	abstract public function init(\Temma\Response $response);
+	/** Fonction d'initialisation. */
+	public function init() {
+	}
 	/**
 	 * Ecrit les headers HTTP sur la sortie standard si nécessaire.
 	 * Par défaut, envoie un header HTML avec désactivation du cache.
 	 * @param	array	$headers	(optionnel) Tableau de headers à envoyer par défaut.
 	 */
 	public function sendHeaders($headers=null) {
+		$httpCode = $this->_response->getHttpCode();
+		if ($httpCode != 200)
+			http_response_code($httpCode);
 		if (is_null($headers)) {
 			$headers = array(
 				'Content-Type'	=> 'text/html; charset=UTF-8',
@@ -71,10 +71,6 @@ abstract class View {
 				'Expires'	=> 'Mon, 26 Jul 1997 05:00:00 GMT',
 				'Pragma'	=> 'no-cache'
 			);
-		}
-		$headersSmarty = $this->_config->xtra('headers', 'smarty');
-		if (is_array($headersSmarty)) {
-			$headers = array_merge($headers, $headersSmarty);
 		}
 		$headersDefault = $this->_config->xtra('headers', 'default');
 		if (is_array($headersDefault)) {

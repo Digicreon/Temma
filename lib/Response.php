@@ -5,18 +5,20 @@ namespace Temma;
 /**
  * Objet de gestion des réponses à l'exécution des contrôleurs dans le framework Temma.
  *
- * @author	Amaury Bouchard <amaury.bouchard@finemedia.fr>
- * @copyright	© 2007-2011, Fine Media
+ * @author	Amaury Bouchard <amaury@amaury.net>
  * @package	Temma
- * @version	$Id: Response.php 267 2012-04-19 10:20:46Z abouchard $
  */
 class Response {
+	/** En-têtes HTTP. */
+	private $_headers = null;
 	/** Adresse de redirection. */
 	private $_redirect = null;
 	/** Code de redirection. */
 	private $_redirectCode = 302;
 	/** Code d'erreur HTTP. */
 	private $_httpError = null;
+	/** Code de retour HTTP. */
+	private $_httpCode = 200;
 	/** Nom de la vue à utiliser pour traiter la réponse. */
 	private $_view = null;
 	/** Préfixe à ajouter au début du chemin de template. */
@@ -36,6 +38,7 @@ class Response {
 		$this->_view = $view;
 		$this->_template = $template;
 		$this->_data = array();
+		$this->_headers = array();
 	}
 	/**
 	 * Affecte une redirection.
@@ -53,6 +56,13 @@ class Response {
 	 */
 	public function setHttpError($code) {
 		$this->_httpError = $code;
+	}
+	/**
+	 * Affecte un code de retour HTTP.
+	 * @param	int	$code	Le code de retour (403, 404, 500, ...).
+	 */
+	public function setHttpCode($code) {
+		$this->_httpCode = $code;
 	}
 	/**
 	 * Modifie le nom de la vue.
@@ -105,6 +115,13 @@ class Response {
 	 */
 	public function getHttpError() {
 		return ($this->_httpError);
+	}
+	/**
+	 * Retourne le code de retour HTTP.
+	 * @return	int	Le code de retour HTTP (403, 404, 500, ...).
+	 */
+	public function getHttpCode() {
+		return ($this->_httpCode);
 	}
 	/**
 	 * Retourne le nom de la vue.

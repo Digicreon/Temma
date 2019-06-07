@@ -44,13 +44,9 @@ class PhpView extends \Temma\View {
 		\FineLog::log('temma', \FineLog::WARN, "No one template found with name '$template'.");
 		return (false);
 	}
-	/**
-	 * Fonction d'initialisation.
-	 * @param	\Temma\Response	$response	Réponse de l'exécution du contrôleur.
-	 * @param	string		$templatePath	Chemin vers le template à traiter.
-	 */
-	public function init(\Temma\Response $response) {
-		foreach ($response->getData() as $key => $value) {
+	/** Fonction d'initialisation. */
+	public function init() {
+		foreach ($this->_response->getData() as $key => $value) {
 			if (isset($key[0]) && $key[0] != '_')
 				$GLOBALS[$key] = $value;
 			else if ($key == '_temmaCacheable' && $value === true)

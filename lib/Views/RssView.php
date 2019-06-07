@@ -15,11 +15,9 @@ namespace Temma\Views;
  * <li>articles : Liste de hash contenant toutes les données sur tous les articles.</li>
  * </ul>
  *
- * @author	Amaury Bouchard <amaury.bouchard@finemedia.fr>
- * @copyright	© 2007-2011, Fine Media
+ * @author	Amaury Bouchard <amaury@amaury.net>
  * @package	Temma
  * @subpackage	Views
- * @version	$Id$
  */
 class RssView extends \Temma\View {
 	/** Nom de la clé de configuration pour les headers. */
@@ -37,18 +35,14 @@ class RssView extends \Temma\View {
 	/** Liste des articles. */
 	private $_articles = null;
 
-	/**
-	 * Fonction d'initialisation.
-	 * @param	\Temma\Response	$response	Réponse de l'exécution du contrôleur.
-	 * @param	string		$templatePath	Chemin vers le template à traiter.
-	 */
-	public function init(\Temma\Response $response) {
-		$this->_domain = $response->getData('domain');
-		$this->_title = $response->getData('title');
-		$this->_description = $response->getData('description');
-		$this->_language = $response->getData('language');
-		$this->_contact = $response->getData('contact');
-		$this->_articles = $response->getData('articles');
+	/** Fonction d'initialisation. */
+	public function init() {
+		$this->_domain = $this->_response->getData('domain');
+		$this->_title = $this->_response->getData('title');
+		$this->_description = $this->_response->getData('description');
+		$this->_language = $this->_response->getData('language');
+		$this->_contact = $this->_response->getData('contact');
+		$this->_articles = $this->_response->getData('articles');
 	}
 	/** Ecrit les headers HTTP sur la sortie standard si nécessaire. */
 	public function sendHeaders($headers=null) {

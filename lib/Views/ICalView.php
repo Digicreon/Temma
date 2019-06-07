@@ -15,13 +15,9 @@ class ICalView extends \Temma\View {
 	/** Données de l'agenda. */
 	private $_ical = null;
 
-	/**
-	 * Fonction d'initialisation.
-	 * @param	\Temma\Response	$response	Réponse de l'exécution du contrôleur.
-	 * @param	string		$templatePath	Chemin vers le template à traiter.
-	 */
-	public function init(\Temma\Response $response) {
-		$this->_ical = $response->getData('ical');
+	/** Fonction d'initialisation. */
+	public function init() {
+		$this->_ical = $this->_response->getData('ical');
 	}
 	/** Ecrit les headers HTTP sur la sortie standard si nécessaire. */
 	public function sendHeaders($headers=null) {
