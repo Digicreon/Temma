@@ -5,11 +5,9 @@ namespace Temma\Exceptions;
 /**
  * Objet de gestion des exceptions de Temma.
  *
- * @author      Amaury Bouchard <amaury.bouchard@finemedia.fr>
- * @copyright   © 2007-2011, Fine Media
+ * @author      Amaury Bouchard <amaury@amaury.net>
  * @package     Temma
  * @subpackage  Exceptions
- * @version     $Id: FrameworkException.php 200 2011-04-19 15:26:39Z abouchard $
  */
 class FrameworkException extends \Exception {
 	/** Erreur de configuration. */
@@ -24,4 +22,3 @@ class FrameworkException extends \Exception {
 	const NO_TEMPLATE = 4;
 }
 
-?>

@@ -6,9 +6,7 @@ namespace Temma;
  * Objet de gestion des contrôleurs au sein d'applications MVC.
  *
  * @auhor	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2007-2012, Fine Media
  * @package	Temma
- * @version	$Id$
  */
 class Controller extends \Temma\BaseController {
 	/**
@@ -24,4 +22,3 @@ class Controller extends \Temma\BaseController {
 	}
 }
 
-?>

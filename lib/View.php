@@ -6,9 +6,7 @@ namespace Temma;
  * Objet de gestion des vues au sein d'applications MVC.
  *
  * @auhor	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2007-2011, Fine Media
  * @package	Temma
- * @version	$Id: View.php 277 2012-06-26 15:55:46Z abouchard $
  */
 abstract class View {
 	/** Liste de connexion à des sources de données. */
@@ -86,4 +84,3 @@ abstract class View {
 	abstract public function sendBody();
 }
 
-?>

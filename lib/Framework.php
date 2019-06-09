@@ -221,10 +221,8 @@ require_once('Temma/Response.php');
  * l'action (avec l'extension ".tpl"), dans un répertoire portant le nom du contrôleur,
  * lui-même présent dans templatesPath.
  *
- * @author	Amaury Bouchard <amaury.bouchard@finemedia.fr>
- * @copyright	© 2007-2010, Fine Media
+ * @author	Amaury Bouchard <amaury@amaury.net>
  * @package	Temma
- * @version	$Id: Framework.php 278 2012-07-04 12:21:30Z abouchard $
  * @see		\Temma\Controller
  * @see		\Temma\View
  */
@@ -364,22 +362,6 @@ class Framework {
 				continue;
 			// exécution du pré-plugin
 			$execStatus = $this->_execPlugin($pluginName, 'preplugin');
-			// si demandé, arrêt des traitements (des pré-plugins)
-			if ($execStatus === \Temma\Controller::EXEC_STOP ||
-			    $execStatus === \Temma\Controller::EXEC_HALT)
-				break;
-			// si demandé, reprise des traitements de tous les pré-plugins
-			if ($execStatus === \Temma\Controller::EXEC_RESTART) {
-				$this->_setControllerName();
-				$this->_setActionName();
-				$prePlugins = $this->_generatePrePluginsList();
-				reset($prePlugins);
-			}
-			// si demandé, on recommence tous les traitements à zéro
-			if ($execStatus === \Temma\Controller::EXEC_REBOOT) {
-				$this->process();
-				return;
-			}
 			// si demandé, arrêt total des traitement
 			if ($execStatus === \Temma\Controller::EXEC_QUIT) {
 				\FineLog::log('temma', \FineLog::DEBUG, "Premature but wanted end of processing.");
@@ -389,6 +371,20 @@ class Framework {
 			// le contrôleur, l'action, le namespace par défaut, ou encore les chemins d'inclusion)
 			$this->_setControllerName();
 			$this->_setActionName();
+			// vérification du statut retourné par le plugin
+			if ($execStatus === \Temma\Controller::EXEC_STOP ||
+			    $execStatus === \Temma\Controller::EXEC_HALT) {
+				// arrêt des traitements (des pré-plugins)
+				break;
+			} else if ($execStatus === \Temma\Controller::EXEC_RESTART) {
+				// reprise des traitements de tous les pré-plugins
+				$prePlugins = $this->_generatePrePluginsList();
+				reset($prePlugins);
+			} else if ($execStatus === \Temma\Controller::EXEC_REBOOT) {
+				// on recommence tous les traitements à zéro
+				$this->process();
+				return;
+			}
 		}
 
 		/* ************** CONTROLEUR ************* */
@@ -426,26 +422,27 @@ class Framework {
 					continue;
 				// exécution du post-plugin
 				$execStatus = $this->_execPlugin($pluginName, 'postplugin');
-				// si demandé, arrêt des traitements (des post-plugins)
-				if ($execStatus === \Temma\Controller::EXEC_STOP ||
-				    $execStatus === \Temma\Controller::EXEC_HALT)
-					break;
-				// si demandé, reprise des traitements de tous les post-plugins
-				if ($execStatus === \Temma\Controller::EXEC_RESTART) {
-					$this->_setControllerName();
-					$this->_setActionName();
-					$prePlugins = $this->_generatePrePluginsList();
-					reset($prePlugins);
+				// si demandé, arrêt total des traitement
+				if ($execStatus === \Temma\Controller::EXEC_QUIT) {
+					\FineLog::log('temma', \FineLog::DEBUG, "Premature but wanted end of processing.");
+					return;
 				}
 				// si demandé, on recommence tous les traitements à zéro
 				if ($execStatus === \Temma\Controller::EXEC_REBOOT) {
 					$this->process();
 					return;
 				}
-				// si demandé, arrêt total des traitement
-				if ($execStatus === \Temma\Controller::EXEC_QUIT) {
-					\FineLog::log('temma', \FineLog::DEBUG, "Premature but wanted end of processing.");
-					return;
+				// si demandé, arrêt des traitements (des post-plugins)
+				if ($execStatus === \Temma\Controller::EXEC_STOP ||
+				    $execStatus === \Temma\Controller::EXEC_HALT) {
+					break;
+				}
+				// si demandé, reprise des traitements de tous les post-plugins
+				if ($execStatus === \Temma\Controller::EXEC_RESTART) {
+					$this->_setControllerName();
+					$this->_setActionName();
+					$prePlugins = $this->_generatePrePluginsList();
+					reset($prePlugins);
 				}
 			}
 		}
@@ -530,6 +527,7 @@ class Framework {
 	 */
 	private function _setControllerName() {
 		$this->_initControllerName = $this->_controllerName = $this->_request->getController();
+\FineLog::l("setControllerName : '" . $this->_controllerName . "'.");
 		if (($proxyName = $this->_config->proxyController)) {
 			// un contrôleur proxy a été défini
 			$this->_objectControllerName = $proxyName;
@@ -754,4 +752,3 @@ class Framework {
 	}
 }
 
-?>

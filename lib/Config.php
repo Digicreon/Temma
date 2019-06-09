@@ -5,10 +5,8 @@ namespace Temma;
 /**
  * Objet contenant la configuration d'une application Temma.
  *
- * @author	Amaury Bouchard <amaury.bouchard@finemedia.fr>
- * @copyright	© 2007-2011, Fine Media
+ * @author	Amaury Bouchard <amaury@amaury.net>
  * @package	Temma
- * @version	$Id: Config.php 285 2012-09-27 13:11:22Z abouchard $
  */
 class Config {
 	/** Niveau de log par défaut. */
@@ -264,4 +262,3 @@ class Config {
 	}
 }
 
-?>

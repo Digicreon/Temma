@@ -9,8 +9,7 @@ require_once('finebase/IniExport.php');
  *
  * La donnée qui sera encodée au format INI doit avoir été stockée sous la clé "data".
  *
- * @author	Amaury Bouchard <amaury.bouchard@finemedia.fr>
- * @copyright	© 2019, Amaury Bouchard
+ * @author	Amaury Bouchard <amaury@amaury.net>
  */
 class IniView extends \Temma\View {
 	/** Donnée à envoyer encodée au format INI. */
@@ -30,4 +29,3 @@ class IniView extends \Temma\View {
 	}
 }
 
-?>

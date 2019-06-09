@@ -6,9 +6,7 @@ namespace Temma;
  * Objet basique de gestion des contrôleurs au sein d'applications MVC.
  *
  * @auhor	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2007-2012, Fine Media
  * @package	Temma
- * @version	$Id: BaseController.php 290 2012-11-13 11:33:23Z abouchard $
  */
 class BaseController {
 	/** Constante indiquant de passer au plugin suivant. */
@@ -374,4 +372,3 @@ class BaseController {
 	}
 }
 
-?>

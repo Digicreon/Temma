@@ -5,10 +5,8 @@ namespace Temma;
 /**
  * Objet de gestion des requêtes HTTP dans le framework Temma.
  *
- * @author	Amaury Bouchard <amaury.bouchard@finemedia.fr>
- * @copyright	© 2007-2011, Fine Media
+ * @author	Amaury Bouchard <amaury@amaury.net>
  * @package	Temma
- * @version	$Id: Request.php 277 2012-06-26 15:55:46Z abouchard $
  */
 class Request {
 	/** Information de pathInfo. */
@@ -200,4 +198,3 @@ class Request {
 	}
 }
 
-?>

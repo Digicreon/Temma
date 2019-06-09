@@ -5,11 +5,8 @@ namespace Temma;
 /**
  * Objet de génération de requêtes SQL.
  *
- * @author	Amaury Bouchard <amaury.bouchard@finemedia.fr>
- * @copyright	© 2011, Fine Media
+ * @author	Amaury Bouchard <amaury@amaury.net>
  * @package	Temma
- * @subpackage	DAO
- * @version	$Id$
  */
 class DaoCriteria {
 	/** Objet Dao à l'origine du critère. */
@@ -245,4 +242,3 @@ class DaoCriteria {
 	}
 }
 
-?>

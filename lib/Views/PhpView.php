@@ -5,11 +5,9 @@ namespace Temma\Views;
 /**
  * Vue traitant les templates écrits en PHP.
  *
- * @author	Amaury Bouchard <amaury.bouchard@finemedia.fr>
- * @copyright	© 2012, Fine Media
+ * @author	Amaury Bouchard <amaury@amaury.net>
  * @package	Temma
  * @subpackage	Views
- * @version	$Id: SmartyView.php -1   $
  */
 class PhpView extends \Temma\View {
 	/** Nom de la clé de configuration pour les headers. */
@@ -73,4 +71,3 @@ class PhpView extends \Temma\View {
 	}
 }
 
-?>

@@ -6,10 +6,8 @@ namespace Temma\Views;
  * Vue traitant les flux de calendrier iCal.
  *
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2018, Amaury Bouchard
  * @package	Temma
  * @subpackage	Views
- * @version	$Id$
  */
 class ICalView extends \Temma\View {
 	/** Données de l'agenda. */
@@ -105,4 +103,3 @@ class ICalView extends \Temma\View {
 	}
 }
 
-?>

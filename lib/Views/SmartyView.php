@@ -7,11 +7,9 @@ require_once('smarty3/Smarty.class.php');
 /**
  * Vue traitant les templates Smarty.
  *
- * @author	Amaury Bouchard <amaury.bouchard@finemedia.fr>
- * @copyright	© 2007-2012, Fine Media
+ * @author	Amaury Bouchard <amaury@amaury.net>
  * @package	Temma
  * @subpackage	Views
- * @version	$Id: SmartyView.php 277 2012-06-26 15:55:46Z abouchard $
  * @link	http://smarty.php.net/
  */
 class SmartyView extends \Temma\View {
@@ -127,4 +125,3 @@ class SmartyView extends \Temma\View {
 	}
 }
 
-?>

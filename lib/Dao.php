@@ -53,11 +53,8 @@ namespace Temma;
  * );
  * </code>
  *
- * @author	Amaury Bouchard <amaury.bouchard@finemedia.fr>
- * @copyright	© 2011, Fine Media
+ * @author	Amaury Bouchard <amaury@amaury.net>
  * @package	Temma
- * @subpackage	DAO
- * @version	$Id$
  */
 class Dao {
 	/** Nom de l'objet de critère. */
@@ -412,4 +409,3 @@ class Dao {
 	}
 }
 
-?>

@@ -3,11 +3,9 @@
 /**
  * Plugin de gestion des URL en cache.
  *
- * @author	Amaury Bouchard <amaury.bouchard@finemedia.fr>
- * @copyright	Copyright (c) 2010, FineMedia
+ * @author	Amaury Bouchard <amaury@amaury.net>
  * @package	Temma
  * @subpackage	Plugins
- * @version	$Id$
  * @see		http://www.temma.net/fr/extensions/doc/TemmaCachePlugin/index.html
  */
 class TemmaCachePlugin extends \Temma\Controller {
@@ -72,4 +70,3 @@ class TemmaCachePlugin extends \Temma\Controller {
 	}
 }
 
-?>

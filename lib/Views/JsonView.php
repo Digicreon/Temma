@@ -36,4 +36,3 @@ class JsonView extends \Temma\View {
 	}
 }
 
-?>

@@ -104,4 +104,3 @@ class RssView extends \Temma\View {
 	}
 }
 
-?>
