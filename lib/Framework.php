@@ -527,7 +527,6 @@ class Framework {
 	 */
 	private function _setControllerName() {
 		$this->_initControllerName = $this->_controllerName = $this->_request->getController();
-\FineLog::l("setControllerName : '" . $this->_controllerName . "'.");
 		if (($proxyName = $this->_config->proxyController)) {
 			// un contrôleur proxy a été défini
 			$this->_objectControllerName = $proxyName;
