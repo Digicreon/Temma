@@ -1,6 +1,6 @@
 <?php
 
-namespace Temma\Base;
+namespace Temma\Utils;
 
 /**
  * Helper object used to write character strings in a terminal, with ANSI formatting.
@@ -9,28 +9,28 @@ namespace Temma\Base;
  *
  * <code>
  * // write bold text
- * print(\Temma\Base\Ansi::bold('blah blah blah'));
+ * print(\Temma\Utils\Ansi::bold('blah blah blah'));
  * // write "thin" text
- * print(\Temma\Base\Ansi::faint('blah blah blah'));
+ * print(\Temma\Utils\Ansi::faint('blah blah blah'));
  * // write underlined text
- * print(\Temma\Base\Ansi::underline('blah blah blah'));
+ * print(\Temma\Utils\Ansi::underline('blah blah blah'));
  * // write reversed video text
- * print(\Temma\Base\Ansi::negative('blah blah blah'));
+ * print(\Temma\Utils\Ansi::negative('blah blah blah'));
  * // write text in red
  * // (available colors are: black, red, green, yellow, blue, magenta, cyan, white)
- * print(\Temma\Base\Ansi::color('red', 'blah blah blah'));
+ * print(\Temma\Utils\Ansi::color('red', 'blah blah blah'));
  * // write text in red over a blue background
- * print(\Temma\Base\Ansi::backColor('blue', 'red', 'bla bla bla'));
+ * print(\Temma\Utils\Ansi::backColor('blue', 'red', 'bla bla bla'));
  * </code>
  *
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2008-2019, Amaury Bouchard
  * @package	Temma
- * @subpackage	Base
+ * @subpackage	Utils
  */
 class Ansi {
 	/** Colors definition. */
-	static public $colors = array(
+	static public $colors = [
 		'black'		=> 0,
 		'red'		=> 1,
 		'green'		=> 2,
@@ -39,7 +39,7 @@ class Ansi {
 		'magenta'	=> 5,
 		'cyan'		=> 6,
 		'white'		=> 7
-	);
+	];
 
 	/**
 	 * Bold text.

@@ -1,128 +1,134 @@
 <?php
 
-require_once("finebase/FineLog.php");
-require_once("finebase/FineCache.php");
+namespace Temma\Base;
+
+use \Temma\Base\Log as TµLog;
 
 /**
- * Objet de gestion des session.
+ * Session management object.
  *
- * Cet objet est à appeler au plus tôt dans l'exécution d'une application Web.
- * Il crée un identifiant de session qui est déposé sur le poste client par
- * cookie. Si un identifiant existait déjà en cookie, la session est récupérée
- * depuis cet identifiant, et un nouvel identifiant de session est créé et
- * déposé en cookie.
+ * This object should be called as soon as possible during the process of a web
+ * application. It creates a session ID which is stored on the client side in
+ * a cookie. If a session ID was already existing in cookie, the session is
+ * fetched from this ID, and a new session ID is created and stored in cookie.
  *
- * Il est possible de stocker un identifiant d'utilisateur, qui restera associé
- * à la session. Il est aussi possible de stocker des variables de session, qui
- * sont des chaînes de caractère.
  *
- * Exemple d'utilisation en 3 scripts. Le premier script crée une session dès
- * la première visite d'un utilisateur :
+ * Example of a script which creates a session and store a session variable:
  * <code>
- * // création de l'objet de session
- * $session = FineSession::factory($db);
- * // stockage d'une variable de session
- * $session->set("trululu", "pouet");
+ * // creation of the session object
+ * $session = \Temma\Base\Session::factory($cache);
+ *
+ * // store a data in session (two equivalent syntaxes)
+ * $session->set('foo', 'bar');
+ * $session['foo'] = 'bar';
  * </code>
- * Le deuxième script utilise les informations stockées, puis efface toutes les
- * données de session :
+ *
+ * Example of a script which fetch the data back, and then delete all
+ * session data:
  * <code>
- * $session = FineSession::factory($db);
- * // récupération de la variable de session
- * $trululu = $session->get("trululu");
- * // efface toutes les données de session
+ * $session = \Temma\Base\Session::factory($cache);
+ *
+ * // get the session data (two equivalent syntaxes)
+ * $foo = $session->get('foo');
+ * $foo = $session['foo'];
+ *
+ * // delete one session data (two equivalent syntaxes)
+ * $session->set('foo', null);
+ * unset($session['foo']);
+ *
+ * // delete all session data
  * $session->clean();
  * </code>
  *
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2010, FineMedia
- * @package	FineBase
- * @version	$Id: FineSession.php 629 2012-06-26 11:39:42Z abouchard $
+ * @copyright	© 2010-2019, Amaury Bouchard
+ * @package	Temma
+ * @subpackage	Base
  */
-class FineSession {
-	/** Constante : Durée de session courte (1 journée). */
+class Session implements \ArrayAccess {
+	/** Constant: Short session duration (1 day). */
 	const SHORT_DURATION = 86400;
-	/** Constante : Durée de session moyenne (1 mois). */
+	/** Constant: Medium session duration (1 month). */
 	const MEDIUM_DURATION = 2592000;
-	/** Constante : Durée de session longue (1 an). */
+	/** Constant: Long session duration (1 year). */
 	const LONG_DURATION = 31536000;
-	/** Objet de gestion du cache. */
+	/** Cache management object. */
 	private $_cache = null;
-	/** Nom du cookie de session.*/
+	/** Name of the session cookie. */
 	private $_cookieName = null;
-	/** Durée de la session */
+	/** Session duration. */
 	private $_duration = null;
-	/** Tableau des données de session. */
+	/** Associative array of session data. */
 	private $_data = null;
-	/** Identifiant de session. */
+	/** Session identifier. */
 	private $_sessionId = null;
 
-	/* ************************** CONSTRUCTION ******************** */
+	/* ********** CONSTRUCTION ********** */
 	/**
-	 * Crée un objet FineSession.
-	 * @param	FineDatasource	$cache		(optionnel) Instance de connexion au cache.
-	 * @param	string		$cookieName	(optionnel) Nom du cookie de session. "FINE_SESSION" par défaut.
-	 * @param	int		$duration	(optionnel) Durée de la session. Un an par défaut.
-	 * @param	int		$renewDelay	(optionnel) Délai avant recréation de l'identifiant de session. 20 mn par défaut.
-	 * @return	FineSession	L'instance.
+	 * Factory.
+	 * @param	\Temma\Base\Datasource	$cache		(optional) Cache management object.
+	 * @param	string			$cookieName	(optional) Name of the session cookie. "TEMMA_SESSION" by default.
+	 * @param	int			$duration	(optional) Session duration. One year by default.
+	 * @param	int			$renewDelay	(optional) Delay before session ID renewal. 20 minutes by default.
+	 * @return	\Temma\Base\Session	The created instance.
 	 */
-	static public function factory(FineDatasource $cache=null, $cookieName='FINE_SESSION', $duration=31536000, $renewDelay=1200) {
-		return (new FineSession($cache, $cookieName, $duration, $renewDelay));
+	static public function factory(\Temma\Base\Datasource $cache=null, string $cookieName='TEMMA_SESSION', int $duration=31536000, int $renewDelay=1200) : \Temma\Base\Session {
+		return (new \Temma\Base\Session($cache, $cookieName, $duration, $renewDelay));
 	}
 	/**
-	 * Constructeur.
-	 * @param	FineDatasource	$cache		Instance de connexion au cache.
-	 * @param	string		$cookieName	Nom du cookie de session. "FINE_SESSION" par défaut.
-	 * @param	int		$duration	Durée de la session.
-	 * @param	int		$renewDelay	Délai avant recréation de l'identifiant de session.
+	 * Constructor.
+	 * @param	\Temma\Base\Datasource	$cache		(optional) Cache management object.
+	 * @param	string			$cookieName	(optional) Name of the session cookie. "TEMMA_SESSION" by default.
+	 * @param	int			$duration	(optional) Session duration. One year by default.
+	 * @param	int			$renewDelay	(optional) Delay before session ID renewal. 20 minutes by default.
 	 */
-	private function __construct(FineDatasource $cache=null, $cookieName=null, $duration=null, $renewDelay=null) {
-		FineLog::log('finebase', FineLog::DEBUG, "Session object creation.");
-		// récupération du cache
+	private function __construct(\Temma\Base\Datasource $cache=null, string $cookieName=null, int $duration=null, int $renewDelay=null) {
+		TµLog::log('Temma\Base', 'DEBUG', "Session object creation.");
+		// fetch the cache
 		if (isset($cache) && $cache->isEnabled())
 			$this->_cache = clone $cache;
-		// si le cache n'est pas actif, on utilise les sessions PHP standard
+		// if the cache is not active, use the standard PHP session engine
 		if (!isset($this->_cache)) {
 			session_start();
 			return;
 		}
-		$this->_data = array();
+		$this->_data = [];
 		$this->_cookieName = $cookieName;
-		// recherche de l'identifiant de session dans les cookies
+		// search for the session ID in the received cookies
 		$oldSessionId = isset($_COOKIE[$cookieName]) ? $_COOKIE[$cookieName] : null;
 		$this->_sessionId = $oldSessionId;
-		// constitution du nouvel identifiant de session
+		// creation of the new session ID
 		$newSessionId = hash('md5', time() . mt_rand(0, 0xffff) . mt_rand(0, 0xffff) . mt_rand(0, 0xffff) . mt_rand(0, 0xffff));
-		// recherche des données de session
+		// fetch session data
 		if (!empty($oldSessionId)) {
-			// récupération des données en cache
+			// get data from cache
 			$data = $this->_cache->get("sess:$oldSessionId");
 			if (isset($data['_magic']) && $data['_magic'] == 'Ax')
-				$this->_data = isset($data['data']) ? $data['data'] : null;
+				$this->_data = $data['data'] ?? null;
 			else {
 				unset($_COOKIE[$cookieName]);
 				$newSessionId = $this->_sessionId;
 			}
 		}
-		// calcul de la date d'expiration de session
+		// compute expiration date
 		if (!isset($this->_data))
 			$duration = self::SHORT_DURATION;
 		$this->_duration = $duration;
 		$timestamp = time() + $duration;
 		$expiration = date('Y-m-d H-i-s', $timestamp);
-		// enregistrement de l'identifiant de session en cookie
+		// store the session ID in cookie
 		if (!preg_match("/[^.]+\.[^.]+$/", $_SERVER['HTTP_HOST'], $matches))
 			$host = $_SERVER['HTTP_HOST'];
 		else
 			$host = $matches[0];
 		if (!isset($_COOKIE[$cookieName]) || empty($_COOKIE[$cookieName]) || $this->_sessionId != $oldSessionId && !headers_sent()) {
-			FineLog::log('finebase', FineLog::DEBUG, "Send cookie '$cookieName' - '$newSessionId' - '$timestamp' - '.$host'");
-			// envoi du cookie
+			TµLog::log('Temma\Base', 'DEBUG', "Send cookie '$cookieName' - '$newSessionId' - '$timestamp' - '.$host'");
+			// send the cookie
 			if (PHP_VERSION_ID < 70300) {
-				// PHP < 7.3 : utilisation d'un hack permettant d'envoyer l'attribut 'samesite'
+				// PHP < 7.3: use a hack to send the 'samesite' attribute
 				setcookie($cookieName, $newSessionId, $timestamp, '/; samesite=Lax', ".$host", false);
 			} else {
-				// PHP >= 7.3 : utilisation d'un tableau associatif
+				// PHP >= 7.3: use an associative array
 				setcookie($cookieName, $newSessionId, [
 					'expires'	=> $timestamp,
 					'path'		=> '/',
@@ -135,40 +141,40 @@ class FineSession {
 		}
 	}
 
-	/* *********************** GESTION ******************************** */
-	/** Efface toutes les variables de la session courante. */
+	/* ********** MANAGEMENT ********** */
+	/** Delete all data in the current session. */
 	public function clean() {
-		FineLog::log('finebase', FineLog::DEBUG, "Cleaning session.");
+		TµLog::log('Temma\Base', 'DEBUG', "Cleaning session.");
 		if (!isset($this->_cache)) {
-			// session PHP standard
+			// standard PHP session
 			foreach ($_SESSION as $key => $val)
 				unset($_SESSION[$key]);
 			return;
 		}
-		// reset du tableau interne
+		// reset internal array
 		unset($this->_data);
-		$this->_data = array();
-		// effacement des données en cache
-		$this->_cache->set("sess:" . $this->_sessionId, null);
+		$this->_data = [];
+		// delete cache data
+		$this->_cache->set('sess:' . $this->_sessionId, null);
 	}
-	/** Efface la session courante. */
+	/** Delete the current session. */
 	public function remove() {
-		FineLog::log('finebase', FineLog::DEBUG, "Removing current session.");
+		TµLog::log('Temma\Base', 'DEBUG', "Removing current session.");
 		if (!isset($this->_cache)) {
-			// session PHP standard
+			// standard PHP session
 			foreach ($_SESSION as $key => $val)
 				unset($_SESSION[$key]);
 			return;
 		}
-		// efface la session
+		// delete the session
 		$this->_cache->set('sess:' . $this->_sessionId, null);
-		// reset des variables internes
+		// reset internal variables
 		unset($this->_data);
 		$this->_data = null;
 	}
 	/**
-	 * Retourne l'identifiant de la session courante.
-	 * @return	string	L'identifiant de session.
+	 * Return the current session's identifier.
+	 * @return	string	The session ID.
 	 */
 	public function getSessionId() {
 		if (!isset($this->_cache))
@@ -176,18 +182,15 @@ class FineSession {
 		return ($this->_sessionId);
 	}
 
-	/* ****************** DONNEES DE SESSION ****************** */
+	/* ********** DATA MANAGEMENT ********** */
 	/**
-	 * Enregistre une donnée de session.
-	 * La donnée est sérialisée grâce à la fonction serialize() de PHP,
-	 * qui accepte les types bool, int, float, string, array, object, null.
-	 * Voir la documentation de serialize/unserialize pour plus d'informations.
-	 * @param	string	$key	Nom de la donnée.
-	 * @param	mixed	$value	(optionnel) Valeur de la donnée. La donnée est effacée si cette valeur vaut null ou si elle n'est pas fournie.
+	 * Add a data in session.
+	 * @param	string	$key	Data name.
+	 * @param	mixed	$value	(optional) Data value. The data is removed if the value is null. Null by default.
 	 * @link	http://php.net/manual/function.serialize.php
 	 */
 	public function set($key, $value=null) {
-		FineLog::log('finebase', FineLog::DEBUG, "Setting value for key '$key'.");
+		TµLog::log('Temma\Base', 'DEBUG', "Setting value for key '$key'.");
 		if (!isset($this->_cache)) {
 			if (is_null($value))
 				unset($_SESSION[$key]);
@@ -195,30 +198,45 @@ class FineSession {
 				$_SESSION[$key] = $value;
 			return;
 		}
-		// mise-à-jour du tableau interne
+		// update internal array
 		if (is_null($value))
 			unset($this->_data[$key]);
 		else
 			$this->_data[$key] = $value;
-		// synchronisation des données
-		$cacheData = array(
+		// data sync
+		$cacheData = [
 			'_magic'	=> 'Ax',
 			'data'		=> $this->_data
-		);
-		if (is_a($this->_cache, '\FineCache'))
-			$this->_cache->set('sess:' . $this->_sessionId, $cacheData, $this->_duration);
-		else if (is_a($this->_cache, '\FineNDB'))
-			$this->_cache->set('sess:' . $this->_sessionId, $cacheData, false, $this->_duration);
+		];
+		$this->_cache->set('sess:' . $this->_sessionId, $cacheData, $this->_duration);
 	}
 	/**
-	 * Enregistre une donnée de tableau associatif en session.
-	 * Le tableau est créé s'il n'existe pas.
-	 * @param	string	$key		Nom de la variable de session.
-	 * @param	string	$arrayKey	Nom de la clé du tableau associatif.
-	 * @param	mixed	$value		(optionnel) Valeur de la donnée. La donnée est effacée si cette valeur vaut null ou si elle n'est pas fournie.
+	 * Add data in session, array-like syntax.
+	 * @param	string	$key	Data name.
+	 * @param	mixed	$value	Data value. The data is removed if the value is null.
 	 */
-	public function setArray($key, $arrayKey, $value=null) {
-		FineLog::log('finebase', FineLog::DEBUG, "Setting value for array '$key\[$arrayKey\]'.");
+	public function offsetSet($key, $value) {
+		$this->set($key, $value);
+	}
+	/**
+	 * Remove data from cache, array-like syntax.
+	 * @param	string	$key	Data name.
+	 */
+	public function offsetUnset($key) {
+		if (!isset($this->_cache))
+			unset($_SESSION[$key]);
+		else
+			unset($this->_data[$key]);
+	}
+	/**
+	 * Store a data from an associative array in session.
+	 * The array is created if it doesn't exist.
+	 * @param	string	$key		Name of the session variable.
+	 * @param	string	$arrayKey	Name of the associative array key.
+	 * @param	mixed	$value		(optional) Data value. The data is removed if the value is null. Null by default.
+	 */
+	public function setArray(string $key, string $arrayKey, $value=null) {
+		TµLog::log('Temma\Base', 'DEBUG', "Setting value for array '$key\[$arrayKey\]'.");
 		if (!isset($this->_cache)) {
 			if (is_null($value)) {
 				if (isset($_SESSION[$key][$arrayKey]))
@@ -230,7 +248,7 @@ class FineSession {
 			}
 			return;
 		}
-		// mise-à-jour du tableau interne
+		// update the internal array
 		if (is_null($value)) {
 			if (isset($this->_data[$key][$arrayKey]))
 				unset($this->_data[$key][$arrayKey]);
@@ -239,23 +257,32 @@ class FineSession {
 				$this->_data[$key] = [];
 			$this->_data[$key][$arrayKey] = $value;
 		}
-		// synchronisation des données
-		$cacheData = array(
+		// data sync
+		$cacheData = [
 			'_magic'	=> 'Ax',
 			'data'		=> $this->_data
-		);
+		];
 		$this->_cache->set('sess:' . $this->_sessionId, $cacheData, $this->_duration);
 	}
 	/**
-	 * Récupère une donnée de session.
-	 * La donnée est désérialisée grâce à la fonction unserialize() de PHP.
-	 * @param	string	$key		Nom de la donnée.
-	 * @param	mixed	$default	(optionnel) Valeur par défaut, si la donnée n'existe pas en session.
-	 * @return	mixed	Valeur de la donnée de session.
+	 * Tell if a data exists, array-like syntax.
+	 * @param	string $key	Data name.
+	 * @return	bool	True if the data exists, false otherwise.
+	 */
+	public function offsetExists($key) {
+		if (!isset($this->_cache))
+			return (isset($_SESSION[$key]));
+		return (isset($this->_data[$key]));
+	}
+	/**
+	 * Fetch a session data.
+	 * @param	string	$key		Data name.
+	 * @param	mixed	$default	(optional) Default value, used if the data doesn't exist in session.
+	 * @return	mixed	Value of the session data.
 	 * @link	http://php.net/manual/function.unserialize.php
 	 */
-	public function get($key, $default=null) {
-		FineLog::log('finebase', FineLog::DEBUG, "Returning value for key '$key'.");
+	public function get(string $key, $default=null) {
+		TµLog::log('Temma\Base', 'DEBUG', "Returning value for key '$key'.");
 		if (!isset($this->_cache)) {
 			if (!isset($_SESSION[$key]) && isset($default))
 				return ($default);
@@ -270,8 +297,16 @@ class FineSession {
 		return (null);
 	}
 	/**
-	 *  Retourne toutes les variables de la session
-	 *  @return array Données de la session. 
+	 * Fetch a session data, array-like syntax.
+	 * @param	string	$key	Data name.
+	 * @return	mixed	Value of the session data.
+	 */
+	public function offsetGet($key) {
+		return ($this->get($key));
+	}
+	/**
+	 * Return all session variables.
+	 * @return	array	Session data.
 	 */
 	public function getAll() {
 		if (!isset($this->_data))
@@ -280,4 +315,3 @@ class FineSession {
 	}
 }
 
-?>

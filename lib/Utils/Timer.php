@@ -1,48 +1,47 @@
 <?php
 
-require_once("finebase/FineApplicationException.php");
+namespace Temma\Utils;
 
 /**
- * Objet de chronométrage.
+ * Timing object.
  *
- * @author	Amaury Bouchard <amaury.bouchard@finemedia.fr>
- * @copyright	© 2007, FineMedia
- * @package	FineBase
- * @version	$Id: FineTimer.php 641 2013-02-11 12:57:59Z abouchard $
+ * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2007-2019, Amaury Bouchard
+ * @package	Temma
+ * @subpackage	Utils
  */
-class FineTimer {
-	/** Date de début de chronométrage. */
+class Timer {
+	/** Date of timing start. */
 	private $_begin = null;
-	/** Date de fin de chronométrage. */
+	/** Date of timing end. */
 	private $_end = null;
 
-	/** Démarre un chronométrage. */
+	/** Starts a timing. */
 	public function start() {
 		$this->_begin = microtime();
 		$this->_end = null;
 	}
-	/** Termine un chronométrage. */
+	/** Stops a timing. */
 	public function stop() {
 		$this->_end = microtime();
 	}
-	/** Relance un chronométrage sans repartir de zéro. */
+	/** Resume a timing. */
 	public function resume() {
 		$this->_end = null;
 	}
 	/**
-	 * Retourne le temps écoulé pendant le chronométrage.
-	 * @return	int	Le temps écoulé en microsecondes.
-	 * @throws	FineApplicationException
+	 * Returns the elapsed time during a timing.
+	 * @return	int	Elapsed time in microseconds.
+	 * @throws	\Exception	If the timer wasn't started correctly.
 	 */
 	public function getTime() {
 		if (is_null($this->_begin))
-			throw new FineApplicationException("Le chronomètre n'a pas été lancé correctement.", FineApplicationException::API);
-		list($uSecondeA, $secondeA) = explode(" ", $this->_begin);
+			return (0);
+		list($uSecondeA, $secondeA) = explode(' ', $this->_begin);
 		$end = is_null($this->_end) ? microtime() : $this->_end;
-		list($uSecondeB, $secondeB) = explode(" ", $end);
+		list($uSecondeB, $secondeB) = explode(' ', $end);
 		$total = ($secondeA - $secondeB) + ($uSecondeA - $uSecondeB);
 		return (number_format(abs($total), 16));
 	}
 }
 
-?>
