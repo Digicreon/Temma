@@ -2,7 +2,7 @@
 Temma is a simple and efficient PHP MVC framework.
 
 ==Additional information==
-* Published by the Fine Media company
+* Created in 2007 by Amaury Bouchard. Released as open source software.
 * Project leader: Amaury Bouchard (amaury@amaury.net)
 * Discussions: http://groups.google.com/group/finemedia-oss
 * **More information**: http://www.temma.net
@@ -10,7 +10,7 @@ Temma is a simple and efficient PHP MVC framework.
 ==License==
 It is placed under the terms of the [[http://www.opensource.org/licenses/mit-license.php|MIT License]].
 
-Copyright © 2007-2012, Amaury Bouchard, Fine Media
+Copyright © 2007-2019, Amaury Bouchard
 
 Permission is hereby granted, free of charge, to any person obtaining a
 copy of this software and associated documentation files (the "Software"),
