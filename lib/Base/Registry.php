@@ -107,7 +107,7 @@ class Registry implements \ArrayAccess {
 		$this->set($key, $data);
 	}
 	/**
-	 * Add data to the registry, array syntax.
+	 * Add data to the registry, array-like syntax.
 	 * @param	string	$key	Index key.
 	 * @param	mixed	$data	Associated value.
 	 */
@@ -136,7 +136,7 @@ class Registry implements \ArrayAccess {
 		return ($this->get($key));
 	}
 	/**
-	 * Returns data from the registry, array syntax.
+	 * Returns data from the registry, array-like syntax.
 	 * @param	string	$key	Index key.
 	 * @return	mixed	The associated value, or null.
 	 */
@@ -162,7 +162,7 @@ class Registry implements \ArrayAccess {
 		return ($this->isset($key));
 	}
 	/**
-	 * Check if a data exist, array syntax.
+	 * Check if a data exist, array-like syntax.
 	 * @param	string	$key	Index key.
 	 * @return	bool	True if the key was defined, false otherwise.
 	 */
@@ -189,10 +189,10 @@ class Registry implements \ArrayAccess {
 		$this->unset($key);
 	}
 	/**
-	 * Remove data from registry, array syntax.
+	 * Remove data from registry, array-like syntax.
 	 * @param	string	$key	Index key.
 	 */
-	public function offsetUnset($offset) {
+	public function offsetUnset($key) {
 		$this->unset($key);
 	}
 

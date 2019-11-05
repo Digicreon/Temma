@@ -57,7 +57,7 @@ class Autoload {
 	 * @param	string|array	$path	Include path, or liste of include paths.
 	 */
 	static public function addIncludePath($path) {
-		$path = is_array($path) ? $path : array($path);
+		$path = is_array($path) ? $path : [$path];
 		$libPath = implode(PATH_SEPARATOR, $path);
 		if (!empty($libPath))
 			set_include_path($libPath . PATH_SEPARATOR . get_include_path());

@@ -100,23 +100,23 @@ class Log {
 		self::DEFAULT_CLASS	=> self::NOTE,
 	];
 	/** Array of sorted log levels.*/
-	static private $_levels = array(
+	static private $_levels = [
 		'DEBUG'	=> 10,
 		'INFO'	=> 20,
 		'NOTE'	=> 30,
 		'WARN'	=> 40,
 		'ERROR'	=> 50,
 		'CRIT'	=> 60
-	);
+	];
 	/** Array of log level text labels. */
-	static private $_labels = array(
+	static private $_labels = [
 		'DEBUG'	=> 'DEBUG',
 		'INFO'	=> 'INFO ',
 		'NOTE'	=> 'NOTE ',
 		'WARN'	=> 'WARN ',
 		'ERROR'	=> 'ERROR',
 		'CRIT'	=> 'CRIT '
-	);
+	];
 
 	/* ******************** PUBLIC METHODS ****************** */
 	/**
