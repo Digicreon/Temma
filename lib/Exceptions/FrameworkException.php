@@ -3,22 +3,23 @@
 namespace Temma\Exceptions;
 
 /**
- * Objet de gestion des exceptions de Temma.
+ * Exception for Temma framework errors.
  *
  * @author      Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2007-2019, Amaury Bouchard
  * @package     Temma
  * @subpackage  Exceptions
  */
 class FrameworkException extends \Exception {
-	/** Erreur de configuration. */
+	/** Configuration error. */
 	const CONFIG = 0;
-	/** Erreur de chargement de contrôleur. */
+	/** Controller loading error. */
 	const NO_CONTROLLER = 1;
-	/** Erreur : action non disponible. */
+	/** No action available. */
 	const NO_ACTION = 2;
-	/** Erreur : vue non disponible. */
+	/** No view available. */
 	const NO_VIEW = 3;
-	/** Erreur : template non disponible. */
+	/** No template available. */
 	const NO_TEMPLATE = 4;
 }
 

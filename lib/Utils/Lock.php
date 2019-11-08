@@ -1,8 +1,6 @@
 <?php
 
-namespace Temma\Base;
-
-use \Temma\Base\Log as TµLog;
+namespace Temma\Utils;
 
 /**
  * Lock management object.
@@ -12,7 +10,7 @@ use \Temma\Base\Log as TµLog;
  *
  * Example of a classic usage, to prevent concurrent execution of the script:
  * <code>
- * $lock = new \Temma\Base\Lock();
+ * $lock = new \Temma\Utils\Lock();
  * try {
  *     // creation of the lock
  *     $lock->lock();
@@ -33,7 +31,7 @@ use \Temma\Base\Log as TµLog;
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2008-2019, Amaury Bouchard
  * @package	Temma
- * @subpackage	Base
+ * @subpackage	Utils
  */
 class Lock {
 	/** Constant - suffix added to the lock file names. */
@@ -41,9 +39,9 @@ class Lock {
 	/** Constant - duration of the default lock timeout, in seconds. 10 minutes by default. */
 	const LOCK_TIMEOUT = 600;
 	/** Lock file's handler. */
-	private $_fileHandle = null;
+	protected $_fileHandle = null;
 	/** Path to the lock file. */
-	private $_lockPath = null;
+	protected $_lockPath = null;
 
 	/**
 	 * Creation of a lock.
@@ -52,9 +50,8 @@ class Lock {
 	 * @param	int	$timeout	(optional) Lock duration, in seconds.
 	 * @throws	\Temma\Exceptions\IOException	If the file can't be locked.
 	 */
-	public function lock(string $path=null, int $timeout=null) {
+	public function lock(?string $path=null, ?int $timeout=null) : void {
 		$filePath = is_null($path) ? $_SERVER['SCRIPT_FILENAME'] : $path;
-		TµLog::log('Temma\Base', 'DEBUG', "Locking '$filePath'.");
 		$lockPath = $filePath . self::LOCK_SUFFIX;
 		$this->_lockPath = $lockPath;
 		if (!($this->_fileHandle = fopen($this->_lockPath, "a+"))) {
@@ -91,7 +88,7 @@ class Lock {
 	 * Release a lock.
 	 * @throws	\Temma\Exceptions\IOException	If something went wrong.
 	 */
-	public function unlock() {
+	public function unlock() : void {
 		if (is_null($this->_fileHandle) || is_null($this->_lockPath)) {
 			throw new \Temma\Exceptions\IOException("No file to unlock.", \Temma\Exceptions\IOException::NOT_FOUND);
 		}
@@ -106,8 +103,10 @@ class Lock {
 		}
 		$this->_reset();
 	}
+
+	/* ********** PRIVATE METHODS ********** */
 	/** Flush the private attributes. */
-	private function _reset() {
+	protected function _reset() : void {
 		$this->_fileHandle = null;
 		$this->_lockPath = null;
 	}

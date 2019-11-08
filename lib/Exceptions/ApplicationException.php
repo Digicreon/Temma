@@ -1,31 +1,27 @@
 <?php
 
-if (!class_exists('FineApplicationException')) {
+namespace Temma\Exceptions;
 
 /**
- * Objet de gestion des exceptions applicatives.
+ * Exception for application errors.
  *
- * @author	Amaury Bouchard <amaury.bouchard@finemedia.fr>
- * @copyright	© 2007-2010, FineMedia
- * @package	FineBase
- * @subpackage	Exception
- * @version	$Id: FineApplicationException.php 641 2013-02-11 12:57:59Z abouchard $
+ * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2007-2019, Amaury Bouchard
+ * @package	Temma
+ * @subpackage	Exceptions
  */
-class FineApplicationException extends Exception {
-	/** Constante d'erreur inconnue. */
+class ApplicationException extends \Exception {
+	/** Unknown error. */
 	const UNKNOWN = -1;
-	/** Constante d'erreur d'appel à une API. */
+	/** API call error. */
 	const API = 0;
-	/** Constante d'erreur système. */
+	/** System error. */
 	const SYSTEM = 1;
-	/** Constante d'erreur d'authentification. */
+	/** Authentication error. */
 	const AUTHENTICATION = 2;
-	/** Constante d'erreur d'autorisation. */
+	/** Authorization error. */
 	const UNAUTHORIZED = 3;
-	/** Constante d'erreur de dépendances. */
+	/** Dependency error. */
 	const DEPENDENCY = 4;
 }
 
-} // class_exists
-
-?>

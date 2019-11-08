@@ -72,7 +72,7 @@ class Session implements \ArrayAccess {
 	 * @param	int			$renewDelay	(optional) Delay before session ID renewal. 20 minutes by default.
 	 * @return	\Temma\Base\Session	The created instance.
 	 */
-	static public function factory(\Temma\Base\Datasource $cache=null, string $cookieName='TEMMA_SESSION', int $duration=31536000, int $renewDelay=1200) : \Temma\Base\Session {
+	static public function factory(?\Temma\Base\Datasource $cache=null, string $cookieName='TEMMA_SESSION', int $duration=31536000, int $renewDelay=1200) : \Temma\Base\Session {
 		return (new \Temma\Base\Session($cache, $cookieName, $duration, $renewDelay));
 	}
 	/**
@@ -82,8 +82,8 @@ class Session implements \ArrayAccess {
 	 * @param	int			$duration	(optional) Session duration. One year by default.
 	 * @param	int			$renewDelay	(optional) Delay before session ID renewal. 20 minutes by default.
 	 */
-	private function __construct(\Temma\Base\Datasource $cache=null, string $cookieName=null, int $duration=null, int $renewDelay=null) {
-		TµLog::log('Temma\Base', 'DEBUG', "Session object creation.");
+	private function __construct(?\Temma\Base\Datasource $cache=null, ?string $cookieName=null, ?int $duration=null, ?int $renewDelay=null) {
+		TµLog::log('Temma/Base', 'DEBUG', "Session object creation.");
 		// fetch the cache
 		if (isset($cache) && $cache->isEnabled())
 			$this->_cache = clone $cache;
@@ -122,7 +122,7 @@ class Session implements \ArrayAccess {
 		else
 			$host = $matches[0];
 		if (!isset($_COOKIE[$cookieName]) || empty($_COOKIE[$cookieName]) || $this->_sessionId != $oldSessionId && !headers_sent()) {
-			TµLog::log('Temma\Base', 'DEBUG', "Send cookie '$cookieName' - '$newSessionId' - '$timestamp' - '.$host'");
+			TµLog::log('Temma/Base', 'DEBUG', "Send cookie '$cookieName' - '$newSessionId' - '$timestamp' - '.$host'");
 			// send the cookie
 			if (PHP_VERSION_ID < 70300) {
 				// PHP < 7.3: use a hack to send the 'samesite' attribute
@@ -143,8 +143,8 @@ class Session implements \ArrayAccess {
 
 	/* ********** MANAGEMENT ********** */
 	/** Delete all data in the current session. */
-	public function clean() {
-		TµLog::log('Temma\Base', 'DEBUG', "Cleaning session.");
+	public function clean() : void {
+		TµLog::log('Temma/Base', 'DEBUG', "Cleaning session.");
 		if (!isset($this->_cache)) {
 			// standard PHP session
 			foreach ($_SESSION as $key => $val)
@@ -158,8 +158,8 @@ class Session implements \ArrayAccess {
 		$this->_cache->set('sess:' . $this->_sessionId, null);
 	}
 	/** Delete the current session. */
-	public function remove() {
-		TµLog::log('Temma\Base', 'DEBUG', "Removing current session.");
+	public function remove() : void {
+		TµLog::log('Temma/Base', 'DEBUG', "Removing current session.");
 		if (!isset($this->_cache)) {
 			// standard PHP session
 			foreach ($_SESSION as $key => $val)
@@ -176,7 +176,7 @@ class Session implements \ArrayAccess {
 	 * Return the current session's identifier.
 	 * @return	string	The session ID.
 	 */
-	public function getSessionId() {
+	public function getSessionId() : string {
 		if (!isset($this->_cache))
 			return (session_id());
 		return ($this->_sessionId);
@@ -189,8 +189,8 @@ class Session implements \ArrayAccess {
 	 * @param	mixed	$value	(optional) Data value. The data is removed if the value is null. Null by default.
 	 * @link	http://php.net/manual/function.serialize.php
 	 */
-	public function set($key, $value=null) {
-		TµLog::log('Temma\Base', 'DEBUG', "Setting value for key '$key'.");
+	public function set(string $key, /* mixed */ $value=null) : void {
+		TµLog::log('Temma/Base', 'DEBUG', "Setting value for key '$key'.");
 		if (!isset($this->_cache)) {
 			if (is_null($value))
 				unset($_SESSION[$key]);
@@ -215,14 +215,14 @@ class Session implements \ArrayAccess {
 	 * @param	string	$key	Data name.
 	 * @param	mixed	$value	Data value. The data is removed if the value is null.
 	 */
-	public function offsetSet($key, $value) {
+	public function offsetSet(/* mixed */ $key, /* mixed */ $value) : void {
 		$this->set($key, $value);
 	}
 	/**
 	 * Remove data from cache, array-like syntax.
 	 * @param	string	$key	Data name.
 	 */
-	public function offsetUnset($key) {
+	public function offsetUnset(/* mixed */ $key) : void {
 		if (!isset($this->_cache))
 			unset($_SESSION[$key]);
 		else
@@ -235,8 +235,8 @@ class Session implements \ArrayAccess {
 	 * @param	string	$arrayKey	Name of the associative array key.
 	 * @param	mixed	$value		(optional) Data value. The data is removed if the value is null. Null by default.
 	 */
-	public function setArray(string $key, string $arrayKey, $value=null) {
-		TµLog::log('Temma\Base', 'DEBUG', "Setting value for array '$key\[$arrayKey\]'.");
+	public function setArray(string $key, string $arrayKey, /* mixed */ $value=null) : void {
+		TµLog::log('Temma/Base', 'DEBUG', "Setting value for array '$key\[$arrayKey\]'.");
 		if (!isset($this->_cache)) {
 			if (is_null($value)) {
 				if (isset($_SESSION[$key][$arrayKey]))
@@ -269,7 +269,7 @@ class Session implements \ArrayAccess {
 	 * @param	string $key	Data name.
 	 * @return	bool	True if the data exists, false otherwise.
 	 */
-	public function offsetExists($key) {
+	public function offsetExists(/* mixed */ $key) : bool {
 		if (!isset($this->_cache))
 			return (isset($_SESSION[$key]));
 		return (isset($this->_data[$key]));
@@ -281,8 +281,8 @@ class Session implements \ArrayAccess {
 	 * @return	mixed	Value of the session data.
 	 * @link	http://php.net/manual/function.unserialize.php
 	 */
-	public function get(string $key, $default=null) {
-		TµLog::log('Temma\Base', 'DEBUG', "Returning value for key '$key'.");
+	public function get(string $key, /* mixed */ $default=null) /* : mixed */ {
+		TµLog::log('Temma/Base', 'DEBUG', "Returning value for key '$key'.");
 		if (!isset($this->_cache)) {
 			if (!isset($_SESSION[$key]) && isset($default))
 				return ($default);
@@ -301,14 +301,14 @@ class Session implements \ArrayAccess {
 	 * @param	string	$key	Data name.
 	 * @return	mixed	Value of the session data.
 	 */
-	public function offsetGet($key) {
+	public function offsetGet(/* mixed */ $key) /* : mixed */ {
 		return ($this->get($key));
 	}
 	/**
 	 * Return all session variables.
 	 * @return	array	Session data.
 	 */
-	public function getAll() {
+	public function getAll() : ?array {
 		if (!isset($this->_data))
 			return (null);
 		return ($this->_data); 

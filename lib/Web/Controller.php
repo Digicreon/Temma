@@ -1,24 +1,25 @@
 <?php
 
-namespace Temma;
+namespace Temma\Web;
 
 /**
- * Objet de gestion des contrôleurs au sein d'applications MVC.
+ * Object used for controllers management.
  *
- * @auhor	Amaury Bouchard <amaury@amaury.net>
+ * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2007-2019, Amaury Bouchard
  * @package	Temma
+ * @subpackage	Web
+ * @see		\Temma\Web\BaseController
  */
-class Controller extends \Temma\BaseController {
+class Controller extends \Temma\Web\BaseController {
 	/**
-	 * Constructeur.
-	 * @param	array		$dataSources	Liste de sources de données.
-	 * @param	FineSession	$session	Objet de gestion de la session.
-	 * @param	TemmaConfig	$config		Objet contenant la configuration de l'application.
-	 * @param	TemmaRequest	$request	Objet de la requête.
-	 * @param	TemmaController	$executor	(optionnel) Objet contrôleur qui a instancié l'exécution de ce contrôleur.
+	 * Constructor.
+	 * @param	\Temma\Base\Loader	$loader		Dependency injection object, with (at least) the keys
+	 *							'dataSources', 'session', 'config', 'request', 'response'.
+	 * @param	\Temma\Web\Controller	$executor	(optional) Executor controller object (the one who called this controller).
 	 */
-	final public function __construct($dataSources, \FineSession $session=null, \Temma\Config $config, \Temma\Request $request=null, $executor=null) {
-		parent::__construct($dataSources, $session, $config, $request, $executor);
+	final public function __construct(\Temma\Base\Loader $loader, ?\Temma\Web\Controller $executor=null) {
+		parent::__construct($loader, $executor);
 	}
 }
 

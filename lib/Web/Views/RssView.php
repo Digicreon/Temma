@@ -1,41 +1,47 @@
 <?php
 
-namespace Temma\Views;
+namespace Temma\Web\Views;
 
 /**
- * Vue traitant les flux RSS.
+ * View for RSS streams.
  *
- * Cette vue nécessite plusieurs variables :
+ * This view read data from template variables:
  * <ul>
- * <li>domain : Nom de domaine du site</li>
- * <li>title : Titre du site.</li>
- * <li>description : Description du site.</li>
- * <li>language : Langue du site (fr, en, ...).</li>
- * <li>Contact : Adresse email de contact</li>
- * <li>articles : Liste de hash contenant toutes les données sur tous les articles.</li>
+ * <li>domain : Domain name of the website.</li>
+ * <li>title : Title of the website.</li>
+ * <li>description : Description of the website.</li>
+ * <li>language : Language of the site (fr, en, ...).</li>
+ * <li>Contact : Contact email address.</li>
+ * <li>articles : Array of associative arrays, each one with an aritcle data:
+ *     <ul>
+ *         <li>dateCreation: Creation date of the article.</li>
+ *         <li>abstract: Short description of the article.</li>
+ *         <li>url: URL of the article.</li>
+ *         <li>title: Title of the article.</li>
+ *     </ul>
+ * </li>
  * </ul>
  *
  * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	2009-2019, Amaury Bouchard
  * @package	Temma
- * @subpackage	Views
+ * @subpackage	Web
  */
-class RssView extends \Temma\View {
-	/** Nom de la clé de configuration pour les headers. */
-	protected $_cacheKey = 'rss';
-	/** Titre du site. */
+class RssView extends \Temma\Web\View {
+	/** Site title. */
 	private $_title = null;
-	/** Adresse du site. */
+	/** Site URL. */
 	private $_link = null;
-	/** Description du site. */
+	/** Site description. */
 	private $_description = null;
-	/** Langue du site. */
+	/** Site language. */
 	private $_language = null;
-	/** Adresse de contact. */
+	/** Contact email address. */
 	private $_contact = null;
-	/** Liste des articles. */
+	/** List of articles. */
 	private $_articles = null;
 
-	/** Fonction d'initialisation. */
+	/** Init. */
 	public function init() {
 		$this->_domain = $this->_response->getData('domain');
 		$this->_title = $this->_response->getData('title');
@@ -44,11 +50,13 @@ class RssView extends \Temma\View {
 		$this->_contact = $this->_response->getData('contact');
 		$this->_articles = $this->_response->getData('articles');
 	}
-	/** Ecrit les headers HTTP sur la sortie standard si nécessaire. */
+	/** iWrite HTTP headers. */
 	public function sendHeaders($headers=null) {
-		parent::sendHeaders(array('Content-Type' => 'application/rss+xml; charset=UTF-8'));
+		parent::sendHeaders([
+			'Content-Type'	=> 'application/rss+xml; charset=UTF-8',
+		]);
 	}
-	/** Ecrit le corps du document sur la sortie standard. */
+	/** Write body. */
 	public function sendBody() {
 		print('<' . '?xml version="1.0" encoding="UTF-8"?' . ">\n");
 		print("<rss version=\"2.0\">\n");
@@ -64,8 +72,8 @@ class RssView extends \Temma\View {
 			print("\t<managingEditor>" . $this->_contact . "</managingEditor>\n");
 			print("\t<webMaster>" . $this->_contact . "</webMaster>\n");
 		}
-		print("\t<generator>FineMedia RSS generator 0.3.0</generator>\n");
-		print("\t<copyright>Copyright, Fine Media</copyright>\n");
+		print("\t<generator>Temma RSS generator 0.5.0</generator>\n");
+		print("\t<copyright>Copyright, Temma.net</copyright>\n");
 		print("\t<category>Blog</category>\n");
 		print("\t<docs>http://blogs.law.harvard.edu/tech/rss</docs>\n");
 		print("\t<ttl>1440</ttl>\n");

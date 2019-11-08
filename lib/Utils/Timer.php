@@ -12,21 +12,21 @@ namespace Temma\Utils;
  */
 class Timer {
 	/** Date of timing start. */
-	private $_begin = null;
+	protected $_begin = null;
 	/** Date of timing end. */
-	private $_end = null;
+	protected $_end = null;
 
 	/** Starts a timing. */
-	public function start() {
+	public function start() : void {
 		$this->_begin = microtime();
 		$this->_end = null;
 	}
 	/** Stops a timing. */
-	public function stop() {
+	public function stop() : void {
 		$this->_end = microtime();
 	}
 	/** Resume a timing. */
-	public function resume() {
+	public function resume() : void {
 		$this->_end = null;
 	}
 	/**
@@ -34,7 +34,7 @@ class Timer {
 	 * @return	int	Elapsed time in microseconds.
 	 * @throws	\Exception	If the timer wasn't started correctly.
 	 */
-	public function getTime() {
+	public function getTime() : int {
 		if (is_null($this->_begin))
 			return (0);
 		list($uSecondeA, $secondeA) = explode(' ', $this->_begin);

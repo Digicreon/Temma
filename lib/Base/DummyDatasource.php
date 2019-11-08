@@ -18,8 +18,8 @@ class DummyDatasource extends \Temma\Base\Datasource {
 	 * @param	string	$dsn	Parameter string (not used).
 	 * @return	\Temma\Base\DummyDatasource	The created object.
 	 */
-	static public function factory(string $dsn=null) : \Temma\Base\DummyDatasource {
-		TµLog::log('Temma\Base', 'DEBUG', "Creation of a dummy datasource.");
+	static public function factory(?string $dsn=null) : \Temma\Base\DummyDatasource {
+		TµLog::log('Temma/Base', 'DEBUG', "Creation of a dummy datasource.");
 		return (new self());
 	}
 	/**
@@ -29,7 +29,7 @@ class DummyDatasource extends \Temma\Base\Datasource {
 	 * @return	null	This method always returns null.
 	 */
 	public function __call(string $name, array $args) {
-		TµLog::log('Temma\Base', 'DEBUG', "Dummy datasource called on method '$name'.");
+		TµLog::log('Temma/Base', 'DEBUG', "Dummy datasource called on method '$name'.");
 		return (null);
 	}
 	/**
@@ -39,8 +39,8 @@ class DummyDatasource extends \Temma\Base\Datasource {
 	 *						Its return value will be returned by the method.
 	 * @return	mixed	The data returned by the anonymous function, or null.
 	 */
-	public function get(string $key, \Closure $callback=null) {
-		TµLog::log('Temma\Base', 'DEBUG', "Dummy datasource get() call.");
+	public function get(string $key, ?\Closure $callback=null) {
+		TµLog::log('Temma/Base', 'DEBUG', "Dummy datasource get() call.");
 		if (isset($callback))
 			return ($callback());
 		return (null);

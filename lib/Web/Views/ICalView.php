@@ -1,28 +1,32 @@
 <?php
 
-namespace Temma\Views;
+namespace Temma\Web\Views;
 
 /**
- * Vue traitant les flux de calendrier iCal.
+ * View for iCal calendars.
+ * Get its data from an "ical" template variable.
  *
  * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2010-2019, Amaury Bouchard
  * @package	Temma
- * @subpackage	Views
+ * @subpackage	Web
  */
-class ICalView extends \Temma\View {
-	/** Données de l'agenda. */
+class ICalView extends \Temma\Web\View {
+	/** Calendar data. */
 	private $_ical = null;
 
-	/** Fonction d'initialisation. */
-	public function init() {
+	/** Init. */
+	public function init() : void {
 		$this->_ical = $this->_response->getData('ical');
 	}
-	/** Ecrit les headers HTTP sur la sortie standard si nécessaire. */
-	public function sendHeaders($headers=null) {
-		parent::sendHeaders(array('Content-type: text/calendar; charset=utf-8'));
+	/** Write HTTP headers. */
+	public function sendHeaders(?array $headers=null) : void {
+		parent::sendHeaders([
+			'Content-type'	=> 'text/calendar; charset=utf-8',
+		]);
 	}
-	/** Ecrit le corps du document sur la sortie standard. */
-	public function sendBody() {
+	/** Write body. */
+	public function sendBody() : void {
 		if (!isset($this->_ical['events']))
 			return;
 		print("BEGIN:VCALENDAR\r\n");
@@ -71,22 +75,21 @@ class ICalView extends \Temma\View {
 
 	/* ********** PRIVATE METHODS ********** */
 	/**
-	 * Écrit sur la sortie standard un texte après avoir échappé ses caractères spéciaux.
-	 * Les lignes sont découpées et un retour chariot ("\r\n") est ajouté à la fin.
-	 * @param	string	$attr	Nom de l'attribut (incluant le caractère ':' à la fin).
-	 * @param	string	$text	Texte à échapper.
+	 * Escape special characters of a text and write it to stdout.
+	 * @param	string	$attr	Attribute name (ending with ":"). Is not escaped.
+	 * @param	string	$text	Text to escape.
 	 */
-	private function _print($attr, $text) {
+	private function _print(string $attr, string $text) : void {
 		print($this->_escape($attr, $text) . "\r\n");
 	}
 	/**
-	 * Transforme un texte en échappant les caractères et en le mettant à la bonne longueur.
-	 * @param	string	$attr	Nom de l'attribut (incluant le caractère ':' à la fin).
-	 * @param	string	$text	Texte à échapper.
-	 * @param	bool	$wrap	(optionnel) Indique s'il faut couper les textes. True par défaut.
-	 * @return	string	Le texte résultant.
+	 * Transform a text by escaping special characters and cutting it to the write size.
+	 * @param	string	$attr	Attribute name (ending with ":"). Is not escaped.
+	 * @param	string	$text	Text to escape.
+	 * @param	bool	$wrap	(optional) True to cut lines. True by default.
+	 * @return	string	The transformed text.
 	 */
-	private function _escape($attr, $text, $wrap=true) {
+	private function _escape(string $attr, string $text, bool $wrap=true) : string {
 		$text = str_replace(' ', chr(7), $text);
 		$text = str_replace("\\", "\\\\", $text);
 		$text = str_replace(',', '\,', $text);

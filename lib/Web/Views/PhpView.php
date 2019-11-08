@@ -1,49 +1,50 @@
 <?php
 
-namespace Temma\Views;
+namespace Temma\Web\Views;
+
+use \Temma\Base\Log as TµLog;
 
 /**
- * Vue traitant les templates écrits en PHP.
+ * View for templates written in plain PHP.
  *
  * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2010-2019, Amaury Bouchard
  * @package	Temma
- * @subpackage	Views
+ * @subpackage	Web
  */
-class PhpView extends \Temma\View {
-	/** Nom de la clé de configuration pour les headers. */
-	protected $_cacheKey = 'php';
-	/** Indique si on peut mettre la page en cache. */
+class PhpView extends \Temma\Web\View {
+	/** Tell if the generated page could be stored in cache. */
 	private $_isCacheable = false;
-	/** Nom du template à utiliser. */
+	/** Name of the template. */
 	private $_template = null;
 
 	/**
-	 * Indique si cette vue utilise des templates ou non.
-	 * Les vues qui n'ont pas besoin de template n'ont pas besoin de redéfinir cette méthode.
-	 * @return	bool	True si cette vue utilise des templates.
+	 * Tell that this view uses templates.
+	 * @return	bool	True.
 	*/
-	public function useTemplates() {
+	public function useTemplates() : bool {
 		return (true);
 	}
 	/**
-	 * Fonction d'affectation de template.
-	 * @param	string	$path		Chemins de recherche des templates.
-	 * @param	string	$template	Nom du template à utiliser.
-	 * @return	bool	True si tout s'est bien passé.
+	 * Define the used templates file.
+	 * @param	string	$path		Templates include path.
+	 * @param	string	$template	Name of the template.
+	 * @throws	\Temma\Exceptions\IOException	If the template file doesn't exists.
 	 */
-	public function setTemplate($path, $template) {
-		// ajout du répertoire des templates aux chemins d'inclusion
+	public function setTemplate(string $path, string $template) : void {
+		// add the templates include path to the PHP include paths
 		set_include_path($path . PATH_SEPARATOR . get_include_path());
-		\FineLog::log('temma', \FineLog::DEBUG, "Searching template '$template'.");
+		// check if the file exists
+		TµLog::log('Temma/Web', 'DEBUG', "Searching template '$template'.");
 		if (is_file("$path/$template")) {
 			$this->_template = $template;
-			return (true);
+			return;
 		}
-		\FineLog::log('temma', \FineLog::WARN, "No one template found with name '$template'.");
-		return (false);
+		TµLog::log('Temma/Web', 'WARN', "No one template found with name '$template'.");
+		throw new \Temma\Exceptions\IOException("Can't find template '$template'.", \Temma\Exceptions\IOException::NOT_FOUND);
 	}
-	/** Fonction d'initialisation. */
-	public function init() {
+	/** Init. */
+	public function init() : void {
 		foreach ($this->_response->getData() as $key => $value) {
 			if (isset($key[0]) && $key[0] != '_')
 				$GLOBALS[$key] = $value;
@@ -51,22 +52,22 @@ class PhpView extends \Temma\View {
 				$this->_isCacheable = true;
 		}
 	}
-	/** Ecrit le corps du document sur la sortie standard. */
-	public function sendBody() {
-		// traitement du plugin
+	/** Write the body. */
+	public function sendBody() : void {
+		// processing
 		ini_set('implicit_flush', false);
 		ob_start();
 		include($this->_template);
 		$out = ob_get_contents();
 		ob_end_clean();
 		ini_set('implicit_flush', true);
-		// gestion du cache
+		// cache management
 		if ($this->_isCacheable && !empty($out) && ($dataSource = $this->_config->xtra('temma-cache', 'source')) &&
 		    isset($this->_dataSources[$dataSource]) && ($cache = $this->_dataSources[$dataSource])) {
-			// ajout du contenu de la page en cache
 			$cacheVarName = $_SERVER['HTTP_HOST'] . ':' . $_SERVER['REQUEST_URI'];
 			$cache->setPrefix('temma-cache')->set($cacheVarName, $out)->setPrefix();
 		}
+		// write the page
 		print($out);
 	}
 }

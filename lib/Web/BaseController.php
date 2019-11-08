@@ -1,374 +1,259 @@
 <?php
 
-namespace Temma;
+namespace Temma\Web;
+
+use \Temma\Base\Log as TµLog;
 
 /**
- * Objet basique de gestion des contrôleurs au sein d'applications MVC.
+ * Basic object for controllers management.
  *
- * @auhor	Amaury Bouchard <amaury@amaury.net>
+ * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2012-2019, Amaury Bouchard
  * @package	Temma
+ * @subpackage	Web
  */
-class BaseController {
-	/** Constante indiquant de passer au plugin suivant. */
+class BaseController implements \ArrayAccess {
+	/** Execution flow constant: go to the next step (next plugin, for example). */
 	const EXEC_FORWARD = null;
-	/** Constante indiquant d'arrêter le traitement des plugins. */
+	/** Execution flow constant: stop the current flow (pre-plugins, controller, post-plugins). */
 	const EXEC_STOP = 0;
-	/** Constante indiquant d'arrêter le traitement de tous les contrôleurs, plugins compris. */
+	/** Execution flow constant: stop controller/plugins execution and go to the view. */
 	const EXEC_HALT = 1;
-	/** Constante indiquant d'arrêter le traitement de tous les contrôleurs, plugins compris, et de n'exécuter aucune vue. */
+	/** Execution flow constant: stop everything (even the view). */
 	const EXEC_QUIT = 2;
 	/**
-	 * Constante indiquant de redémarrer le traitement en cours (pré-plugins, contrôleur, ou post-plugins).
-	 * Le comportement dépend de la méthode qui a retourné cette valeur :
-	 * - Si c'est un pré-plugin, c'est la chaîne de tous les pré-plugins qui est traitée de nouveau.
-	 * - Si c'est l'init du contrôleur, l'init est ré-exécutée.
-	 * - Si c'est l'action, l'init est ré-exécutée (puis le reste de la chaîne d'exécution).
-	 * - Si c'est un post-plugin, c'est la chaîne de tous les post-plugins qui est traitée de nouveau.
+	 * Execution flow constant: restart the execution.
+	 * The behaviour depends on what has returned this value:
+	 * - If it's a pre-plugin, the execution restarts from the first pre-plugin.
+	 * - If it's a controller method (init, action or finalize), the execution restarts from the init method.
+	 * - If it's a post-plugin, the execution restarts from the first post-plugin.
 	 */
 	const EXEC_RESTART = 3;
-	/** Constante indiquant de redémarrer l'ensemble des traitements (pré-plugins + contrôleur + post-plugins). */
+	/** Execution flow constant: restart the whole execution, from the first pre-plugin. */
 	const EXEC_REBOOT = 4;
-	/** Liste des sources de données. */
-	protected $_dataSources = null;
-	/** Objet de gestion de session. */
-	protected $_session = null;
-	/** Configuration de l'application Temma. */
-	protected $_config = null;
-	/** Objet de requête. */
-	protected $_request = null;
-	/** Objet contrôleur exécuteur (qui a appelé ce contrôleur). */
+	/** Loader object (dependency injection container). */
+	protected $_loader = null;
+	/** Executor controller object (the one who called this object; could be null). */
 	private $_executorController = null;
-	/** Objet de réponse. */
-	private $_response = null;
-	/** Objet DAO. */
-	protected $_dao = null;
 
 	/**
-	 * Constructeur.
-	 * @param	array		$dataSources	Liste de sources de données.
-	 * @param	FineSession	$session	Objet de gestion de la session.
-	 * @param	TemmaConfig	$config		Objet contenant la configuration de l'application.
-	 * @param	TemmaRequest	$request	Objet de la requête.
-	 * @param	TemmaController	$executor	(optionnel) Objet contrôleur qui a instancié l'exécution de ce contrôleur.
+	 * Constructor.
+	 * @param	\Temma\Base\Loader	$loader		Dependency injection object, with (at least) the keys
+	 *							'dataSources', 'session', 'config', 'request', 'response'.
+	 * @param	\Temma\Web\Controller	$executor	(optional) Executor controller object (the one who called this controller).
 	 */
-	public function __construct($dataSources, \FineSession $session=null, \Temma\Config $config, \Temma\Request $request=null, $executor=null) {
-		$this->_dataSources = $dataSources;
-		$this->_config = $config;
-		$this->_request = $request;
+	public function __construct(\Temma\Base\Loader $loader, ?\Temma\Web\Controller $executor=null) {
+		$this->_loader = $loader;
 		$this->_executorController = $executor;
-		if (isset($session))
-			$this->setSession($session);
-		// création de DAO si nécessaire
-		if (isset($executor) && isset($this->_temmaAutoDao) && !is_null($this->_temmaAutoDao) && $this->_temmaAutoDao !== false) {
-			$controllerName = $executor->get('CONTROLLER');
-			$controllerName = $controllerName ? $controllerName : get_class($this);
-			$this->_dao = $this->loadDao($this->_temmaAutoDao);
+		// top-level controller: definition of the template variable which contains the session ID
+		if (is_null($executor) && isset($loader->session) && $loader->config->enableSessions) {
+			$this['SESSIONID'] = $loader->session->getSessionId();
 		}
 	}
-	/**
-	 * Définit l'objet de gestion des sessions.
-	 * @param	FineSession	$session	Objet de gestion de la session.
-	 * @return	\Temma\Controller	L'instance courante de l'objet.
-	 */
-	public function setSession(\FineSession $session) {
-		$this->_session = $session;
-		if (is_null($this->_executorController) && isset($session) && $this->_config->enableSessions) {
-			// contrôleur de plus haut niveau : affectation de la variable contenant l'identifiant de session
-			$sessionId = $session->getSessionId();
-			$this->set('SESSIONID', $sessionId);
-		}
-		return ($this);
-	}
-	/**
-	 * Définit l'objet de requête.
-	 * @param	\Temma\Request	$request	Objet de la requête.
-	 * @return	\Temma\Controller	L'instance courante de l'objet.
-	 */
-	public function setRequest(\Temma\Request $request) {
-		$this->_request = $request;
-		return ($this);
-	}
-	/** Destructeur. */
+	/** Destructor. */
 	public function __destruct() {
 	}
 	/**
-	 * Fonction d'initialisation, appelée pour chaque contrôleur
-	 * avant que l'action demandée ne soit exécutée.
-	 * À redéfinir dans chaque contrôleur.
+	 * Initialization function.
+	 * Called for each controller before the action.
+	 * Could be overloaded in all controllers.
+	 * @return	?int	The return code (self::EXEC_QUIT, ...). Could be null (==self::EXEC_FORWARD).
 	 */
-	public function init() {
+	public function init() /* : ?int */ {
 	}
 	/**
-	 * Fonction de finalisation, appelée pour chaque contrôleur
-	 * après que l'action demandée ne soit exécutée.
-	 * À redéfinir dans chaque contrôleur.
+	 * Finalization function.
+	 * Called for each controller after the action.
+	 * Could be overloaded in all controllers.
+	 * @return	?int	The return code (self::EXEC_QUIT, ...). Could be null (==self::EXEC_FORWARD).
 	 */
-	public function finalize() {
-	}
-
-	/* ****************** GESTION DES DAO ************** */
-	/**
-	 * Charge une DAO.
-	 * @param	string|array	$param	Nom de l'objet DAO à charger, ou hash de paramétrage.
-	 * @return	\Temma\Dao	L'instance de DAO chargée.
-	 */
-	public function loadDao($param) {
-		$daoConf = array(
-			'object'	=> '\Temma\Dao',
-			'criteria'	=> null,
-			'source'	=> null,
-			'cache'		=> true,
-			'base'		=> null,
-			'table'		=> $this->_executorController->get('CONTROLLER'),
-			'id'		=> 'id',
-			'fields'	=> null
-		);
-		// récupération de la configuration de la DAO
-		if (is_string($param))
-			$daoConf['object'] = $param;
-		else if (is_array($param)) {
-			$daoConf['object'] = isset($param['object']) ? $param['object'] : $daoConf['object'];
-			$daoConf['criteria'] = isset($param['criteria']) ? $param['criteria'] : $daoConf['criteria'];
-			$daoConf['source'] = isset($param['source']) ? $param['source'] : $daoConf['source'];
-			$daoConf['cache'] = isset($param['cache']) ? $param['cache'] : $daoConf['cache'];
-			$daoConf['base'] = isset($param['base']) ? $param['base'] : $daoConf['base'];
-			$daoConf['table'] = isset($param['table']) ? $param['table'] : $daoConf['table'];
-			$daoConf['id'] = isset($param['id']) ? $param['id'] : $daoConf['id'];
-			$daoConf['fields'] = (isset($param['fields']) && is_array($param['fields'])) ? $param['fields'] : $daoConf['fields'];
-		}
-		// instanciation
-		if (isset($daoConf['source']) && isset($this->_dataSources[$daoConf['source']]))
-			$dataSource = $this->_dataSources[$daoConf['source']];
-		else
-			$dataSource = reset($this->_dataSources);
-		$dao = new $daoConf['object']($dataSource, ($daoConf['cache'] ? $this->_cache : null), $daoConf['table'], $daoConf['id'],
-					      $daoConf['base'], $daoConf['fields'], $daoConf['criteria']);
-		return ($dao);
+	public function finalize() /* : ?int */ {
 	}
 
-	/* ****************** METHODES APPELEES PAR LE FRAMEWORK ************** */
+	/* ********** METHODS CALLED BY THE CHILDREN OBJECTS ********** */
 	/**
-	 * Retourne la liste des sources de données.
-	 * @return	array	La liste.
+	 * Magical method which returns the requested data source.
+	 * @param	string	$dataSource	Name of the data source.
+	 * @return	\Temma\Base\Datasource	Data source object, or null if the source is not set.
 	 */
-	final public function getDataSources() {
-		return ($this->_dataSources);
+	final public function __get(string $dataSource) : ?\Temma\Base\Datasource {
+		return ($this->_loader->dataSources[$dataSource] ?? null);
 	}
 	/**
-	 * Retourne la réponse suite à l'exécution du contrôleur.
-	 * Cette méthode est à destination de \Temma\framework.
-	 * @return	\Temma\Response	La réponse.
+	 * Magical method used to know if a data source exists.
+	 * @param	string	$dataSource	Name of the data source.
+	 * @return	bool	True if the data source exists.
 	 */
-	final public function getResponse() {
-		if (isset($this->_executorController)) {
-			return ($this->_executorController->getResponse());
-		} else {
-			$this->_checkResponse();
-			return ($this->_response);
-		}
+	final public function __isset(string $dataSource) : bool {
+		return (isset($this->_loader->dataSources[$dataSource]));
+	}
+	/**
+	 * Method used to raise en HTTP error (403, 404, 500, ...).
+	 * @param	int	$code	The HTTP error code.
+	 * @return	\Temma\Web\BaseController	The current object.
+	 */
+	final protected function httpError(int $code) : \Temma\Web\BaseController {
+		$this->_loader->response->setHttpError($code);
+		return ($this);
+	}
+	/**
+	 * Method used to tell the HTTP return code (like the httpError() method,
+	 * but without raising an error).
+	 * @param	int	$code	The HTTP return code.
+	 * @return	\Temma\Web\BaseController	The current object.
+	 */
+	final protected function httpCode(int $code) : \Temma\Web\BaseController {
+		$this->_loader->response->setHttpCode($code);
+		return ($this);
+	}
+	/**
+	 * Returns the configured HTTP error.
+	 * @return	int	The configured error code (403, 404, 500, ...) or null
+	 *			if no error was configured.
+	 */
+	final protected function getHttpError() : ?int {
+		return ($this->_loader->response->getHttpError());
+	}
+	/**
+	 * Returns the configured HTTP return code.
+	 * @return	int	The configured return code, or null if no code was configured.
+	 */
+	final protected function getHttpCode() : ?int {
+		return ($this->_loader->response->getHttpCode());
+	}
+	/**
+	 * Define an HTTP redirection (302).
+	 * @param	string	$url	Redirection URL.
+	 * @return	\Temma\Web\BaseController	The current object.
+	 */
+	final protected function redirect(string $url) : \Temma\Web\BaseController {
+		$this->_loader->response->setRedirection($url);
+		return ($this);
+	}
+	/**
+	 * Define an HTTP redirection (301).
+	 * @param	string	$url	Redirection URL.
+	 * @return	\Temma\Web\BaseController	The current object.
+	 */
+	final protected function redirect301(string $url) : \Temma\Web\BaseController {
+		$this->_loader->response->setRedirection($url, true);
+		return ($this);
+	}
+	/**
+	 * Define the view to use.
+	 * @param	string	$view	Name of the view.
+	 * @return	\Temma\Web\BaseController	The current object.
+	 */
+	final protected function view(string $view) : \Temma\Web\BaseController {
+		$this->_loader->response->setView($view);
+		return ($this);
+	}
+	/**
+	 * Define the template to use.
+	 * @param	string	$template	Template name.
+	 * @return	\Temma\Web\BaseController	The current object.
+	 */
+	final protected function template(string $template) : \Temma\Web\BaseController {
+		$this->_loader->response->setTemplate($template);
+		return ($this);
+	}
+	/**
+	 * Define the prefix to the template path.
+	 * @param	string	$prefix	The template prefix path.
+	 * @return	\Temma\Web\BaseController	The current object.
+	 */
+	final protected function templatePrefix(string $prefix) : \Temma\Web\BaseController {
+		$this->_loader->response->setTemplatePrefix($prefix);
+		return ($this);
 	}
 
-	/* ****************** METHODES APPELEES PAR LES OBJETS ENFANTS ************* */
+	/* ********** MANAGEMENT OF "TEMPLATE VARIABLES" ********** */
 	/**
-	 * Méthode magique qui retourne une connexion à une source de données.
-	 * @param	string	$dataSource	Nom de la source de données.
-	 * @return	\FineDatasource	Objet de connexion à la source de données.
+	 * Set a template variable, array-like syntax.
+	 * @param	string	$name	Name of the variable.
+	 * @param	mixed	$value	Associated value.
 	 */
-	final public function __get($dataSource) {
-		if (isset($this->_dataSources[$dataSource]))
-			return ($this->_dataSources[$dataSource]);
-		return (null);
+	final public function offsetSet(/* mixed */ $name, /* mixed */ $value) : void {
+		$this->_loader->response[$name] = $value;
 	}
 	/**
-	 * Méthode magique permettant de savoir si une connexion à une source de données existe.
-	 * @param	string	$dataSource	Nom de la source de données.
-	 * @return	bool	True si la source de données existe.
+	 * Return a template variable, array-like syntax.
+	 * @param	string	$name	Variable name.
+	 * @return	mixed	The template variable's data.
 	 */
-	final public function __isset($dataSource) {
-		return (isset($this->_dataSources[$dataSource]));
+	public function offsetGet(/* mixed */ $name) /* : mixed */ {
+		return ($this->_response[$name]);
 	}
 	/**
-	 * Indique une erreur HTTP (403, 404, 500, ...).
-	 * @param	int	$code	Le code d'erreur HTTP.
+	 * Returns a template variable.
+	 * @param	string		$name		Name of the variable
+	 * @param	mixed|Closure	$default	(optional) Default value if the data doesn't exist.
+	 *						If this parameter is a regular value, it will be stored as a value associated
+	 *						to the requested variable, and returned by this method.
+	 *						If this parameter is an anonymous function, and the requested data doesn't exist,
+	 *						the function will be executed, it's returned value will be stored as a value
+	 *						associated to the requested variable, and returned by this method.
+	 * @return	mixed	The template variable's data.
 	 */
-	final protected function httpError($code) {
-		if (isset($this->_executorController))
-			$this->_executorController->httpError($code);
-		else {
-			$this->_checkResponse();
-			$this->_response->setHttpError($code);
-		}
+	final public function get(string $name, /* mixed */ $default=null) /* : mixed */ {
+		return ($this->_loader->response->getData($name, $default, $this->_loader));
 	}
 	/**
-	 * Indique un code de retour HTTP.
-	 * @param	int	$code	Le code de retour HTTP.
+	 * Remove a template variable.
+	 * @param	string	$name	Name of the variable.
 	 */
-	final protected function httpCode($code) {
-		if (isset($this->_executorController))
-			$this->_executorController->httpCode($code);
-		else {
-			$this->_checkResponse();
-			$this->_response->setHttpCode($code);
-		}
+	public function offsetUnset(/* mixed */ $name) : void {
+		unset($this->_loader->response[$name]);
 	}
 	/**
-	 * Retourne l'erreur HTTP configurée.
-	 * @return	int	Le code d'erreur configuré (403, 404, 500, ...) ou NULL si aucune erreur n'a été configurée.
+	 * Tell if a template variable exists.
+	 * @param	string	$name	Name of the variable.
+	 * @return	bool	True if the variable was defined, false otherwise.
 	 */
-	final protected function getHttpError() {
-		if (isset($this->_executorController))
-			return ($this->_executorController->getHttpError());
-		$this->_checkResponse();
-		return ($this->_response->getHttpError());
+	public function offsetExists(/* mixed */ $name) : bool {
+		return (isset($this->_loader->response[$name]));
 	}
+
+	/* ********** SUB-PROCESS ********** */
 	/**
-	 * Retourne le code de retour HTTP.
-	 * @return	int	Le code de retour HTTP.
+	 * Process a sub-controller.
+	 * @param	string	$controller	Controller name.
+	 * @param	string	$action		(optional) Action name. Call the default action if not defined.
+	 * @param	array	$parameters	(optional) List of parameters given to the sub-controller.
+	 *					If not given, use the parameters received by the main controller.
+	 * @return	int|null	The sub-controller's execution status (self::EXE_FORWARD, etc.). Could be null (==self::EXEC_FORWARD).
+	 * @throws	\Temma\Exceptions\FrameworkException	If the requested controller or action doesn't exist.
 	 */
-	final protected function getHttpCode() {
-		if (isset($this->_executorController))
-			return ($this->_executorController->getHttpCode());
-		$this->_checkResponse();
-		return ($this->_response->getHttpCode());
-	}
-	/**
-	 * Indique une redirection HTTP (302).
-	 * @param	string	$url	URL De la redirection.
-	 */
-	final protected function redirect($url) {
-		if (isset($this->_executorController)) {
-			$this->_executorController->redirect($url);
-		} else {
-			$this->_checkResponse();
-			$this->_response->setRedirection($url);
-		}
-	}
-	/**
-	 * Indique une redirection HTTP (301).
-	 * @param       string  $url    URL De la redirection.
-	 */
-	final protected function redirect301($url) {
-		if (isset($this->_executorController)) {
-			$this->_executorController->redirect301($url);
-		} else {
-			$this->_checkResponse();
-			$this->_response->setRedirection($url, true);
-		}
-	}
-	/**
-	 * Modifie le nom de la vue à utiliser.
-	 * @param	string	$view	Nom de la vue.
-	 */
-	final protected function view($view) {
-		if (isset($this->_executorController)) {
-			$this->_executorController->view($view);
-		} else {
-			$this->_checkResponse();
-			$this->_response->setView($view);
-		}
-	}
-	/**
-	 * Modifie le nom du template à utiliser.
-	 * @param	string	$template	Nom du template.
-	 */
-	final protected function template($template) {
-		if (isset($this->_executorController)) {
-			$this->_executorController->template($template);
-		} else {
-			$this->_checkResponse();
-			$this->_response->setTemplate($template);
-		}
-	}
-	/**
-	 * Modifie le préfixe du chemin de template à utiliser.
-	 * @param	string	$prefix	Le préfixe de template.
-	 */
-	final protected function templatePrefix($prefix) {
-		if (isset($this->_executorController))
-			$this->_executorController->templatePrefix($prefix);
-		else {
-			$this->_checkResponse();
-			$this->_response->setTemplatePrefix($prefix);
-		}
-	}
-	/**
-	 * Ajoute une donnée qui pourra être traitée par la vue.
-	 * @param	string|array	$name	Nom de la donnée, ou tableau associatif contenant les données à charger.
-	 * @param	mixed		$value	(optionnem) Valeur de la donnée, si le premier paramètre est une chaîne.
-	 */
-	final public function set($name, $value=null) {
-		if (isset($this->_executorController)) {
-			$this->_executorController->set($name, $value);
-		} else {
-			$this->_checkResponse();
-			if (is_array($name)) {
-				foreach ($name as $key => $val) {
-					$this->_response->setData($key, $val);
-				}
-			} else {
-				$this->_response->setData($name, $value);
-			}
-		}
-	}
-	/**
-	 * Retourne une donnée qui a été enregistrée préalablement.
-	 * @param	string	$name		Nom de la donnée.
-	 * @param	string	$default	(optionnel) Valeur par défaut si la donnée n'existe pas.
-	 */
-	final public function get($name, $default=null) {
-		if (isset($this->_executorController)) {
-			return ($this->_executorController->get($name, $default));
-		} else {
-			$this->_checkResponse();
-			return ($this->_response->getData($name, $default));
-		}
-	}
-	/**
-	 * Exécute un sous-contrôleur.
-	 * @param	string	$controller	Nom du contrôleur.
-	 * @param	string	$action		(optionnel) Nom de l'action à exécuter. Utilise l'action par défaut si pas défini.
-	 * @param	array	$parameters	(optionnel) Liste de paramètres à transmettre au sous-contrôleur. Par défaut, ce sont
-	 *					les paramètres reçus par le contrôleur initial.
-	 * @return	int	Le statut de l'exécution du sous-contrôleur.
-	 * @throws	\Temma\Exceptions\FrameworkException	Si le contrôleur demandé n'existe pas ou ne possède pas l'action demandée.
-	 */
-	final public function subProcess($controller, $action=null, $parameters=null) {
-		\FineLog::log('temma', \FineLog::DEBUG, "Subprocess of '$controller'::'$action'.");
-		if (!class_exists($controller) || !is_subclass_of($controller, '\Temma\Controller')) {
-			\FineLog::log('temma', \FineLog::ERROR, "Sub-controller '$controller' doesn't exists.");
+	final public function subProcess(string $controller, ?string $action=null, ?array $parameters=null) : ?int {
+		TµLog::log('Temma/Web', 'DEBUG', "Subprocess of '$controller'::'$action'.\n" . get_include_path());
+		if (!class_exists($controller) || !is_subclass_of($controller, '\Temma\Web\Controller')) {
+			TµLog::log('Temma/Web', 'ERROR', "Sub-controller '$controller' doesn't exists.");
 			throw new \Temma\Exceptions\FrameworkException("Unable to find sub-controller '$controller'.", \Temma\Exceptions\FrameworkException::NO_CONTROLLER);
 		}
-		// création du sous-contrôleur
-		$obj = new $controller($this->_dataSources, $this->_session, $this->_config, $this->_request, $this);
-		// initialisation du sous-contrôleur
+		// creation of the sub-controller
+		$obj = new $controller($this->_loader, $this);
+		// init of the sub-controller
 		$status = $obj->init();
 		if ($status !== self::EXEC_FORWARD)
 			return ($status);
-		// on regarde si ce contrôleur a une action proxy
-		$methodName = \Temma\Framework::ACTION_PREFIX . ucfirst(\Temma\Framework::PROXY_ACTION);
+		// check if this sub-controller has a proxy action
+		$methodName = \Temma\Web\Framework::ACTION_PREFIX . ucfirst(\Temma\Web\Framework::PROXY_ACTION);
 		if (method_exists($controller, $methodName)) {
-			\FineLog::log('temma', \FineLog::DEBUG, "Executing proxy action '" . \Temma\Framework::PROXY_ACTION . "'.");
+			TµLog::log('Temma/Web', 'DEBUG', "Executing proxy action '" . \Temma\Web\Framework::PROXY_ACTION . "'.");
 			$status = $obj->$methodName();
 		} else {
-			// pas d'action proxy, on regarde si l'action demandée existe, ou s'il existe une action par défaut
-			// si aucune action n'a été spécifiée, on prend celle par défaut
+			// no proxy action, check if the requested action exists, or if a default action exists
+			// if no action was specified, use the default one
 			if (empty($action))
-				$action = \Temma\Framework::DEFAULT_ACTION;
-			$methodName = \Temma\Framework::ACTION_PREFIX . ucfirst($action);
-			\FineLog::log('temma', \FineLog::DEBUG, "Executing action '$action'.");
-			$status = call_user_func_array(array($obj, $methodName), (isset($parameters) ? $parameters : $this->_request->getParams()));
+				$action = \Temma\Web\Framework::DEFAULT_ACTION;
+			$methodName = \Temma\Web\Framework::ACTION_PREFIX . ucfirst($action);
+			TµLog::log('Temma/Web', 'DEBUG', "Executing action '$action'.");
+			$status = call_user_func_array([$obj, $methodName], (isset($parameters) ? $parameters : $this->_loader->request->getParams()));
 		}
 		if ($status !== self::EXEC_FORWARD)
 			return ($status);
 		$status = $obj->finalize();
 		return ($status);
-	}
-
-	/* *********************** METHODES PRIVEES ******************* */
-	/** Vérifie que l'objet de réponse existe. */
-	private function _checkResponse() {
-		if (is_null($this->_response))
-			$this->_response = new \Temma\Response();
 	}
 }
 

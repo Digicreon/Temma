@@ -1,163 +1,199 @@
 <?php
 
-namespace Temma;
+namespace Temma\Web;
+
+use \Temma\Base\Log as TµLog;
 
 /**
- * Objet de gestion des réponses à l'exécution des contrôleurs dans le framework Temma.
+ * Object use to manage the response of a controller execution.
  *
  * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2007-2019, Amaury Bouchard
  * @package	Temma
+ * @subpackage	Web
  */
-class Response {
-	/** En-têtes HTTP. */
+class Response implements \ArrayAccess {
+	/** HTTP headers. */
 	private $_headers = null;
-	/** Adresse de redirection. */
+	/** Redirection URL. */
 	private $_redirect = null;
-	/** Code de redirection. */
+	/** Redirection code (301, 302). */
 	private $_redirectCode = 302;
-	/** Code d'erreur HTTP. */
+	/** HTTP error code. */
 	private $_httpError = null;
-	/** Code de retour HTTP. */
+	/** HTTP return code. */
 	private $_httpCode = 200;
-	/** Nom de la vue à utiliser pour traiter la réponse. */
+	/** Name of the view. */
 	private $_view = null;
-	/** Préfixe à ajouter au début du chemin de template. */
+	/** Prefix to add at the beginning of the template path. */
 	private $_templatePrefix = null;
-	/** Nom du template à utiliser pour traiter la réponse. */
+	/** Name of the template. */
 	private $_template = null;
-	/** Données qui seront interprétées par la vue à travers le template. */
+	/** Template variables. */
 	private $_data = null;
 
 	/**
-	 * Constructeur.
-	 * @param	string	$view		(optionnel) Nom de la vue à utiliser pour traiter la réponse.
-	 * @param	string	$template	(optionnel) Nom du template à utiliser pour traiter la réponse.
+	 * Constructor.
+	 * @param	string	$view		(optional) Name of the view.
+	 * @param	string	$template	(optional) Name of the template.
 	 */
-	public function __construct($view=null, $template=null) {
-		\FineLog::log('temma', \FineLog::DEBUG, "Response creation.");
+	public function __construct(?string $view=null, ?string $template=null) {
+		TµLog::log('Temma/Web', 'DEBUG', "Response creation.");
 		$this->_view = $view;
 		$this->_template = $template;
-		$this->_data = array();
-		$this->_headers = array();
+		$this->_data = [];
+		$this->_headers = [];
 	}
 	/**
-	 * Affecte une redirection.
-	 * @param	string	$url		Adresse de redirection.
-	 * @param	bool	$code301	Indique s'il faut utiliser une redirection 301 (faux par défaut).
+	 * Define a redirection.
+	 * @param	string	$url		Redirection URL.
+	 * @param	bool	$code301	True for a 301 redirection. False by default (302 redirection).
 	 */
-	public function setRedirection($url, $code301=false) {
+	public function setRedirection(string $url, bool $code301=false) : void {
 		$this->_redirect = $url;
-		if ($code301)
-			$this->_redirectCode = 301;
+		$this->_redirectCode = $code301 ? 301 : 302;
 	}
 	/**
-	 * Affecte un code d'erreur HTTP.
-	 * @param	int	$code	Le code d'erreur (403, 404, 500, ...).
+	 * Define an HTTP error code.
+	 * @param	int	$code	The error code (403, 404, 500, ...).
 	 */
-	public function setHttpError($code) {
+	public function setHttpError(int $code) : void {
 		$this->_httpError = $code;
 	}
 	/**
-	 * Affecte un code de retour HTTP.
-	 * @param	int	$code	Le code de retour (403, 404, 500, ...).
+	 * Define an HTTP return code.
+	 * @param	int	$code	The return code (403, 404, 500, ...).
 	 */
-	public function setHttpCode($code) {
+	public function setHttpCode(int $code) : void {
 		$this->_httpCode = $code;
 	}
 	/**
-	 * Modifie le nom de la vue.
-	 * @param	string	$view	Nom de la vue.
+	 * Define the view name.
+	 * @param	string	$view	The view name.
 	 */
-	public function setView($view) {
+	public function setView(string $view) : void {
 		$this->_view = $view;
 	}
 	/**
-	 * Mpodifie le préfixe de template.
-	 * @param	string	$prefix	Le préfixe de template.
+	 * Define the template name prefix.
+	 * @param	string	$prefix	The prefix.
 	 */
-	public function setTemplatePrefix($prefix) {
+	public function setTemplatePrefix(string $prefix) : void {
 		$this->_templatePrefix = $prefix;
 	}
 	/**
-	 * Modifie le nom du template.
-	 * @param	string	$template	Nom du template.
+	 * Define the template name.
+	 * @param	string	$template	The name.
 	 */
-	public function setTemplate($template) {
+	public function setTemplate(string $template) : void {
 		$this->_template = $template;
 	}
 	/**
-	 * Ajoute une donnée.
-	 * @param	string	$name	Nom de la donnée.
-	 * @param	mixed	$value	Valeur de la donnée.
+	 * Add a template variable, object-oriented syntax.
+	 * @param	string	$name	Data name.
+	 * @param	mixed	$value	Data value.
 	 */
-	public function setData($name, $value) {
+	public function offsetSet(/* mixed */ $name, /* mixed */ $value) : void {
 		$this->_data[$name] = $value;
+	}
+	/**
+	 * Remove a template variable.
+	 * @param	string	$name	Name of the variable.
+	 */
+	public function offsetUnset(/* mixed */ $name) : void {
+		$this->_data[$name] = null;
+		unset($this->_data[$name]);
 	}
 
 	/* ***************** GETTERS *************** */
 	/**
-	 * Retourne l'URL de redirection.
-	 * @return	string	L'URL de redirection.
+	 * Returns the redirection URL.
+	 * @return	string|null	The URL, or null if no redirection was set.
 	 */
-	public function getRedirection() {
+	public function getRedirection() : ?string {
 		return ($this->_redirect);
 	}
 	/**
-	 * Retourne le code de redirection 302 ou 301
-	 * @return	int	Code de redirection
+	 * Returns the redirection code (301, 302).
+	 * @return	int	The code.
 	 */
-	public function getRedirectionCode() {
+	public function getRedirectionCode() : int {
                 return ($this->_redirectCode);
         }
 	/**
-	 * Retourne le code d'erreur HTTP s'il est défini, sinon retourne NULL.
-	 * @return	int	Le code d'erreur HTTP (403, 404, 500, ...) ou NULL.
+	 * Returns the HTTP error code if it was defined, or null.
+	 * @return	int|null	The HTTP error code (403, 404, 500, ...) or null.
 	 */
-	public function getHttpError() {
+	public function getHttpError() : ?int {
 		return ($this->_httpError);
 	}
 	/**
-	 * Retourne le code de retour HTTP.
-	 * @return	int	Le code de retour HTTP (403, 404, 500, ...).
+	 * Returns the HTTP return code if it was defined, or null.
+	 * @return	int	The HTTP return code (403, 404, 500, ...) or 200.
 	 */
-	public function getHttpCode() {
+	public function getHttpCode() : int {
 		return ($this->_httpCode);
 	}
 	/**
-	 * Retourne le nom de la vue.
-	 * @return	string	Le nom de la vue.
+	 * Returns the view name.
+	 * @return	string|null	The view name, or null if it was not set.
 	 */
-	public function getView() {
+	public function getView() : ?string {
 		return ($this->_view);
 	}
 	/**
-	 * Retourne le préfixe de template.
-	 * @return	string	Le préfixe de template.
+	 * Returns the template name prefix.
+	 * @return	string|null	The prefix, or null if it was not set.
 	 */
-	public function getTemplatePrefix() {
+	public function getTemplatePrefix() : ?string {
 		return ($this->_templatePrefix);
 	}
 	/**
-	 * Retourne le nom du template.
-	 * @return	string	Le nom du template.
+	 * Returns the template name.
+	 * @return	string|null	The template name, or null if it was not set.
 	 */
-	public function getTemplate() {
+	public function getTemplate() : ?string {
 		return ($this->_template);
 	}
 	/**
-	 * Retourne les données de template.
-	 * @param	string	$key		(optionnel) La clé de la valeur à retourner dans l'ensemble des données.
-	 *					Retourne l'ensemble du hash de données si ce paramètre n'est pas fourni.
-	 * @param	string	$default	(optionnel) Valeur par défaut à retourner si la donnée demandée n'existe pas.
-	 * @return	mixed	La donnée demandée, ou un hash contenant l'ensemble des données.
+	 * Returns template variable(s), object-oriented syntax.
+	 * @param	string	$key		(optional) The name of the data to return.
+	 *					If not set, returns the associative array with all template variables.
+	 * @param	mixed	$default	(optional) Default value.
+	 *					If this parameter is a regular value, it will be stored as a value associated
+	 *					to the requested variable, and returned by this method.
+	 *					If this parameter is an anonymous function, and the requested data doesn't exist,
+	 *					the function will be executed, it's returned value will be stored as a value
+	 *					associated to the requested variable, and returned by this method.
+	 * @param	mixed	$callbackParam	(optional) Data given as parameter to the function given as the second parameter.
+	 *					Not used if the second parameter is not set or is not a callback.
+	 * @return	mixed	The requested data, or an associative array with all data.
 	 */
-	public function getData($key=null, $default=null) {
-		if (!empty($key)) {
-			if (array_key_exists($key, $this->_data))
-				return ($this->_data[$key]);
-			return ($default);
-		}
-		return ($this->_data);
+	public function getData(?string $key=null, /* mixed */ $default=null, /* mixed */ $callbackParam=null) /* : mixed */ {
+		if (is_null($key))
+			return ($this->_data);
+		if (isset($this->_data[$key]))
+			return ($this->_data[$key]);
+		if (is_callable($default))
+			$default = $default($callbackParam);
+		$this->setData($key, $default);
+		return ($default);
+	}
+	/**
+	 * Returns a template variable, array-like syntax.
+	 * @param	string	$name	Name of the variable.
+	 * @return	mixed	The associated value, or null.
+	 */
+	public function offsetGet(/* mixed */ $name) /* : mixed */ {
+		return ($this->_data[$name] ?? null);
+	}
+	/**
+	 * Tell if a template variable exists, array-link syntax.
+	 * @param	string	$name	Name of the variable.
+	 * @return	bool	True if the variable is defined.
+	 */
+	public function offsetExists(/* mixed */ $name) : bool {
+		return (isset($this->_data[$name]));
 	}
 }
 

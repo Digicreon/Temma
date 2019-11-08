@@ -24,7 +24,7 @@ require_once("HTMLPurifier.auto.php");
  */
 class HTMLCleaner {
 	/**
-	 * Trnaform a raw text into a clean HTML code.
+	 * Transform a raw text into a clean HTML code.
 	 * @param	string	$text		The input text.
 	 * @param	bool	$urlProcess	(optional) Tell if URLs embedded in the text must be processed. True by default.
 	 * @param	bool	$nofollow	(optional) Tell if links must be in nofollow. True by default.

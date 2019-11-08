@@ -15,7 +15,7 @@ use \Temma\Base\Log as TµLog;
  * Examples:
  * <ul>
  *   <li><tt>redis://localhost/1</tt></li>
- *   <li><tt>redis://db.finemedia.fr:6379/2</tt></li>
+ *   <li><tt>redis://db.temma.net:6379/2</tt></li>
  *   <li><tt>redis-sock:///var/run/redis/redis-server.sock</tt></li>
  *   <li><tt>redis-sock:///var/run/redis/redis-server.sock#2</tt></li>
  * </ul>
@@ -23,29 +23,29 @@ use \Temma\Base\Log as TµLog;
  * Full example:
  * <code>
  * try {
- *   // object creation
- *   $ndb = \Temma\Base\NDatabase::factory('redis://localhost');
- *   // insertion of a key-value pair
- *   $ndb->set('key', 'value');
- *   // insertion of many key-value pairs
- *   $ndb->set([
- *     'key1' => 'val1',
- *     'key2' => 'val2'
- *   ]);
- *   // fetch a value
- *   $result = $ndb->get('key');
- *   print($result);
- *   // remove a key
- *   $ndb->remove('key');
- *   // fetch many values
- *   $result = $ndb->get(['key1', 'key2', 'key3']);
- *   // display results
- *   foreach ($result as $key => $val)
- *     print("$key -> $val\n");
- *   // search values
- *   $result = $ndb->search('ugc:*');
+ *     // object creation
+ *     $ndb = \Temma\Base\NDatabase::factory('redis://localhost');
+ *     // insertion of a key-value pair
+ *     $ndb->set('key', 'value');
+ *     // insertion of many key-value pairs
+ *     $ndb->set([
+ *         'key1' => 'val1',
+ *         'key2' => 'val2'
+ *     ]);
+ *     // fetch a value
+ *     $result = $ndb->get('key');
+ *     print($result);
+ *     // remove a key
+ *     $ndb->remove('key');
+ *     // fetch many values
+ *     $result = $ndb->get(['key1', 'key2', 'key3']);
+ *     // display results
+ *     foreach ($result as $key => $val)
+ *         print("$key -> $val\n");
+ *     // search values
+ *     $result = $ndb->search('ugc:*');
  * } catch (Exception $e) {
- *   print("Database error: " . $e->getMessage());
+ *     print("Database error: " . $e->getMessage());
  * }
  * </code>
  *
@@ -60,9 +60,9 @@ class NDatabase extends \Temma\Base\Datasource {
 	/** Number of the default Redis base. */
 	const DEFAULT_REDIS_BASE = 0;
 	/** Connection object. */
-	private $_ndb = null;
+	protected $_ndb = null;
 	/** Connection parameters. */
-	private $_params = null;
+	protected $_params = null;
 
 	/* ************************ CONSTRUCTION ********************** */
 	/**
@@ -71,8 +71,8 @@ class NDatabase extends \Temma\Base\Datasource {
 	 * @return	\Temma\Base\NDatabase	The created object.
 	 * @throws	\Exception	If the DNS is not correct.
 	 */
-	static public function factory(string $dsn) {
-		TµLog::log('Temma\Base', 'DEBUG', "\Temma\Base\NDatabase object creation with DSN: '$dsn'.");
+	static public function factory(string $dsn) : \Temma\Base\Datasource {
+		TµLog::log('Temma/Base', 'DEBUG', "\Temma\Base\NDatabase object creation with DSN: '$dsn'.");
 		// extraction of connection parameters
 		if (preg_match("/^redis-sock:\/\/([^#]+)#?(.*)$/", $dsn, $matches)) {
 			$type = 'redis';
@@ -98,7 +98,7 @@ class NDatabase extends \Temma\Base\Datasource {
 	 * @param	string	$base		Name of the base to connect to.
 	 * @param	int	$port		(optional) Port number.
 	 */
-	private function __construct(string $host, string $base, $port=null) {
+	private function __construct(string $host, string $base, ?int $port=null) {
 		$this->_params = [
 			'host'	=> $host,
 			'base'	=> $base,
@@ -107,7 +107,8 @@ class NDatabase extends \Temma\Base\Datasource {
 	}
 	/** Destructor. Close the connection. */
 	public function __destruct() {
-		$this->_ndb->close();
+		if ($this->_ndb)
+			$this->_ndb->close();
 	}
 
 	/* ***************************** CONNEXION / DECONNEXION ************************ */
@@ -115,7 +116,7 @@ class NDatabase extends \Temma\Base\Datasource {
 	 * Open the connection.
 	 * @throws	\Exception	If something went wrong.
 	 */
-	private function _connect() {
+	protected function _connect() : void {
 		if ($this->_ndb)
 			return;
 		try {
@@ -128,7 +129,7 @@ class NDatabase extends \Temma\Base\Datasource {
 		}
 	}
 	/** Close the connection. */
-	public function close() {
+	public function close() : void {
 		if (isset($this->_ndb))
 			$this->_ndb->close();
 	}
@@ -143,7 +144,7 @@ class NDatabase extends \Temma\Base\Datasource {
 	 * @return	\Temma\Base\NDatabase	L'objet courant.
 	 * @throws	\Exception	If something went wrong.
 	 */
-	public function set($key, $value=null, int $timeout=0, bool $createOnly=false) : \Temma\Base\NDatabase {
+	public function set(/* mixed */ $key, ?string $value=null, int $timeout=0, bool $createOnly=false) : \Temma\Base\NDatabase {
 		$this->_connect();
 		if (!is_array($key)) {
 			$value = json_encode($value);
@@ -169,7 +170,7 @@ class NDatabase extends \Temma\Base\Datasource {
 	 *						The data returned by this function will be added to the database, and returned by the method.
 	 * @return	mixed	The value associated to the key, or an associative array with key-value pairs. If a value doesn't exists, it is null.
 	 */
-	public function get($key, \Closure $callback=null) {
+	public function get(/* mixed */ $key, ?\Closure $callback=null) /* : mixed */ {
 		$this->_connect();
 		if (is_array($key)) {
 			$values = $this->_ndb->mget($key);
@@ -205,7 +206,7 @@ class NDatabase extends \Temma\Base\Datasource {
 	 * @param	string|array	$key	Key or a list of keys.
 	 * @return	\Temma\Base\NDatabase	The current object.
 	 */
-	public function remove($key) : \Temma\Base\NDatabase {
+	public function remove(/* mixed */ $key) : \Temma\Base\NDatabase {
 		$this->_connect();
 		$this->_ndb->delete($key);
 		return ($this);

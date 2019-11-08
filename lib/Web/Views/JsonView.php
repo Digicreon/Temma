@@ -1,36 +1,38 @@
 <?php
 
-namespace Temma\Views;
+namespace Temma\Web\Views;
 
 /**
- * Vue traitant les flux JSON.
+ * View for JSON export.
  *
- * La donnée qui sera encodée en JSON doit avoir été stockée sous la clé "json".
+ * The JSON encoded data is fetched from the "json" template variable.
+ * To activate the debug mode (user-readable JSON), set the "jsonDebug" template variable to true.
  *
  * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2010-2019, Amaury Bouchard
  * @package	Temma
- * @subpackage	Views
+ * @subpackage	Web
  * @link	http://json.org/
  */
 class JsonView extends \Temma\View {
-	/** Nom de la clé de configuration pour les headers. */
-	protected $_cacheKey = 'json';
-	/** Donnée à envoyer encodée en JSON. */
+	/** Data that must be JSON-encoded. */
 	private $_data = null;
-	/** Mode debug. */
+	/** Debug mode. */
 	private $_debug = false;
 
-	/** Fonction d'initialisation. */
-	public function init() {
+	/** Init. */
+	public function init() : void {
 		$this->_data = $this->_response->getData('json');
 		$this->_debug = $this->_response->getData('jsonDebug', false);
 	}
-	/** Ecrit les headers HTTP sur la sortie standard si nécessaire. */
-	public function sendHeaders($headers=null) {
-		parent::sendHeaders(array('Content-Type' => 'text/x-json; charset=UTF-8'));
+	/** Write HTTP headers. */
+	public function sendHeaders(?array $headers=null) : void {
+		parent::sendHeaders([
+			'Content-Type'	=> 'text/x-json; charset=UTF-8',
+		]);
 	}
-	/** Ecrit le corps du document sur la sortie standard. */
-	public function sendBody() {
+	/** Write body. */
+	public function sendBody() : void {
 		$option = $this->_debug ? JSON_PRETTY_PRINT : 0;
 		print(json_encode($this->_data, $option));
 	}

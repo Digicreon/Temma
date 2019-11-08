@@ -31,7 +31,7 @@ class TemmaCachePlugin extends \Temma\Controller {
 		// vérification de non-mise en cache
 		if (isset($cacheable['sessionNoCache'])) {
 			if (!is_array($cacheable['sessionNoCache']))
-				$cacheable['sessionNoCache'] = array($cacheable['sessionNoCache']);
+				$cacheable['sessionNoCache'] = [$cacheable['sessionNoCache']];
 			foreach ($cacheable['sessionNoCache'] as $varName) {
 				if (($sessionData = $this->_session->get($varName)) && $sessionData) {
 					FineLog::log('temma', FineLog::DEBUG, "Cache disabled by session variable '$varName'.");

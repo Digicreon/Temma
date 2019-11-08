@@ -123,7 +123,7 @@ class Log {
 	 * Set the path ot the log file.
 	 * @param	string	path	Path to the log file.
 	 */
-	static public function setLogFile(string $path) {
+	static public function setLogFile(string $path) : void {
 		self::$_enable = true;
 		self::$_logPath = $path;
 	}
@@ -131,7 +131,7 @@ class Log {
 	 * Add a callback function, that will be used to write custom log messages.
 	 * @param	\Closure	$func	The callback function.
 	 */
-	static public function addCallback(\Closure $func) {
+	static public function addCallback(\Closure $func) : void {
 		self::$_enable = true;
 		self::$_logCallbacks[] = $func;
 	}
@@ -139,7 +139,7 @@ class Log {
 	 * Tell if it must write to STDOUT.
 	 * @param	bool	$activate	(optional) False to disable writing to STDOUT. True by default.
 	 */
-	static public function logToStdOut($activate=true) {
+	static public function logToStdOut(bool $activate=true) : void {
 		self::$_enable = true;
 		self::$_logToStdOut = ($activate === false) ? false : true;
 	}
@@ -147,16 +147,16 @@ class Log {
 	 * Tell if it must wirte to STDERR.
 	 * @param	bool	$activate	(optional) False to disable writing to STDERR. True by default.
 	 */
-	static public function logToStdErr($activate=true) {
+	static public function logToStdErr(bool $activate=true) : void {
 		self::$_enable = true;
 		self::$_logToStdErr = ($activate === false) ? false : true;
 	}
 	/** Disable all log writing. */
-	static public function disable() {
+	static public function disable() : void {
 		self::$_enable = false;
 	}
 	/** Enable log writing. */
-	static public function enable() {
+	static public function enable() : void {
 		self::$_enable = true;
 	}
 	/**
@@ -165,7 +165,7 @@ class Log {
 	 *							or value of the default threshold, or list of classes with their associated thresholds.
 	 * @param	string		$threshold		(optional) Threshold value.
 	 */
-	static public function setThreshold($classOrThreshold, $threshold=null) {
+	static public function setThreshold(/* mixed */ $classOrThreshold, ?string $threshold=null) : void {
 		if (is_string($classOrThreshold) && is_string($threshold))
 				self::$_threshold[$classOrThreshold] = $threshold;
 		else {
@@ -181,7 +181,7 @@ class Log {
 	 * @param	mixed	$messageOrPriority		(optional) Log message (2 params) or criticity level (3 params).
 	 * @param	string	$message			(optional) Log message (3 params).
 	 */
-	static public function log($classOrMessageOrPriority, $messageOrPriority=null, string $message=null) {
+	static public function log(/* mixed */ $classOrMessageOrPriority, /* mixed */ $messageOrPriority=null, ?string $message=null) : void {
 		if (is_null(self::$_requestId)) {
 			self::$_requestId = substr(base_convert(hash('md5', mt_rand()), 16, 36), 0, 4);
 		}
@@ -200,7 +200,7 @@ class Log {
 		}
 		// the message is not written if its criticity is lower than the defined threshold
 		if ((isset(self::$_threshold[$class]) && self::$_levels[$priority] < self::$_levels[self::$_threshold[$class]]) ||
-		    (!isset(self::$_threshold[$class]) && self::$_levels[$priority] < self::$_levels[self::$_threshold[self::DEFAULT_CLASS]]))
+		    (!isset(self::$_threshold[$class]) && (!isset(self::$_threshold[self::DEFAULT_CLASS]) || self::$_levels[$priority] < self::$_levels[self::$_threshold[self::DEFAULT_CLASS]])))
 			return;
 		// log processing
 		$backtrace = debug_backtrace();
@@ -234,7 +234,7 @@ class Log {
 	 * Write a simple log message. This message will always be writtent.
 	 * @param	string	$message	Log message.
 	 */
-	static public function l(string $message) {
+	static public function l(string $message) : void {
 		self::_writeLog(null, null, $message);
 	}
 	/**
@@ -247,7 +247,8 @@ class Log {
 	 * @param	int|string	$lineOrCaller		Number of the line where the method was called, or the name of the caller function.
 	 * @param	string		$caller			(optional) Name of the caller function.
 	 */
-	static public function fullLog(string $classOrPriority, string $priorityOrMessage, string $messageOrFile, $fileOrLine, $lineOrCaller, string $caller=null) {
+	static public function fullLog(string $classOrPriority, string $priorityOrMessage, string $messageOrFile,
+	                               /* mixed */ $fileOrLine, /* mixed */ $lineOrCaller, ?string $caller=null) : void {
 		// parameters processing
 		if (is_null($caller)) {
 			// 5 parameters: no log class
@@ -279,13 +280,13 @@ class Log {
 	/* ********************** PRIVATE METHODS *************** */
 	/**
 	 * Write a message into the right media.
-	 * @param	string	$class			Log class of the message.
-	 * @param	int	$priority		Criticity level of the message.
-	 * @param	string	$message		Text message.
+	 * @param	string|null	$class			Log class of the message. Could be null.
+	 * @param	string|null	$priority		Criticity level of the message. Could be null.
+	 * @param	string		$message		Text message.
 	 * @throws	\Temma\Exceptions\ApplicationException	If no log file was defined.
 	 * @throws	\Temma\Exceptions\IOException		If there was a writing error.
 	 */
-	static private function _writeLog($class, $priority, $message) {
+	static private function _writeLog(?string $class, ?string $priority, string $message) : void {
 		if (!self::$_enable)
 			return;
 		// open the file if needed

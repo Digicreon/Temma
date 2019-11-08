@@ -3,18 +3,19 @@
 namespace Temma\Exceptions;
 
 /**
- * Objet de gestion des exceptions de Temma lors d'une erreur dans les DAO.
+ * Exception for DAO errors.
  *
  * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2012-2019, Amaury Bouchard
  * @package	Temma
  * @subpackage	Exceptions
  */
 class DaoException extends \Exception {
-	/** Critère de recherche incorrect. */
+	/** Bad search criteria. */
 	const CRITERIA = 0;
-	/** Mauvais champ. */
+	/** Bad field. */
 	const FIELD = 1;
-	/** Mauvaise valeur. */
+	/** Bad value. */
 	const VALUE = 2;
 }
 

@@ -71,7 +71,7 @@ use \Temma\Base\Log as TµLog;
  * @package	Temma
  * @subpackage	Base
  */
-class Loader extends \Temma\Base\Registry {
+class Loader extends \Temma\Utils\Registry {
 	/** Builder function. */
 	protected $_builder = null;
 
@@ -81,7 +81,7 @@ class Loader extends \Temma\Base\Registry {
 	 * @param	array	$data		(optional) Associative array of data used to fill the registry.
 	 * @param	\Closure	$builder	(optional) Builder function.
 	 */
-	public function __construct(array $data=null, \Closure $builder=null) {
+	public function __construct(?array $data=null, ?\Closure $builder=null) {
 		$this->_builder = $builder;
 		parent::__construct($data);
 	}
@@ -90,8 +90,9 @@ class Loader extends \Temma\Base\Registry {
 	 * @param	\Closure	$builder	Builder function.
 	 * @return	\Temma\Base\Loader	The current object.
 	 */
-	public function setBuilder(\Closure $builder) {
+	public function setBuilder(\Closure $builder) : \Temma\Base\Loader {
 		$this->_builder = $builder;
+		return ($this);
 	}
 
 	/* ****************** DATA WRITING **************** */
@@ -105,20 +106,20 @@ class Loader extends \Temma\Base\Registry {
 	 *				and its returned value will be stored as the value, and returned.
 	 * @return	\Temma\Base\Loader	The current object.
 	 */
-	public function set($key, $data=null) : \Temma\Base\Registry {
+	public function set(string $key, /* mixed */ $data=null) : \Temma\Utils\Registry {
 		$this->_data[$key] = $data;
 		return ($this);
 	}
 
 	/* ********** DATA READING ********** */
 	/**
-	 * Returns data from the registry.
+	 * Returns data from the loader.
 	 * @param	string	$key		Index key.
 	 * @param	mixed	$default	(optional) Default value that must be returned is the requested key doesn't exist.
 	 * @return	mixed	The associated value, or null.
 	 */
-	public function get(string $key, $default=null) {
-		if (array_key_exists($key, $this->_data)) {
+	public function get(string $key, /* mixed */ $default=null) /* : mixed */ {
+		if (isset($this->_data[$key])) {
 			if (is_callable($this->_data[$key]))
 				$this->_data[$key] = $this->_data[$key]($this);
 			if (isset($this->_data[$key]))
@@ -134,6 +135,9 @@ class Loader extends \Temma\Base\Registry {
 			$this->_data[$key] = $this->builder($key);
 			if (isset($this->_data[$key]))
 				return ($this->_data[$key]);
+		}
+		if (is_callable($default)) {
+			$default = $default($this);
 		}
 		return ($default);
 	}

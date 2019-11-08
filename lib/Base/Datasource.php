@@ -23,7 +23,7 @@ abstract class Datasource {
 	 * @throws	\Exception	If the given DSN is not correct.
 	 */
 	static public function factory(string $dsn) : \Temma\Base\Datasource {
-		TµLog::log('Temma\Base', 'DEBUG', "Datasource object creation with DSN: '$dsn'.");
+		TµLog::log('Temma/Base', 'DEBUG', "Datasource object creation with DSN: '$dsn'.");
 		if (substr($dsn, 0, 7) === 'mysqli:' || substr($dsn, 0, 6) === 'mysql:' ||
 		    substr($dsn, 0, 6) === 'pgsql:' || substr($dsn, 0, 7) === 'cubrid:' ||
 		    substr($dsn, 0, 7) === 'sybase:' || substr($dsn, 0, 6) === 'mssql:' ||

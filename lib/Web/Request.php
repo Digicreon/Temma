@@ -1,199 +1,171 @@
 <?php
 
-namespace Temma;
+namespace Temma\Web;
+
+use \Temma\Base\Log as TµLog;
 
 /**
- * Objet de gestion des requêtes HTTP dans le framework Temma.
+ * Object use to manage HTTP requests.
  *
  * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2007-2019, Amaury Bouchard
  * @package	Temma
+ * @subpackage	Web
  */
 class Request {
-	/** Information de pathInfo. */
+	/** PathInfo data. */
 	private $_pathInfo = null;
-	/** Nom du contrôleur demandé. */
+	/** Name of the requested controller. */
 	private $_controller = null;
-	/** Nom de l'action demandée. */
+	/** Name of the requested action. */
 	private $_action = null;
-	/** Paramètres de l'action. */
+	/** Parameters for the action. */
 	private $_params = null;
-	/** Chemin depuis la racine du site. */
+	/** Path from the site root. */
 	private $_sitePath = null;
-	/** Données JSON reçues. */
+	/** Received JSON data. */
 	private $_json = null;
-	/** Données XML reçues. */
+	/** Received XML data. */
 	private $_xml = null;
 
 	/**
-	 * Constructeur.
-	 * @param	string	$setUri	(optionnel) Chemin à utiliser pour déterminer l'exécution demandée,
-	 *				sans passer par l'analyse de l'URL courante.
+	 * Constructor.
+	 * @param	string	$setUri	(optional) Path to use to extract the execution elements (controller, action, parameters),
+	 *				without going through the analysis of the current URL.
+	 * @throws	\Temma\Exceptions\FrameworkException	If no PATH_INFO nor REQUEST_URI data found in the environment.
 	 */
-	public function __construct($setUri=null) {
-		\FineLog::log('temma', \FineLog::DEBUG, "Request creation.");
+	public function __construct(?string $setUri=null) {
+		TµLog::log('Temma/Web', 'DEBUG', "Request creation.");
 		if (isset($setUri)) {
-			// utilisation du chemin fournit en paramètre
+			// use the path given as parameter
 			$requestUri = '/' . trim($setUri, '/') . '/';
 		} else {
-			// extraction du chemin par rapport à la racine du site
+			// extraction of the path from the site root
 			if (isset($_SERVER['REQUEST_URI']) && !empty($_SERVER['REQUEST_URI'])) {
 				$requestUri = $_SERVER['REQUEST_URI'];
 				if (($offset = strpos($requestUri, '?')) !== false)
 					$requestUri = substr($requestUri, 0, $offset);
 			} else if (isset($_SERVER['PATH_INFO']) && !empty($_SERVER['PATH_INFO'])) {
-				// récupération du chemin d'exécution du script
+				// get the script's execution path
 				$rootPath = $_SERVER['SCRIPT_FILENAME'];
 				if (substr($rootPath, -10) == '/index.php')
 					$rootPath = substr($rootPath, 0, -10);
-				// récupération du chemin (éventuellement en retirant le chemin d'exécution du script ou les paramètres GET)
+				// get the path (pruning the scrip's execution path and the GET parameters, if needed)
 				$requestUri = $_SERVER['PATH_INFO'];
 				$rootPathLen = strlen($rootPath);
 				if (substr($requestUri, 0, $rootPathLen) === $rootPath)
 					$requestUri = substr($requestUri, $rootPathLen);
 			} else
 				throw new \Temma\Exceptions\FrameworkException('No PATH_INFO nor REQUEST_URI environment variable.', \Temma\Exceptions\FrameworkExceptions::CONFIG);
-			// spécial référencement : si l'URL demandée se terminait par un slash, on fait une redirection
-			// hint: PATH_INFO n'est pas rempli quand on accède à la racine du projet Temma, qu'il soit à la racine du site ou dans un sous répertoire
+			// for SEO purpose: if the URL ends with a slash, do a redirection without it
+			// hint: PATH_INFO is not filled when we access to the Temma project's root (being at the site root or in a sub-directory)
 			if (isset($_SERVER['PATH_INFO']) && !empty($PATH_INFO) && substr($requestUri, -1) == '/') {
 				$url = substr($requestUri, 0, -1) . ((isset($_SERVER['QUERY_STRING']) && !empty($_SERVER['QUERY_STRING'])) ? ('?' . $_SERVER['QUERY_STRING']) : '');
-				\FineLog::log('temma', \FineLog::DEBUG, "Redirecting to '$url'.");
+				TµLog::log('Temma/Web', 'DEBUG', "Redirecting to '$url'.");
 				header('HTTP/1.1 301 Moved Permanently');
 				header("Location: $url");
 				exit();
 			}
 		}
-		\FineLog::log('temma', \FineLog::INFO, "URL : '$requestUri'.");
+		TµLog::log('Temma/Web', 'INFO', "URL : '$requestUri'.");
 		$this->_pathInfo = $requestUri;
-		// extraction des composantes de l'URL
+		// extraction of URL components
 		$chunkedUri = explode('/', $requestUri);
 		array_shift($chunkedUri);
 		$this->_controller = array_shift($chunkedUri);
 		$this->_action = array_shift($chunkedUri);
-		$this->_params = array();
+		$this->_params = [];
 		foreach ($chunkedUri as $chunk)
 			if (strlen(trim($chunk)) > 0)
 				$this->_params[] = $chunk;
-		// extraction du chemin depuis la racine du site
+		// extraction of the path from the site root
 		$this->_sitePath = dirname($_SERVER['SCRIPT_NAME']);
 	}
 
 	/* ***************** GETTERS *************** */
 	/**
-	 * Décode des données JSON reçues en POST.
-	 * @param	string	$key	Nom de la donnée à retourner. Si ce paramètre n'est pas fourni,
-	 *				l'ensemble des données JSON est retourné.
-	 * @return      mixed   La ou les donnée(s) JSON décodée(s).
+	 * Returns the pathInfo.
+	 * @return 	string	The pathInfo.
 	 */
-	public function getJson($key=null) {
-		if (is_null($this->_json) && isset($GLOBALS['HTTP_RAW_POST_DATA']))
-			$this->_json = json_decode(urldecode($GLOBALS['HTTP_RAW_POST_DATA']));
-		if (!empty($key))
-			return ($this->_json->$key);
-		return ($this->_json);
-	}
-	/**
-	 * Décode les données XML reçues en POST.
-	 * @param	string	$key	Nom du noeud XML à retourner. Si ce paramètre n'est pas fourni,
-	 *				l'ensemble des données XML est retourné.
-	 * @return	mixed	La ou les données( ) XML décodée(s).
-	 */
-	public function getXml($key=null) {
-		if (is_null($this->_xml) && isset($GLOBALS['HTTP_RAW_POST_DATA']))
-			$this->_xml = new SimpleXMLElement(urldecode($GLOBALS['HTTP_RAW_POST_DATA']));
-		if (!empty($key))
-			return ($this->_xml->$key);
-		return ($this->_xml);
-	}
-	/**
-	 * Retourne le pathInfo.
-	 * @return 	string	Le pathInfo.
-	 */
-	public function getPathInfo() {
+	public function getPathInfo() : string {
 		return ($this->_pathInfo);
 	}
 	/**
-	 * Retourne le nom du contrôleur demandé.
-	 * @return	string	Le nom du contrôleur.
+	 * Returns the requested controller's name.
+	 * @return	string|null	The controller name or null if it was not set.
 	 */
-	public function getController() {
+	public function getController() : ?string {
 		return ($this->_controller);
 	}
 	/**
-	 * Retourne le nom de l'action demandée.
-	 * @return	string	Le nom de l'action.
+	 * Returns the requested action's name.
+	 * @return	string|null	The action name, or null if it was not set.
 	 */
-	public function getAction() {
+	public function getAction() : ?string {
 		return ($this->_action);
 	}
 	/**
-	 * Retourne le nombre de paramètres.
-	 * @return	int	Le nombre de paramètres.
+	 * Returns parameters count.
+	 * @return	int	The count.
 	 */
-	public function getNbrParams() {
+	public function getNbrParams() : int {
 		return (is_array($this->_params) ? count($this->_params) : 0);
 	}
 	/**
-	 * Retourne les paramètres de l'action.
-	 * @return	array	La liste des paramètres.
+	 * Returns action parameters.
+	 * @return	array	The list of parameters.
 	 */
-	public function getParams() {
+	public function getParams() : array {
 		return ($this->_params);
 	}
 	/**
-	 * Retourne un paramètre de l'action.
-	 * @param	int	$index		Index du paramètre dans la liste de paramètres.
-	 * @param	mixed	$default	(optionel) Valeur par défaut si le paramètre demandé n'existe pas.
-	 * @return	string	Le paramètre demandé.
+	 * Returns an action parameter.
+	 * @param	int	$index		Parameter's index.
+	 * @param	mixed	$default	(optional) Default value if the parameter doesn't exist.
+	 * @return	string	The associated value.
 	 */
-	public function getParam($index, $default=null) {
+	public function getParam(int $index, /* mixed */ $default=null) : string {
 		if (isset($this->_params[$index]))
 			return ($this->_params[$index]);
 		return ($default);
 	}
 	/**
-	 * Retourne le chemin depuis la racine du site.
-	 * @return	string	Le chemin depuis la racine.
+	 * Returns the path from the site root.
+	 * @return	string	The path.
 	 */
-	public function getSitePath() {
+	public function getSitePath() : string {
 		return ($this->_sitePath);
 	}
 
 	/* ***************** SETTERS *************** */
 	/**
-	 * Positionne le contenu qui aurait dû être reçu sur l'entrée standard.
-	 * @param	string	$content	Le contenu.
+	 * Define the controller's name.
+	 * @param	string	$name	The name.
 	 */
-	public function setInputData($content) {
-		$GLOBALS['HTTP_RAW_POST_DATA'] = $content;
-	}
-	/**
-	 * Positionne le nom du contrôleur à utiliser.
-	 * @param	string	$name	Le nom du contrôleur.
-	 */
-	public function setController($name) {
+	public function setController(string $name) : void {
 		$this->_controller = $name;
 	}
 	/**
-	 * Positionne le nom de l'action à exécuter.
-	 * @param	string	$name	Le nom de l'action.
+	 * Define the the action's name.
+	 * @param	string	$name	The name.
 	 */
-	public function setAction($name) {
+	public function setAction(string $name) : void {
 		$this->_action = $name;
 	}
 	/**
-	 * Positionne tous les paramètres reçus sur l'URL.
-	 * @param	array	$data	Tableau de chaînes de caractères.
+	 * Define the action parameters as they would have been received on the URL.
+	 * @param	array	$data	Array of strings.
 	 */
-	public function setParams($data) {
+	public function setParams(array $data) : void {
 		if (is_array($data))
 			$this->_params = $data;
 	}
 	/**
-	 * Positionne un paramètre reçu sur l'URL.
-	 * @param	int	$index	Index du paramètre à modifier.
-	 * @param	string	$value	Valeur à positionner.
+	 * Define an action parameter.
+	 * @param	int	$index	Offset of the parameter.
+	 * @param	string	$value	Associated value.
 	 */
-	public function setParam($index, $value) {
+	public function setParam(int $index, string $value) : void {
 		$this->_params[$index] = $value;
 	}
 }

@@ -30,7 +30,7 @@ namespace Temma\Utils;
  */
 class Ansi {
 	/** Colors definition. */
-	static public $colors = [
+	const COLORS = [
 		'black'		=> 0,
 		'red'		=> 1,
 		'green'		=> 2,
@@ -38,7 +38,7 @@ class Ansi {
 		'blue'		=> 4,
 		'magenta'	=> 5,
 		'cyan'		=> 6,
-		'white'		=> 7
+		'white'		=> 7,
 	];
 
 	/**
@@ -46,7 +46,7 @@ class Ansi {
 	 * @param	string	$text	Input text.
 	 * @return	string	The formatted text.
 	 */
-	static public function bold($text) {
+	static public function bold(string $text) : string {
 		return (chr(27) . '[1m' . $text . chr(27) . '[0m');
 	}
 	/**
@@ -54,7 +54,7 @@ class Ansi {
 	 * @param	string	$text	Input text.
 	 * @return	string	The formatted text.
 	 */
-	static public function faint($text) {
+	static public function faint(string $text) : string {
 		return (chr(27) . '[2m' . $text . chr(27) . '[0m');
 	}
 	/**
@@ -62,7 +62,7 @@ class Ansi {
 	 * @param	string	$text	Input text.
 	 * @return	string	The formatted text.
 	 */
-	static public function underline($text) {
+	static public function underline(string $text) : string {
 		return (chr(27) . '[4m' . $text . chr(27) . '[0m');
 	}
 	/**
@@ -70,7 +70,7 @@ class Ansi {
 	 * @param	string	$text	Input text.
 	 * @return	string	The formatted text.
 	 */
-	static public function negative($text) {
+	static public function negative(string $text) : string {
 		return (chr(27) . '[7m' . $text . chr(27) . '[0m');
 	}
 	/**
@@ -79,8 +79,8 @@ class Ansi {
 	 * @param	string	$text	Input text.
 	 * @return	string	The formatted text.
 	 */
-	static public function color($color, $text) {
-		return (chr(27) . '[9' . self::$colors[$color] . 'm' . $text . chr(27) . '[0m');
+	static public function color(string $color, string $text) : string {
+		return (chr(27) . '[9' . self::COLORS[$color] . 'm' . $text . chr(27) . '[0m');
 	}
 	/**
 	 * Background colored text.
@@ -89,8 +89,8 @@ class Ansi {
 	 * @param	string	$text		Input text.
 	 * @return	string	The formatted text.
 	 */
-	static public function backColor($backColor, $color, $text) {
-		return (chr(27) . '[4' . self::$colors[$backColor] . 'm' . chr(27) . '[9' . self::$colors[$color] . 'm' . $text . chr(27) . '[0m');
+	static public function backColor(string $backColor, string $color, string $text) : string {
+		return (chr(27) . '[4' . self::COLORS[$backColor] . 'm' . chr(27) . '[9' . self::COLORS[$color] . 'm' . $text . chr(27) . '[0m');
 	}
 }
 

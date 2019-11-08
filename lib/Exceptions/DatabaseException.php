@@ -1,25 +1,21 @@
 <?php
 
-if (!class_exists('FineDatabaseException')) {
+namespace Temma\Exceptions;
 
 /**
- * Objet de gestion des exceptions de base de données.
+ * Exception for database errors.
  *
- * @author	Amaury Bouchard <amaury.bouchard@finemedia.fr>
- * @copyright	© 2007, FineMedia
- * @package	FineBase
- * @subpackage	Exception
- * @version	$Id: FineDatabaseException.php 641 2013-02-11 12:57:59Z abouchard $
+ * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2007-2019, Amaury Bouchard
+ * @package	Temma
+ * @subpackage	Exceptions
  */
-class FineDatabaseException extends Exception {
-	/** Constante d'erreur fondamentale. */
+class DatabaseException extends \Exception {
+	/** Fundemental error. */
 	const FUNDAMENTAL = 0;
-	/** Constante d'erreur de connexion. */
+	/** Connection error. */
 	const CONNECTION = 1;
-	/** Constante d'erreur de requête. */
+	/** Query error. */
 	const QUERY = 2;
 }
 
-} // class_exists
-
-?>

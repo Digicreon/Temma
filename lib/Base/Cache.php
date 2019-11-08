@@ -35,13 +35,13 @@ class Cache extends Datasource {
 	/** Constante : Numéro de port Memcached par défaut. */
 	const DEFAULT_MEMCACHE_PORT = 11211;
 	/** Indique si on doit utiliser le cache ou non. */
-	private $_enabled = false;
+	protected $_enabled = false;
 	/** Objet de connexion au serveur memcache. */
-	private $_memcache = null;
+	protected $_memcache = null;
 	/** Durée de mise en cache par défaut (24 heures). */
-	private $_defaultExpiration = 86400;
+	protected $_defaultExpiration = 86400;
 	/** Préfixe de regroupement des variables de cache. */
-	private $_prefix = '';
+	protected $_prefix = '';
 
 	/* ************************** CONSTRUCTION ******************** */
 	/**
@@ -49,7 +49,7 @@ class Cache extends Datasource {
 	 * @param	string	$dsn	Server connection string.
 	 * @return	\Temma\Base\Cache	The created instance.
 	 */
-	static public function factory(string $dsn) : \Temma\Base\Cache {
+	static public function factory(string $dsn) : \Temma\Base\Datasource {
 		$instance = new self($dsn);
 		return ($instance);
 	}
@@ -66,8 +66,8 @@ class Cache extends Datasource {
 		if (!extension_loaded('memcached') || empty($dsn)) {
 			throw new \Exception("The 'memcached' PHP extension is not loaded.");
 		}
-		$memcache = new MemCached();
-		$memcache->setOption(Memcached::OPT_COMPRESSION, true);
+		$memcache = new \Memcached();
+		$memcache->setOption(\Memcached::OPT_COMPRESSION, true);
 		$servers = explode(';', $dsn);
 		foreach ($servers as &$server) {
 			if (empty($server))
@@ -158,7 +158,7 @@ class Cache extends Datasource {
 	 *				it will be set to 30 days.
 	 * @return	\Temma\Base\Cache	The current object.
 	 */
-	public function set(string $key, $data=null, int $expire=0) : \Temma\Base\Cache {
+	public function set(string $key, /* mixed */ $data=null, int $expire=0) : \Temma\Base\Cache {
 		$key = $this->_getSaltedPrefix() . $key;
 		if (is_null($data)) {
 			// deletion
@@ -183,14 +183,14 @@ class Cache extends Datasource {
 	 *						it will be set to 30 days. This parameter is used only if the '$callback' parameter is given.
 	 * @return	mixed	The data fetched from the cache (and returned by the callback if needed), or null.
 	 */
-	public function get(string $key, \Closure $callback=null, int $expire=0) {
+	public function get(string $key, ?\Closure $callback=null, int $expire=0) /* : mixed */ {
 		$origPrefix = $this->_prefix;
 		$origKey = $key;
 		$key = $this->_getSaltedPrefix() . $key;
 		$data = null;
 		if ($this->_enabled && $this->_memcache) {
 			$data = $this->_memcache->get($key);
-			if ($data === false && $this->_memcache->getResultCode() != Memcached::RES_SUCCESS)
+			if ($data === false && $this->_memcache->getResultCode() != \Memcached::RES_SUCCESS)
 				$data = null;
 		}
 		if (is_null($data) && isset($callback)) {
@@ -225,7 +225,7 @@ class Cache extends Datasource {
 		$origPrefix = $this->_prefix;
 		$origKey = $key;
 		$key = $this->_getSaltedPrevix() . $key;
-		if ($this->_memcache->get($key) === false && $this->_memcache->getResultCode() == Memcached::RES_NOTFOUND)
+		if ($this->_memcache->get($key) === false && $this->_memcache->getResultCode() == \Memcached::RES_NOTFOUND)
 			return (false);
 		return (true);
 	}
@@ -235,7 +235,7 @@ class Cache extends Datasource {
 	 * Returns a salted prefix.
 	 * @return	string	The generated salted prefix.
 	 */
-	private function _getSaltedPrefix() {
+	protected function _getSaltedPrefix() : string {
 		// prefix management
 		if (empty($this->_prefix))
 			return ('');

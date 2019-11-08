@@ -1,74 +1,73 @@
 <?php
 
-namespace Temma;
+namespace Temma\Web;
 
 /**
- * Objet de gestion des vues au sein d'applications MVC.
+ * Object used to manage views.
  *
- * @auhor	Amaury Bouchard <amaury@amaury.net>
+ * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2007-2019, Amaury Bouchard
  * @package	Temma
+ * @subpackage	Web
  */
 abstract class View {
-	/** Liste de connexion à des sources de données. */
+	/** List of data sources. */
 	protected $_dataSources = null;
-	/** Configuration de l'application. */
+	/** Configuration object. */
 	protected $_config = null;
-	/** Objet de réponse. */
+	/** Response object. */
 	protected $_response = null;
-	/** Nom de la clé de configuration pour les headers. */
-	protected $_cacheKey = null;
 
 	/**
-	 * Constructeur.
-	 * @param	array		$dataSources	Liste de connexions à des sources de données.
-	 * @param	\Temma\Config	$config		Objet contenant la configuration du projet.
-	 * @param	\Temma\Response	$response	Objet de réponse.
+	 * Constructor.
+	 * @param	array			$dataSources	List of data sources.
+	 * @param	\Temma\Web\Config	$config		Configuration object.
+	 * @param	\Temma\Web\Response	$response	Response object.
 	 */
-	public function __construct($dataSources, \Temma\Config $config, \Temma\Response $response=null) {
+	public function __construct(array $dataSources, \Temma\Web\Config $config, ?\Temma\Web\Response $response=null) {
 		$this->_dataSources = $dataSources;
 		$this->_config = $config;
 		$this->_response = $response;
 	}
-	/** Destructeur. */
+	/** Destructor. */
 	public function __destruct() {
 	}
 	/**
-	 * Indique si cette vue utilise des templates ou non.
-	 * Les vues qui n'ont pas besoin de template n'ont pas besoin de redéfinir cette méthode.
-	 * @return	bool	True si cette vue utilise des templates.
+	 * Tell if this view uses templates or not.
+	 * Views that doesn't use templates don't need to overload this method.
+	 * @return	bool	True if this view uses templates.
 	 */
-	public function useTemplates() {
+	public function useTemplates() : bool {
 		return (false);
 	}
 	/**
-	 * Fonction d'affectation de template.
-	 * Les vues qui n'ont pas besoin de template n'ont pas besoin de redéfinir cette méthode.
-	 * @param	string|array	$path		Chemin(s) de recherche des templates.
-	 * @param	string		$template	Nom du template à utiliser.
-	 * @return	bool		True si tout s'est bien passé.
+	 * Define template.
+	 * Views that doesn't use templates don't need to overload this method.
+	 * @param	string	$path		Path of where to search templates.
+	 * @param	string	$template	Name of the template to use.
+	 * @throws	\Temma\Exceptions\IOException	If the template file doesn't exists.
 	 */
-	public function setTemplate($path, $template) {
-		return (true);
+	public function setTemplate(string $path, string $template) : void {
 	}
-	/** Fonction d'initialisation. */
-	public function init() {
+	/** Initialization method. */
+	public function init() : void {
 	}
 	/**
-	 * Ecrit les headers HTTP sur la sortie standard si nécessaire.
-	 * Par défaut, envoie un header HTML avec désactivation du cache.
-	 * @param	array	$headers	(optionnel) Tableau de headers à envoyer par défaut.
+	 * Write HTTP headers on stdout.
+	 * This default function sends an HTML content-type, with cache deactivation header.
+	 * @param	array	$headers	(optional) Default array of headers that must be sent.
 	 */
-	public function sendHeaders($headers=null) {
+	public function sendHeaders(?array $headers=null) : void {
 		$httpCode = $this->_response->getHttpCode();
 		if ($httpCode != 200)
 			http_response_code($httpCode);
 		if (is_null($headers)) {
-			$headers = array(
+			$headers = [
 				'Content-Type'	=> 'text/html; charset=UTF-8',
 				'Cache-Control'	=> 'no-cache, no-store, must-revalidate, max-age=0, post-check=0, pre-check=0',
 				'Expires'	=> 'Mon, 26 Jul 1997 05:00:00 GMT',
 				'Pragma'	=> 'no-cache'
-			);
+			];
 		}
 		$headersDefault = $this->_config->xtra('headers', 'default');
 		if (is_array($headersDefault)) {
@@ -80,7 +79,7 @@ abstract class View {
 			}
 		}
 	}
-	/** Ecrit le corps du document sur la sortie standard. */
-	abstract public function sendBody();
+	/** Write the document body on stdout. */
+	abstract public function sendBody() : void;
 }
 

@@ -3,7 +3,7 @@
 namespace Temma\Utils;
 
 /**
- * Object for INI generation.
+ * Object for INI file generation.
  *
  * Example:
  * <code>
@@ -32,19 +32,19 @@ namespace Temma\Utils;
  * </code>
  *
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2019, Amaury Bouchard
+ * @copyright	© 2012-2019, Amaury Bouchard
  * @package	Temma
  * @subpackage	Utils
  */
 class IniExport {
 	/**
 	 * Generate a INI stream.
-	 * @param	mixed	$data		.
+	 * @param	mixed	$data		Data to serialize.
 	 * @param	bool	$sections	(optional) True if there is sections.
 	 * @return	string	The generated INI.
 	 * @throws	\Exception	If a non-scalar data is found.
 	 */
-	static public function generate($data, $sections=false) {
+	static public function generate(/* mixed */ $data, bool $sections=false) : string {
 		if (!$sections) {
 			return (self::_generateContent($data));
 		}
@@ -55,8 +55,12 @@ class IniExport {
 		}
 		return ($ini);
 	}
-	/** Private method, used to export data. */
-	static private function _generateContent($data) {
+	/**
+	 * Private method, used to export data.
+	 * @param	mixed	$data	Data to serialize.
+	 * @return	string	The serialized string.
+	 */
+	static private function _generateContent(/* mixed */ $data) : string {
 		$ini = '';
 		foreach ($data as $key => $value) {
 			if (is_array($value)) {

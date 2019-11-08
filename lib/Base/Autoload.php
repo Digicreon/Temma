@@ -33,7 +33,7 @@ class Autoload {
 	 * Start the autoloader.
 	 * @param	string|array	$path	(optional) Include path, or list of include paths.
 	 */
-	static public function autoload($path=null) {
+	static public function autoload(/* mixed */ $path=null) : void {
 		// autoloader init
 		spl_autoload_register(function($name) {
 			// transform namespace into path
@@ -44,8 +44,9 @@ class Autoload {
 			$errorReporting = error_reporting();
 			error_reporting($errorReporting & ~E_WARNING);
 			$included = include("$name.php");
-			if ($included === false)
+			if ($included === false) {
 				trigger_error("Temma Autoload: Unable to load file '$name.php'.", E_USER_WARNING);
+			}
 			// reset to the previous error log level
 			error_reporting($errorReporting);
 		}, true, true);
@@ -55,9 +56,13 @@ class Autoload {
 	/**
 	 * Add include path(s).
 	 * @param	string|array	$path	Include path, or liste of include paths.
+	 * @throws	\Exception	If the parameter is not valid.
 	 */
-	static public function addIncludePath($path) {
-		$path = is_array($path) ? $path : [$path];
+	static public function addIncludePath(/* mixed */ $path) : void {
+		if (is_string($path))
+			$path = [$path];
+		else if (!is_array($path))
+			throw new \Exception("Invalid include path parameter.");
 		$libPath = implode(PATH_SEPARATOR, $path);
 		if (!empty($libPath))
 			set_include_path($libPath . PATH_SEPARATOR . get_include_path());

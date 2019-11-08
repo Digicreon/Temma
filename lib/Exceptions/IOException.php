@@ -1,31 +1,27 @@
 <?php
 
-if (!class_exists('FineIOException')) {
+namespace Temma\Exceptions;
 
 /**
- * Objet de gestion des exceptions IO.
+ * Exception for IO errors.
  *
- * @author	Amaury Bouchard <amaury.bouchard@finemedia.fr>
- * @copyright	© 2007-2009, FineMedia
- * @package	FineBase
- * @subpackage	Exception
- * @version	$Id: FineIOException.php 641 2013-02-11 12:57:59Z abouchard $
+ * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2007-2019, Amaury Bouchard
+ * @package	Temma
+ * @subpackage	Exceptions
  */
-class FineIOException extends Exception {
-	/** Constante d'erreur fondamentale. */
+class IOException extends \Exception {
+	/** Fundamental error. */
 	const FUNDAMENTAL = 0;
-	/** Constante d'erreur de fichier introuvable. */
+	/** File not found. */
 	const NOT_FOUND = 1;
-	/** Constante d'erreur de lecture. */
+	/** Read error. */
 	const UNREADABLE = 2;
-	/** Constante d'erreur d'écriture. */
+	/** Write error. */
 	const UNWRITABLE = 3;
-	/** Constante d'erreur de fichier mal formé. */
+	/** Badly formatted file.*/
 	const BAD_FORMAT = 4;
-	/** Constante d'erreur de fichier impossible à locker. */
+	/** Unlockable file. */
 	const UNLOCKABLE = 5;
 }
 
-} // class_exists
-
-?>

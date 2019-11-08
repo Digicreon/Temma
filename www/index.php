@@ -1,41 +1,34 @@
 <?php
 
 /**
- * Script d'initialisation du framework Temma.
+ * Temma framework bootstrap script.
  *
- * @author	Amaury Bouchard <amaury.bouchard@finemedia.fr>
- * @copyright	© 2011, Fine Media
+ * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2007-2019, Amaury Bouchard
  * @package	Temma
- * @version	$Id: index.php 278 2012-07-04 12:21:30Z abouchard $
  */
 
-// vérification des variables serveur
+// check server variables
 if (!isset($_SERVER['SCRIPT_FILENAME']) && isset($_SERVER['ORIG_SCRIPT_FILENAME']))
 	$_SERVER['SCRIPT_FILENAME'] = $_SERVER['ORIG_SCRIPT_FILENAME'];
-// configuration du chemin d'inclusion
-set_include_path(dirname($_SERVER['SCRIPT_FILENAME']) . '/../lib' . PATH_SEPARATOR . get_include_path());
+// include path configuration
+set_include_path(realpath(dirname($_SERVER['SCRIPT_FILENAME']) . '/../lib') . PATH_SEPARATOR . get_include_path());
 
-// chronométrage du temps d'exécution
-require_once('finebase/FineTimer.php');
-$timer = new FineTimer();
-$timer->start();
+// autoloader init
+require_once('Temma/Base/Autoload.php');
+\Temma\Base\Autoload::autoload();
 
-// chargement des objets basiques
-require_once('finebase/FineLog.php');
-require_once('finebase/FineAutoload.php');
-// configuration de l'autoloader
-FineAutoload::autoload();
+use \Temma\Base\Log as TµLog;
 
-// exécution du framework
-require_once('Temma/Framework.php');
-FineLog::log('temma', FineLog::DEBUG, "Processing URL '" . $_SERVER['REQUEST_URI'] . "'.");
+// framework startup
+TµLog::log('Temma/Web', 'DEBUG', "Processing URL '" . $_SERVER['REQUEST_URI'] . "'.");
 try {
-	$temma = new \Temma\Framework($timer);
+	$temma = new \Temma\Web\Framework();
 	$temma->init();
 	$temma->process();
 } catch (Exception $e) {
-	// gestion d'erreur
-	FineLog::log('temma', FineLog::CRIT, "Critical error: '" . $e->getMessage() . "'.");
+	// error management
+	TµLog::log('Temma/Web', 'CRIT', "Critical error: '" . $e->getMessage() . "'.");
 	$errorCode = 404;
 	$errorPage = '';
 	if (is_a($e, '\Temma\Exceptions\HttpException'))
@@ -104,11 +97,10 @@ try {
 		525	=> 'SSL Handshake Failed',
 		526	=> 'Invalid SSL Certificate',
 	);
-	$errorString = $errorStrings[$errorCode];
+	$errorString = $errorStrings[$errorCode] ?? '';
 	header("Status: $errorCode $errorString");
 	header("HTTP/1.1 $errorCode $errorString", true, $errorCode);
 	if (isset($errorPage) && is_file($errorPage))
 		readfile($errorPage);
 }
 
-?>

@@ -61,33 +61,31 @@ use \Temma\Base\Log as TµLog;
  * }
  * </code>
  *
- * @author	Amaury Bouchard <amaury.bouchard@finemedia.fr>
- * @copyright	© 2007-2012, FineMedia
- * @version	$Id: FineDatabase.php 655 2013-09-12 08:39:20Z abouchard $
- * @package	FineBase
+ * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2007-2019, Amaury Bouchard
+ * @package	Temma
+ * @subpackage	Base
  */
 class Database extends \Temma\Base\Datasource {
 	/** Database connection objet. */
-	private $_db = null;
+	protected $_db = null;
 	/** Database connection parameters. */
-	private $_params = null;
+	protected $_params = null;
 	/** Connection user (PDO compatibility). */
-	private $_login = null;
+	protected $_login = null;
 	/** Connection password (PDO compatibility). */
-	private $_password = null;
+	protected $_password = null;
 
 	/* ************************ CONSTRUCTION ********************** */
 	/**
 	 * Factory. Creates an instance of the object, using the given parameters.
 	 * @param	string	$dsn		Database connection string.
-	 * @param	string	$login		(optional) User login (for PDO compatibility).
-	 * @param	string	$password	(optional) User password (for PDO compatibility).
 	 * @return	\Temma\Base\Database	The created object.
 	 * @throws	\Exception	If something went wrong.
 	 */
-	static public function factory(string $dsn, string $login=null, $password=null) : \Temma\Base\Database {
+	static public function factory(string $dsn) : \Temma\Base\Datasource {
 		// instance creation
-		$instance = new self($dsn, $login, $password);
+		$instance = new self($dsn);
 		return ($instance);
 	}
 	/**
@@ -95,16 +93,9 @@ class Database extends \Temma\Base\Datasource {
 	 * @param	string	$dsn		Database connection string.
 	 * @param	string	$login		(optional) User login (for PDO compatibility).
 	 * @param	string	$password	(optional) User password (for PDO compatibility).
-	 * @param	string	$type		Type of database server.
-	 * @param	string	$host		Server hostname. Set to 'localhost' if you want to connect using an Unix socket.
-	 * @param	string	$login		User name.
-	 * @param	string	$password	Password.
-	 * @param	string	$base		Database name.
-	 * @param	int	$port		Port number.
-	 * @param	string	$sock		(optional) Path to the Unix socket (if the $host parameter is set to 'localhost').
 	 */
-	private function __construct(string $dsn, string $login=null, string $password=null) {
-		FineLog::log('Temma\Base', FineLog::DEBUG, "Database object creation with DSN: '$dsn'.");
+	private function __construct(string $dsn, ?string $login=null, ?string $password=null) {
+		TµLog::log('Temma/Base', 'DEBUG', "Database object creation with DSN: '$dsn'.");
 		// parameters extraction
 		$params = null;
 		if (preg_match("/^([^:]+):\/\/([^:@]+):?([^@]+)?@([^\/:]+):?(\d+)?\/([^#]*)#?(.*)$/", $dsn, $matches)) {
@@ -134,7 +125,7 @@ class Database extends \Temma\Base\Datasource {
 	 * Connection.
 	 * @throws	\Exception	If the connection failed.
 	 */
-	private function _connect() {
+	protected function _connect() : void {
 		if ($this->_db)
 			return;
 		try {
@@ -169,12 +160,12 @@ class Database extends \Temma\Base\Datasource {
 			else
 				$this->_db = \PDO($pdoDsn);
 		} catch (\Exception $e) {
-			TµLog::log('Temma\Base', 'WARN', "Database connection error: " . $e->getMessage());
+			TµLog::log('Temma/Base', 'WARN', "Database connection error: " . $e->getMessage());
 			throw $e;
 		}
 	}
 	/** Disconnection. */
-	public function close() {
+	public function close() : void {
 		$this->_db = null;
 	}
 	/**
@@ -193,11 +184,11 @@ class Database extends \Temma\Base\Datasource {
 	 * Start a transaction.
 	 * @throws      \Exception	If it's not possible to start the transaction.
 	 */
-	public function startTransaction() {
-		TµLog::log('Temma\Base', 'DEBUG', "Beginning transaction.");
+	public function startTransaction() : void {
+		TµLog::log('Temma/Base', 'DEBUG', "Beginning transaction.");
 		$this->_connect();
 		if ($this->_db->beginTransaction() === false) {
-			TµLog::log('Temma\Base', 'ERROR', "Unable to start a new transaction.");
+			TµLog::log('Temma/Base', 'ERROR', "Unable to start a new transaction.");
 			throw new \Exception("Unable to start a new transaction.");
 		}
 	}
@@ -205,11 +196,11 @@ class Database extends \Temma\Base\Datasource {
 	 * Commit a transaction.
 	 * @throws      \Exception	If the commit failed.
 	 */
-	public function commit() {
-		TµLog::log('Temma\Base', 'DEBUG', "Committing transaction.");
+	public function commit() : void {
+		TµLog::log('Temma/Base', 'DEBUG', "Committing transaction.");
 		$this->_connect();
 		if ($this->_db->commit() === false) {
-			TµLog::log('Temma\Base', 'ERROR', "Error during transaction commit.");
+			TµLog::log('Temma/Base', 'ERROR', "Error during transaction commit.");
 			throw new \Exception("Error during transaction commit.");
 		}
 	}
@@ -217,11 +208,11 @@ class Database extends \Temma\Base\Datasource {
 	 * Rollback a transaction.
 	 * @throws      \Exception	If the rollback failed.
 	 */
-	public function rollback() {
-		TµLog::log('Temma\Base', 'DEBUG', "Rollbacking transaction.");
+	public function rollback() : void {
+		TµLog::log('Temma/Base', 'DEBUG', "Rollbacking transaction.");
 		$this->_connect();
 		if ($this->_db->rollback() === false) {
-			TµLog::log('Temma\Base', 'ERROR', "Error during transaction rollback.");
+			TµLog::log('Temma/Base', 'ERROR', "Error during transaction rollback.");
 			throw new \Exception("Error during transaction rollback.");
 		}
 	}
@@ -265,12 +256,12 @@ class Database extends \Temma\Base\Datasource {
 	 * @throws	\Exception	If something went wrong.
 	 */
 	public function exec(string $sql) : int {
-		TµLog::log('Temma\Base', 'DEBUG', "SQL query: $sql");
+		TµLog::log('Temma/Base', 'DEBUG', "SQL query: $sql");
 		$this->_connect();
 		$nbLines = $this->_db->exec($sql);
 		if ($nbLines === false) {
 			$errStr = 'Request error: ' . $this->getError();
-			TµLog::log('Temma\Base', 'ERROR', $errStr);
+			TµLog::log('Temma/Base', 'ERROR', $errStr);
 			throw new \Exception('Request error: ' . $this->getError());
 		}
 		return ($nbLines);
@@ -282,12 +273,12 @@ class Database extends \Temma\Base\Datasource {
 	 * @throws	\Exception	If something went wrong.
 	 */
 	public function queryOne(string $sql) : array {
-		TµLog::log('Temma\Base', 'DEBUG', "SQL query: $sql");
+		TµLog::log('Temma/Base', 'DEBUG', "SQL query: $sql");
 		$this->_connect();
 		$result = $this->_db->query($sql);
 		if ($result === false) {
 			$errStr = 'Request error: ' . $this->getError();
-			TµLog::log('Temma\Base', 'ERROR', $errStr);
+			TµLog::log('Temma/Base', 'ERROR', $errStr);
 			throw new \Exception($errStr);
 		}
 		$line = $result->fetch(\PDO::FETCH_ASSOC);
@@ -301,12 +292,12 @@ class Database extends \Temma\Base\Datasource {
 	 * @throws	\Exception	If something went wrong.
 	 */
 	public function queryAll(string $sql) : array {
-		TµLog::log('Temma\Base', 'DEBUG', "SQL query: $sql");
+		TµLog::log('Temma/Base', 'DEBUG', "SQL query: $sql");
 		$this->_connect();
 		$result = $this->_db->query($sql);
 		if ($result === false) {
 			$errStr = 'Request error: ' . $this->getError();
-			TµLog::log('Temma\Base', 'ERROR', $errStr);
+			TµLog::log('Temma/Base', 'ERROR', $errStr);
 			throw new \Exception($errStr);
 		}
 		$lines = $result->fetchAll(\PDO::FETCH_ASSOC);
