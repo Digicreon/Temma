@@ -12,7 +12,7 @@ use \Temma\Base\Log as TµLog;
  * @package	Temma
  * @subpackage	Web
  */
-class BaseController implements \ArrayAccess {
+class Controller implements \ArrayAccess {
 	/** Execution flow constant: go to the next step (next plugin, for example). */
 	const EXEC_FORWARD = null;
 	/** Execution flow constant: stop the current flow (pre-plugins, controller, post-plugins). */
@@ -59,7 +59,7 @@ class BaseController implements \ArrayAccess {
 	 * Could be overloaded in all controllers.
 	 * @return	?int	The return code (self::EXEC_QUIT, ...). Could be null (==self::EXEC_FORWARD).
 	 */
-	public function init() /* : ?int */ {
+	public function __wakeup() /* : ?int */ {
 	}
 	/**
 	 * Finalization function.
@@ -67,7 +67,7 @@ class BaseController implements \ArrayAccess {
 	 * Could be overloaded in all controllers.
 	 * @return	?int	The return code (self::EXEC_QUIT, ...). Could be null (==self::EXEC_FORWARD).
 	 */
-	public function finalize() /* : ?int */ {
+	public function __sleep() /* : ?int */ {
 	}
 
 	/* ********** METHODS CALLED BY THE CHILDREN OBJECTS ********** */
@@ -90,9 +90,9 @@ class BaseController implements \ArrayAccess {
 	/**
 	 * Method used to raise en HTTP error (403, 404, 500, ...).
 	 * @param	int	$code	The HTTP error code.
-	 * @return	\Temma\Web\BaseController	The current object.
+	 * @return	\Temma\Web\Controller	The current object.
 	 */
-	final protected function httpError(int $code) : \Temma\Web\BaseController {
+	final protected function httpError(int $code) : \Temma\Web\Controller {
 		$this->_loader->response->setHttpError($code);
 		return ($this);
 	}
@@ -100,9 +100,9 @@ class BaseController implements \ArrayAccess {
 	 * Method used to tell the HTTP return code (like the httpError() method,
 	 * but without raising an error).
 	 * @param	int	$code	The HTTP return code.
-	 * @return	\Temma\Web\BaseController	The current object.
+	 * @return	\Temma\Web\Controller	The current object.
 	 */
-	final protected function httpCode(int $code) : \Temma\Web\BaseController {
+	final protected function httpCode(int $code) : \Temma\Web\Controller {
 		$this->_loader->response->setHttpCode($code);
 		return ($this);
 	}
@@ -124,45 +124,45 @@ class BaseController implements \ArrayAccess {
 	/**
 	 * Define an HTTP redirection (302).
 	 * @param	string	$url	Redirection URL.
-	 * @return	\Temma\Web\BaseController	The current object.
+	 * @return	\Temma\Web\Controller	The current object.
 	 */
-	final protected function redirect(string $url) : \Temma\Web\BaseController {
+	final protected function redirect(string $url) : \Temma\Web\Controller {
 		$this->_loader->response->setRedirection($url);
 		return ($this);
 	}
 	/**
 	 * Define an HTTP redirection (301).
 	 * @param	string	$url	Redirection URL.
-	 * @return	\Temma\Web\BaseController	The current object.
+	 * @return	\Temma\Web\Controller	The current object.
 	 */
-	final protected function redirect301(string $url) : \Temma\Web\BaseController {
+	final protected function redirect301(string $url) : \Temma\Web\Controller {
 		$this->_loader->response->setRedirection($url, true);
 		return ($this);
 	}
 	/**
 	 * Define the view to use.
 	 * @param	string	$view	Name of the view.
-	 * @return	\Temma\Web\BaseController	The current object.
+	 * @return	\Temma\Web\Controller	The current object.
 	 */
-	final protected function view(string $view) : \Temma\Web\BaseController {
+	final protected function view(string $view) : \Temma\Web\Controller {
 		$this->_loader->response->setView($view);
 		return ($this);
 	}
 	/**
 	 * Define the template to use.
 	 * @param	string	$template	Template name.
-	 * @return	\Temma\Web\BaseController	The current object.
+	 * @return	\Temma\Web\Controller	The current object.
 	 */
-	final protected function template(string $template) : \Temma\Web\BaseController {
+	final protected function template(string $template) : \Temma\Web\Controller {
 		$this->_loader->response->setTemplate($template);
 		return ($this);
 	}
 	/**
 	 * Define the prefix to the template path.
 	 * @param	string	$prefix	The template prefix path.
-	 * @return	\Temma\Web\BaseController	The current object.
+	 * @return	\Temma\Web\Controller	The current object.
 	 */
-	final protected function templatePrefix(string $prefix) : \Temma\Web\BaseController {
+	final protected function templatePrefix(string $prefix) : \Temma\Web\Controller {
 		$this->_loader->response->setTemplatePrefix($prefix);
 		return ($this);
 	}
@@ -225,34 +225,60 @@ class BaseController implements \ArrayAccess {
 	 * @throws	\Temma\Exceptions\FrameworkException	If the requested controller or action doesn't exist.
 	 */
 	final public function subProcess(string $controller, ?string $action=null, ?array $parameters=null) : ?int {
-		TµLog::log('Temma/Web', 'DEBUG', "Subprocess of '$controller'::'$action'.\n" . get_include_path());
+		TµLog::log('Temma/Web', 'DEBUG', "Subprocess of '$controller'::'$action'.");
 		if (!class_exists($controller) || !is_subclass_of($controller, '\Temma\Web\Controller')) {
 			TµLog::log('Temma/Web', 'ERROR', "Sub-controller '$controller' doesn't exists.");
 			throw new \Temma\Exceptions\FrameworkException("Unable to find sub-controller '$controller'.", \Temma\Exceptions\FrameworkException::NO_CONTROLLER);
 		}
+
+		/* ********** init ********** */
 		// creation of the sub-controller
 		$obj = new $controller($this->_loader, $this);
 		// init of the sub-controller
-		$status = $obj->init();
-		if ($status !== self::EXEC_FORWARD)
-			return ($status);
-		// check if this sub-controller has a proxy action
-		$methodName = \Temma\Web\Framework::ACTION_PREFIX . ucfirst(\Temma\Web\Framework::PROXY_ACTION);
-		if (method_exists($controller, $methodName)) {
-			TµLog::log('Temma/Web', 'DEBUG', "Executing proxy action '" . \Temma\Web\Framework::PROXY_ACTION . "'.");
-			$status = $obj->$methodName();
-		} else {
-			// no proxy action, check if the requested action exists, or if a default action exists
-			// if no action was specified, use the default one
-			if (empty($action))
-				$action = \Temma\Web\Framework::DEFAULT_ACTION;
-			$methodName = \Temma\Web\Framework::ACTION_PREFIX . ucfirst($action);
-			TµLog::log('Temma/Web', 'DEBUG', "Executing action '$action'.");
-			$status = call_user_func_array([$obj, $methodName], (isset($parameters) ? $parameters : $this->_loader->request->getParams()));
+		$method = \Temma\Web\Framework::CONTROLLERS_INIT;
+		try {
+			$status = $obj->$method();
+		} catch (\Error $e) {
+			TµLog::log('Temma/Web', 'ERROR', "Unable to initialize the controller '$controller'.");
+			throw new \Temma\Exceptions\HttpException("Unable to initialize the controller '$contoller'.", 500);
 		}
 		if ($status !== self::EXEC_FORWARD)
 			return ($status);
-		$status = $obj->finalize();
+
+		/* ********** find the right method to execute ********** */
+		// check if this sub-controller has a proxy action
+		$method = \Temma\Web\Framework::PROXY_ACTION;
+		if (!method_exists($controller, $method)) {
+			// no proxy action, check if the request action exists
+			// if no action is specified or usable, use the default one
+			if (!empty($action) && method_exists($obj, $action))
+				$method = $action;
+			else
+				$method = \Temma\Web\Framework::DEFAULT_ACTION;
+		}
+
+		/* ********** execution ********** */
+		$parameters = $parameters ?? $this->_loader->request->getParams();
+		try {
+			$status = $obj->$method(...$parameters);
+		} catch (\ArgumentCountError $ace) {
+			TµLog::log('Temma/Web', 'ERROR', "Bad number of parameters given to the method '$method' on controller '$controller'.");
+			throw new \Temma\Exceptions\HttpException("Bad number of parameters given to the method '$method' on controller '$controller'.", 404);
+		} catch (\Error $e) {
+			TµLog::log('Temma/Web', 'ERROR', "Unable to execute method '$method' on controller '$controller'." . $e->getMessage());
+			throw new \Temma\Exceptions\HttpException("Unable to execute method '$method' on controller '$controller'.", 404);
+		}
+		if ($status !== self::EXEC_FORWARD)
+			return ($status);
+
+		/* ********** finalization ********** */
+		$method = \Temma\Web\Framework::CONTROLLERS_FINALIZE;
+		try {
+			$status = $obj->$method();
+		} catch (\Error $e) {
+			TµLog::log('Temma/Web', 'ERROR', "Unable to finalize the controller '$controller'.");
+			throw new \Temma\Exceptions\HttpException("Unable to finalize the controller '$controller'.", 500);
+		}
 		return ($status);
 	}
 }

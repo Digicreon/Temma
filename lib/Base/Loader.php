@@ -51,7 +51,7 @@ use \Temma\Base\Log as TµLog;
  * });
  * </code>
  *
- * It is also possible to create achild class with a defined builder:
+ * It is also possible to create a child class with a defined builder:
  * <code>
  * class MyLoader extends \Temma\Base\Loader {
  *     protected function builder(string $key) {

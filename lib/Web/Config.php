@@ -79,6 +79,8 @@ class Config {
 	protected $_webPath = null;
 	/** Name of the loader object. */
 	protected $_loader = null;
+	/** Controller names' suffix. */
+	protected $_controllersSuffix = null;
 	/** Name of the root controller. */
 	protected $_rootController = null;
 	/** Name of the default controller. */
@@ -205,6 +207,7 @@ class Config {
 		$this->_templatesPath = $this->_appPath . '/' . self::TEMPLATES_DIR;
 		$this->_webPath = $this->_appPath . '/' . self::WEB_DIR;
 		$this->_loader = $ini['application']['loader'] ?? null;
+		$this->_controllersSuffix = $ini['application']['controllersSuffix'] ?? '';
 		$this->_rootController = $ini['application']['rootController'] ?? null;
 		$this->_defaultController = $ini['application']['defaultController'] ?? null;
 		$this->_defaultNamespace = $ini['application']['defaultNamespace'] ?? null;
@@ -225,11 +228,8 @@ class Config {
 	 * Setter. Defines a configuration value.
 	 * @param	string	$name	Name of the property to set.
 	 * @param	mixed	$value	The associated value.
-	 * @throws	\Exception	If a reserved property is modified ("defaultNamespace", "errorPages", "defaultController", "rootController", "proxyController").
 	 */
 	public function __set(string $name, /* mixed */ $value) /* : mixed */ {
-		if (!in_array($name, ['defaultNamespace', 'errorPages', 'defaultController', 'rootController', 'proxyController']))
-			throw new \Exception("Bad property '$name'.");
 		$name = '_' . $name;
 		$this->$name = $value;
 	}

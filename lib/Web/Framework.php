@@ -22,9 +22,11 @@ class Framework {
 	/** Name of the default action. */
 	const DEFAULT_ACTION = 'index';
 	/** Name of the proxy action. */
-	const PROXY_ACTION = 'proxy';
-	/** Prefix of the action method names. */
-	const ACTION_PREFIX = 'exec';
+	const PROXY_ACTION = '__invoke';
+	/** Name of controllers' init method. */
+	const CONTROLLERS_INIT = '__wakeup';
+	/** Name of controllers' finalize method. */
+	const CONTROLLERS_FINALIZE = '__sleep';
 	/** Default extension of template files. */
 	const TEMPLATE_EXTENSION = '.tpl';
 	/** Maximum recursion depth when searching for routes. */
@@ -307,13 +309,10 @@ class Framework {
 			// a proxy controller was defined
 			$this->_objectControllerName = $proxyName;
 		} else if (($this->_controllerName = $this->_request->getController())) {
-			$lastBackslashPos = strrpos($this->_controllerName, '\\');
-			// checks that the controller name's first letter is in lower case (if there is no namespace)
-			if ($lastBackslashPos === false && $this->_controllerName != lcfirst($this->_controllerName))
-				throw new \Temma\Exceptions\HttpException("Bad name for controller '" . $this->_controllerName . "' (must start by a lower-case character).", 404);
 			// check if the requested controller is a virtual controller (managed by a route)
 			$routes = $this->_config->routes;
-			for ($nbrLoops = 0, $routeName = $this->_controllerName, $routed = false;
+			$routed = false;
+			for ($nbrLoops = 0, $routeName = $this->_controllerName;
 			     $nbrLoops < self::ROUTE_MAX_DEPTH && is_array($routes) && array_key_exists($routeName, $routes);
 			     $nbrLoops++) {
 				$realName = $routes[$routeName];
@@ -322,18 +321,24 @@ class Framework {
 				$routeName = $realName;
 				$routed = true;
 			}
-			// get the name of the requested controller
-			if ($routed && substr($routeName, -strlen(self::CONTROLLERS_SUFFIX)) == self::CONTROLLERS_SUFFIX) {
+			$lastBackslashPos = strrpos($this->_controllerName, '\\');
+			// checks that the controller name's first letter is in lower case (if there is no namespace)
+			if ($lastBackslashPos === false && ($firstLetter = substr($this->_controllerName, 0, 1)) && $firstLetter != lcfirst($firstLetter))
+				throw new \Temma\Exceptions\HttpException("Bad name for controller '" . $this->_controllerName . "' (must start by a lower-case character).", 404);
+			// get the name of the requested controller object
+			$controllersSuffix = $this->_config->controllersSuffix;
+			if ($routed && substr($routeName, -strlen($controllersSuffix)) == $controllersSuffix) {
 				$this->_objectControllerName = $routeName;
 			} else if ($lastBackslashPos !== false) {
 				$this->_objectControllerName = substr($this->_controllerName, 0, $lastBackslashPos + 1) .
 				                               ucfirst(substr($this->_controllerName, $lastBackslashPos + 1)) .
-				                               self::CONTROLLERS_SUFFIX;
+				                               $controllersSuffix;
 			} else {
-				$this->_objectControllerName = ucfirst($this->_controllerName) . self::CONTROLLERS_SUFFIX;
+				$this->_objectControllerName = ucfirst($this->_controllerName) . $controllersSuffix;
 			}
 		} else {
 			// no requested controller, use the root controller
+			TµLog::log('Temma/Web', 'INFO', "No controller defined, use the root controller.");
 			$this->_objectControllerName = $this->_config->rootController;
 		}
 		if (empty($this->_objectControllerName)) {
@@ -346,7 +351,7 @@ class Framework {
 			$fullControllerName = (!empty($defaultNamespace) ? "$defaultNamespace\\" : '') . $this->_objectControllerName;
 			if (empty($defaultNamespace) || !class_exists($fullControllerName)) {
 				// can't find the controller, use the default controller
-				TµLog::log('Temma/Web', 'INFO', "Controller '$fullControllerName' doesn't exists.");
+				TµLog::log('Temma/Web', 'INFO', "Controller '$fullControllerName' doesn't exists, use the default controller.");
 				$this->_objectControllerName = $this->_config->defaultController;
 			} else {
 				TµLog::log('Temma/Web', 'INFO', "Controller name set to '$fullControllerName'.");
@@ -401,7 +406,7 @@ class Framework {
 	 * @return	int	Plugin execution status.
 	 * @throws	\Temma\Exceptions\HttpException	If the plugin doesn't exist.
 	 */
-	private function _execPlugin(string $pluginName, string $methodName) : int {
+	private function _execPlugin(string $pluginName, string $methodName) : ?int {
 		TµLog::log('Temma/Web', 'INFO', "Executing plugin '$pluginName'.");
 		try {
 			// check that the plugin exists
@@ -436,21 +441,20 @@ class Framework {
 		// get the requested action name
 		$this->_actionName = $this->_request->getAction();
 		// check if the controller has a proxy action
-		$methodName = self::ACTION_PREFIX . ucfirst(self::PROXY_ACTION);
-		if (method_exists($this->_objectControllerName, $methodName)) {
+		if (method_exists($this->_objectControllerName, self::PROXY_ACTION)) {
 			TµLog::log('Temma/Web', 'INFO', "Executing proxy action.");
 			$this->_isProxyAction = true;
-			$this->_methodActionName = $methodName;
+			$this->_methodActionName = self::PROXY_ACTION;
 			return;
 		}
 		$this->_isProxyAction = false;
 		// no proxy action: check if an action was requested, and if it's written correctly
 		if (empty($this->_actionName))
 			$this->_actionName = self::DEFAULT_ACTION;
-		else if ($this->_actionName !== lcfirst($this->_actionName))
+		else if (($firstLetter = substr($this->_actionName, 0, 1)) && $firstLetter !== lcfirst($firstLetter))
 			throw new \Temma\Exceptions\HttpException("Bad name for action '" . $this->_actionName . "'.", 404);
 		// generate the name of the method to execute
-		$this->_methodActionName = self::ACTION_PREFIX . ucfirst($this->_actionName);
+		$this->_methodActionName = $this->_actionName;
 	}
 	/**
 	 * Check if the action method exists.
