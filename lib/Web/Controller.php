@@ -226,16 +226,17 @@ class Controller implements \ArrayAccess {
 	 */
 	final public function subProcess(string $controller, ?string $action=null, ?array $parameters=null) : ?int {
 		TµLog::log('Temma/Web', 'DEBUG', "Subprocess of '$controller'::'$action'.");
+		// checks
 		if (!class_exists($controller) || !is_subclass_of($controller, '\Temma\Web\Controller')) {
 			TµLog::log('Temma/Web', 'ERROR', "Sub-controller '$controller' doesn't exists.");
-			throw new \Temma\Exceptions\FrameworkException("Unable to find sub-controller '$controller'.", \Temma\Exceptions\FrameworkException::NO_CONTROLLER);
+			throw new \Temma\Exceptions\HttpException("Unable to find controller '$controller'.", 404);
 		}
 
 		/* ********** init ********** */
 		// creation of the sub-controller
 		$obj = new $controller($this->_loader, $this);
 		// init of the sub-controller
-		$method = \Temma\Web\Framework::CONTROLLERS_INIT;
+		$method = \Temma\Web\Framework::CONTROLLERS_INIT_METHOD;
 		try {
 			$status = $obj->$method();
 		} catch (\Error $e) {
@@ -247,14 +248,24 @@ class Controller implements \ArrayAccess {
 
 		/* ********** find the right method to execute ********** */
 		// check if this sub-controller has a proxy action
-		$method = \Temma\Web\Framework::PROXY_ACTION;
+		$method = \Temma\Web\Framework::CONTROLLERS_PROXY_ACTION;
 		if (!method_exists($controller, $method)) {
-			// no proxy action, check if the request action exists
-			// if no action is specified or usable, use the default one
-			if (!empty($action) && method_exists($obj, $action))
-				$method = $action;
-			else
-				$method = \Temma\Web\Framework::DEFAULT_ACTION;
+			// no proxy action defined on this controller
+			if (empty($action)) {
+				// no action was requested, use the root action
+				$method = \Temma\Web\Framework::CONTROLLERS_ROOT_ACTION;
+			} else if (!($firstLetter = $action[0]) || $firstLetter !== strtolower($firstLetter)) {
+				// the action must start with a lower-case letter
+				TµLog::log('Temma/Web', 'ERROR', "Actions must start with a lower-case letter (here: '$action').");
+				throw new \Temma\Exceptions\HttpException("Actions must start with a lower-case letter (here: '$action').", 404);
+			}
+			// check that the action could be executed
+			if (!is_callable([$obj, $action])) {
+				// no proxy action, and no callable action method
+				throw new \Temma\Exceptions\HttpException("Unable to find action '$action' on controller '$controller'.", 404);
+			}
+			// the requested action is set, or there is a default action that could handle it
+			$method = $action;
 		}
 
 		/* ********** execution ********** */
@@ -272,7 +283,7 @@ class Controller implements \ArrayAccess {
 			return ($status);
 
 		/* ********** finalization ********** */
-		$method = \Temma\Web\Framework::CONTROLLERS_FINALIZE;
+		$method = \Temma\Web\Framework::CONTROLLERS_FINALIZE_METHOD;
 		try {
 			$status = $obj->$method();
 		} catch (\Error $e) {

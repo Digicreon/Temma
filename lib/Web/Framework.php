@@ -19,20 +19,24 @@ class Framework {
 	const CONFIG_OBJECT_FILE_NAME = '_TemmaConfig.php';
 	/** Name of the local configuration file. */
 	const CONFIG_FILE_NAME = 'temma.json';
-	/** Name of the default action. */
-	const DEFAULT_ACTION = 'index';
+	/** Name of the roott action. */
+	const CONTROLLERS_ROOT_ACTION = 'index';
 	/** Name of the proxy action. */
-	const PROXY_ACTION = '__invoke';
+	const CONTROLLERS_PROXY_ACTION = '__invoke';
 	/** Name of controllers' init method. */
-	const CONTROLLERS_INIT = '__wakeup';
+	const CONTROLLERS_INIT_METHOD = '__wakeup';
 	/** Name of controllers' finalize method. */
-	const CONTROLLERS_FINALIZE = '__sleep';
+	const CONTROLLERS_FINALIZE_METHOD = '__sleep';
+	/** Name of plugins' preplugin method. */
+	const PLUGINS_PREPLUGIN_METHOD = 'preplugin';
+	/** Name of plugins' postplugin method. */
+	const PLUGINS_POSTPLUGIN_METHOD = 'postplugin';
+	/** Name of plugins' default plugin method. */
+	const PLUGINS_PLUGIN_METHOD = 'plugin';
 	/** Default extension of template files. */
 	const TEMPLATE_EXTENSION = '.tpl';
 	/** Maximum recursion depth when searching for routes. */
 	const ROUTE_MAX_DEPTH = 4;
-	/** Suffix of controllers objects. */
-	const CONTROLLERS_SUFFIX = 'Controller';
 	/** Name of the template variable that will contain data automatically imported from configuration. */
 	const AUTOIMPORT_VARIABLE = 'conf';
 	/** Configuration object. */
@@ -55,10 +59,6 @@ class Framework {
 	private $_objectControllerName = null;
 	/** Name of the executed action. */
 	private $_actionName = null;
-	/** Name of the method corresponding to the action. */
-	private $_methodActionName = null;
-	/** Tell if we are using a proxy action. */
-	private $_isProxyAction = false;
 	/** Reflexion object over the controller (for checking purposes). */
 	private $_controllerReflection = null;
 
@@ -140,7 +140,7 @@ class Framework {
 			if (empty($pluginName))
 				continue;
 			// execution of the pre-plugin
-			$execStatus = $this->_execPlugin($pluginName, 'preplugin');
+			$execStatus = $this->_execPlugin($pluginName, 'pre');
 			// if asked for, stops all processing and quit immediately
 			if ($execStatus === \Temma\Web\Controller::EXEC_QUIT) {
 				TµLog::log('Temma/Web', 'DEBUG', "Premature but wanted end of processing.");
@@ -171,8 +171,6 @@ class Framework {
 			throw new \Temma\Exceptions\HttpException("The requested page doesn't exists.", 404);
 		if ($execStatus === \Temma\Web\Controller::EXEC_FORWARD) {
 			do {
-				// check the action's method
-				$this->_checkActionMethod();
 				// process the controller
 				TµLog::log('Temma/Web', 'DEBUG', "Controller processing.");
 				$execStatus = $this->_executorController->subProcess($this->_objectControllerName, $this->_actionName);
@@ -200,7 +198,7 @@ class Framework {
 				if (empty($pluginName))
 					continue;
 				// execution of the post-plugin
-				$execStatus = $this->_execPlugin($pluginName, 'postplugin');
+				$execStatus = $this->_execPlugin($pluginName, 'post');
 				// if asked for, stops all processing and quit immediately
 				if ($execStatus === \Temma\Web\Controller::EXEC_QUIT) {
 					TµLog::log('Temma/Web', 'DEBUG', "Premature but wanted end of processing.");
@@ -305,61 +303,66 @@ class Framework {
 	 */
 	private function _setControllerName() : void {
 		$this->_initControllerName = $this->_controllerName = $this->_request->getController();
-		if (($proxyName = $this->_config->proxyController)) {
+		if (!empty($proxyName = $this->_config->proxyController)) {
 			// a proxy controller was defined
 			$this->_objectControllerName = $proxyName;
-		} else if (($this->_controllerName = $this->_request->getController())) {
-			// check if the requested controller is a virtual controller (managed by a route)
-			$routes = $this->_config->routes;
-			$routed = false;
-			for ($nbrLoops = 0, $routeName = $this->_controllerName;
-			     $nbrLoops < self::ROUTE_MAX_DEPTH && is_array($routes) && array_key_exists($routeName, $routes);
-			     $nbrLoops++) {
-				$realName = $routes[$routeName];
-				TµLog::log('Temma/Web', 'INFO', "Routing '$routeName' to '$realName'.");
-				unset($routes[$routeName]);
-				$routeName = $realName;
-				$routed = true;
-			}
-			$lastBackslashPos = strrpos($this->_controllerName, '\\');
-			// checks that the controller name's first letter is in lower case (if there is no namespace)
-			if ($lastBackslashPos === false && ($firstLetter = substr($this->_controllerName, 0, 1)) && $firstLetter != lcfirst($firstLetter))
-				throw new \Temma\Exceptions\HttpException("Bad name for controller '" . $this->_controllerName . "' (must start by a lower-case character).", 404);
-			// get the name of the requested controller object
-			$controllersSuffix = $this->_config->controllersSuffix;
-			if ($routed && substr($routeName, -strlen($controllersSuffix)) == $controllersSuffix) {
-				$this->_objectControllerName = $routeName;
-			} else if ($lastBackslashPos !== false) {
-				$this->_objectControllerName = substr($this->_controllerName, 0, $lastBackslashPos + 1) .
-				                               ucfirst(substr($this->_controllerName, $lastBackslashPos + 1)) .
-				                               $controllersSuffix;
-			} else {
-				$this->_objectControllerName = ucfirst($this->_controllerName) . $controllersSuffix;
-			}
-		} else {
+		} else if (empty($this->_controllerName = $this->_request->getController())) {
 			// no requested controller, use the root controller
 			TµLog::log('Temma/Web', 'INFO', "No controller defined, use the root controller.");
 			$this->_objectControllerName = $this->_config->rootController;
+		} else {
+			// a usable controller was defined on the URL
+			// check if the requested controller is a virtual controller (managed by a route)
+			$routeName = $this->_config->routes[$this->_controllerName] ?? null;
+			if ($routeName) {
+				TµLog::log('Temma/Web', 'INFO', "Routing '" . $this->_controllerName . "' to '$routeName'.");
+				$this->_objectName = $routeName;
+			}
+			// check controller name
+			$lastBackslashPos = strrpos($this->_controllerName, '\\');
+			if ($lastBackslashPos === false) {
+				// there is no namespace
+				// checks that the controller name's first letter is in lower case
+				$firstLetter = substr($this->_controllerName, 0, 1);
+				if ($firstLetter != lcfirst($firstLetter)) {
+					TµLog::log('Temma/Web', 'ERROR', "Bad name for controller '" . $this->_controllerName . "' (must start by a lower-case character).");
+					throw new \Temma\Exceptions\HttpException("Bad name for controller '" . $this->_controllerName . "' (must start by a lower-case character).", 404);
+				}
+				// ensure the controller object's name starts with an upper-case letter
+				$this->_objectControllerName = ucfirst($this->_controllerName);
+			} else {
+				// there is a namespace
+				// ensure the controller object's name starts with an upper-case letter
+				$this->_objectControllerName = substr($this->_controllerName, 0, $lastBackslashPos + 1) .
+				                               ucfirst(substr($this->_controllerName, $lastBackslashPos + 1));
+			}
+			// management of the suffix
+			$controllersSuffix = $this->_config->controllersSuffix;
+			if (!empty($controllerSuffix) && substr($this->_objectControllerName, -strlen($controllerSuffix)) != $controllerSuffix)
+				$this->_objectControllerName .= $controllerSuffix;
 		}
 		if (empty($this->_objectControllerName)) {
 			// no requested controller, use the default controller
 			TµLog::log('Temma/Web', 'INFO', "No controller found, use the default controller.");
 			$this->_objectControllerName = $this->_config->defaultController;
-		} else if (!class_exists($this->_objectControllerName)) {
-			// can't find the object, try using the configured default namespace
-			$defaultNamespace = $this->_config->defaultNamespace;
-			$fullControllerName = (!empty($defaultNamespace) ? "$defaultNamespace\\" : '') . $this->_objectControllerName;
-			if (empty($defaultNamespace) || !class_exists($fullControllerName)) {
-				// can't find the controller, use the default controller
-				TµLog::log('Temma/Web', 'INFO', "Controller '$fullControllerName' doesn't exists, use the default controller.");
-				$this->_objectControllerName = $this->_config->defaultController;
-			} else {
-				TµLog::log('Temma/Web', 'INFO', "Controller name set to '$fullControllerName'.");
-				$this->_objectControllerName = $fullControllerName;
+			if (empty($this->_objectControllerName)) {
+				TµLog::log('Temma/Wen', 'ERROR', "No defined controller.");
+				throw new \Temma\Exceptions\HttpException("No defifned controller.", 404);
 			}
 		}
+		// if the controller object's name doesn't start with a backslash, prepend the default namespace
+		if ($this->_objectControllerName[0] != '\\') {
+			$defaultNamespace = rtrim($this->_config->defaultNamespace, '\\');
+			$this->_objectControllerName = "$defaultNamespace\\" . $this->_objectControllerName;
+		}
+		// check that the controller object exists
+		try {
+			$this->_controllerReflection = new \ReflectionClass($this->_objectControllerName);
+		} catch (\ReflectionException $e) {
+			TµLog::log('Temma/Web', 'ERROR', "No controller object '" . $this->_objectControllerName . "'.");
+			throw new \Temma\Exceptions\HttpException("No controller object '" . $this->_objectControllerName . "'.", 404);
+		}
 		// check how the controller name is spelled
-		$this->_controllerReflection = new \ReflectionClass($this->_objectControllerName);
 		if ($this->_controllerReflection->getName() !== trim($this->_objectControllerName, '\ '))
 			throw new \Temma\Exceptions\HttpException("Bad name for controller '" . $this->_controllerName . "'.", 404);
 	}
@@ -402,30 +405,40 @@ class Framework {
 	/**
 	 * Execute a plugin.
 	 * @param	string	$pluginName	Name of the plugin object.
-	 * @param	string	$methodName	Name of the method to execute.
+	 * @param	string	$pluginType	Type of plugin ('pre' or 'post').
 	 * @return	int	Plugin execution status.
 	 * @throws	\Temma\Exceptions\HttpException	If the plugin doesn't exist.
 	 */
-	private function _execPlugin(string $pluginName, string $methodName) : ?int {
+	private function _execPlugin(string $pluginName, string $pluginType) : ?int {
 		TµLog::log('Temma/Web', 'INFO', "Executing plugin '$pluginName'.");
 		try {
 			// check that the plugin exists
 			if (!class_exists($pluginName)) {
+				// can't find the object, try with the default namespace
 				$defaultNamespace = $this->_config->defaultNamespace;
 				$fullPluginName = "$defaultNamespace\\" . $pluginName;
 				if (empty($defaultNamespace) || !class_exists($fullPluginName)) {
-					TµLog::log('Temma/Web', 'DEBUG', "Plugin '$pluginName' doesn't exist.");
-					throw new \Exception();
+					TµLog::log('Temma/Web', 'ERROR', "Plugin '$pluginName' doesn't exist.");
+					throw new \Temma\Exceptions\HttpException("Plugin '$pluginName' doesn't exist.", 500);
 				}
 				$pluginName = $fullPluginName;
 			}
 			// check object's type
-			if (!is_subclass_of($pluginName, '\Temma\Web\Controller')) {
-				TµLog::log('Temma/Web', 'DEBUG', "Plugin '$pluginName' is not a subclass of \\Temma\\Web\\Controller.");
-				throw new \Exception();
+			if (!is_subclass_of($pluginName, '\Temma\Web\Plugin')) {
+				TµLog::log('Temma/Web', 'ERROR', "Plugin '$pluginName' is not a subclass of \\Temma\\Web\\Plugin.");
+				throw new \Temma\Exceptions\HttpException("Plugin '$pluginName' is not a subclass of \\Temma\\Web\\Plugin.", 500);
 			}
+			// define the plugin method that must be called
+			$methodName = ($pluginType === 'pre') ? self::PLUGINS_PREPLUGIN_METHOD : self::PLUGINS_POSTPLUGIN_METHOD;
+			if (!method_exists($pluginName, $methodName)) {
+				$methodName = self::PLUGINS_PLUGIN_METHOD;
+				if (!method_exists($pluginName, $methodName)) {
+					TµLog::log('Temma/Web', 'ERROR', "Plugin '$pluginName' has no executable '$pluginType' method.");
+					throw new \Temma\Exceptions\HtppException("Plugin '$pluginName' has no executable '$pluginType' method.", 500);
+				}
+			}
+			// execute the plugin
 			$plugin = new $pluginName($this->_loader, $this->_executorController);
-			$methodName = method_exists($plugin, $methodName) ? $methodName : 'plugin';
 			return ($plugin->$methodName());
 		} catch (Exception $e) { }
 		TµLog::log('Temma/Web', 'DEBUG', "Unable to execute plugin '$pluginName'::'$methodName'.");
@@ -438,51 +451,15 @@ class Framework {
 	 * @throws	\Temma\Exceptions\HttpException	If the requested action doesn't exist.
 	 */
 	private function _setActionName() : void {
-		// get the requested action name
-		$this->_actionName = $this->_request->getAction();
-		// check if the controller has a proxy action
-		if (method_exists($this->_objectControllerName, self::PROXY_ACTION)) {
-			TµLog::log('Temma/Web', 'INFO', "Executing proxy action.");
-			$this->_isProxyAction = true;
-			$this->_methodActionName = self::PROXY_ACTION;
-			return;
+		if (empty($this->_actionName = $this->_request->getAction()))
+			$this->_actionName = self::CONTROLLERS_ROOT_ACTION;
+		else if (($this->_actionName === self::PLUGINS_PREPLUGIN_METHOD ||
+		          $this->_actionName === self::PLUGINS_POSTPLUGIN_METHOD ||
+		          $this->_actionName === self::PLUGINS_PLUGIN_METHOD) &&
+		         is_a($this->_objectControllerName, '\Temma\Web\Plugin')) {
+			TµLog::l('Temma/Web', 'ERROR', "Try to execute a plugin method as an action on the controller '" . $this->_objectControllerName . "'.");
+			throw new \Temma\Exceptions\HttpException("Try to execute a plugin method as an action on the controller '" . $this->_objectControllerName . "'.", 500);
 		}
-		$this->_isProxyAction = false;
-		// no proxy action: check if an action was requested, and if it's written correctly
-		if (empty($this->_actionName))
-			$this->_actionName = self::DEFAULT_ACTION;
-		else if (($firstLetter = substr($this->_actionName, 0, 1)) && $firstLetter !== lcfirst($firstLetter))
-			throw new \Temma\Exceptions\HttpException("Bad name for action '" . $this->_actionName . "'.", 404);
-		// generate the name of the method to execute
-		$this->_methodActionName = $this->_actionName;
-	}
-	/**
-	 * Check if the action method exists.
-	 * @throws	\Temma\Exceptions\HttpException	If the requested action doesn't exist.
-	 */
-	private function _checkActionMethod() : void {
-		TµLog::log('Temma/Web', 'DEBUG', "actionName : '" . $this->_actionName . "' - methodActionName : '" . $this->_methodActionName . "'.");
-		try {
-			try {
-				$nbrParams = $this->_request->getNbrParams();
-				if (($actionReflection = $this->_controllerReflection->getMethod($this->_methodActionName)) &&
-				    ($this->_isProxyAction || ($actionReflection->getNumberOfRequiredParameters() <= $nbrParams &&
-							       $actionReflection->getNumberOfParameters() >= $nbrParams)) &&
-				    $actionReflection->name == $this->_methodActionName) {
-					TµLog::log('Temma/Web', 'DEBUG', "Action method '" . $this->_methodActionName . "' was checked.");
-					return;
-				}
-			} catch (\ReflectionException $re) {
-				// the requested action doesn't exist, search for a default action
-				if ($actionReflection = $this->_controllerReflection->getMethod('__call')) {
-					TµLog::log('Temma/Web', 'DEBUG', "Action method '" . $this->_methodActionName . "' was checked through default action.");
-					return;
-				}
-			}
-		} catch (\ReflectionException $re) { }
-		// bad action call, or no default action => error
-		TµLog::log('Temma/Web', 'ERROR', "Can't find method '" . $this->_methodActionName . "' on controller '" . $this->_objectControllerName . "'.");
-		throw new \Temma\Exceptions\HttpException("Can't find method '" . $this->_methodActionName . "' on controller '" . $this->_objectControllerName . ".", 404);
 	}
 
 	/* ********** VIEW ********** */
@@ -516,7 +493,7 @@ class Framework {
 			$template = $this->_response->getTemplate();
 			if (empty($template)) {
 				$controller = $this->_controllerName ? $this->_controllerName : $this->_objectControllerName;
-				$action = $this->_actionName ? $this->_actionName : self::PROXY_ACTION;
+				$action = $this->_actionName ? $this->_actionName : self::CONTROLLERS_PROXY_ACTION;
 				$template = $controller . '/' . $action . self::TEMPLATE_EXTENSION;
 			}
 			$templatePrefix = trim($this->_response->getTemplatePrefix(), '/');

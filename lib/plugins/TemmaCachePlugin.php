@@ -11,7 +11,7 @@
 class TemmaCachePlugin extends \Temma\Controller {
 	/**
 	 * Méthode plugin. Définis si la page courante peut être mise en cache.
-	 * @return	mixed	Toujours PLUGIN_FORWARD.
+	 * @return	mixed	Toujours EXEC_FORWARD.
 	 */
 	public function preplugin() {
 		FineLog::log('temma', FineLog::INFO, "TemmaCachePlugin started.");
