@@ -134,7 +134,7 @@ class Framework {
 		$execStatus = \Temma\Web\Controller::EXEC_FORWARD;
 		// generate the list of pre-plugins
 		$prePlugins = $this->_generatePrePluginsList();
-		// processing og pre-plugins
+		// processing of pre-plugins
 		while (($pluginName = current($prePlugins)) !== false) {
 			next($prePlugins);
 			if (empty($pluginName))
