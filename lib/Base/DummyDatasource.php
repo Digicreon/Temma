@@ -18,7 +18,7 @@ class DummyDatasource extends \Temma\Base\Datasource {
 	 * @param	string	$dsn	Parameter string (not used).
 	 * @return	\Temma\Base\DummyDatasource	The created object.
 	 */
-	static public function factory(string $dsn) : \Temma\Base\DummyDatasource {
+	static public function factory(string $dsn) : \Temma\Base\Datasource {
 		TµLog::log('Temma/Base', 'DEBUG', "Creation of a dummy datasource.");
 		return (new self());
 	}
