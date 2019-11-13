@@ -38,7 +38,7 @@ abstract class Datasource {
 		} else if (substr($dsn, 0, 8) === 'redis://' || substr($dsn, 0, 13) === 'redis-sock://') {
 			return (\Temma\Base\NDatabase::factory($dsn));
 		} else if (substr($dsn, 0, 8) == 'dummy://') {
-			return (\Temma\Base\DummyDatasource::factory());
+			return (\Temma\Base\DummyDatasource::factory(null));
 		} else if (substr($dsn, 0, 6) == 'env://') {
 			$dsn = getenv(substr($dsn, 6));
 			return (self::factory($dsn));
