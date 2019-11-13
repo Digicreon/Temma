@@ -1,6 +1,6 @@
 <?php
 
-namespace Temma\Web\Views;
+namespace Temma\Views;
 
 /**
  * View for iCal calendars.
@@ -9,7 +9,7 @@ namespace Temma\Web\Views;
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2010-2019, Amaury Bouchard
  * @package	Temma
- * @subpackage	Web
+ * @subpackage	Views
  */
 class ICalView extends \Temma\Web\View {
 	/** Calendar data. */

@@ -1,6 +1,6 @@
 <?php
 
-namespace Temma\Web\Views;
+namespace Temma\Views;
 
 use \Temma\Base\Log as TµLog;
 
@@ -12,7 +12,7 @@ require_once('smarty3/Smarty.class.php');
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	2007-2019, Amaury Bouchard
  * @package	Temma
- * @subpackage	Web
+ * @subpackage	Views
  * @link	http://smarty.net/
  */
 class SmartyView extends \Temma\Web\View {

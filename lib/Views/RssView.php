@@ -1,6 +1,6 @@
 <?php
 
-namespace Temma\Web\Views;
+namespace Temma\Views;
 
 /**
  * View for RSS streams.
@@ -25,7 +25,7 @@ namespace Temma\Web\Views;
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	2009-2019, Amaury Bouchard
  * @package	Temma
- * @subpackage	Web
+ * @subpackage	Views
  */
 class RssView extends \Temma\Web\View {
 	/** Site title. */

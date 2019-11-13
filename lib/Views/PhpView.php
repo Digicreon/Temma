@@ -1,6 +1,6 @@
 <?php
 
-namespace Temma\Web\Views;
+namespace Temma\Views;
 
 use \Temma\Base\Log as TµLog;
 
@@ -10,7 +10,7 @@ use \Temma\Base\Log as TµLog;
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2010-2019, Amaury Bouchard
  * @package	Temma
- * @subpackage	Web
+ * @subpackage	Views
  */
 class PhpView extends \Temma\Web\View {
 	/** Tell if the generated page could be stored in cache. */

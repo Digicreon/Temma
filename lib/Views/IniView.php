@@ -1,6 +1,6 @@
 <?php
 
-namespace Temma\Web\Views;
+namespace Temma\Views;
 
 /**
  * View for INI export.
@@ -10,7 +10,7 @@ namespace Temma\Web\Views;
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2012-2019, Amaury Bouchard
  * @package	Temma
- * @subpackage	Web
+ * @subpackage	Views
  */
 class IniView extends \Temma\Web\View {
 	/** Data that must be INI-encoded. */

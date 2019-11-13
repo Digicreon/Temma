@@ -1,6 +1,6 @@
 <?php
 
-namespace Temma\Web\Views;
+namespace Temma\Views;
 
 /**
  * View for JSON export.
@@ -11,7 +11,7 @@ namespace Temma\Web\Views;
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2010-2019, Amaury Bouchard
  * @package	Temma
- * @subpackage	Web
+ * @subpackage	Views
  * @link	http://json.org/
  */
 class JsonView extends \Temma\View {
