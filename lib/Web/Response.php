@@ -176,7 +176,7 @@ class Response implements \ArrayAccess {
 			return ($this->_data[$key]);
 		if (is_callable($default))
 			$default = $default($callbackParam);
-		$this->setData($key, $default);
+		$this[$key] = $default;
 		return ($default);
 	}
 	/**

@@ -179,10 +179,10 @@ class Controller implements \ArrayAccess {
 	/**
 	 * Return a template variable, array-like syntax.
 	 * @param	string	$name	Variable name.
-	 * @return	mixed	The template variable's data.
+	 * @return	mixed	The template variable's data or null if it doesn't exist.
 	 */
 	public function offsetGet(/* mixed */ $name) /* : mixed */ {
-		return ($this->_response[$name]);
+		return ($this->_loader->response[$name] ?? null);
 	}
 	/**
 	 * Returns a template variable.
@@ -240,8 +240,8 @@ class Controller implements \ArrayAccess {
 		try {
 			$status = $obj->$method();
 		} catch (\Error $e) {
-			TµLog::log('Temma/Web', 'ERROR', "Unable to initialize the controller '$controller'.");
-			throw new \Temma\Exceptions\HttpException("Unable to initialize the controller '$contoller'.", 500);
+			TµLog::log('Temma/Web', 'ERROR', "Unable to initialize the controller '$controller': " . $e->getMessage());
+			throw new \Temma\Exceptions\HttpException("Unable to initialize the controller '$controller'.", 500);
 		}
 		if ($status !== self::EXEC_FORWARD)
 			return ($status);
@@ -276,7 +276,7 @@ class Controller implements \ArrayAccess {
 			TµLog::log('Temma/Web', 'ERROR', "Bad number of parameters given to the method '$method' on controller '$controller'.");
 			throw new \Temma\Exceptions\HttpException("Bad number of parameters given to the method '$method' on controller '$controller'.", 404);
 		} catch (\Error $e) {
-			TµLog::log('Temma/Web', 'ERROR', "Unable to execute method '$method' on controller '$controller'." . $e->getMessage());
+			TµLog::log('Temma/Web', 'ERROR', "$controller::$method: " . $e->getMessage());
 			throw new \Temma\Exceptions\HttpException("Unable to execute method '$method' on controller '$controller'.", 404);
 		}
 		if ($status !== self::EXEC_FORWARD)

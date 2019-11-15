@@ -108,6 +108,10 @@ class Database extends \Temma\Base\Datasource {
 				'base'		=> $matches[6],
 				'sock'		=> $matches[7],
 			];
+			if ($this->_params['type'] == 'mysqli')
+				$this->_params['type'] = 'mysql';
+			$login = $matches[2] ?: $login;
+			$password = $matches[3] ?: $password;
 		} else {
 			$this->_params = $dsn;
 		}
@@ -155,10 +159,11 @@ class Database extends \Temma\Base\Datasource {
 				$pdoDsn = $this->_params;
 			} else
 				throw new \Exception("Bad configuration.");
-			if ($pdoLogin && $pdoPassword)
+			if ($pdoLogin && $pdoPassword) {
 				$this->_db = new \PDO($pdoDsn, $pdoLogin, $pdoPassword);
-			else
-				$this->_db = \PDO($pdoDsn);
+			} else {
+				$this->_db = new \PDO($pdoDsn);
+			}
 		} catch (\Exception $e) {
 			TµLog::log('Temma/Base', 'WARN', "Database connection error: " . $e->getMessage());
 			throw $e;
@@ -242,12 +247,13 @@ class Database extends \Temma\Base\Datasource {
 	}
 	/**
 	 * Escape a character string.
-	 * @param	string	$str	The string to escape.
+	 * @param	?string	$str	The string to escape.
 	 * @return	string	The escaped string.
 	 */
-	public function quote(string $str) : string {
+	public function quote(?string $str) : string {
 		$this->_connect();
-		return ($this->_db->quote($str));
+		$str = $this->_db->quote((string)$str);
+		return (strlen($str) ? $str : '');
 	}
 	/**
 	 * Executes a SQL request without fetching data.
@@ -283,7 +289,7 @@ class Database extends \Temma\Base\Datasource {
 		}
 		$line = $result->fetch(\PDO::FETCH_ASSOC);
 		$result = null;
-		return ($line);
+		return (is_array($line) ? $line : []);
 	}
 	/**
 	 * Execute an SQL request and fetch all lines of returned data.

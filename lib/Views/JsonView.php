@@ -14,7 +14,7 @@ namespace Temma\Views;
  * @subpackage	Views
  * @link	http://json.org/
  */
-class JsonView extends \Temma\View {
+class JsonView extends \Temma\Web\View {
 	/** Data that must be JSON-encoded. */
 	private $_data = null;
 	/** Debug mode. */

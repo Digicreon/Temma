@@ -223,10 +223,7 @@ class Session implements \ArrayAccess {
 	 * @param	string	$key	Data name.
 	 */
 	public function offsetUnset(/* mixed */ $key) : void {
-		if (!isset($this->_cache))
-			unset($_SESSION[$key]);
-		else
-			unset($this->_data[$key]);
+		$this->set($key, null);
 	}
 	/**
 	 * Store a data from an associative array in session.

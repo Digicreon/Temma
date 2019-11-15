@@ -30,7 +30,7 @@ class HTMLCleaner {
 	 * @param	bool	$nofollow	(optional) Tell if links must be in nofollow. True by default.
 	 * @return	string	Le code HTML nettoyé.
 	 */
-	static public function processText(string $text, bool $urlProcess=true, bool $nofollow=true) : string {
+	static public function textToHtml(string $text, bool $urlProcess=true, bool $nofollow=true) : string {
 		$text = htmlspecialchars($text, ENT_COMPAT, 'UTF-8');
 		$text = strip_tags($text);
 		$text = nl2br($text);
