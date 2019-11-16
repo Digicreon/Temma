@@ -123,10 +123,10 @@ class Controller implements \ArrayAccess {
 	}
 	/**
 	 * Define an HTTP redirection (302).
-	 * @param	string	$url	Redirection URL.
+	 * @param	?string	$url	Redirection URL, or null to remove the redirection.
 	 * @return	\Temma\Web\Controller	The current object.
 	 */
-	final protected function redirect(string $url) : \Temma\Web\Controller {
+	final protected function redirect(?string $url) : \Temma\Web\Controller {
 		$this->_loader->response->setRedirection($url);
 		return ($this);
 	}

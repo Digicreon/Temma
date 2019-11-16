@@ -46,10 +46,10 @@ class Response implements \ArrayAccess {
 	}
 	/**
 	 * Define a redirection.
-	 * @param	string	$url		Redirection URL.
+	 * @param	?string	$url		Redirection URL, or null to remove the redirection.
 	 * @param	bool	$code301	True for a 301 redirection. False by default (302 redirection).
 	 */
-	public function setRedirection(string $url, bool $code301=false) : void {
+	public function setRedirection(?string $url, bool $code301=false) : void {
 		$this->_redirect = $url;
 		$this->_redirectCode = $code301 ? 301 : 302;
 	}

@@ -258,7 +258,7 @@ class Database extends \Temma\Base\Datasource {
 	/**
 	 * Executes a SQL request without fetching data.
 	 * @param	string	$sql	The SQL request.
-	 * @return	int	The number of modified lines. For an asynchronous request, the returned value shouldn't be used.
+	 * @return	int	The number of modified lines.
 	 * @throws	\Exception	If something went wrong.
 	 */
 	public function exec(string $sql) : int {
