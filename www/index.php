@@ -12,7 +12,7 @@
 if (!isset($_SERVER['SCRIPT_FILENAME']) && isset($_SERVER['ORIG_SCRIPT_FILENAME']))
 	$_SERVER['SCRIPT_FILENAME'] = $_SERVER['ORIG_SCRIPT_FILENAME'];
 // include path configuration
-set_include_path(realpath(dirname($_SERVER['SCRIPT_FILENAME']) . '/../lib') . PATH_SEPARATOR . get_include_path());
+set_include_path(realpath(__DIR__ . '/../lib') . PATH_SEPARATOR . get_include_path());
 
 // autoloader init
 require_once('Temma/Base/Autoload.php');
