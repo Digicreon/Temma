@@ -1,14 +1,15 @@
 <?php
 
+/**
+ * Timer
+ * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2007-2019, Amaury Bouchard
+ */
+
 namespace Temma\Utils;
 
 /**
  * Timing object.
- *
- * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2007-2019, Amaury Bouchard
- * @package	Temma
- * @subpackage	Utils
  */
 class Timer {
 	/** Date of timing start. */

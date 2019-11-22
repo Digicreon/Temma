@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * JsonView
+ * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2010-2019, Amaury Bouchard
+ */
+
 namespace Temma\Views;
 
 /**
@@ -8,10 +14,6 @@ namespace Temma\Views;
  * The JSON encoded data is fetched from the "json" template variable.
  * To activate the debug mode (user-readable JSON), set the "jsonDebug" template variable to true.
  *
- * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2010-2019, Amaury Bouchard
- * @package	Temma
- * @subpackage	Views
  * @link	http://json.org/
  */
 class JsonView extends \Temma\Web\View {

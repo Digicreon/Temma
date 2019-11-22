@@ -1,16 +1,17 @@
 <?php
 
+/**
+ * PhpView
+ * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2010-2019, Amaury Bouchard
+ */
+
 namespace Temma\Views;
 
 use \Temma\Base\Log as TµLog;
 
 /**
  * View for templates written in plain PHP.
- *
- * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2010-2019, Amaury Bouchard
- * @package	Temma
- * @subpackage	Views
  */
 class PhpView extends \Temma\Web\View {
 	/** Tell if the generated page could be stored in cache. */

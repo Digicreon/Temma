@@ -1,14 +1,15 @@
 <?php
 
+/**
+ * View
+ * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2007-2019, Amaury Bouchard
+ */
+
 namespace Temma\Web;
 
 /**
  * Object used to manage views.
- *
- * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2007-2019, Amaury Bouchard
- * @package	Temma
- * @subpackage	Web
  */
 abstract class View {
 	/** List of data sources. */

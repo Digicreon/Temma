@@ -1,16 +1,17 @@
 <?php
 
+/**
+ * Plugin
+ * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2019, Amaury Bouchard
+ */
+
 namespace Temma\Web;
 
 use \Temma\Base\Log as TµLog;
 
 /**
  * Basic object for plugin management.
- *
- * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2019, Amaury Bouchard
- * @package	Temma
- * @subpackage	Web
  */
 class Plugin extends \Temma\Web\Controller {
 	/**

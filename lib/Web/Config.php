@@ -1,16 +1,17 @@
 <?php
 
+/**
+ * Config
+ * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2007-2019, Amaury Bouchard
+ */
+
 namespace Temma\Web;
 
 use \Temma\Base\Log as TµLog;
 
 /**
  * Object used to store the configuration of a Temma application.
- *
- * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2007-2019, Amaury Bouchard
- * @package	Temma
- * @subpackage	Web
  */
 class Config {
 	/** Default log level. */

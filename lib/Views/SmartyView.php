@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * SmartyView
+ * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	2007-2019, Amaury Bouchard
+ */
+
 namespace Temma\Views;
 
 use \Temma\Base\Log as TµLog;
@@ -9,10 +15,6 @@ require_once('smarty3/Smarty.class.php');
 /**
  * View used for Smarty templates.
  *
- * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	2007-2019, Amaury Bouchard
- * @package	Temma
- * @subpackage	Views
  * @link	http://smarty.net/
  */
 class SmartyView extends \Temma\Web\View {

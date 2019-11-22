@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * Framework
+ * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2007-2019, Amaury Bouchard
+ */
+
 namespace Temma\Web;
 
 use \Temma\Base\Log as TµLog;
@@ -7,10 +13,6 @@ use \Temma\Base\Log as TµLog;
 /**
  * Main framework management object.
  *
- * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2007-2019, Amaury Bouchard
- * @package	Temma
- * @subpackage	Web
  * @see		\Temma\Web\Controller
  * @see		\Temma\Web\View
  */

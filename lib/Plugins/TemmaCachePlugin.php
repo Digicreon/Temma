@@ -1,14 +1,19 @@
 <?php
 
 /**
+ * TemmaCachePlugin
+ * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2011-2019, Amaury Bouchard
+ */
+
+namespace Temma\Plugins;
+
+/**
  * Plugin de gestion des URL en cache.
  *
- * @author	Amaury Bouchard <amaury@amaury.net>
- * @package	Temma
- * @subpackage	Plugins
  * @see		http://www.temma.net/fr/extensions/doc/TemmaCachePlugin/index.html
  */
-class TemmaCachePlugin extends \Temma\Controller {
+class TemmaCachePlugin extends \Temma\Web\Plugin {
 	/**
 	 * Méthode plugin. Définis si la page courante peut être mise en cache.
 	 * @return	mixed	Toujours EXEC_FORWARD.

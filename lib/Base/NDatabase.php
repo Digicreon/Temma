@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * NDatabase
+ * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2012-2019, Amaury Bouchard
+ */
+
 namespace Temma\Base;
 
 use \Temma\Base\Log as TµLog;
@@ -48,11 +54,6 @@ use \Temma\Base\Log as TµLog;
  *     print("Database error: " . $e->getMessage());
  * }
  * </code>
- *
- * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2012-2019, Amaury Bouchard
- * @package	Temma
- * @subpackage	Base
  */
 class NDatabase extends \Temma\Base\Datasource {
 	/** Default Redis connection port. */
@@ -138,13 +139,13 @@ class NDatabase extends \Temma\Base\Datasource {
 	/**
 	 * Add one or many key-value pairs.
 	 * @param	string|array	$key		Key, or an associative array of key-value pairs.
-	 * @param	string		$value		(optional) Value associated to the key.
+	 * @param	mixed		$value		(optional) Value associated to the key.
 	 * @param	int		$timeout	(optional) Key expiration timeout. 0 by default, to set no expiration.
 	 * @param	bool		$createOnly	(optional) True to add the key only if it doesn't exist yet. False by default.
 	 * @return	\Temma\Base\NDatabase	L'objet courant.
 	 * @throws	\Exception	If something went wrong.
 	 */
-	public function set(/* mixed */ $key, ?string $value=null, int $timeout=0, bool $createOnly=false) : \Temma\Base\NDatabase {
+	public function set(/* mixed */ $key, /* mixed */ $value=null, int $timeout=0, bool $createOnly=false) : \Temma\Base\NDatabase {
 		$this->_connect();
 		if (!is_array($key)) {
 			$value = json_encode($value);

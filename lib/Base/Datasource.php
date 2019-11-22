@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * Datasource
+ * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2012-2019, Amaury Bouchard
+ */
+
 namespace Temma\Base;
 
 use \Temma\Base\Log as TµLog;
@@ -8,11 +14,6 @@ use \Temma\Base\Log as TµLog;
  * Object for data sources management.
  *
  * Must be used in an autoloader-enabled environment.
- *
- * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2012-2019, Amaury Bouchard
- * @package	Temma
- * @subpackage	Base
  */
 abstract class Datasource {
 	/**

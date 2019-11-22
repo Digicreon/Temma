@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * Session
+ * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2010-2019, Amaury Bouchard
+ */
+
 namespace Temma\Base;
 
 use \Temma\Base\Log as TµLog;
@@ -39,11 +45,6 @@ use \Temma\Base\Log as TµLog;
  * // delete all session data
  * $session->clean();
  * </code>
- *
- * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2010-2019, Amaury Bouchard
- * @package	Temma
- * @subpackage	Base
  */
 class Session implements \ArrayAccess {
 	/** Constant: Short session duration (1 day). */

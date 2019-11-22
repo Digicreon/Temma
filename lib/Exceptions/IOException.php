@@ -1,14 +1,15 @@
 <?php
 
+/**
+ * IOException
+ * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2007-2019, Amaury Bouchard
+ */
+
 namespace Temma\Exceptions;
 
 /**
  * Exception for IO errors.
- *
- * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2007-2019, Amaury Bouchard
- * @package	Temma
- * @subpackage	Exceptions
  */
 class IOException extends \Exception {
 	/** Fundamental error. */

@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * IniExport
+ * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2012-2019, Amaury Bouchard
+ */
+
 namespace Temma\Utils;
 
 /**
@@ -30,11 +36,6 @@ namespace Temma\Utils;
  * "name"="Bob"
  * "age"=5
  * </code>
- *
- * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2012-2019, Amaury Bouchard
- * @package	Temma
- * @subpackage	Utils
  */
 class IniExport {
 	/**

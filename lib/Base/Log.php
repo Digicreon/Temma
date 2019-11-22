@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * Log
+ * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2007-2019, Amaury Bouchard
+ */
+
 namespace Temma\Base;
 
 /**
@@ -62,11 +68,6 @@ namespace Temma\Base;
  * // this message will be written too
  * \Temma\Base\Log::log('testing', 'CRIT', "Critical message.");
  * </code>
- *
- * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2007-2019, Amaury Bouchard
- * @package	Temma
- * @subpackage	Base
  */
 class Log {
 	/** Constant - debug message (lowest criticity level). */

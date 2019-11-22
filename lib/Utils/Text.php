@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * Text
+ * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2011-2019, Amaury Bouchard
+ */
+
 namespace Temma\Utils;
 
 /**

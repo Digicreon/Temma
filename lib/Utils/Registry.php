@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * Registry
+ * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2007-2019, Amaury Bouchard
+ */
+
 namespace Temma\Utils;
 
 use \Temma\Base\Log as TµLog;
@@ -53,11 +59,6 @@ use \Temma\Base\Log as TµLog;
  * unset($registry->foo);
  * unset($registry['foo']);
  * </code>
- *
- * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2007-2019, Amaury Bouchard
- * @package	Temma
- * @subpackage	Utils
  */
 class Registry implements \ArrayAccess {
 	/** Associative array that contains the stored data. */

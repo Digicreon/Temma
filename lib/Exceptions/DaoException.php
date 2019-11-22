@@ -1,14 +1,15 @@
 <?php
 
+/**
+ * DaoException
+ * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2012-2019, Amaury Bouchard
+ */
+
 namespace Temma\Exceptions;
 
 /**
  * Exception for DAO errors.
- *
- * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2012-2019, Amaury Bouchard
- * @package	Temma
- * @subpackage	Exceptions
  */
 class DaoException extends \Exception {
 	/** Bad search criteria. */

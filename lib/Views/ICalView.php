@@ -1,15 +1,16 @@
 <?php
 
+/**
+ * ICalView
+ * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2010-2019, Amaury Bouchard
+ */
+
 namespace Temma\Views;
 
 /**
  * View for iCal calendars.
  * Get its data from an "ical" template variable.
- *
- * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2010-2019, Amaury Bouchard
- * @package	Temma
- * @subpackage	Views
  */
 class ICalView extends \Temma\Web\View {
 	/** Calendar data. */

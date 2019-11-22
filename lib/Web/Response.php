@@ -1,16 +1,17 @@
 <?php
 
+/**
+ * Response
+ * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2007-2019, Amaury Bouchard
+ */
+
 namespace Temma\Web;
 
 use \Temma\Base\Log as TµLog;
 
 /**
  * Object use to manage the response of a controller execution.
- *
- * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2007-2019, Amaury Bouchard
- * @package	Temma
- * @subpackage	Web
  */
 class Response implements \ArrayAccess {
 	/** HTTP headers. */

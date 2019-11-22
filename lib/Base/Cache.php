@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * Cache
+ * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2009-2019, Amaury Bouchard
+ */
+
 namespace Temma\Base;
 
 /**
@@ -23,11 +29,6 @@ namespace Temma\Base;
  *
  * Connection using Unix socket:
  * <tt>memcache:///var/run/memcached.sock:0</tt>
- *
- * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2009-2019, Amaury Bouchard
- * @package	Temma
- * @subpackage	Base
  */
 class Cache extends Datasource {
 	/** Constante : Préfixe des variables de cache contenant le "sel" de préfixe. */

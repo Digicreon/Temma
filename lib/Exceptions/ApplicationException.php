@@ -1,14 +1,15 @@
 <?php
 
+/**
+ * ApplicationException
+ * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2007-2019, Amaury Bouchard
+ */
+
 namespace Temma\Exceptions;
 
 /**
  * Exception for application errors.
- *
- * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2007-2019, Amaury Bouchard
- * @package	Temma
- * @subpackage	Exceptions
  */
 class ApplicationException extends \Exception {
 	/** Unknown error. */

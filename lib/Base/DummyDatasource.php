@@ -1,16 +1,17 @@
 <?php
 
+/**
+ * DummyDatasource
+ * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2012-2019, Amaury Bouchard
+ */
+
 namespace Temma\Base;
 
 use \Temma\Base\Log as TµLog;
 
 /**
  * Object use to create a data source that does nothing.
- *
- * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2012-2019, Amaury Bouchard
- * @package	Temma
- * @subpackage	Base
  */
 class DummyDatasource extends \Temma\Base\Datasource {
 	/**

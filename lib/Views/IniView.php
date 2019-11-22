@@ -1,16 +1,17 @@
 <?php
 
+/**
+ * IniView
+ * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2012-2019, Amaury Bouchard
+ */
+
 namespace Temma\Views;
 
 /**
  * View for INI export.
  *
  * The INI encoded data is fetched from the "data" template variable.
- *
- * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2012-2019, Amaury Bouchard
- * @package	Temma
- * @subpackage	Views
  */
 class IniView extends \Temma\Web\View {
 	/** Data that must be INI-encoded. */

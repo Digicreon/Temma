@@ -1,16 +1,17 @@
 <?php
 
+/**
+ * Controller
+ * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2012-2019, Amaury Bouchard
+ */
+
 namespace Temma\Web;
 
 use \Temma\Base\Log as TµLog;
 
 /**
  * Basic object for controllers management.
- *
- * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2012-2019, Amaury Bouchard
- * @package	Temma
- * @subpackage	Web
  */
 class Controller implements \ArrayAccess {
 	/** Execution flow constant: go to the next step (next plugin, for example). */
@@ -273,8 +274,8 @@ class Controller implements \ArrayAccess {
 		try {
 			$status = $obj->$method(...$parameters);
 		} catch (\ArgumentCountError $ace) {
-			TµLog::log('Temma/Web', 'ERROR', "Bad number of parameters given to the method '$method' on controller '$controller'.");
-			throw new \Temma\Exceptions\HttpException("Bad number of parameters given to the method '$method' on controller '$controller'.", 404);
+			TµLog::log('Temma/Web', 'ERROR', "$controller::$method: " . $ace->getMessage());
+			throw new \Temma\Exceptions\HttpException("$controller::$method: " . $ace->getMessage(), 404);
 		} catch (\Error $e) {
 			TµLog::log('Temma/Web', 'ERROR', "$controller::$method: " . $e->getMessage());
 			throw new \Temma\Exceptions\HttpException("Unable to execute method '$method' on controller '$controller'.", 404);

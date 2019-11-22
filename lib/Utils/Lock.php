@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * Lock
+ * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2008-2019, Amaury Bouchard
+ */
+
 namespace Temma\Utils;
 
 /**
@@ -27,11 +33,6 @@ namespace Temma\Utils;
  * If the file is already locked, the object checks for how long. If the duration is greater
  * than the default timeout (10 minutes), it checks if the lock creator process is still
  * alive. If not, it tries to unlock and relock.
- *
- * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2008-2019, Amaury Bouchard
- * @package	Temma
- * @subpackage	Utils
  */
 class Lock {
 	/** Constant - suffix added to the lock file names. */

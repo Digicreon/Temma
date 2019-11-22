@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * Ansi
+ * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2008-2019, Amaury Bouchard
+ */
+
 namespace Temma\Utils;
 
 /**
@@ -22,11 +28,6 @@ namespace Temma\Utils;
  * // write text in red over a blue background
  * print(\Temma\Utils\Ansi::backColor('blue', 'red', 'bla bla bla'));
  * </code>
- *
- * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2008-2019, Amaury Bouchard
- * @package	Temma
- * @subpackage	Utils
  */
 class Ansi {
 	/** Colors definition. */

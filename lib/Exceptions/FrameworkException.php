@@ -1,14 +1,15 @@
 <?php
 
+/**
+ * FrameworkException
+ * @author      Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2007-2019, Amaury Bouchard
+ */
+
 namespace Temma\Exceptions;
 
 /**
  * Exception for Temma framework errors.
- *
- * @author      Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2007-2019, Amaury Bouchard
- * @package     Temma
- * @subpackage  Exceptions
  */
 class FrameworkException extends \Exception {
 	/** Configuration error. */
