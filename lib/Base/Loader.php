@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * Loader
+ * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2019, Amaury Bouchard
+ */
+
 namespace Temma\Base;
 
 use \Temma\Base\Log as TµLog;
@@ -65,11 +71,6 @@ use \Temma\Base\Log as TµLog;
  * // dynamically creates an instance of UserBo
  * $loader->userBo->addFriends();
  * </code>
- *
- * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2019, Amaury Bouchard
- * @package	Temma
- * @subpackage	Base
  */
 class Loader extends \Temma\Utils\Registry {
 	/** Builder function. */
@@ -120,8 +121,13 @@ class Loader extends \Temma\Utils\Registry {
 	 */
 	public function get(string $key, /* mixed */ $default=null) /* : mixed */ {
 		if (isset($this->_data[$key])) {
-			if (is_callable($this->_data[$key]))
+			if ($this->_data[$key] instanceof \Closure)
 				$this->_data[$key] = $this->_data[$key]($this);
+			if (isset($this->_data[$key]))
+				return ($this->_data[$key]);
+		}
+		if ($key instanceof \Temma\Base\Loadable) {
+			$this->_data[$key] = new $key($this);
 			if (isset($this->_data[$key]))
 				return ($this->_data[$key]);
 		}
@@ -136,7 +142,7 @@ class Loader extends \Temma\Utils\Registry {
 			if (isset($this->_data[$key]))
 				return ($this->_data[$key]);
 		}
-		if (is_callable($default)) {
+		if ($default instanceof \Closure) {
 			$default = $default($this);
 		}
 		return ($default);
