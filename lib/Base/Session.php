@@ -101,7 +101,9 @@ class Session implements \ArrayAccess {
 		// creation of the new session ID
 		$newSessionId = hash('md5', time() . mt_rand(0, 0xffff) . mt_rand(0, 0xffff) . mt_rand(0, 0xffff) . mt_rand(0, 0xffff));
 		// fetch session data
-		if (!empty($oldSessionId)) {
+		if (empty($oldSessionId)) {
+			$this->_sessionId = $newSessionId;
+		} else {
 			// get data from cache
 			$data = $this->_cache->get("sess:$oldSessionId");
 			if (isset($data['_magic']) && $data['_magic'] == 'Ax')
