@@ -16,10 +16,10 @@ require_once("HTMLPurifier.auto.php");
  * Examples:
  * <code>
  * // transform a simple raw text into a clean HTML
- * $html = \Temma\Utils\HTMLCleaner::processText($text);
+ * $html = \Temma\Utils\HTMLCleaner::text2html($text);
  *
  * // clean an HTML stream
- * $html = \Temma\Utils\HTMLCleaner::process($html);
+ * $html = \Temma\Utils\HTMLCleaner::clean($html);
  * </code>
  *
  * @see		http://htmlpurifier.org/
@@ -36,7 +36,7 @@ class HTMLCleaner {
 		$text = htmlspecialchars($text, ENT_COMPAT, 'UTF-8');
 		$text = strip_tags($text);
 		$text = nl2br($text);
-		$text = self::process($text, $urlProcess, $nofollow);
+		$text = self::clean($text, $nofollow);
 		if ($urlProcess) {
 			$text = preg_replace('/(http[s]?:\/\/)([^\s<\),]+)/e', "'<a href=\"\\1\\2\" title=\"\\1\\2\">'.((strlen('\\1\\2')>55)?(substr('\\1\\2',0,55).'...'):'\\1\\2').'</a>'", $text);
 		}
@@ -85,9 +85,7 @@ class HTMLCleaner {
 		//$config->set('HTML.DefinitionRev', 1); 
 		$config->set('Core.Encoding', 'UTF-8');
 		$config->set('Core.EscapeNonASCIICharacters', false);
-		$allowedHtml = 'h1,h2,h3,h4,h5,h6,div[style],p[style|class],span[style],b,i,u,s,blockquote,pre,font[color],ul,ol,li,br,hr,table,thead,tbody,tr,th,td,sup,sub,img[src|alt|data-filename|style|class],ins,del,mark,figure,figcaption,small';
-		if (!$urlProcess)
-			$allowedHTML .= ',a[href|name]';
+		$allowedHtml = 'h1,h2,h3,h4,h5,h6,div[style],p[style|class],span[style],b,i,u,s,blockquote,pre,font[color],ul,ol,li,br,hr,table,thead,tbody,tr,th,td,sup,sub,img[src|alt|data-filename|style|class],ins,del,mark,figure,figcaption,small,a[href|name]';
 		$config->set('HTML.Allowed', $allowedHtml);
 		$config->set('URI.AllowedSchemes', [
 			'http'		=> true,
