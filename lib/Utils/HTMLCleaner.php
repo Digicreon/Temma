@@ -36,7 +36,7 @@ class HTMLCleaner {
 		$text = htmlspecialchars($text, ENT_COMPAT, 'UTF-8');
 		$text = strip_tags($text);
 		$text = nl2br($text);
-		$text = self::clean($text, $nofollow);
+		$text = self::clean($text, null, $nofollow);
 		if ($urlProcess) {
 			$text = preg_replace('/(http[s]?:\/\/)([^\s<\),]+)/e', "'<a href=\"\\1\\2\" title=\"\\1\\2\">'.((strlen('\\1\\2')>55)?(substr('\\1\\2',0,55).'...'):'\\1\\2').'</a>'", $text);
 		}
@@ -45,11 +45,16 @@ class HTMLCleaner {
 	/**
 	 * Clean HTML code.
 	 * @param	string	$html		The input HTML code.
-	 * @param	bool	$nofollow	(optional) Tell if links must be in nofollow. True by default.
+	 * @param	?bool	$targetBlank	(optional) Tell if links must be open in a new tab.
+	 *					True to transform all links. False to never transform links.
+	 *					Null to transform only external links. Null by default.
+	 * @param	?bool	$nofollow	(optional) Tell if links must be in nofollow.
+	 *					True to transform all links. False to never transform links.
+	 *					Null to transform only external links. Null by default.
 	 * @param	bool	$removeNbsp	(optional) Tell if non-breakable spaces must be removed. True by default.
 	 * @return	string	The cleaned HTML code.
 	 */
-	static public function clean(string $html, bool $nofollow=true, bool $removeNbsp=true) : string {
+	static public function clean(string $html, ?bool $targetBlank=null, ?bool $nofollow=null, bool $removeNbsp=true) : string {
 		$html = trim($html);
 		$html = str_replace(['<br />', '<br/>'], '<br>', $html);
 		$html = str_replace(['<p></p>', '<p><br></p>'], '', $html);
@@ -114,10 +119,74 @@ class HTMLCleaner {
 		$purifier = new \HTMLPurifier($config);
 		$html = $purifier->purify($html);
 		// links processing
-		if ($nofollow)
-			$html = str_replace("<a href", "<a target=\"_blank\" rel=\"nofollow\" href", $html);
-		else
-			$html = str_replace("<a href", "<a target=\"_blank\" href", $html);
+		if ($targetBlank === true && is_bool($nofollow)) {
+			// target="_blank" on all links
+			// rel="nofollow" on all links or on no link
+			$from = '<a href';
+			if ($nofollow === true)
+				$to = '<a target="_blank" rel="nofollow" href';
+			else if ($nofollow === false)
+				$to = '<a target="_blank" href';
+			$html = str_replace($from, $to, $html);
+		} else if ($targetBlank === true && $nofollow === null) {
+			// target="_blank" on all links
+			// rel="nofollow" on external links only
+			$from = [
+				'<a href="http://',
+				'<a href="https://',
+				'<a href="ftp://',
+			];
+			$to = [
+				'<a target="_blank" rel="nofollow" href="http://',
+				'<a target="_blank" rel="nofollow" href="https://',
+				'<a target="_blank" rel="nofollow" href="ftp://',
+			];
+			$html = str_replace($from, $to, $html);
+			$from = '<a href';
+			$to = '<a target="_blank" href';
+			$html = str_replace($from, $to, $html);
+		} else if ($targetBlank === false && ($nofollow === true || $nofollow === null)) {
+			// target="_blank" on no link
+			if ($nofollow === true) {
+				// rel="nofollow" on all links
+				$from = '<a href';
+				$to = '<a rel="nofollow" href';
+			} else {
+				// rel="nofollow" on external links only
+				$from = [
+					'<a href="http://',
+					'<a href="https://',
+					'<a href="ftp://',
+				];
+				$to = [
+					'<a rel="nofollow" href="http://',
+					'<a rel="nofollow" href="https://',
+					'<a rel="nofollow" href="ftp://',
+				];
+			}
+			$html = str_replace($from, $to, $html);
+		} else if ($targetBlank === null) {
+			// target="_blank" on external links only
+			$from = [
+				'<a href="http://',
+				'<a href="https://',
+				'<a href="ftp://',
+			];
+			if ($nofollow === true) {
+				$to = [
+					'<a target="_blank" rel="nofollow" href="http://',
+					'<a target="_blank" rel="nofollow" href="https://',
+					'<a target="_blank" rel="nofollow" href="ftp://',
+				];
+			} else {
+				$to = [
+					'<a target="_blank" href="http://',
+					'<a target="_blank" href="https://',
+					'<a target="_blank" href="ftp://',
+				];
+			}
+			$html = str_replace($from, $to, $html);
+		}
 		// last cleaning
 		$from = ['<p><br>', '<br></p>', "</p>\n\n<p"];
 		$to =   ['<p>',     '</p>',     "</p>\n<p"];
