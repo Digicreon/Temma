@@ -77,8 +77,8 @@ class HTMLCleaner {
 		       ($pos2 = strpos($html, '</div>', $pos1)) !== false) {
 			$html = substr_replace($html, '', $pos1, ($pos2 - $pos1 + strlen('</div>')));
 		}
-		$from = ['<p><br>', '<br></p>', '&nbsp;<', '>&nbsp;'];
-		$to   = ['<p>',     '</p>',     '<',       '>'];
+		$from = ['<p><br>', '<br></p>', '&nbsp;</', '>&nbsp;'];
+		$to   = ['<p>',     '</p>',     '</',       '> '];
 		$html = str_replace($from, $to, $html);
 		// text management
 		$from = ['« ',      '« ',      ' »',      ' »'];
@@ -107,7 +107,6 @@ class HTMLCleaner {
 		$config->set('AutoFormat.AutoParagraph', true);
 		$config->set('AutoFormat.RemoveEmpty', true);
 		$config->set('AutoFormat.RemoveEmpty.RemoveNbsp', $removeNbsp);
-		$config->set('AutoFormat.RemoveEmpty.RemoveNbsp', true);
 		$def = $config->getHTMLDefinition(true);
 		$def->addAttribute('img', 'src', 'CDATA');
 		$def->addAttribute('img', 'alt', 'CDATA');
