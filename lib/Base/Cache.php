@@ -157,22 +157,23 @@ class Cache extends Datasource {
 	 * @param	int	$expire	(optional) Expiration duration, in seconds. If it is set to zero (or if it's not given),
 	 *				it will be set to 24 hours. If it is set to -1 or a value greater than 2592000 (30 days),
 	 *				it will be set to 30 days.
-	 * @return	\Temma\Base\Cache	The current object.
+	 * @return	mixed	The old value for the given index key.
 	 */
 	public function set(string $key, /* mixed */ $data=null, int $expire=0) : \Temma\Base\Cache {
+		$oldValue = $this->get($key);
 		$key = $this->_getSaltedPrefix() . $key;
 		if (is_null($data)) {
 			// deletion
 			if ($this->_enabled && $this->_memcache)
 				$this->_memcache->delete($key, 0);
-			return ($this);
+			return ($oldValue);
 		}
 		// add data to cache
 		$expire = (!is_numeric($expire) || !$expire) ? $this->_defaultExpiration : $expire;
 		$expire = ($expire == -1 || $expire > 2592000) ? 2592000 : $expire;
 		if ($this->_enabled && $this->_memcache)
 			$this->_memcache->set($key, $data, $expire);
-		return ($this);
+		return ($oldValue);
 	}
 	/**
 	 * Get a data from cache.
