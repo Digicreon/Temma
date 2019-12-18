@@ -118,8 +118,8 @@ class Framework {
 			'request'	=> $this->_request,
 			'response'	=> $this->_response,
 		]);
-		// create the executor controller
-		$this->_executorController = new \Temma\Web\Controller($this->_loader);
+		// create the executor controller if needed
+		$this->_executorController = $this->_executorController ?? new \Temma\Web\Controller($this->_loader);
 		// variables init
 		$this->_executorController['URL'] = $this->_request->getPathInfo();
 		$this->_executorController['CONTROLLER'] = $this->_request->getController();
@@ -432,16 +432,19 @@ class Framework {
 			}
 			// define the plugin method that must be called
 			$methodName = ($pluginType === 'pre') ? self::PLUGINS_PREPLUGIN_METHOD : self::PLUGINS_POSTPLUGIN_METHOD;
-			if (!method_exists($pluginName, $methodName)) {
+			$reflector = new \ReflectionMethod($pluginName, $methodName);
+			if ($reflector->getDeclaringClass()->getName() !== ltrim($pluginName, '\\')) {
 				$methodName = self::PLUGINS_PLUGIN_METHOD;
-				if (!method_exists($pluginName, $methodName)) {
+				$reflector = new \ReflectionMethod($pluginName, $methodName);
+				if ($reflector->getDeclaringClass()->getName() !== ltrim($pluginName, '\\')) {
 					TµLog::log('Temma/Web', 'ERROR', "Plugin '$pluginName' has no executable '$pluginType' method.");
 					throw new \Temma\Exceptions\HtppException("Plugin '$pluginName' has no executable '$pluginType' method.", 500);
 				}
 			}
 			// execute the plugin
 			$plugin = new $pluginName($this->_loader, $this->_executorController);
-			return ($plugin->$methodName());
+			$pluginReturn = $plugin->$methodName();
+			return ($pluginReturn);
 		} catch (Exception $e) { }
 		TµLog::log('Temma/Web', 'DEBUG', "Unable to execute plugin '$pluginName'::'$methodName'.");
 		throw new \Temma\Exceptions\HttpException("Unable to execute plugin '$pluginName'::'$methodName'.", 500);
