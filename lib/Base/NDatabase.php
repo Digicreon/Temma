@@ -142,12 +142,13 @@ class NDatabase extends \Temma\Base\Datasource {
 	 * @param	mixed		$value		(optional) Value associated to the key.
 	 * @param	int		$timeout	(optional) Key expiration timeout. 0 by default, to set no expiration.
 	 * @param	bool		$createOnly	(optional) True to add the key only if it doesn't exist yet. False by default.
-	 * @return	\Temma\Base\NDatabase	L'objet courant.
+	 * @return	mixed	The old value associated to the given key.
 	 * @throws	\Exception	If something went wrong.
 	 */
 	public function set(/* mixed */ $key, /* mixed */ $value=null, int $timeout=0, bool $createOnly=false) : \Temma\Base\NDatabase {
 		$this->_connect();
 		if (!is_array($key)) {
+			$oldValue = $this->get($key);
 			$value = json_encode($value);
 			if ($createOnly)
 				$this->_ndb->setnx($key, $value);
@@ -155,14 +156,14 @@ class NDatabase extends \Temma\Base\Datasource {
 				$this->_ndb->setex($key, $timeout, $value);
 			else
 				$this->_ndb->set($key, $value);
-		} else {
-			$key = array_map('json_encode', $key);
-			if ($createOnly)
-				$this->_ndb->msetnx($key);
-			else
-				$this->_ndb->mset($key);
+			return ($oldValue);
 		}
-		return ($this);
+		$key = array_map('json_encode', $key);
+		if ($createOnly)
+			$this->_ndb->msetnx($key);
+		else
+			$this->_ndb->mset($key);
+		return (null);
 	}
 	/**
 	 * Fetch one or many key-value pairs.
