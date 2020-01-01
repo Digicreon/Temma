@@ -168,11 +168,11 @@ class Log {
 	 */
 	static public function setThreshold(/* mixed */ $classOrThreshold, ?string $threshold=null) : void {
 		if (is_string($classOrThreshold) && is_string($threshold))
-				self::$_threshold[$classOrThreshold] = $threshold;
+			self::$_threshold[$classOrThreshold] = $threshold;
 		else {
 			if (is_array($classOrThreshold))
 				self::$_threshold = $classOrThreshold;
-			else if (is_int($classOrThreshold))
+			else if (is_string($classOrThreshold))
 				self::$_threshold[self::DEFAULT_CLASS] = $classOrThreshold;
 		}
 	}
