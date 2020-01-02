@@ -108,10 +108,9 @@ class Session implements \ArrayAccess {
 			$data = $this->_cache->get("sess:$oldSessionId");
 			if (isset($data['_magic']) && $data['_magic'] == 'Ax')
 				$this->_data = $data['data'] ?? null;
-			else {
+			else
 				unset($_COOKIE[$cookieName]);
-				$newSessionId = $this->_sessionId;
-			}
+			$newSessionId = $this->_sessionId;
 		}
 		$this->_sessionId = $newSessionId;
 		// compute expiration date
