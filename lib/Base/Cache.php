@@ -159,7 +159,7 @@ class Cache extends Datasource {
 	 *				it will be set to 30 days.
 	 * @return	mixed	The old value for the given index key.
 	 */
-	public function set(string $key, /* mixed */ $data=null, int $expire=0) : \Temma\Base\Cache {
+	public function set(string $key, /* mixed */ $data=null, int $expire=0) /* : mixed */ {
 		$oldValue = $this->get($key);
 		$key = $this->_getSaltedPrefix() . $key;
 		if (is_null($data)) {

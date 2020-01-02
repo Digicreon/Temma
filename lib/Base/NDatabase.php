@@ -145,7 +145,7 @@ class NDatabase extends \Temma\Base\Datasource {
 	 * @return	mixed	The old value associated to the given key.
 	 * @throws	\Exception	If something went wrong.
 	 */
-	public function set(/* mixed */ $key, /* mixed */ $value=null, int $timeout=0, bool $createOnly=false) : \Temma\Base\NDatabase {
+	public function set(/* mixed */ $key, /* mixed */ $value=null, int $timeout=0, bool $createOnly=false) /* : mixed */ {
 		$this->_connect();
 		if (!is_array($key)) {
 			$oldValue = $this->get($key);
