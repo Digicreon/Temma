@@ -26,7 +26,7 @@ class Controller implements \ArrayAccess {
 	 * Execution flow constant: restart the execution.
 	 * The behaviour depends on what has returned this value:
 	 * - If it's a pre-plugin, the execution restarts from the first pre-plugin.
-	 * - If it's a controller method (init, action or finalize), the execution restarts from the init method.
+	 * - If it's a controller method (__wakeup, action or __sleep), the execution restarts from the init method.
 	 * - If it's a post-plugin, the execution restarts from the first post-plugin.
 	 */
 	const EXEC_RESTART = 3;
