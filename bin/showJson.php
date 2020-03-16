@@ -14,5 +14,5 @@ if ($_SERVER['argc'] != 2 || $_SERVER['argv'][1] == '-h' || $_SERVER['argv'][1] 
 	exit(1);
 }
 
-print_r(json_decode(file_get_contents($_SERVER['argv'][1]), true));
+print(json_encode(json_decode(file_get_contents($_SERVER['argv'][1]), true), JSON_PRETTY_PRINT));
 
