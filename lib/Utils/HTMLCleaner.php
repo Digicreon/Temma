@@ -59,8 +59,8 @@ class HTMLCleaner {
 		$html = str_replace(['<br />', '<br/>'], '<br>', $html);
 		$html = str_replace(['<p></p>', '<p><br></p>'], '', $html);
 		// basic tags transformation
-		$from = ['<strong', '</strong>', '<em>', '</em>', '<strike>', '</strike>'];
-		$to   = ['<b>',     '</b>',      '<i>',  '<i>',   '<s>',      '</s>'];
+		$from = ['<strong>', '</strong>', '<em>', '</em>', '<strike>', '</strike>'];
+		$to   = ['<b>',      '</b>',      '<i>',  '<i>',   '<s>',      '</s>'];
 		$html = str_replace($from, $to, trim($html));
 		// all texts must start with an opening <p> tag (otherwise HTMLPurifier remove all <ul> and <li> tags but not their contents)
 		if (substr($html, 0, 1) != '<')
