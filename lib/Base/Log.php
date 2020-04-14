@@ -179,10 +179,10 @@ class Log {
 	/**
 	 * Write a log message.
 	 * @param	mixed	$classOrMessageOrPriority	Log message (1 param) or criticity level (2 params) or log class (3 params).
-	 * @param	mixed	$messageOrPriority		(optional) Log message (2 params) or criticity level (3 params).
-	 * @param	string	$message			(optional) Log message (3 params).
+	 * @param	?mixed	$messageOrPriority		(optional) Log message (2 params) or criticity level (3 params).
+	 * @param	?mixed	$message			(optional) Log message (3 params).
 	 */
-	static public function log(/* mixed */ $classOrMessageOrPriority, /* mixed */ $messageOrPriority=null, ?string $message=null) : void {
+	static public function log(/* mixed */ $classOrMessageOrPriority, /* ?mixed */ $messageOrPriority=null, /* ?mixed */ $message=null) : void {
 		if (is_null(self::$_requestId)) {
 			self::$_requestId = substr(base_convert(hash('md5', mt_rand()), 16, 36), 0, 4);
 		}
@@ -204,6 +204,8 @@ class Log {
 		    (!isset(self::$_threshold[$class]) && (!isset(self::$_threshold[self::DEFAULT_CLASS]) || self::$_levels[$priority] < self::$_levels[self::$_threshold[self::DEFAULT_CLASS]])))
 			return;
 		// log processing
+		if (!is_string($message))
+			$message = print_r($message, true);
 		$backtrace = debug_backtrace();
 		if (is_array($backtrace) && count($backtrace) > 1) {
 			$txt = '';
@@ -233,9 +235,11 @@ class Log {
 	}
 	/**
 	 * Write a simple log message. This message will always be writtent.
-	 * @param	string	$message	Log message.
+	 * @param	mixed	$message	Log message.
 	 */
-	static public function l(string $message) : void {
+	static public function l(/* mixed */ $message) : void {
+		if (!is_string($message))
+			$message = print_r($message, true);
 		self::_writeLog(null, null, $message);
 	}
 	/**
