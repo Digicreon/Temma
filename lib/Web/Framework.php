@@ -318,25 +318,26 @@ class Framework {
 			$routeName = $this->_config->routes[$this->_controllerName] ?? null;
 			if ($routeName) {
 				TµLog::log('Temma/Web', 'INFO', "Routing '" . $this->_controllerName . "' to '$routeName'.");
-				$this->_objectName = $routeName;
-			}
-			// check controller name
-			$lastBackslashPos = strrpos($this->_controllerName, '\\');
-			if ($lastBackslashPos === false) {
-				// there is no namespace
-				// checks that the controller name's first letter is in lower case
-				$firstLetter = substr($this->_controllerName, 0, 1);
-				if ($firstLetter != lcfirst($firstLetter)) {
-					TµLog::log('Temma/Web', 'ERROR', "Bad name for controller '" . $this->_controllerName . "' (must start by a lower-case character).");
-					throw new \Temma\Exceptions\HttpException("Bad name for controller '" . $this->_controllerName . "' (must start by a lower-case character).", 404);
-				}
-				// ensure the controller object's name starts with an upper-case letter
-				$this->_objectControllerName = ucfirst($this->_controllerName);
+				$this->_objectControllerName = $routeName;
 			} else {
-				// there is a namespace
-				// ensure the controller object's name starts with an upper-case letter
-				$this->_objectControllerName = substr($this->_controllerName, 0, $lastBackslashPos + 1) .
-				                               ucfirst(substr($this->_controllerName, $lastBackslashPos + 1));
+				// check controller name
+				$lastBackslashPos = strrpos($this->_controllerName, '\\');
+				if ($lastBackslashPos === false) {
+					// there is no namespace
+					// checks that the controller name's first letter is in lower case
+					$firstLetter = substr($this->_controllerName, 0, 1);
+					if ($firstLetter != lcfirst($firstLetter)) {
+						TµLog::log('Temma/Web', 'ERROR', "Bad name for controller '" . $this->_controllerName . "' (must start by a lower-case character).");
+						throw new \Temma\Exceptions\HttpException("Bad name for controller '" . $this->_controllerName . "' (must start by a lower-case character).", 404);
+					}
+					// ensure the controller object's name starts with an upper-case letter
+					$this->_objectControllerName = ucfirst($this->_controllerName);
+				} else {
+					// there is a namespace
+					// ensure the controller object's name starts with an upper-case letter
+					$this->_objectControllerName = substr($this->_controllerName, 0, $lastBackslashPos + 1) .
+								       ucfirst(substr($this->_controllerName, $lastBackslashPos + 1));
+				}
 			}
 			// management of the suffix
 			$controllersSuffix = $this->_config->controllersSuffix;
