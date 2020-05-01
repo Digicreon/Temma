@@ -108,10 +108,12 @@ class Text {
 	}
 	/**
 	 * Transform a text to an URL-compatible string.
-	 * @param	string	$txt	The text to convert.
+	 * @param	?string	$txt	The text to convert.
 	 * @return	string	The converted text.
 	 */
-	static public function urlize(string $txt) : string {
+	static public function urlize(?string $txt) : string {
+		if (!$txt)
+			return ('');
 		// vowels
 		$mask = ['à', 'á', 'â', 'ã', 'ä', 'å', '@', 'À', 'Á', 'Â', 'Ã', 'Ä', 'Å'];
 		$txt = str_replace($mask, 'a', $txt);
