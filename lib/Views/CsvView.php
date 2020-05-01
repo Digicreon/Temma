@@ -11,26 +11,39 @@ namespace Temma\Views;
 /**
  * View for CSV export.
  *
- * The CSV exported data is fetched from the "data" template variable.
+ * The CSV exported data is fetched from the "csv" template variable.
+ * The name of the downloaded file is fetched from the "filename" template variable.
  */
 class CsvView extends \Temma\Web\View {
-	/** Data that must be INI-encoded. */
-	private $_data = null;
+	/** Data that must be exported. */
+	private $_csv = null;
+	/** Name of the downloadable file. */
+	private $_filename = null;
 
 	/** Init. */
 	public function init() : void {
-		$this->_data = $this->_response->getData('data');
+		$this->_csv = $this->_response->getData('csv');
+		$this->_filename = $this->_response->getData('filename');
 	}
 	/** Write HTTP headers. */
 	public function sendHeaders(?array $headers=null) : void {
-		parent::sendHeaders([
-			'Content-Type'	=> 'text/csv; charset=UTF-8',
-		]);
+		$headers = [
+			'Content-Encoding' => 'UTF-8',
+			'Content-Type'     => 'text/csv; charset=UTF-8',
+			'Pragma'           => 'no-cache',
+			'Expires'          => '0',
+		];
+		if ($this->_filename)
+			$headers['Content-Disposition'] = 'attachment; filename="' . \Temma\Utils\Text::filenamize($this->_filename) . '"';
+		parent::sendHeaders($headers);
 	}
 	/** Write body. */
 	public function sendBody() : void {
-		foreach ($this->_data as $line)
-			fputscsv(STDOUT, $line);
+		$stdout = fopen('php://output', 'w');
+		foreach ($this->_csv as $line) {
+			fputcsv($stdout, $line);
+		}
+		fclose($stdout);
 	}
 }
 
