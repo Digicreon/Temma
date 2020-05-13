@@ -91,21 +91,21 @@ class Controller implements \ArrayAccess {
 	/**
 	 * Method used to raise en HTTP error (403, 404, 500, ...).
 	 * @param	int	$code	The HTTP error code.
-	 * @return	\Temma\Web\Controller	The current object.
+	 * @return	int	self::EXEC_HALT (useful value to return from the controller).
 	 */
-	final protected function httpError(int $code) : \Temma\Web\Controller {
+	final protected function httpError(int $code) : int {
 		$this->_loader->response->setHttpError($code);
-		return ($this);
+		return (self::EXEC_HALT);
 	}
 	/**
 	 * Method used to tell the HTTP return code (like the httpError() method,
 	 * but without raising an error).
 	 * @param	int	$code	The HTTP return code.
-	 * @return	\Temma\Web\Controller	The current object.
+	 * @return	int	self::EXEC_HALT (useful value to return from the controller).
 	 */
-	final protected function httpCode(int $code) : \Temma\Web\Controller {
+	final protected function httpCode(int $code) : int {
 		$this->_loader->response->setHttpCode($code);
-		return ($this);
+		return (self::EXEC_HALT);
 	}
 	/**
 	 * Returns the configured HTTP error.
@@ -125,20 +125,20 @@ class Controller implements \ArrayAccess {
 	/**
 	 * Define an HTTP redirection (302).
 	 * @param	?string	$url	Redirection URL, or null to remove the redirection.
-	 * @return	\Temma\Web\Controller	The current object.
+	 * @return	int	self::EXEC_HALT (useful value to return from the controller).
 	 */
-	final protected function redirect(?string $url) : \Temma\Web\Controller {
+	final protected function redirect(?string $url) : int {
 		$this->_loader->response->setRedirection($url);
-		return ($this);
+		return (self::EXEC_HALT);
 	}
 	/**
 	 * Define an HTTP redirection (301).
 	 * @param	string	$url	Redirection URL.
-	 * @return	\Temma\Web\Controller	The current object.
+	 * @return	int	self::EXEC_HALT (useful value to return from the controller).
 	 */
-	final protected function redirect301(string $url) : \Temma\Web\Controller {
+	final protected function redirect301(string $url) : int {
 		$this->_loader->response->setRedirection($url, true);
-		return ($this);
+		return (self::EXEC_HALT);
 	}
 	/**
 	 * Define the view to use.
@@ -175,30 +175,6 @@ class Controller implements \ArrayAccess {
 	}
 	/** Stop all processings (preplugins, controller and postplugins) and go to the view or redirection. */
 	final protected function halt() : void {
-		throw new \Temma\Exceptions\FlowException(null, self::EXEC_HALT);
-	}
-	/**
-	 * Store an HTTP redirection (302) and raise an EXEC_HALT flow exception.
-	 * @param	?string	$url	Redirection URL.
-	 */
-	final protected function haltRedirect(?string $url) : void {
-		$this->_loader->response->setRedirection($url);
-		throw new \Temma\Exceptions\FlowException(null, self::EXEC_HALT);
-	}
-	/**
-	 * Store an HTTP redirection (301) and raise an EXEC_HALT flow exception.
-	 * @param	string	$url	Redirection URL.
-	 */
-	final protected function haltRedirect301(string $url) : void {
-		$this->_loader->response->setRedirection($url, true);
-		throw new \Temma\Exceptions\FlowException(null, self::EXEC_HALT);
-	}
-	/**
-	 * Store an HTTP error and raise an EXEC_HALT flow exception.
-	 * @param	int	$code	The HTTP error code.
-	 */
-	final protected function haltHttpError(int $code) : void {
-		$this->_loader->response->setHttpError($code);
 		throw new \Temma\Exceptions\FlowException(null, self::EXEC_HALT);
 	}
 	/** Restart the processings of the current layer (preplugins, controller or postplugins). */
