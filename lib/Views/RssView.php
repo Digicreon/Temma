@@ -51,7 +51,7 @@ class RssView extends \Temma\Web\View {
 		$this->_contact = $this->_response->getData('contact');
 		$this->_articles = $this->_response->getData('articles');
 	}
-	/** iWrite HTTP headers. */
+	/** Write HTTP headers. */
 	public function sendHeaders($headers=null) {
 		parent::sendHeaders([
 			'Content-Type'	=> 'application/rss+xml; charset=UTF-8',
