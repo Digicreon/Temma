@@ -168,6 +168,48 @@ class Controller implements \ArrayAccess {
 		return ($this);
 	}
 
+	/* ********** MANAGEMENT OF EXECUTION FLOW ********** */
+	/** Stop the current layer (preplugins, controller or postplugins) and go to the next layer. */
+	final protected function stop() : void {
+		throw new \Temma\Exceptions\FlowException(null, self::EXEC_STOP);
+	}
+	/** Stop all processings (preplugins, controller and postplugins) and go to the view or redirection. */
+	final protected function halt() : void {
+		throw new \Temma\Exceptions\FlowException(null, self::EXEC_HALT);
+	}
+	/**
+	 * Store an HTTP redirection (302) and raise an EXEC_HALT flow exception.
+	 * @param	?string	$url	Redirection URL.
+	 */
+	final protected function haltRedirect(?string $url) : void {
+		$this->_loader->response->setRedirection($url);
+		throw new \Temma\Exceptions\FlowException(null, self::EXEC_HALT);
+	}
+	/**
+	 * Store an HTTP redirection (301) and raise an EXEC_HALT flow exception.
+	 * @param	string	$url	Redirection URL.
+	 */
+	final protected function haltRedirect301(string $url) : void {
+		$this->_loader->response->setRedirection($url, true);
+		throw new \Temma\Exceptions\FlowException(null, self::EXEC_HALT);
+	}
+	/**
+	 * Store an HTTP error and raise an EXEC_HALT flow exception.
+	 * @param	int	$code	The HTTP error code.
+	 */
+	final protected function haltHttpError(int $code) : void {
+		$this->_loader->response->setHttpError($code);
+		throw new \Temma\Exceptions\FlowException(null, self::EXEC_HALT);
+	}
+	/** Restart the processings of the current layer (preplugins, controller or postplugins). */
+	final protected function restart() : void {
+		throw new \Temma\Exceptions\FlowException(null, self::EXEC_RESTART);
+	}
+	/** Restart the whole processing (preplugins, controller and postplugins). */
+	final protected function reboot() : void {
+		throw new \Temma\Exceptions\FlowException(null, self::EXEC_REBOOT);
+	}
+
 	/* ********** MANAGEMENT OF "TEMPLATE VARIABLES" ********** */
 	/**
 	 * Set a template variable, array-like syntax.

@@ -142,7 +142,11 @@ class Framework {
 			if (empty($pluginName))
 				continue;
 			// execution of the pre-plugin
-			$execStatus = $this->_execPlugin($pluginName, 'pre');
+			try {
+				$execStatus = $this->_execPlugin($pluginName, 'pre');
+			} catch (\Temma\Exceptions\FlowException $fe) {
+				$execStatus = $fe->getCode();
+			}
 			// if asked for, stops all processing and quit immediately
 			if ($execStatus === \Temma\Web\Controller::EXEC_QUIT) {
 				TµLog::log('Temma/Web', 'DEBUG', "Premature but wanted end of processing.");
@@ -175,7 +179,11 @@ class Framework {
 			do {
 				// process the controller
 				TµLog::log('Temma/Web', 'DEBUG', "Controller processing.");
-				$execStatus = $this->_executorController->subProcess($this->_objectControllerName, $this->_actionName);
+				try {
+					$execStatus = $this->_executorController->subProcess($this->_objectControllerName, $this->_actionName);
+				} catch (\Temma\Exceptions\FlowException $fe) {
+					$execStatus = $fe->getCode();
+				}
 			} while ($execStatus === \Temma\Web\Controller::EXEC_RESTART);
 			// if asked, restarts the execution from the very beginning
 			if ($execStatus === \Temma\Web\Controller::EXEC_REBOOT) {
@@ -200,7 +208,11 @@ class Framework {
 				if (empty($pluginName))
 					continue;
 				// execution of the post-plugin
-				$execStatus = $this->_execPlugin($pluginName, 'post');
+				try {
+					$execStatus = $this->_execPlugin($pluginName, 'post');
+				} catch (\Temma\Exceptions\FlowException $fe) {
+					$execStatus = $fe->getCode();
+				}
 				// if asked for, stops all processing and quit immediately
 				if ($execStatus === \Temma\Web\Controller::EXEC_QUIT) {
 					TµLog::log('Temma/Web', 'DEBUG', "Premature but wanted end of processing.");
