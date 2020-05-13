@@ -19,12 +19,12 @@ class Timer {
 
 	/** Starts a timing. */
 	public function start() : void {
-		$this->_begin = microtime();
+		$this->_begin = microtime(true);
 		$this->_end = null;
 	}
 	/** Stops a timing. */
 	public function stop() : void {
-		$this->_end = microtime();
+		$this->_end = microtime(true);
 	}
 	/** Resume a timing. */
 	public function resume() : void {
@@ -32,17 +32,15 @@ class Timer {
 	}
 	/**
 	 * Returns the elapsed time during a timing.
-	 * @return	int	Elapsed time in microseconds.
+	 * @return	float	Elapsed time in seconds.
 	 * @throws	\Exception	If the timer wasn't started correctly.
 	 */
-	public function getTime() : int {
+	public function getTime() : float {
 		if (is_null($this->_begin))
 			return (0);
-		list($uSecondeA, $secondeA) = explode(' ', $this->_begin);
-		$end = is_null($this->_end) ? microtime() : $this->_end;
-		list($uSecondeB, $secondeB) = explode(' ', $end);
-		$total = ($secondeA - $secondeB) + ($uSecondeA - $uSecondeB);
-		return (number_format(abs($total), 16));
+		$end = $this->_end ?? microtime(true);
+		$total = $end - $this->_begin;
+		return ($total);
 	}
 }
 
