@@ -257,6 +257,18 @@ class Database extends \Temma\Base\Datasource {
 		return (strlen($str) ? $str : '');
 	}
 	/**
+	 * Escape a character string. If the input is empty, return a 'NULL' string.
+	 * @param	?string	$str	The string to escape.
+	 * @return	string	The escaped string, or 'NULL' if the string is empty.
+	 */
+	public function quoteNull(?string $str) : string {
+		if (!$str)
+			return ('NULL');
+		$this->_connect();
+		$str = $this->_db->quote((string)$str);
+		return (strlen($str) ? $str : '');
+	}
+	/**
 	 * Executes a SQL request without fetching data.
 	 * @param	string	$sql	The SQL request.
 	 * @return	int	The number of modified lines.
