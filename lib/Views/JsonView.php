@@ -30,7 +30,10 @@ class JsonView extends \Temma\Web\View {
 	/** Write HTTP headers. */
 	public function sendHeaders(?array $headers=null) : void {
 		parent::sendHeaders([
-			'Content-Type'	=> 'text/x-json; charset=UTF-8',
+			'Content-Type'  => 'text/x-json; charset=UTF-8',
+			'Cache-Control'	=> 'no-cache, no-store, must-revalidate, max-age=0, post-check=0, pre-check=0',
+			'Pragma'        => 'no-cache',
+			'Expires'       => '0',
 		]);
 	}
 	/** Write body. */

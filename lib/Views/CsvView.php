@@ -30,6 +30,7 @@ class CsvView extends \Temma\Web\View {
 		$headers = [
 			'Content-Encoding' => 'UTF-8',
 			'Content-Type'     => 'text/csv; charset=UTF-8',
+			'Cache-Control'	   => 'no-cache, no-store, must-revalidate, max-age=0, post-check=0, pre-check=0',
 			'Pragma'           => 'no-cache',
 			'Expires'          => '0',
 		];

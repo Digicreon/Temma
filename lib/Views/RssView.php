@@ -54,7 +54,10 @@ class RssView extends \Temma\Web\View {
 	/** Write HTTP headers. */
 	public function sendHeaders($headers=null) {
 		parent::sendHeaders([
-			'Content-Type'	=> 'application/rss+xml; charset=UTF-8',
+			'Content-Type'  => 'application/rss+xml; charset=UTF-8',
+			'Cache-Control'	=> 'no-cache, no-store, must-revalidate, max-age=0, post-check=0, pre-check=0',
+			'Pragma'        => 'no-cache',
+			'Expires'       => '0',
 		]);
 	}
 	/** Write body. */
