@@ -28,7 +28,7 @@ abstract class View {
 	 * @param	\Temma\Web\Response	$response	Response object.
 	 * @param	array			$parameters	Special parameters.
 	 */
-	public function __construct(array $dataSources, \Temma\Web\Config $config, ?\Temma\Web\Response $response=null, array $parameters) {
+	public function __construct(array $dataSources, \Temma\Web\Config $config, ?\Temma\Web\Response $response=null, array ...$parameters) {
 		$this->_dataSources = $dataSources;
 		$this->_config = $config;
 		$this->_response = $response;
