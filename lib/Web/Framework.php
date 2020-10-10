@@ -374,8 +374,11 @@ class Framework {
 		try {
 			$this->_controllerReflection = new \ReflectionClass($this->_objectControllerName);
 		} catch (\ReflectionException $e) {
-			TµLog::log('Temma/Web', 'ERROR', "No controller object '" . $this->_objectControllerName . "'.");
-			throw new \Temma\Exceptions\HttpException("No controller object '" . $this->_objectControllerName . "'.", 404);
+			// the requested controller object doesn't exist, use the default controller
+			//TµLog::log('Temma/Web', 'ERROR', "No controller object '" . $this->_objectControllerName . "'.");
+			//throw new \Temma\Exceptions\HttpException("No controller object '" . $this->_objectControllerName . "'.", 404);
+			$this->_objectControllerName = $this->_config->defaultController;
+			$this->_controllerReflection = new \ReflectionClass($this->_objectControllerName);
 		}
 		// check how the controller name is spelled
 		if ($this->_controllerReflection->getName() !== trim($this->_objectControllerName, '\ '))
