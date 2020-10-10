@@ -67,25 +67,33 @@ class Text {
 	/**
 	 * Transform a text to a filename-compatible string.
 	 * @param	string	$filename	The text to convert.
+	 * @param	bool	$hyphenSpaces	Tell if spaces must be replaced by hyphens (default=true).
+	 * @param	bool	$lowercase	Tell if the output must be in lowercase (default=true).
 	 * @return	string	The converted text.
 	 * @link	https://stackoverflow.com/questions/2021624/string-sanitizer-for-filename
 	 */
-	static public function filenamize(string $filename) : string {
+	static public function filenamize(string $filename, bool $hyphenSpaces=true, bool $lowercase=true) : string {
 		$filename = preg_replace(
 			'~
 			 [<>:"/\\|?*]|            # file system reserved https://en.wikipedia.org/wiki/Filename#Reserved_characters_and_words
 			 [\x00-\x1F]|             # control characters http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247%28v=vs.85%29.aspx
-			 [\x7F\xA0\xAD]|          # non-printing characters DEL, NO-BREAK SPACE, SOFT HYPHEN
+			 [\x7F]|                  # non-printing character DEL
 			 [#\[\]@!$&\'()+,;=]|     # URI reserved https://tools.ietf.org/html/rfc3986#section-2.2
 			 [{}^\~`]                 # URL unsafe characters https://www.ietf.org/rfc/rfc1738.txt
 			 ~x',
 			'-', $filename);
 		// avoids ".", ".." or ".hiddenFiles"
 		$filename = ltrim($filename, '.-');
+		// spaces processing
+		if ($hyphenSpaces) {
+			// "file   name.zip" becomes "file-name.zip"
+			$filename = preg_replace('/ +/', '-', $filename);
+		} else {
+			// "file   name.zip" becomes "file name.zip"
+			$filename = preg_replace('/ +/', ' ', $filename);
+		}
 		// reduce consecutive characters
 		$filename = preg_replace([
-			// "file   name.zip" becomes "file-name.zip"
-			'/ +/',
 			// "file___name.zip" becomes "file-name.zip"
 			'/_+/',
 			// "file---name.zip" becomes "file-name.zip"
@@ -98,7 +106,8 @@ class Text {
 			'/\.{2,}/'
 		], '.', $filename);
 		// lowercase for windows/unix interoperability http://support.microsoft.com/kb/100625
-		$filename = mb_strtolower($filename, mb_detect_encoding($filename));
+		if ($lowercase)
+			$filename = mb_strtolower($filename, mb_detect_encoding($filename));
 		// ".file-name.-" becomes "file-name"
 		$filename = trim($filename, '.-');
 		// maximise filename length to 255 bytes http://serverfault.com/a/9548/44086
