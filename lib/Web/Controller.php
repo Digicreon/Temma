@@ -36,6 +36,8 @@ class Controller implements \ArrayAccess {
 	protected $_loader = null;
 	/** Executor controller object (the one who called this object; could be null). */
 	private $_executorController = null;
+	/** DAO object. */
+	protected $_dao = null;
 
 	/**
 	 * Constructor.
@@ -49,6 +51,10 @@ class Controller implements \ArrayAccess {
 		// top-level controller: definition of the template variable which contains the session ID
 		if (is_null($executor) && isset($loader->session) && $loader->config->enableSessions) {
 			$this['SESSIONID'] = $loader->session->getSessionId();
+		}
+		// creation of the DAO if needed
+		if (isset($executor) && isset($this->_temmaAutoDao) && $this->_temmaAutoDao !== false) {
+			$this->_dao = $this->loadDao($this->_temmaAutoDao);
 		}
 	}
 	/** Destructor. */
@@ -69,6 +75,46 @@ class Controller implements \ArrayAccess {
 	 * @return	?int	The return code (self::EXEC_QUIT, ...). Could be null (==self::EXEC_FORWARD).
 	 */
 	public function __sleep() /* : ?int */ {
+	}
+
+	/* ********** DAO MANAGEMENT ********** */
+	/**
+	 * Load a DAO.
+	 * @param	string|array	$param	Name of the DAO object, or an associative array with parameters.
+	 * @return	\Temma\Dao\Dao	The loaded DAO.
+	 */
+	public function loadDao($param) : \Temma\Dao\Dao {
+		$daoConf = [
+			'object'   => '\Temma\Dao\Dao',
+			'criteria' => null,
+			'source'   => null,
+			'cache'    => true,
+			'base'     => null,
+			'table'    => $this['CONTROLLER'],
+			'id'       => 'id',
+			'fields'   => null,
+		];
+		// Get the DAO configuration
+		if (is_string($param))
+			$daoConf['object'] = $param;
+		else if (is_array($param)) {
+			$daoConf['object'] = $param['object'] ?? $daoConf['object'];
+			$daoConf['criteria'] = $param['criteria'] ?? $daoConf['criteria'];
+			$daoConf['source'] = $param['source'] ?? $daoConf['source'];
+			$daoConf['cache'] = $param['cache'] ?? $daoConf['cache'];
+			$daoConf['base'] = $param['base'] ?? $daoConf['base'];
+			$daoConf['table'] = $param['table'] ?? $daoConf['table'];
+			$daoConf['id'] = $param['id'] ?? $daoConf['id'];
+			$daoConf['fields'] = (isset($param['fields']) && is_array($param['fields'])) ? $param['fields'] : $daoConf['fields'];
+		}
+		// object creation
+		if (isset($daoConf['source']) && isset($this->_dataSources[$daoConf['source']]))
+			$dataSource = $this->_loader->dataSources[$daoConf['source']];
+		else
+			$dataSource = reset($this->_loader->dataSources);
+		$dao = new $daoConf['object']($dataSource, ($daoConf['cache'] ? $this->_loader->cache : null), $daoConf['table'], $daoConf['id'],
+		                              $daoConf['base'], $daoConf['fields'], $daoConf['criteria']);
+		return ($dao);
 	}
 
 	/* ********** METHODS CALLED BY THE CHILDREN OBJECTS ********** */
