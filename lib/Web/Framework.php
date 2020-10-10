@@ -17,10 +17,6 @@ use \Temma\Base\Log as TµLog;
  * @see		\Temma\Web\View
  */
 class Framework {
-	/** Name of the local file which can contain the application configuration object. */
-	const CONFIG_OBJECT_FILE_NAME = '_TemmaConfig.php';
-	/** Name of the local configuration file. */
-	const CONFIG_FILE_NAME = 'temma.json';
 	/** Name of the roott action. */
 	const CONTROLLERS_ROOT_ACTION = 'index';
 	/** Name of the proxy action. */
@@ -292,22 +288,9 @@ class Framework {
 		$appPath = realpath(dirname($_SERVER['SCRIPT_FILENAME']) . '/..');
 		if (empty($appPath) || !is_dir($appPath))
 			throw new \Temma\Exceptions\FrameworkException("Unable to find application's root path.", \Temma\Exceptions\FrameworkException::CONFIG);
-		$etcPath = $appPath . '/' . \Temma\Web\Config::ETC_DIR;
-		// search for a PHP file which contains a configuration object
-		$configObject = $etcPath . '/' . self::CONFIG_OBJECT_FILE_NAME;
-		if (is_readable($configObject)) {
-			// load the object - call $temma->setConfig() automatically
-			include($configObject);
-			$this->_config = new \_TemmaAutoConfig($this, $appPath, $etcPath);
-			$this->_executorController = $this->_config->executorController;
-			return;
-		}
-		// read the configuration file
-		$configFile = $etcPath . '/' . self::CONFIG_FILE_NAME;
-		if (!is_readable($configFile))
-			throw new \Temma\Exceptions\FrameworkException("Unable to read configuration file '$configFile'.", \Temma\Exceptions\FrameworkException::CONFIG);
-		$this->_config = new \Temma\Web\Config($appPath, $etcPath);
-		$this->_config->readConfigurationFile($configFile);
+		// read the configuration
+		$this->_config = new \Temma\Web\Config($appPath);
+		$this->_config->readConfigurationFile();
 	}
 
 	/* ********** CONTROLLERS/PLUGINS LOADING ********** */

@@ -178,13 +178,14 @@ class DataFilter {
 		if ($contract === null)
 			return ($in);
 		// process simple contracts
-		if (in_array($contract, ['null', 'string', 'int', 'float', 'bool'])) {
+		if (in_array($contract, ['null', 'string', '?string', 'int', '?int', 'float', '?float', 'bool', '?bool'])) {
 			return (self::_processScalar($in, $contract, null, null, null, null, null, null, null, $pedantic));
 		} else if (!is_array($contract)) {
 			throw new TµIOException("Bad contract.", TµIOException::BAD_FORMAT);
 		}
 		// get contract parameters
-		if (!isset($contract['type']) || !in_array($contract['type'], ['null', 'string', 'int', 'float', 'bool', 'enum', 'assoc', 'list']))
+		if (!isset($contract['type']) ||
+		    !in_array($contract['type'], ['null', 'string', '?string', 'int', '?int', 'float', '?float', 'bool', '?bool', 'enum', '?enum', 'assoc', '?assoc', 'list', '?list']))
 			throw new TµIOException("Bad contract type '{$contract['type']}'.", TµIOException::BAD_FORMAT);
 		$contractType = $contract['type'];
 		if ($contractType == 'assoc' && (!isset($contract['keys']) || !is_array($contract['keys'])))
@@ -209,18 +210,6 @@ class DataFilter {
 				throw new TµIOException("Bad contract (max value).", TµIOException::BAD_FORMAT);
 			$contractMax = (int)$contract['max'];
 		}
-		$contractMinLen = null;
-		if (isset($contract['minlen'])) {
-			if (!is_numeric($contract['minlen']))
-				throw new TµIOException("Bad contract (minlen value).", TµIOException::BAD_FORMAT);
-			$contractMinLen = (int)$contract['minlen'];
-		}
-		$contractMaxLen = null;
-		if (isset($contract['maxlen'])) {
-			if (!is_numeric($contract['maxlen']))
-				throw new TµIOException("Bad contract (maxlen value).", TµIOException::BAD_FORMAT);
-			$contractMaxLen = (int)$contract['maxlen'];
-		}
 		$contractMask = null;
 		if (isset($contract['mask'])) {
 			if (!is_string($contract['mask']))
@@ -231,6 +220,10 @@ class DataFilter {
 		if (is_null($in)) {
 			if ($contractDefault !== null)
 				return ($contractDefault);
+			if ($contractType[0] == '?') {
+				$contractType = substr($contractType, 1);
+				return (null);
+			}
 		}
 		if (in_array($contractType, ['assoc', 'list']) && !is_array($in))
 			throw new TµApplicationException("Data doesn't respect contract (not an array).", TµApplicationException::API);
@@ -260,10 +253,13 @@ class DataFilter {
 					$key = $k;
 					$subcontract = $v;
 				}
+				if (!isset($in['key']) &&
+				    (!isset($subcontract['mandatory']) || $subcontract['mandatory'] === true))
+					throw new TµApplicationException("Data doesn't respect contract (mandatory key).", TµApplicationException::API);
 				$res = self::process(($in[$key] ?? null), $subcontract);
 				if (!is_null($res))
 					$out[$key] = $res;
-				else if (!isset($subcontract['mandatory']) || $subcontract['mandatory'])
+				else if (!isset($subcontract['mandatory']) || $subcontract['mandatory'] === true)
 					$out[$key] = null;
 			}
 			return ($out);
@@ -274,24 +270,22 @@ class DataFilter {
 	/* ********** PRIVATE METHODS ********** */
 	/**
 	 * Process a scalar type.
-	 * @param	mixed	$in		Input value.
-	 * @param	string	$type		Specified type. Pass-through is set to null (not the 'null' string).
-	 * @param	mixed	$default	(optional) Default value.
-	 * @param	?float	$min		(optional) Number min.
-	 * @param	?float	$max		(optional) Number max.
-	 * @param	?int	$minLen		(optional) String min length.
-	 * @param	?int	$maxLen		(optional) String max length.
-	 * @param	?string	$mask		(optional) Regexp mask.
-	 * @param	?array	$values		(optional) Enum values.
-	 * @param	bool	$pedantic	(optional) True to throw an exception if the input data doesn't respect the contract. (default: true)
-	 * @return	null
+	 * @param	mixed		$in		Input value.
+	 * @param	string		$type		Specified type. Set to null (not the 'null' string) or an empty string to get a pass-through.
+	 * @param	mixed		$default	(optional) Default value.
+	 * @param	?float|int	$min		(optional) Number min or string min length.
+	 * @param	?float|int	$max		(optional) Number max or string max length.
+	 * @param	?string		$mask		(optional) Regexp mask.
+	 * @param	?array		$values		(optional) Enum values.
+	 * @param	bool		$pedantic	(optional) True to throw an exception if the input data doesn't respect the contract. (default: true)
+	 * @return	mixed
 	 * @throws	\Temma\Exceptions\IOException		If the type is not supported (BAD_FORMAT).
 	 * @throws	\Temma\Exceptions\ApplicationException	If the input data doesn't respect the contract (API).
 	 */
-	static private function _processScalar($in, ?string $type, $default=null, ?float $min=null, ?float $max=null, ?int $minlen=null, ?int $maxlen=null,
-	                                       ?string $mask=null, ?array $values=null, bool $pedantic=true) {
+	static private function _processScalar($in, ?string $type, $default=null, $min=null, $max=null, ?string $mask=null, ?array $values=null, bool $pedantic=true) {
+		$nullable = false;
 		// no type == passthru
-		if ($type === null) {
+		if (!$type) {
 			return ($in);
 		}
 		// null type
@@ -300,10 +294,17 @@ class DataFilter {
 				throw new TµApplicationException("Data doesn't respect contract (should be null).", TµApplicationException::API);
 			return (null);
 		}
+		// check nullable types
+		if ($type[0] == '?') {
+			$type = substr($type, 1);
+			$nullable = true;
+		}
 		// null value
 		if ($in === null) {
 			if ($default !== null)
 				return ($default);
+			if ($nullable)
+				return (null);
 			if ($pedantic)
 				throw new TµApplicationException("Data doesn't respect contract (null value).", TµApplicationException::API);
 		}
@@ -315,12 +316,14 @@ class DataFilter {
 				$in = $in ? 'true' : 'false';
 			else
 				$in = (string)$in;
-			if ($maxlen)
-				$in = mb_substr($in, 0, $maxlen);
+			if ($max)
+				$in = mb_substr($in, 0, $max);
 			if (($mask && preg_match("/$mask/", $in, $matches) === false) ||
-			    ($minlen && mb_strlen($in) < $minlen)) {
+			    ($min && mb_strlen($in) < $min)) {
 				if ($default !== null)
 					$in = $default;
+				else if ($nullable)
+					$in = null;
 				else if ($pedantic)
 					throw new TµApplicationException("Data doesn't respect contract (string too short).", TµApplicationException::API);
 			}

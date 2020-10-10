@@ -14,6 +14,10 @@ use \Temma\Base\Log as TµLog;
  * Object used to store the configuration of a Temma application.
  */
 class Config {
+	/** Name of the local configuration file (JSON format). */
+	const JSON_CONFIG_FILE_NAME = 'temma.json';
+	/** Name of the local configuration file (PHP format). */
+	const PHP_CONFIG_FILE_NAME = 'temma.php';
 	/** Default log level. */
 	const LOG_LEVEL = 'WARN';
 	/** Name of the cookie which contains the session ID. */
@@ -100,22 +104,28 @@ class Config {
 	/**
 	 * Constructor.
 	 * @param	string	$appPath	Path to the application root directory.
-	 * @param	string	$etcPath	Path to the configuration directory.
 	 */
-	public function __construct(string $appPath, string $etcPath) {
+	public function __construct(string $appPath) {
 		$this->_appPath = $appPath;
-		$this->_etcPath = $etcPath;
 	}
 	/**
 	 * Reads the "temma.json" configuration file.
-	 * @param	string	$path	Path to the configuration file.
 	 * @throws	\Temma\Exceptions\FrameworkException	If the configuration file is not correct.
 	 */
-	public function readConfigurationFile(string $path) : void {
-		// Read the configuration file
-		$ini = json_decode(file_get_contents($path), true);
-		if (is_null($ini))
-			throw new \Temma\Exceptions\FrameworkException("Unable to read configuration file '$path'.", \Temma\Exceptions\FrameworkException::CONFIG);
+	public function readConfigurationFile() : void {
+		$this-_etcPath = $this-_appPath . '/' . self::ETC_DIR;
+		// load the configuration file
+		$phpConfigPath = $this->_etcPath . '/' . self::PHP_CONFIG_FILE_NAME;
+		$jsonConfigPath = $this->_etcPath . '/' . self::JSON_CONFIG_FILE_NAME;
+		// try to include the PHP configuration file
+		if (!@include($phpConfigPath) || !isset($_globalTemmaConfig) || !is_array($_globalTemmaConfig)) {
+			// try to read the JSON configuration file
+			$_globalTemmaConfig = json_decode(file_get_contents($jsonConfigPath), true);
+		}
+		if (is_null($_globalTemmaConfig))
+			throw new \Temma\Exceptions\FrameworkException("Unable to read configuration file '$jsonConfigPath'.", \Temma\Exceptions\FrameworkException::CONFIG);
+		$ini = $_globalTemmaConfig;
+
 		// define the log file
 		$logPath = $this->_appPath . '/' . self::LOG_DIR;
 		TµLog::setLogFile($logPath . '/' . self::LOG_FILE);
