@@ -279,9 +279,9 @@ class Database extends \Temma\Base\Datasource {
 		$this->_connect();
 		$nbLines = $this->_db->exec($sql);
 		if ($nbLines === false) {
-			$errStr = 'Request error: ' . $this->getError();
+			$errStr = 'Database request error: ' . $this->getError();
 			TµLog::log('Temma/Base', 'ERROR', $errStr);
-			throw new \Exception('Request error: ' . $this->getError());
+			throw new \Exception($errStr);
 		}
 		return ($nbLines);
 	}
@@ -296,7 +296,7 @@ class Database extends \Temma\Base\Datasource {
 		$this->_connect();
 		$result = $this->_db->query($sql);
 		if ($result === false) {
-			$errStr = 'Request error: ' . $this->getError();
+			$errStr = 'Database request error: ' . $this->getError();
 			TµLog::log('Temma/Base', 'ERROR', $errStr);
 			throw new \Exception($errStr);
 		}
@@ -315,7 +315,7 @@ class Database extends \Temma\Base\Datasource {
 		$this->_connect();
 		$result = $this->_db->query($sql);
 		if ($result === false) {
-			$errStr = 'Request error: ' . $this->getError();
+			$errStr = 'Database request error: ' . $this->getError();
 			TµLog::log('Temma/Base', 'ERROR', $errStr);
 			throw new \Exception($errStr);
 		}
