@@ -113,7 +113,7 @@ class Config {
 	 * @throws	\Temma\Exceptions\FrameworkException	If the configuration file is not correct.
 	 */
 	public function readConfigurationFile() : void {
-		$this-_etcPath = $this-_appPath . '/' . self::ETC_DIR;
+		$this->_etcPath = $this-_appPath . '/' . self::ETC_DIR;
 		// load the configuration file
 		$phpConfigPath = $this->_etcPath . '/' . self::PHP_CONFIG_FILE_NAME;
 		$jsonConfigPath = $this->_etcPath . '/' . self::JSON_CONFIG_FILE_NAME;
