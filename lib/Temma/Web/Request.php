@@ -143,23 +143,25 @@ class Request {
 	 * Define the controller's name.
 	 * @param	string	$name	The name.
 	 */
-	public function setController(string $name) : void {
+	public function setController(?string $name) : void {
 		$this->_controller = $name;
 	}
 	/**
 	 * Define the the action's name.
-	 * @param	string	$name	The name.
+	 * @param	?string	$name	The name.
 	 */
-	public function setAction(string $name) : void {
+	public function setAction(?string $name) : void {
 		$this->_action = $name;
 	}
 	/**
 	 * Define the action parameters as they would have been received on the URL.
 	 * @param	array	$data	Array of strings.
 	 */
-	public function setParams(array $data) : void {
+	public function setParams(?array $data) : void {
 		if (is_array($data))
 			$this->_params = $data;
+		else
+			$this->_params = [];
 	}
 	/**
 	 * Define an action parameter.
