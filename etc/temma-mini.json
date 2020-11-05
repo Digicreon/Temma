@@ -1,0 +1,13 @@
+{
+	"application": {
+		"dataSources": {
+			"db": "mysql://user:passwd@localhost/mybase"
+		},
+		"rootController": "HomepageController"
+	},
+	"loglevels": {
+		"Temma/Base": "WARN",
+		"Temma/Web": "WARN",
+		"myapp": "DEBUG"
+	}
+}
