@@ -11,23 +11,31 @@ namespace Temma\Views;
 /**
  * View for iCal calendars.
  * Get its data from an "ical" template variable.
+ * The name of the downloaded file is fetched from the "filename" template variable.
  */
 class ICalView extends \Temma\Web\View {
 	/** Calendar data. */
 	private $_ical = null;
+	/** Name of the downloadable file. */
+	private $_filename = null;
 
 	/** Init. */
 	public function init() : void {
 		$this->_ical = $this->_response->getData('ical');
+		$this->_filename = $this->_response->getData('filename');
 	}
 	/** Write HTTP headers. */
 	public function sendHeaders(?array $headers=null) : void {
-		parent::sendHeaders([
-			'Content-type'  => 'text/calendar; charset=utf-8',
-			'Cache-Control'	=> 'no-cache, no-store, must-revalidate, max-age=0, post-check=0, pre-check=0',
-			'Pragma'        => 'no-cache',
-			'Expires'       => '0',
-		]);
+		$headers = [
+			'Content-Encoding' => 'UTF-8',
+			'Content-Type'     => 'text/calendar; charset=UTF-8',
+			'Cache-Control'	   => 'no-cache, no-store, must-revalidate, max-age=0, post-check=0, pre-check=0',
+			'Pragma'           => 'no-cache',
+			'Expires'          => '0',
+		];
+		if ($this->_filename)
+			$headers['Content-Disposition'] = 'attachment; filename="' . \Temma\Utils\Text::filenamize($this->_filename) . '"';
+		parent::sendHeaders($headers);
 	}
 	/** Write body. */
 	public function sendBody() : void {
@@ -46,8 +54,8 @@ class ICalView extends \Temma\Web\View {
 		foreach ($this->_ical['events'] as $event) {
 			if (!isset($event['name']) || (!isset($event['date']) && (!isset($event['dateStart']) || !isset($event['dateEnd']))))
 				continue;
-			$uid = $event['uid'] ?? md5(uniqid(mt_rand(), true)) . '@temma.net';
 			print("BEGIN:VEVENT\r\n");
+			$uid = $event['uid'] ?? md5(uniqid(mt_rand(), true));
 			$this->_print('UID:', $uid);
 			if (isset($event['organizerName']) && isset($event['organizerEmail'])) {
 				$organizer = $this->_escape('ORGANIZER;CN=', $event['organizerName'], false);

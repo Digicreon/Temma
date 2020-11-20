@@ -3,7 +3,7 @@
 /**
  * RssView
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	2009-2019, Amaury Bouchard
+ * @copyright	2009-2020, Amaury Bouchard
  */
 
 namespace Temma\Views;
@@ -39,6 +39,10 @@ class RssView extends \Temma\Web\View {
 	private $_language = null;
 	/** Contact email address. */
 	private $_contact = null;
+	/** Category. */
+	private $_category = null;
+	/** Copyright. */
+	private $_copyright = null;
 	/** List of articles. */
 	private $_articles = null;
 
@@ -49,6 +53,8 @@ class RssView extends \Temma\Web\View {
 		$this->_description = $this->_response->getData('description');
 		$this->_language = $this->_response->getData('language');
 		$this->_contact = $this->_response->getData('contact');
+		$this->_category = $this->_response->getData('category');
+		$this->_copyright = $this->_response->getData('copyright');
 		$this->_articles = $this->_response->getData('articles');
 	}
 	/** Write HTTP headers. */
@@ -65,50 +71,58 @@ class RssView extends \Temma\Web\View {
 		print('<' . '?xml version="1.0" encoding="UTF-8"?' . ">\n");
 		print("<rss version=\"2.0\">\n");
 		print("<channel>\n");
-		print("\t<link>http://" . $this->_domain . "/</link>\n");
-		if (!empty($this->_title))
-			print("\t<title>" . $this->_title . "</title>\n");
-		if (!empty($this->_description))
-			print("\t<description>" . $this->_description . "</description>\n");
-		if (!empty($this->_language))
-			print("\t<language>" . $this->_language . "</language>\n");
-		if (!empty($this->_contact)) {
-			print("\t<managingEditor>" . $this->_contact . "</managingEditor>\n");
-			print("\t<webMaster>" . $this->_contact . "</webMaster>\n");
+		if ($this->_domain)
+			print("\t<link>" . htmlspecialchars($this->_domain, ENT_COMPAT, 'UTF-8') . "/</link>\n");
+		if ($this->_title)
+			print("\t<title>" . htmlspecialchars($this->_title, ENT_COMPAT, 'UTF-8') . "</title>\n");
+		if ($this->_description)
+			print("\t<description>" . htmlspecialchars($this->_description, ENT_COMPAT, 'UTF-8') . "</description>\n");
+		if ($this->_language)
+			print("\t<language>" . htmlspecialchars($this->_language, ENT_COMPAT, 'UTF-8') . "</language>\n");
+		if ($this->_contact) {
+			print("\t<managingEditor>" . htmlspecialchars($this->_contact, ENT_COMPAT, 'UTF-8') . "</managingEditor>\n");
+			print("\t<webMaster>" . htmlspecialchars($this->_contact, ENT_COMPAT, 'UTF-8') . "</webMaster>\n");
 		}
-		print("\t<generator>Temma RSS generator 0.5.0</generator>\n");
-		print("\t<copyright>Copyright, Temma.net</copyright>\n");
-		print("\t<category>Blog</category>\n");
-		print("\t<docs>http://blogs.law.harvard.edu/tech/rss</docs>\n");
-		print("\t<ttl>1440</ttl>\n");
+		print("\t<generator>Temma RSS generator 1.0.0</generator>\n");
+		if ($this->_copyright)
+			print("\t<copyright>" . htmlspecialchars($this->_copyright, ENT_COMPAT, 'UTF-8') . "</copyright>\n");
+		if ($this->_category)
+			print("\t<category>" . htmlspecialchars($this->_category, ENT_COMPAT, 'UTF-8') . "</category>\n");
+		else
+			print("\t<category>Blog</category>\n");
 		foreach ($this->_articles as $article) {
-			if (isset($article['creationDate']))
+			if (!($article['url'] ?? null) || !trim($article['title'] ?? ''))
+				continue;
+			print("\t<item>\n");
+			print("\t\t<title>" . htmlspecialchars($article['title'], ENT_COMPAT, 'UTF-8') . "</title>\n");
+			print("\t\t<link>" . htmlspecialchars($article['url'], ENT_COMPAT, 'UTF-8') . "</link>\n");
+			// guid
+			if (($article['guid'] ?? null))
+				print("\t\t<guid isPermalink=\"true\">" . htmlspecialchars($article['guid'], ENT_COMPAT, 'UTF-8') . "</guid>\n");
+			else
+				print("\t\t<guid isPermaLink=\"true\">" . htmlspecialchars($url, ENT_COMPAT, 'UTF-8') . "</guid>\n");
+			// author
+			if (($article['author'] ?? null))
+				print("\t\t<author>" . htmlspecialchars($article['author'], ENT_COMPAT, 'UTF-8') . "</author>\n");
+			// date
+			if (($article['pubDate'] ?? null)) {
 				$date = $article['creationDate'];
-			if (isset($date)) {
 				$year = (int)substr($date, 0, 4);
 				$month = (int)substr($date, 5, 2);
 				$day = (int)substr($date, 8, 2);
 				$hour = (int)substr($date, 11, 2);
 				$min = (int)substr($date, 14, 2);
 				$sec = (int)substr($date, 17, 2);
+				$time = mktime($hour, $min, $sec, $month, $day, $year);
+				$pubDate = date('r', $time);
+				print("\t\t<pubDate>$pubDate</pubDate>\n");
 			}
-			$time = mktime($hour, $min, $sec, $month, $day, $year);
-			$pubDate = date('r', $time);
-			$content = (!isset($article['abstract']) || empty($article['abstract'])) ? '' : ($article['abstract'] . ' (...)');
-			$content = str_replace('href="/', 'href="http://' . $this->_domain . '/', $content);
-			$content = str_replace('src="/', 'src="http://' . $this->_domain . '/', $content);
+			// description
+			$content = !($article['abstract'] ?? '') ? '' : ($article['abstract'] . ' (...)');
+			$content = str_replace('href="/', 'href="' . $this->_domain . '/', $content);
+			$content = str_replace('src="/', 'src="' . $this->_domain . '/', $content);
 			$content = trim($content);
-			if (isset($article['url']) && !empty($article['url']))
-				$url = $article['url'];
-			else
-				$url = 'http://' . $this->_domain . '/' . $article['folderName'] .
-					(($article['folderName'] == $article['name']) ? "" : ('/' . $article['name']));
-			print("\t<item>\n");
-			print("\t\t<title>" . str_replace('&', '&amp;', $article['title']) . "</title>\n");
-			print("\t\t<pubDate>$pubDate</pubDate>\n");
-			print("\t\t<link>" . $url . "</link>\n");
-			print("\t\t<guid isPermaLink=\"true\">" . $url . "</guid>\n");
-			if (!empty($content))
+			if ($content)
 				print("\t\t<description>" . htmlspecialchars($content, ENT_COMPAT, 'UTF-8') . "</description>\n");
 			print("\t</item>\n");
 		}
