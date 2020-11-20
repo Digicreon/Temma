@@ -170,6 +170,9 @@ class Config {
 		// paths defined in the configuration
 		if (isset($ini['includePaths']) && is_array($ini['includePaths']))
 			$pathsToInclude = array_merge($pathsToInclude, $ini['includePaths']);
+		// namespace paths defined in the configuration
+		if (isset($ini['namespacePaths']) && is_array($ini['namespacePaths']))
+			$pathsToInclude = array_merge($pathsToInclude, $ini['namespacePaths']);
 		// add additional include paths
 		if (!empty($pathsToInclude))
 			\Temma\Base\Autoload::addIncludePath($pathsToInclude);
