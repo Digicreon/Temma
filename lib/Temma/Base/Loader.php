@@ -51,7 +51,7 @@ use \Temma\Base\Log as TµLog;
  * $user = $loader->userDao->getFromId(17);
  * $card = $loader->cardDao->getFromCode('12ax37');
  *
- * // create a builder, set its initial data, and define a builder
+ * // create a loader, set its initial data, and define a builder
  * $loader = new \Temma\Base\Loader(['userBo' => $userBo], function($loader, $key) {
  *     return new $key($loader);
  * });

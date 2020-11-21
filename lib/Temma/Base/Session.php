@@ -3,7 +3,7 @@
 /**
  * Session
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2010-2019, Amaury Bouchard
+ * @copyright	© 2010-2020, Amaury Bouchard
  */
 
 namespace Temma\Base;
@@ -222,7 +222,7 @@ class Session implements \ArrayAccess {
 		$this->set($key, $value);
 	}
 	/**
-	 * Remove data from cache, array-like syntax.
+	 * Remove data from session, array-like syntax.
 	 * @param	string	$key	Data name.
 	 */
 	public function offsetUnset(/* mixed */ $key) : void {

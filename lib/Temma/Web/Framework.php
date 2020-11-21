@@ -108,11 +108,11 @@ class Framework {
 		// create the loader object (dependency injection container)
 		$loaderName = $this->_config->loader;
 		$this->_loader = new $loaderName([
-			'dataSources'	=> $this->_dataSources,
-			'session'	=> $this->_session,
-			'config'	=> $this->_config,
-			'request'	=> $this->_request,
-			'response'	=> $this->_response,
+			'dataSources' => $this->_dataSources,
+			'session'     => $this->_session,
+			'config'      => $this->_config,
+			'request'     => $this->_request,
+			'response'    => $this->_response,
 		]);
 		// create the executor controller if needed
 		$this->_executorController = $this->_executorController ?? new \Temma\Web\Controller($this->_loader);

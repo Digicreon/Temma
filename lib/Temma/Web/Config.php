@@ -40,7 +40,7 @@ class Config {
 	const TEMP_DIR = 'tmp';
 	/** Name of the web directory. */
 	const WEB_DIR = 'www';
-	/** Name of the default loader (dependency injection container. */
+	/** Name of the default loader (dependency injection container). */
 	const DEFAULT_LOADER = '\Temma\Base\Loader';
 	/** Name of the default controller. */
 	const DEFAULT_CONTROLLER = '\Temma\Web\Controller';

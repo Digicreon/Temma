@@ -107,6 +107,13 @@ class Cache extends Datasource {
 		return ($this);
 	}
 	/**
+	 * Returns the current cache expiration delay.
+	 * @return	int	The current expiration delay.
+	 */
+	public function getExpiration(void) : int {
+		return ($this->_defaultExpiration);
+	}
+	/**
 	 * Disable the cache temporarily.
 	 * @return	\Temma\Base\Cache	The current object.
 	 */
@@ -153,7 +160,7 @@ class Cache extends Datasource {
 	/**
 	 * Add data in cache.
 	 * @param	string	$key	Index key.
-	 * @param	mixed	$data	(optional) Data value. The data is deleted is the value is not given or if it is null.
+	 * @param	mixed	$data	(optional) Data value. The data is deleted if the value is not given or if it is null.
 	 * @param	int	$expire	(optional) Expiration duration, in seconds. If it is set to zero (or if it's not given),
 	 *				it will be set to 24 hours. If it is set to -1 or a value greater than 2592000 (30 days),
 	 *				it will be set to 30 days.
@@ -174,6 +181,21 @@ class Cache extends Datasource {
 		if ($this->_enabled && $this->_memcache)
 			$this->_memcache->set($key, $data, $expire);
 		return ($oldValue);
+	}
+	/**
+	 * Add data in cache, array-like syntax.
+	 * @param	string	$key	Index key.
+	 * @param	mixed	$data	Data value. The data is deleted if the value is null.
+	 */
+	public function offsetSet(/* mixed */ $key, /* mixed */ $data) : void {
+		$this->set($key, $value);
+	}
+	/**
+	 * Remove data from cache, array-like syntax.
+	 * @param	string	$key	Index key.
+	 */
+	public function offsetUnset(/* mixed */ $key) : void {
+		$this->set($key, null);
 	}
 	/**
 	 * Get a data from cache.
@@ -203,6 +225,14 @@ class Cache extends Datasource {
 		return ($data);
 	}
 	/**
+	 * Get a data from cache, array-like syntax.
+	 * @param	string	$key	Index key.
+	 * @return	mixed	The data fetched from the cache, or null.
+	 */
+	public function offsetGet(/* mixed */ $key) /* : mixed */ {
+		return ($this->get($key));
+	}
+	/**
 	 * Remove all cache variables matching a given prefix.
 	 * @param	string	$prefix	Prefix string. Nothing will be removed if this parameter is empty.
 	 * @return	\Temma\Base\Cache	The current object.
@@ -230,6 +260,14 @@ class Cache extends Datasource {
 		if ($this->_memcache->get($key) === false && $this->_memcache->getResultCode() == \Memcached::RES_NOTFOUND)
 			return (false);
 		return (true);
+	}
+	/**
+	 * Tell if a variable is set in cache, array-like syntax.
+	 * @param	string	$key	Index key.
+	 * @return	bool	True if the variable is set, false otherwise.
+	 */
+	public function offsetExists(/* mixed */ $key) : bool {
+		return ($this->isSet($key));
 	}
 
 	/* ************************** PRIVATE METHODS ******************** */
