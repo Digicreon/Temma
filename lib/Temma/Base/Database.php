@@ -46,12 +46,35 @@ use \Temma\Base\Log as TµLog;
  * }
  * </code>
  *
+ * Prepared queries:
+ * <code>
+ * // values given in a list
+ * $stmt = $db->prepare("UPDATE toto SET color = ? WHERE id = ?");
+ * $stmt->execute(['blue', 12]);
+ * // values given in an associative array
+ * $stmt = $db->prepare("UPDATE toto SET color = :color WHERE id = :id");
+ * $stmt->execute([':color' => 'blue', ':id' => 12]);
+ * // fetch values
+ * $stmt = $db->prepare("SELECT * from toto WHERE color = :color");
+ * $stmt->execute([':color' => 'blue']);
+ * $result = $stmt->fetchAll();
+ * $stmt->execute([':color' => 'red']);
+ * $result = $stmt->fetchAll();
+ * </code>
+ *
  * Transactional example:
  * <code>
  * // object creation, database connection
  * try { $db = new \Temma\Base\Database::factory("mysql://user:pwd@localhost/database"); }
  * catch (Exception $e) { }
- * // transactional requests
+ * // transactional requests, automatically committed or rolled-back
+ * $db->transaction(function($db) use ($userId) {
+ *       // insertion request
+ *       $db->exec("INSERT INTO Foo SET name = 'pouet'");
+ *       // bad request, will raise an exception => roll-back
+ *       $db->exec("INSERT foobar");
+ * });
+ * // other kind of transactional requests
  * try {
  *	 // start the transaction
  *	 $db->startTransaction();
@@ -187,6 +210,21 @@ class Database extends \Temma\Base\Datasource {
 
 	/* ***************************** TRANSACTIONS ************************ */
 	/**
+	 * Manage a transaction automatically.
+	 * @param	\Callable	$callback	Anonymous function.
+	 */
+	public function transaction(\Callable $callback) : void {
+		TµLog::log('Temma/Base', 'DEBUG', "Starting a transaction.");
+		$this->startTransaction();
+		try {
+			$callback($this);
+		} catch (\Exception $e) {
+			$this->rollback();
+			return;
+		}
+		$this->commit();
+	}
+	/**
 	 * Start a transaction.
 	 * @throws      \Exception	If it's not possible to start the transaction.
 	 */
@@ -267,6 +305,28 @@ class Database extends \Temma\Base\Datasource {
 		$this->_connect();
 		$str = $this->_db->quote((string)$str);
 		return (strlen($str) ? $str : '');
+	}
+	/**
+	 * Creates a prepared query.
+	 * @param	string	$sql	The SQL request.
+	 * @return	\Temma\Base\DatabaseStatement	The statement object.
+	 * @throws	\Temma\Exceptions\DatabaseException	If an error occurs.
+	 */
+	public function prepare(string $sql) : \Temma\Base\DatabaseStatement {
+		TµLog::log('Temma/Base', 'DEBUG', "SQL prepare: $sql");
+		$this->_connect();
+		try {
+			$dbStatement = $this->_db->prepare($sql);
+		} catch (\PDOException $pe) {
+			TµLog::log('Temma/Base', 'ERROR', 'Database prepare error: ' . $pe->getMessage());
+			throw new \Temma\Exceptions\DatabaseException($pe->getMessage(), \Temma\Exceptions\DatabaseException::QUERY);
+		}
+		if ($dbStatement === false) {
+			$errStr = 'Database prepare error: ' . $this->getError();
+			TµLog::log('Temma/Base', 'ERROR', $errStr);
+			throw new \Temma\Exceptions\DatabaseException($errStr, \Temma\Exceptions\DatabaseException::QUERY);
+		}
+		return (new \Temma\Base\DatabaseStatement($this, $dbStatement));
 	}
 	/**
 	 * Executes a SQL request without fetching data.
