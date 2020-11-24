@@ -216,20 +216,24 @@ class Controller implements \ArrayAccess {
 
 	/* ********** MANAGEMENT OF EXECUTION FLOW ********** */
 	/** Stop the current layer (preplugins, controller or postplugins) and go to the next layer. */
-	final protected function stop() : void {
+	final static protected function stop() : void {
 		throw new \Temma\Exceptions\FlowException(null, self::EXEC_STOP);
 	}
 	/** Stop all processings (preplugins, controller and postplugins) and go to the view or redirection. */
-	final protected function halt() : void {
+	final static protected function halt() : void {
 		throw new \Temma\Exceptions\FlowException(null, self::EXEC_HALT);
 	}
 	/** Restart the processings of the current layer (preplugins, controller or postplugins). */
-	final protected function restart() : void {
+	final static protected function restart() : void {
 		throw new \Temma\Exceptions\FlowException(null, self::EXEC_RESTART);
 	}
 	/** Restart the whole processing (preplugins, controller and postplugins). */
-	final protected function reboot() : void {
+	final static protected function reboot() : void {
 		throw new \Temma\Exceptions\FlowException(null, self::EXEC_REBOOT);
+	}
+	/** End the framework processing. */
+	final static protected function quit() : void {
+		throw new \Temma\Exceptions\FlowException(null, self::EXEC_QUIT);
 	}
 
 	/* ********** MANAGEMENT OF "TEMPLATE VARIABLES" ********** */
