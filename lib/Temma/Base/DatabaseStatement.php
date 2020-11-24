@@ -56,7 +56,7 @@ class DatabaseStatement {
 	 * @return	array	An associative array which contains the line of data.
 	 * @throws	\Temma\Exceptions\DatabaseException	If an error occurs.
 	 */
-	public function queryOne(void) : array {
+	public function queryOne() : array {
 		if (!$this->_statement->execute($parameters)) {
 			$err = $this->_statement->errorCode();
 			throw new \Temma\Exceptions\DatabaseException($err, \Temma\Exceptions\DatabaseException::QUERY);
@@ -80,7 +80,7 @@ class DatabaseStatement {
 	 * Return the error code of the last execution.
 	 * @return	string	An SQLSTATE code.
 	 */
-	public function errorCode(void) : string {
+	public function errorCode() : string {
 		return ($this->_statement->errorCode());
 	}
 	/**
@@ -88,15 +88,8 @@ class DatabaseStatement {
 	 * @return	array	An array with three elements: An SQLSTATE error code, a driver-specific error code,
 	 *			and a driver-specific error message.
 	 */
-	public function errorInfo(void) : array {
+	public function errorInfo() : array {
 		return ($this->_statement->errorInfo());
-	}
-	/**
-	 * Fetch all data from a statement execution.
-	 * @return	array	All data as an associative array.
-	 */
-	public function fetchAll(void) : array {
-		return ($this->_statement->fetchAll(PDO::FETCH_ASSOC));
 	}
 }
 
