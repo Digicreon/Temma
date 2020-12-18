@@ -36,6 +36,8 @@ class Controller implements \ArrayAccess {
 	protected $_loader = null;
 	/** Executor controller object (the one who called this object; could be null). */
 	private $_executorController = null;
+	/** Session object. */
+	protected $_session = null;
 	/** DAO object. */
 	protected $_dao = null;
 
@@ -48,6 +50,7 @@ class Controller implements \ArrayAccess {
 	public function __construct(\Temma\Base\Loader $loader, ?\Temma\Web\Controller $executor=null) {
 		$this->_loader = $loader;
 		$this->_executorController = $executor;
+		$this->_session = $loader->session;
 		// top-level controller: definition of the template variable which contains the session ID
 		if (is_null($executor) && isset($loader->session) && $loader->config->enableSessions) {
 			$this['SESSIONID'] = $loader->session->getSessionId();
