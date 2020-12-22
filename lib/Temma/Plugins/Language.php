@@ -70,6 +70,18 @@ class Language extends \Temma\Web\Plugin {
 		}
 		$this['CONTROLLER'] = $newController;
 		$this['ACTION'] = $newAction;
+		// set the template prefix
+		$this->templatePrefix($currentLang);
+		// update error pages' path
+		$errorPages = $this->_loader->config->errorPages;
+		if ($errorPages) {
+			foreach ($errorPages as &$page) {
+				if (!$page)
+					continue;
+				$page = "error-pages/$currentLang/$page";
+			}
+			$this->_loader->config->errorPages = $errorPages;
+		}
         }
 }
 
