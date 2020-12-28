@@ -213,7 +213,7 @@ class Database extends \Temma\Base\Datasource {
 	 * Manage a transaction automatically.
 	 * @param	\Callable	$callback	Anonymous function.
 	 */
-	public function transaction(\Callable $callback) : void {
+	public function transaction(Callable $callback) : void {
 		TµLog::log('Temma/Base', 'DEBUG', "Starting a transaction.");
 		$this->startTransaction();
 		try {
