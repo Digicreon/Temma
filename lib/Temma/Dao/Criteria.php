@@ -196,28 +196,34 @@ class DaoCriteria {
 	 * @param	sintrg|int	$value	Comparison value.
 	 * @return	\Temma\DaoCriteria	L'instance de l'objet courant.
 	 */
-	public function greaterOrEqualTo($field, $value) {
+	public function greaterOrEqualTo($field, $value) : \Temma\Dao\Criteria {
 		$this->_addCriteria($field, '>=', $value);
 		return ($this);
 	}
 
 	/* ********************** ALIAS ********************************** */
-	public function eq($field, $value) {
+	public function has(string $field) : \Temma\Dao\Criteria {
+		return ($this->is($field));
+	}
+	public function hasNot(string $field) : \Temma\Dao\Criteria {
+		return ($this->isNot($field));
+	}
+	public function eq($field, $value) : \Temma\Dao\Criteria {
 		return ($this->equal($field, $value));
 	}
-	public function ne($field, $value) {
+	public function ne($field, $value) : \Temma\Dao\Criteria {
 		return ($this->different($field, $value));
 	}
-	public function lt($field, $value) {
+	public function lt($field, $value) : \Temma\Dao\Criteria {
 		return ($this->lessThan($field, $value));
 	}
-	public function gt($field, $value) {
+	public function gt($field, $value) : \Temma\Dao\Criteria {
 		return ($this->greaterThan($field, $value));
 	}
-	public function le($field, $value) {
+	public function le($field, $value) : \Temma\Dao\Criteria {
 		return ($this->lessOrEqualTo($field, $value));
 	}
-	public function ge($field, $value) {
+	public function ge($field, $value) : \Temma\Dao\Criteria {
 		return ($this->greaterOrEqualTo($field, $value));
 	}
 
