@@ -5,9 +5,6 @@
 		},
 		"rootController": "HomepageController"
 	},
-	"loglevels": {
-		"Temma/Base": "WARN",
-		"Temma/Web": "WARN",
-		"myapp": "DEBUG"
-	}
+	"loglevels": "WARN",
+	"errorPages": "error404.html"
 }

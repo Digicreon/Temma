@@ -15,7 +15,8 @@
 	"loglevels": {
 		"Temma/Base": "ERROR",
 		"Temma/Web": "WARN",
-		"myapp": "DEBUG"
+		"myapp": "DEBUG",
+		"default": "NOTE"
 	},
 	"routes": {
 		"sitemap.xml": "SitemapController",
@@ -42,7 +43,8 @@
 	},
 	"errorPages": {
 		"404": "path/to/page.html",
-		"500": "path/to/page.html"
+		"500": "path/to/page.html",
+		"default": "path/to/page.html"
 	},
 	"includePaths": [
 		"/opt/some_library/lib",

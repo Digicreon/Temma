@@ -130,16 +130,27 @@ class Config {
 		$logPath = $this->_appPath . '/' . self::LOG_DIR;
 		TµLog::setLogFile($logPath . '/' . self::LOG_FILE);
 		// check log thresholds
-		if (isset($ini['loglevels']) && is_array($ini['loglevels'])) {
-			$loglevels = [];
-			foreach ($ini['loglevels'] as $class => $level)
-				$loglevels[$class] = $level;
-		} else
-			$loglevels = self::LOG_LEVEL;
+		$loglevels = self::LOG_LEVEL;
+		if (isset($ini['loglevels'])) {
+			if (is_string($ini['loglevels'])) {
+				$loglevels = $ini['loglevels'];
+			} else if (is_array($ini['loglevels'])) {
+				$loglevels = [];
+				foreach ($ini['loglevels'] as $class => $level) {
+					$loglevels[$class] = $level;
+				}
+			}
+		}
 		TµLog::setThreshold($loglevels);
 
 		// define the error pages
-		$this->_errorPages = (isset($ini['errorPages']) && is_array($ini['errorPages'])) ? $ini['errorPages'] : [];
+		$this->_errorPages = [];
+		if (isset($ini['errorPages'])) {
+			if (is_string($ini['errorPages']))
+				$this->_errorPages['default'] = $ini['errorPages'];
+			else if (is_array($ini['errorPages']))
+				$this->_errorPages = $ini['errorPages'];
+		}
 
 		// define the data sources
 		if (isset($ini['application']['dataSources']) && is_array($ini['application']['dataSources']))
