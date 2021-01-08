@@ -5,12 +5,17 @@
 			"ndb": "redis://localhost:6379/0",
 			"cache": "memcache://192.168.0.1:11211;192.168.0.2:11211"
 		},
+		"enableSessions": true,
 		"sessionName": "TemmaSession",
 		"sessionSource": "ndb",
-		"rootController": "TemmaController",
-		"defaultController": "TemmaController",
-		"proxyController": "MainController",
-		"defaultView": "TemmaSmartyView"
+		"defaultNamespace": "\\MyApp\\Controllers",
+		"rootController": "Homepage",
+		"defaultController": "NotFound",
+		"proxyController": "Main",
+		"defaultView": "\\Temma\\Views\\SmartyView",
+		"loader": "MyLoader",
+		"logFile": "log/temma.log",
+		"logManager": [ "ElasticLogManager", "SentryLogManager" ]
 	},
 	"loglevels": {
 		"Temma/Base": "ERROR",

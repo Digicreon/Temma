@@ -275,10 +275,12 @@ class Log {
 		if ((isset(self::$_threshold[$class]) && self::$_levels[$priority] < self::$_levels[self::$_threshold[$class]]) ||
 		    (!isset(self::$_threshold[$class]) && self::$_levels[$priority] < self::$_levels[self::$_threshold[self::DEFAULT_CLASS]]))
 			return;
-		// traitement
+		// processing
 		$txt = '[' . basename($file) . ":$line]";
 		if (!empty($caller))
 			$txt .= " $caller()";
+		if (!is_string($message))
+			$message = print_r($message, true);
 		self::_writeLog($class, $priority, "$txt: $message");
 	}
 
@@ -294,24 +296,41 @@ class Log {
 	static private function _writeLog(?string $class, ?string $priority, string $message) : void {
 		if (!self::$_enable)
 			return;
-		// open the file if needed
-		if (isset(self::$_logPath) && !empty(self::$_logPath))
-			$path = self::$_logPath;
-		else if (!self::$_logToStdOut && !self::$_logToStdErr && empty(self::$_logCallbacks))
+		// check if there is a configured output
+		if (!self::$_logPath && !self::$_logToStdOut && !self::$_logToStdErr && !self::$_logCallbacks)
 			throw new \Temma\Exceptions\ApplicationException('No log file set.', \Temma\Exceptions\ApplicationException::API);
+		// create the message
 		$text = date('c') . ' [' . self::$_requestId . '] ' . (isset(self::$_labels[$priority]) ? (self::$_labels[$priority] . ' ') : '');
 		if (!empty($class) && $class != self::DEFAULT_CLASS)
 			$text .= "-$class- ";
 		$text .= $message . "\n";
-		if (isset($path))
-			if (file_put_contents($path, $text, (substr($path, 0, 6) != 'php://' ? FILE_APPEND : null)) === false)
+		// output: callbacks
+		foreach (self::$_logCallbacks as $callback) {
+			$result = $callback($message, self::$_labels[$priority], $class);
+			if ($result === false)
+				return;
+			if (!is_array($result))
+				continue;
+			if (isset($result['logPath']) && !empty($result['logPath']))
+				self::$_logPath = $result['logPath'];
+			if (isset($result['logToStdOut']) && is_bool($result['logToStdOut']))
+				self::$_logToStdOut = $result['logToStdOut'];
+			if (isset($result['logToStdErr'] && is_bool($result['logToStdErr']))
+				self::$_logToStdErr = $result['logToStdErr'];
+		}
+		// output: log file
+		if (self::$_logPath) {
+			$path = self::$_logPath;
+			$flags = (substr($path, 0, 6) != 'php://') ? FILE_APPEND : null;
+			if (file_put_contents($path, $text, $flags) === false)
 				throw new \Temma\Exceptions\IOException("Unable to write on log file '$path'.", \Temma\Exceptions\IOException::UNWRITABLE);
+		}
+		// output: stdout
 		if (self::$_logToStdOut)
 			print($text);
+		// output: stderr
 		if (self::$_logToStdErr)
 			fwrite(STDERR, $text);
-		foreach (self::$_logCallbacks as $callback)
-			$callback($message, self::$_labels[$priority], $class);
 	}
 }
 

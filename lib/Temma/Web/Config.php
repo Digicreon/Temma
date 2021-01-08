@@ -84,6 +84,10 @@ class Config {
 	protected $_webPath = null;
 	/** Name of the loader object. */
 	protected $_loader = null;
+	/** Path to the log file. */
+	protected $_logFile = null;
+	/** Log manager(s). */
+	protected $_logManager = null;
 	/** Controller names' suffix. */
 	protected $_controllersSuffix = null;
 	/** Name of the root controller. */
@@ -126,9 +130,31 @@ class Config {
 			throw new \Temma\Exceptions\FrameworkException("Unable to read configuration file '$jsonConfigPath'.", \Temma\Exceptions\FrameworkException::CONFIG);
 		$ini = $_globalTemmaConfig;
 
-		// define the log file
-		$logPath = $this->_appPath . '/' . self::LOG_DIR;
-		TµLog::setLogFile($logPath . '/' . self::LOG_FILE);
+		// log file and log manager configuration
+		$logPath = null;
+		if (!array_key_exists('logFile', $ini))
+			$logPath = self::LOG_DIR;
+		else if (is_string($ini['logFile']) && !empty($ini['logFile']))
+			$logPath = $ini['logFile'];
+		if ($logPath && $logPath[0] != '/')
+			$logPath = $this->_appPath . '/' . $logPath;
+		$logManager = $ini['logManager'] ?? null;
+		if (!$logPath && !$logManager) {
+			TµLog::disable();
+		} else {
+			if ($logPath)
+				TµLog::setLogFile($logPath);
+			if ($logManager) {
+				if (is_string($logManager))
+					$logManager = [$logManager];
+				foreach ($logManager as $manager) {
+					TµLog::addCallback(function($text, $priority, $class) use ($manager) {
+						return $manager::log($text, $priority, $class);
+					});
+				}
+			}
+		}
+
 		// check log thresholds
 		$loglevels = self::LOG_LEVEL;
 		if (isset($ini['loglevels'])) {
@@ -232,6 +258,8 @@ class Config {
 		$this->_templatesPath = $this->_appPath . '/' . self::TEMPLATES_DIR;
 		$this->_webPath = $this->_appPath . '/' . self::WEB_DIR;
 		$this->_loader = $ini['application']['loader'] ?? null;
+		$this->_logFile = $logPath;
+		$this->_logManager = $logManager;
 		$this->_controllersSuffix = $ini['application']['controllersSuffix'] ?? '';
 		$this->_rootController = $ini['application']['rootController'] ?? null;
 		$this->_defaultController = $ini['application']['defaultController'] ?? null;
