@@ -148,6 +148,11 @@ class Config {
 				if (is_string($logManager))
 					$logManager = [$logManager];
 				foreach ($logManager as $manager) {
+					$reflect = new \ReflectionClass($manager);
+					if (!$reflect->implementsInterface('\Temma\Web\LogManager')) {
+						throw new \Temma\Exceptions\FrameworkException("Log manager '$manager' doesn't implements \Temma\Web\LogManager interface.",
+						                                               \Temma\Exceptions\FrameworkException::CONFIG);
+					}
 					TµLog::addCallback(function($text, $priority, $class) use ($manager) {
 						return $manager::log($text, $priority, $class);
 					});
