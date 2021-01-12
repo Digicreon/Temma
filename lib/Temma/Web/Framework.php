@@ -9,6 +9,10 @@
 namespace Temma\Web;
 
 use \Temma\Base\Log as TµLog;
+use \Temma\Exceptions\Flow as TµFlowException;
+use \Temma\Exceptions\Http as TµHttpException;
+use \Temma\Exceptions\Framework as TµFrameworkException;
+use \Temma\Exceptions\IO as TµIOException;
 
 /**
  * Main framework management object.
@@ -140,7 +144,7 @@ class Framework {
 			// execution of the pre-plugin
 			try {
 				$execStatus = $this->_execPlugin($pluginName, 'pre');
-			} catch (\Temma\Exceptions\FlowException $fe) {
+			} catch (TµFlowException $fe) {
 				$execStatus = $fe->getCode();
 			}
 			// if asked for, stops all processing and quit immediately
@@ -170,14 +174,14 @@ class Framework {
 
 		/* ********** CONTROLLER ********** */
 		if ($this->_controllerReflection->getName() == 'Temma\Web\Controller')
-			throw new \Temma\Exceptions\HttpException("The requested page doesn't exists.", 404);
+			throw new TµHttpException("The requested page doesn't exists.", 404);
 		if ($execStatus === \Temma\Web\Controller::EXEC_FORWARD) {
 			do {
 				// process the controller
 				TµLog::log('Temma/Web', 'DEBUG', "Controller processing.");
 				try {
 					$execStatus = $this->_executorController->subProcess($this->_objectControllerName, $this->_actionName);
-				} catch (\Temma\Exceptions\FlowException $fe) {
+				} catch (TµFlowException $fe) {
 					$execStatus = $fe->getCode();
 				}
 			} while ($execStatus === \Temma\Web\Controller::EXEC_RESTART);
@@ -206,7 +210,7 @@ class Framework {
 				// execution of the post-plugin
 				try {
 					$execStatus = $this->_execPlugin($pluginName, 'post');
-				} catch (\Temma\Exceptions\FlowException $fe) {
+				} catch (TµFlowException $fe) {
 					$execStatus = $fe->getCode();
 				}
 				// if asked for, stops all processing and quit immediately
@@ -240,7 +244,7 @@ class Framework {
 		$httpError = $this->_response->getHttpError();
 		if (isset($httpError)) {
 			TµLog::log('Temma/Web', 'WARN', "HTTP error '$httpError': " . $this->_request->getController()  . "/" . $this->_request->getAction());
-			throw new \Temma\Exceptions\HttpException("HTTP error.", $httpError);
+			throw new TµHttpException("HTTP error.", $httpError);
 		}
 		// management of redirection if needed
 		$url = $this->_response->getRedirection();
@@ -281,13 +285,13 @@ class Framework {
 	/* ********** PRIVATE METHODS ********** */
 	/**
 	 * Load the configuration file.
-	 * @throws	\Temma\Exceptions\FrameworkException	If the file is not readable and well-formed.
+	 * @throws	\Temma\Exceptions\Framework	If the file is not readable and well-formed.
 	 */
 	private function _loadConfig() : void {
 		// fetch the path to the application root path
 		$appPath = realpath(dirname($_SERVER['SCRIPT_FILENAME']) . '/..');
 		if (empty($appPath) || !is_dir($appPath))
-			throw new \Temma\Exceptions\FrameworkException("Unable to find application's root path.", \Temma\Exceptions\FrameworkException::CONFIG);
+			throw new TµFrameworkException("Unable to find application's root path.", TµFrameworkException::CONFIG);
 		// read the configuration
 		$this->_config = new \Temma\Web\Config($appPath);
 		$this->_config->readConfigurationFile();
@@ -296,7 +300,7 @@ class Framework {
 	/* ********** CONTROLLERS/PLUGINS LOADING ********** */
 	/**
 	 * Define the name of the loaded controller
-	 * @throws	\Temma\Exceptions\HttpException	If the controller doesn't exist.
+	 * @throws	\Temma\Exceptions\Http	If the controller doesn't exist.
 	 */
 	private function _setControllerName() : void {
 		$this->_initControllerName = $this->_controllerName = $this->_request->getController();
@@ -323,7 +327,7 @@ class Framework {
 					$firstLetter = substr($this->_controllerName, 0, 1);
 					if ($firstLetter != lcfirst($firstLetter)) {
 						TµLog::log('Temma/Web', 'ERROR', "Bad name for controller '" . $this->_controllerName . "' (must start by a lower-case character).");
-						throw new \Temma\Exceptions\HttpException("Bad name for controller '" . $this->_controllerName . "' (must start by a lower-case character).", 404);
+						throw new TµHttpException("Bad name for controller '" . $this->_controllerName . "' (must start by a lower-case character).", 404);
 					}
 					// ensure the controller object's name starts with an upper-case letter
 					$this->_objectControllerName = ucfirst($this->_controllerName);
@@ -345,7 +349,7 @@ class Framework {
 			$this->_objectControllerName = $this->_config->defaultController;
 			if (empty($this->_objectControllerName)) {
 				TµLog::log('Temma/Wen', 'ERROR', "No defined controller.");
-				throw new \Temma\Exceptions\HttpException("No defifned controller.", 404);
+				throw new TµHttpException("No defifned controller.", 404);
 			}
 		}
 		// if the controller object's name doesn't start with a backslash, prepend the default namespace
@@ -359,13 +363,13 @@ class Framework {
 		} catch (\ReflectionException $e) {
 			// the requested controller object doesn't exist, use the default controller
 			//TµLog::log('Temma/Web', 'ERROR', "No controller object '" . $this->_objectControllerName . "'.");
-			//throw new \Temma\Exceptions\HttpException("No controller object '" . $this->_objectControllerName . "'.", 404);
+			//throw new \Temma\Exceptions\Http("No controller object '" . $this->_objectControllerName . "'.", 404);
 			$this->_objectControllerName = $this->_config->defaultController;
 			$this->_controllerReflection = new \ReflectionClass($this->_objectControllerName);
 		}
 		// check how the controller name is spelled
 		if ($this->_controllerReflection->getName() !== trim($this->_objectControllerName, '\ '))
-			throw new \Temma\Exceptions\HttpException("Bad name for controller '" . $this->_controllerName . "'.", 404);
+			throw new TµHttpException("Bad name for controller '" . $this->_controllerName . "'.", 404);
 	}
 	/**
 	 * Generate the list of pre-plugins.
@@ -408,7 +412,7 @@ class Framework {
 	 * @param	string	$pluginName	Name of the plugin object.
 	 * @param	string	$pluginType	Type of plugin ('pre' or 'post').
 	 * @return	int	Plugin execution status.
-	 * @throws	\Temma\Exceptions\HttpException	If the plugin doesn't exist.
+	 * @throws	\Temma\Exceptions\Http	If the plugin doesn't exist.
 	 */
 	private function _execPlugin(string $pluginName, string $pluginType) : ?int {
 		TµLog::log('Temma/Web', 'INFO', "Executing plugin '$pluginName'.");
@@ -420,14 +424,14 @@ class Framework {
 				$fullPluginName = "$defaultNamespace\\" . $pluginName;
 				if (empty($defaultNamespace) || !class_exists($fullPluginName)) {
 					TµLog::log('Temma/Web', 'ERROR', "Plugin '$pluginName' doesn't exist.");
-					throw new \Temma\Exceptions\HttpException("Plugin '$pluginName' doesn't exist.", 500);
+					throw new TµHttpException("Plugin '$pluginName' doesn't exist.", 500);
 				}
 				$pluginName = $fullPluginName;
 			}
 			// check object's type
 			if (!is_subclass_of($pluginName, '\Temma\Web\Plugin')) {
 				TµLog::log('Temma/Web', 'ERROR', "Plugin '$pluginName' is not a subclass of \\Temma\\Web\\Plugin.");
-				throw new \Temma\Exceptions\HttpException("Plugin '$pluginName' is not a subclass of \\Temma\\Web\\Plugin.", 500);
+				throw new TµHttpException("Plugin '$pluginName' is not a subclass of \\Temma\\Web\\Plugin.", 500);
 			}
 			// define the plugin method that must be called
 			$methodName = ($pluginType === 'pre') ? self::PLUGINS_PREPLUGIN_METHOD : self::PLUGINS_POSTPLUGIN_METHOD;
@@ -437,22 +441,22 @@ class Framework {
 				$reflector = new \ReflectionMethod($pluginName, $methodName);
 				if ($reflector->getDeclaringClass()->getName() !== ltrim($pluginName, '\\')) {
 					TµLog::log('Temma/Web', 'ERROR', "Plugin '$pluginName' has no executable '$pluginType' method.");
-					throw new \Temma\Exceptions\HtppException("Plugin '$pluginName' has no executable '$pluginType' method.", 500);
+					throw new TµHttpException("Plugin '$pluginName' has no executable '$pluginType' method.", 500);
 				}
 			}
 			// execute the plugin
 			$plugin = new $pluginName($this->_loader, $this->_executorController);
 			$pluginReturn = $plugin->$methodName();
 			return ($pluginReturn);
-		} catch (Exception $e) { }
+		} catch (\Exception $e) { }
 		TµLog::log('Temma/Web', 'DEBUG', "Unable to execute plugin '$pluginName'::'$methodName'.");
-		throw new \Temma\Exceptions\HttpException("Unable to execute plugin '$pluginName'::'$methodName'.", 500);
+		throw new TµHttpException("Unable to execute plugin '$pluginName'::'$methodName'.", 500);
 	}
 
 	/* ********** ACTION ********** */
 	/**
 	 * Define the name of the action to execute.
-	 * @throws	\Temma\Exceptions\HttpException	If the requested action doesn't exist.
+	 * @throws	\Temma\Exceptions\Http	If the requested action doesn't exist.
 	 */
 	private function _setActionName() : void {
 		if (empty($this->_actionName = $this->_request->getAction()))
@@ -462,7 +466,7 @@ class Framework {
 		          $this->_actionName === self::PLUGINS_PLUGIN_METHOD) &&
 		         is_a($this->_objectControllerName, '\Temma\Web\Plugin')) {
 			TµLog::l('Temma/Web', 'ERROR', "Try to execute a plugin method as an action on the controller '" . $this->_objectControllerName . "'.");
-			throw new \Temma\Exceptions\HttpException("Try to execute a plugin method as an action on the controller '" . $this->_objectControllerName . "'.", 500);
+			throw new TµHttpException("Try to execute a plugin method as an action on the controller '" . $this->_objectControllerName . "'.", 500);
 		}
 	}
 
@@ -470,7 +474,7 @@ class Framework {
 	/**
 	 * Load the view.
 	 * @return	\Temma\Web\View	Instance of the requested view.
-	 * @throws	\Temma\Exceptions\FrameworkException	If no view can be loaded.
+	 * @throws	\Temma\Exceptions\Framework	If no view can be loaded.
 	 */
 	private function _loadView() : \Temma\Web\View {
 		$name = $this->_response->getView();
@@ -485,12 +489,12 @@ class Framework {
 			return (new $name($this->_dataSources, $this->_config, $this->_response));
 		// the view doesn't exist
 		TµLog::log('Temma/Web', 'ERROR', "Unable to instantiate view '$name'.");
-		throw new \Temma\Exceptions\FrameworkException("Unable to load any view.", \Temma\Exceptions\FrameworkException::NO_VIEW);
+		throw new TµFrameworkException("Unable to load any view.", TµFrameworkException::NO_VIEW);
 	}
 	/**
 	 * View init.
 	 * @param	\Temma\Web\View		$view		The view object.
-	 * @throws	\Temma\Exceptions\FrameworkException	If no template could be used.
+	 * @throws	\Temma\Exceptions\Framework	If no template could be used.
 	 */
 	private function _initView(\Temma\Web\View $view) : void {
 		if ($view->useTemplates()) {
@@ -506,9 +510,9 @@ class Framework {
 			TµLog::log('Temma/Web', 'DEBUG', "Initializing view '" . get_class($view) . "' with template '$template'.");
 			try {
 				$view->setTemplate($this->_config->templatesPath, $template);
-			} catch (\Temma\Exceptions\IOException $ie) {
+			} catch (TµIOException $ie) {
 				TµLog::log('Temma/Web', 'ERROR', "No usable template.");
-				throw new \Temma\Exceptions\FrameworkException("No usable template.", \Temma\Exceptions\FrameworkException::NO_TEMPLATE);
+				throw new TµFrameworkException("No usable template.", TµFrameworkException::NO_TEMPLATE);
 			}
 		}
 		$view->init();

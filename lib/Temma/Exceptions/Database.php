@@ -1,7 +1,7 @@
 <?php
 
 /**
- * DatabaseException
+ * Database
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2007-2019, Amaury Bouchard
  */
@@ -11,7 +11,7 @@ namespace Temma\Exceptions;
 /**
  * Exception for database errors.
  */
-class DatabaseException extends \Exception {
+class Database extends \Exception {
 	/** Fundemental error. */
 	const FUNDAMENTAL = 0;
 	/** Connection error. */

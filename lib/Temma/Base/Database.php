@@ -9,6 +9,7 @@
 namespace Temma\Base;
 
 use \Temma\Base\Log as TµLog;
+use \Temma\Exceptions\Database as TµDatabaseException;
 
 /**
  * Database connexion object.
@@ -310,7 +311,7 @@ class Database extends \Temma\Base\Datasource {
 	 * Creates a prepared query.
 	 * @param	string	$sql	The SQL request.
 	 * @return	\Temma\Base\DatabaseStatement	The statement object.
-	 * @throws	\Temma\Exceptions\DatabaseException	If an error occurs.
+	 * @throws	\Temma\Exceptions\Database	If an error occurs.
 	 */
 	public function prepare(string $sql) : \Temma\Base\DatabaseStatement {
 		TµLog::log('Temma/Base', 'DEBUG', "SQL prepare: $sql");
@@ -319,12 +320,12 @@ class Database extends \Temma\Base\Datasource {
 			$dbStatement = $this->_db->prepare($sql);
 		} catch (\PDOException $pe) {
 			TµLog::log('Temma/Base', 'ERROR', 'Database prepare error: ' . $pe->getMessage());
-			throw new \Temma\Exceptions\DatabaseException($pe->getMessage(), \Temma\Exceptions\DatabaseException::QUERY);
+			throw new TµDatabaseException($pe->getMessage(), TµDatabaseException::QUERY);
 		}
 		if ($dbStatement === false) {
 			$errStr = 'Database prepare error: ' . $this->getError();
 			TµLog::log('Temma/Base', 'ERROR', $errStr);
-			throw new \Temma\Exceptions\DatabaseException($errStr, \Temma\Exceptions\DatabaseException::QUERY);
+			throw new TµDatabaseException($errStr, TµDatabaseException::QUERY);
 		}
 		return (new \Temma\Base\DatabaseStatement($this, $dbStatement));
 	}

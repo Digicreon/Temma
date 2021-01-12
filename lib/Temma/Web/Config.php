@@ -9,6 +9,7 @@
 namespace Temma\Web;
 
 use \Temma\Base\Log as TµLog;
+use \Temma\Exceptions\Framework as TµFrameworkException;
 
 /**
  * Object used to store the configuration of a Temma application.
@@ -114,7 +115,7 @@ class Config {
 	}
 	/**
 	 * Reads the "temma.json" configuration file.
-	 * @throws	\Temma\Exceptions\FrameworkException	If the configuration file is not correct.
+	 * @throws	\Temma\Exceptions\Framework	If the configuration file is not correct.
 	 */
 	public function readConfigurationFile() : void {
 		$this->_etcPath = $this->_appPath . '/' . self::ETC_DIR;
@@ -127,7 +128,7 @@ class Config {
 			$_globalTemmaConfig = json_decode(file_get_contents($jsonConfigPath), true);
 		}
 		if (is_null($_globalTemmaConfig))
-			throw new \Temma\Exceptions\FrameworkException("Unable to read configuration file '$jsonConfigPath'.", \Temma\Exceptions\FrameworkException::CONFIG);
+			throw new TµFrameworkException("Unable to read configuration file '$jsonConfigPath'.", TµFrameworkException::CONFIG);
 		$ini = $_globalTemmaConfig;
 
 		// log file and log manager configuration
@@ -150,8 +151,7 @@ class Config {
 				foreach ($logManager as $manager) {
 					$reflect = new \ReflectionClass($manager);
 					if (!$reflect->implementsInterface('\Temma\Web\LogManager')) {
-						throw new \Temma\Exceptions\FrameworkException("Log manager '$manager' doesn't implements \Temma\Web\LogManager interface.",
-						                                               \Temma\Exceptions\FrameworkException::CONFIG);
+						throw new TµFrameworkException("Log manager '$manager' doesn't implements \Temma\Web\LogManager interface.", TµFrameworkException::CONFIG);
 					}
 					TµLog::addCallback(function($text, $priority, $class) use ($manager) {
 						return $manager::log($text, $priority, $class);

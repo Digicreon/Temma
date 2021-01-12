@@ -8,8 +8,8 @@
 
 namespace Temma\Utils;
 
-use \Temma\Exceptions\IOException as TµIOException;
-use \Temma\Exceptions\ApplicationException as TµApplicationException;
+use \Temma\Exceptions\IO as TµIOException;
+use \Temma\Exceptions\Application as TµApplicationException;
 
 /**
  * Object used to cleanup data using a contract declaration.
@@ -171,8 +171,8 @@ class DataFilter {
 	 * @param	mixed	$contract	The contract. If set to null, the function act as a pass-through.
 	 * @param	bool	$pedantic	(optional) True to throw an exception if the input data doesn't respect the contract. (default: true)
 	 * @return	mixed	The cleaned data.
-	 * @throws	\Temma\Exceptions\IOException		If the contract is not well formed (BAD_FORMAT).
-	 * @throws	\Temma\Exceptions\ApplicationException	If the input data doesn't respect the contract (API).
+	 * @throws	\Temma\Exceptions\IO		If the contract is not well formed (BAD_FORMAT).
+	 * @throws	\Temma\Exceptions\Application	If the input data doesn't respect the contract (API).
 	 */
 	static public function process($in, $contract, bool $pedantic=true) {
 		if ($contract === null)
@@ -279,8 +279,8 @@ class DataFilter {
 	 * @param	?array		$values		(optional) Enum values.
 	 * @param	bool		$pedantic	(optional) True to throw an exception if the input data doesn't respect the contract. (default: true)
 	 * @return	mixed
-	 * @throws	\Temma\Exceptions\IOException		If the type is not supported (BAD_FORMAT).
-	 * @throws	\Temma\Exceptions\ApplicationException	If the input data doesn't respect the contract (API).
+	 * @throws	\Temma\Exceptions\IO		If the type is not supported (BAD_FORMAT).
+	 * @throws	\Temma\Exceptions\Application	If the input data doesn't respect the contract (API).
 	 */
 	static private function _processScalar($in, ?string $type, $default=null, $min=null, $max=null, ?string $mask=null, ?array $values=null, bool $pedantic=true) {
 		$nullable = false;

@@ -8,6 +8,8 @@
 
 namespace Temma;
 
+use \Temma\Exceptions\Dao as TµDaoException;
+
 /**
  * Object used to generate SQL search criteria.
  *
@@ -28,13 +30,14 @@ class DaoCriteria {
 	 * @param	\Temma\Base\Database	$db	Connection to the database.
 	 * @param	\Temma\Dao\Dao		$dao	DAO object.
 	 * @param	string			$type	(optional) 'and', 'or'. (default: 'and')
+	 * @throws	\Temma\Exceptions\Dao	If there is a bad criteria combination.
 	 */
 	public function __construct(\Temma\Base\Database $db, \Temma\Dao\Dao $dao, string $type='and') {
 		$this->_db = $db;
 		$this->_dao = $dao;
 		$this->_elements = [];
 		if (strcasecmp($type, 'and') && strcasecmp($type, 'or'))
-			throw new \Temma\Exceptions\DaoException("Bad criteria combination type '$type'.", \Temma\Exceptions\DaoException::CRITERIA);
+			throw new TµDaoException("Bad criteria combination type '$type'.", TµDaoException::CRITERIA);
 		$this->_type = strtolower($type);
 	}
 	/**

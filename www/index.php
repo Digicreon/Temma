@@ -31,7 +31,7 @@ try {
 	TµLog::log('Temma/Web', 'CRIT', "Critical error: '" . $e->getMessage() . "'.");
 	$errorCode = 500;
 	$errorPage = '';
-	if (is_a($e, '\Temma\Exceptions\HttpException'))
+	if (is_a($e, '\Temma\Exceptions\Http'))
 		$errorCode = $e->getCode();
 	if (isset($temma))
 		$errorPage = $temma->getErrorPage($errorCode);

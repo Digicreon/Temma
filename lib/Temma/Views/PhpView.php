@@ -9,6 +9,7 @@
 namespace Temma\Views;
 
 use \Temma\Base\Log as TµLog;
+use \Temma\Exceptions\IO as TµIOException;
 
 /**
  * View for templates written in plain PHP.
@@ -30,7 +31,7 @@ class PhpView extends \Temma\Web\View {
 	 * Define the used templates file.
 	 * @param	string	$path		Templates include path.
 	 * @param	string	$template	Name of the template.
-	 * @throws	\Temma\Exceptions\IOException	If the template file doesn't exists.
+	 * @throws	\Temma\Exceptions\IO	If the template file doesn't exists.
 	 */
 	public function setTemplate(string $path, string $template) : void {
 		// add the templates include path to the PHP include paths
@@ -42,7 +43,7 @@ class PhpView extends \Temma\Web\View {
 			return;
 		}
 		TµLog::log('Temma/Web', 'WARN', "No one template found with name '$template'.");
-		throw new \Temma\Exceptions\IOException("Can't find template '$template'.", \Temma\Exceptions\IOException::NOT_FOUND);
+		throw new TµIOException("Can't find template '$template'.", TµIOException::NOT_FOUND);
 	}
 	/** Init. */
 	public function init() : void {

@@ -9,6 +9,7 @@
 namespace Temma\Web;
 
 use \Temma\Base\Log as TµLog;
+use \Temma\Exceptions\Framework as TµFrameworkException;
 
 /**
  * Object use to manage HTTP requests.
@@ -33,7 +34,7 @@ class Request {
 	 * Constructor.
 	 * @param	string	$setUri	(optional) Path to use to extract the execution elements (controller, action, parameters),
 	 *				without going through the analysis of the current URL.
-	 * @throws	\Temma\Exceptions\FrameworkException	If no PATH_INFO nor REQUEST_URI data found in the environment.
+	 * @throws	\Temma\Exceptions\Framework	If no PATH_INFO nor REQUEST_URI data found in the environment.
 	 */
 	public function __construct(?string $setUri=null) {
 		TµLog::log('Temma/Web', 'DEBUG', "Request creation.");
@@ -57,7 +58,7 @@ class Request {
 				if (substr($requestUri, 0, $rootPathLen) === $rootPath)
 					$requestUri = substr($requestUri, $rootPathLen);
 			} else
-				throw new \Temma\Exceptions\FrameworkException('No PATH_INFO nor REQUEST_URI environment variable.', \Temma\Exceptions\FrameworkExceptions::CONFIG);
+				throw new TµFrameworkException('No PATH_INFO nor REQUEST_URI environment variable.', TµFrameworkException::CONFIG);
 			// for SEO purpose: if the URL ends with a slash, do a redirection without it
 			// hint: PATH_INFO is not filled when we access to the Temma project's root (being at the site root or in a sub-directory)
 			if (isset($_SERVER['PATH_INFO']) && !empty($PATH_INFO) && substr($requestUri, -1) == '/') {

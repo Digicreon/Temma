@@ -1,7 +1,7 @@
 <?php
 
 /**
- * ApplicationException
+ * Application
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2007-2019, Amaury Bouchard
  */
@@ -11,7 +11,7 @@ namespace Temma\Exceptions;
 /**
  * Exception for application errors.
  */
-class ApplicationException extends \Exception {
+class Application extends \Exception {
 	/** Unknown error. */
 	const UNKNOWN = -1;
 	/** API call error. */

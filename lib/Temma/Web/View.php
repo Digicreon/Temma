@@ -50,7 +50,7 @@ abstract class View {
 	 * Views that doesn't use templates don't need to overload this method.
 	 * @param	string	$path		Path of where to search templates.
 	 * @param	string	$template	Name of the template to use.
-	 * @throws	\Temma\Exceptions\IOException	If the template file doesn't exists.
+	 * @throws	\Temma\Exceptions\IO	If the template file doesn't exists.
 	 */
 	public function setTemplate(string $path, string $template) : void {
 	}

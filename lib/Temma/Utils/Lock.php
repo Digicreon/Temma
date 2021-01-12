@@ -8,6 +8,8 @@
 
 namespace Temma\Utils;
 
+use \Temma\Exceptions\IO as TµIOException;
+
 /**
  * Lock management object.
  *
@@ -24,7 +26,7 @@ namespace Temma\Utils;
  *     ...
  *     // release the lock
  *     $lock->unlock();
- * } catch (\Temma\Exceptions\IOException $e) {
+ * } catch (\Temma\Exceptions\IO $e) {
  *     // input-output error, could be thrown by the lock
  * } catch (\Exception $e) {
  *     // error
@@ -49,7 +51,7 @@ class Lock {
 	 * @param	string	$path		(optional) Path to the file to lock.
 	 *					If not set, try to lock the current PHP script.
 	 * @param	int	$timeout	(optional) Lock duration, in seconds.
-	 * @throws	\Temma\Exceptions\IOException	If the file can't be locked.
+	 * @throws	\Temma\Exceptions\IO	If the file can't be locked.
 	 */
 	public function lock(?string $path=null, ?int $timeout=null) : void {
 		$filePath = is_null($path) ? $_SERVER['SCRIPT_FILENAME'] : $path;
@@ -58,7 +60,7 @@ class Lock {
 		if (!($this->_fileHandle = fopen($this->_lockPath, "a+"))) {
 			$lockPath = $this->_lockPath;
 			$this->_reset();
-			throw new \Temma\Exceptions\IOException("Unable to open file '$lockPath'.", \Temma\Exceptions\IOException::UNREADABLE);
+			throw new TµIOException("Unable to open file '$lockPath'.", TµIOException::UNREADABLE);
 		}
 		if (!flock($this->_fileHandle, LOCK_EX + LOCK_NB)) {
 			// unable to lock the file: checkits age
@@ -79,7 +81,7 @@ class Lock {
 			}
 			fclose($this->_fileHandle);
 			$this->_reset();
-			throw new \Temma\Exceptions\IOException("Unable to lock file '$lockPath'.", \Temma\Exceptions\IOException::UNLOCKABLE);
+			throw new TµIOException("Unable to lock file '$lockPath'.", TµIOException::UNLOCKABLE);
 		}
 		// lock OK: write the PID inside of it
 		ftruncate($this->_fileHandle, 0);
@@ -87,20 +89,20 @@ class Lock {
 	}
 	/**
 	 * Release a lock.
-	 * @throws	\Temma\Exceptions\IOException	If something went wrong.
+	 * @throws	\Temma\Exceptions\IO	If something went wrong.
 	 */
 	public function unlock() : void {
 		if (is_null($this->_fileHandle) || is_null($this->_lockPath)) {
-			throw new \Temma\Exceptions\IOException("No file to unlock.", \Temma\Exceptions\IOException::NOT_FOUND);
+			throw new TµIOException("No file to unlock.", TµIOException::NOT_FOUND);
 		}
 		flock($this->_fileHandle, LOCK_UN);
 		if (!fclose($this->_fileHandle)) {
 			$this->_reset();
-			throw new \Temma\Exceptions\IOException("Unable to close lock file.", \Temma\Exceptions\IOException::FUNDAMENTAL);
+			throw new TµIOException("Unable to close lock file.", TµIOException::FUNDAMENTAL);
 		}
 		if (!unlink($this->_lockPath)) {
 			$this->_reset();
-			throw new \Temma\Exceptions\IOException("Unable to delete lock file.", \Temma\Exceptions\IOException::FUNDAMENTAL);
+			throw new TµIOException("Unable to delete lock file.", TµIOException::FUNDAMENTAL);
 		}
 		$this->_reset();
 	}

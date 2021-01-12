@@ -9,6 +9,7 @@
 namespace Temma\Web;
 
 use \Temma\Base\Log as TµLog;
+use \Temma\Exceptions\Http as TµHttpException;
 
 /**
  * Basic object for controllers management.
@@ -272,14 +273,14 @@ class Controller implements \ArrayAccess {
 	 * @param	array	$parameters	(optional) List of parameters given to the sub-controller.
 	 *					If not given, use the parameters received by the main controller.
 	 * @return	int|null	The sub-controller's execution status (self::EXE_FORWARD, etc.). Could be null (==self::EXEC_FORWARD).
-	 * @throws	\Temma\Exceptions\FrameworkException	If the requested controller or action doesn't exist.
+	 * @throws	\Temma\Exceptions\Http	If the requested controller or action doesn't exist.
 	 */
 	final public function subProcess(string $controller, ?string $action=null, ?array $parameters=null) : ?int {
 		TµLog::log('Temma/Web', 'DEBUG', "Subprocess of '$controller'::'$action'.");
 		// checks
 		if (!class_exists($controller) || !is_subclass_of($controller, '\Temma\Web\Controller')) {
 			TµLog::log('Temma/Web', 'ERROR', "Sub-controller '$controller' doesn't exists.");
-			throw new \Temma\Exceptions\HttpException("Unable to find controller '$controller'.", 404);
+			throw new TµHttpException("Unable to find controller '$controller'.", 404);
 		}
 
 		/* ********** init ********** */
@@ -291,7 +292,7 @@ class Controller implements \ArrayAccess {
 			$status = $obj->$method();
 		} catch (\Error $e) {
 			TµLog::log('Temma/Web', 'ERROR', "Unable to initialize the controller '$controller': " . $e->getMessage());
-			throw new \Temma\Exceptions\HttpException("Unable to initialize the controller '$controller'.", 500);
+			throw new TµHttpException("Unable to initialize the controller '$controller'.", 500);
 		}
 		if ($status !== self::EXEC_FORWARD)
 			return ($status);
@@ -307,12 +308,12 @@ class Controller implements \ArrayAccess {
 			} else if (!($firstLetter = $action[0]) || $firstLetter !== strtolower($firstLetter)) {
 				// the action must start with a lower-case letter
 				TµLog::log('Temma/Web', 'ERROR', "Actions must start with a lower-case letter (here: '$action').");
-				throw new \Temma\Exceptions\HttpException("Actions must start with a lower-case letter (here: '$action').", 404);
+				throw new TµHttpException("Actions must start with a lower-case letter (here: '$action').", 404);
 			}
 			// check that the action could be executed
 			if (!is_callable([$obj, $action])) {
 				// no proxy action, and no callable action method
-				throw new \Temma\Exceptions\HttpException("Unable to find action '$action' on controller '$controller'.", 404);
+				throw new TµHttpException("Unable to find action '$action' on controller '$controller'.", 404);
 			}
 			// the requested action is set, or there is a default action that could handle it
 			$method = $action;
@@ -324,10 +325,10 @@ class Controller implements \ArrayAccess {
 			$status = $obj->$method(...$parameters);
 		} catch (\ArgumentCountError $ace) {
 			TµLog::log('Temma/Web', 'ERROR', "$controller::$method: " . $ace->getMessage());
-			throw new \Temma\Exceptions\HttpException("$controller::$method: " . $ace->getMessage(), 404);
+			throw new TµHttpException("$controller::$method: " . $ace->getMessage(), 404);
 		} catch (\Error $e) {
 			TµLog::log('Temma/Web', 'ERROR', "$controller::$method: " . $e->getMessage());
-			throw new \Temma\Exceptions\HttpException("Unable to execute method '$method' on controller '$controller'.", 404);
+			throw new TµHttpException("Unable to execute method '$method' on controller '$controller'.", 404);
 		}
 		if ($status !== self::EXEC_FORWARD)
 			return ($status);
@@ -338,7 +339,7 @@ class Controller implements \ArrayAccess {
 			$status = $obj->$method();
 		} catch (\Error $e) {
 			TµLog::log('Temma/Web', 'ERROR', "Unable to finalize the controller '$controller'.");
-			throw new \Temma\Exceptions\HttpException("Unable to finalize the controller '$controller'.", 500);
+			throw new TµHttpException("Unable to finalize the controller '$controller'.", 500);
 		}
 		return ($status);
 	}

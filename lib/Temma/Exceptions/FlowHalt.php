@@ -1,9 +1,9 @@
 <?php
 
 /**
- * FlowForwardException
+ * FlowHalt
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2021, Amaury Bouchard
+ * @copyright	© 2020, Amaury Bouchard
  */
 
 namespace Temma\Exceptions;
@@ -11,10 +11,10 @@ namespace Temma\Exceptions;
 /**
  * Exception used to control the execution flow of the framework.
  */
-class FlowForwardException extends \Temma\Exceptions\FlowException {
+class FlowHalt extends \Temma\Exceptions\FlowException {
 	/** Constructor. */
 	public function __construct() {
-		parent::__construct(null, \Temma\Web\Controller::EXEC_FORWARD);
+		parent::__construct(null, \Temma\Web\Controller::EXEC_HALT);
 	}
 }
 

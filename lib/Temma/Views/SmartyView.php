@@ -9,6 +9,8 @@
 namespace Temma\Views;
 
 use \Temma\Base\Log as TµLog;
+use \Temma\Exceptions\Framewor as TµFrameworkException;
+use \Temma\Exceptions\IO as TµIOException;
 
 require_once('smarty3/Smarty.class.php');
 
@@ -36,7 +38,7 @@ class SmartyView extends \Temma\Web\View {
 	 * @param	array			$dataSources	Liste de connexions à des sources de données.
 	 * @param	\Temma\Web\Config	$config		Objet de configuration.
 	 * @param	\Temma\Web\Response	$response	Objet de réponse.
-	 * @throws	\Temma\Exceptions\FrameworkException	If something went wrong.
+	 * @throws	\Temma\Exceptions\Framework	If something went wrong.
 	 */
 	public function __construct(array $dataSources, \Temma\Web\Config $config, ?\Temma\Web\Response $response) {
 		global $smarty;
@@ -45,10 +47,10 @@ class SmartyView extends \Temma\Web\View {
 		// check temporary directories
 		$compiledDir = $config->tmpPath . '/' . self::COMPILED_DIR;
 		if (!is_dir($compiledDir) && !mkdir($compiledDir, 0755))
-			throw new \Temma\Exceptions\FrameworkException("Unable to create directory '$compiledDir'.", \Temma\Exceptions\FrameworkException::CONFIG);
+			throw new TµFrameworkException("Unable to create directory '$compiledDir'.", TµFrameworkException::CONFIG);
 		$cacheDir = $config->tmpPath . '/' . self::CACHE_DIR;
 		if (!is_dir($cacheDir) && !mkdir($cacheDir, 0755))
-			throw new \Temma\Exceptions\FrameworkException("Unable to create directory '$cacheDir'.", \Temma\Exceptions\FrameworkException::CONFIG);
+			throw new TµFrameworkException("Unable to create directory '$cacheDir'.", TµFrameworkException::CONFIG);
 		// create the Smarty object
 		$this->_smarty = new \Smarty();
 		$smarty = $this->_smarty;
@@ -83,7 +85,7 @@ class SmartyView extends \Temma\Web\View {
 	 * Define template file.
 	 * @param	string	$path		Templates include path.
 	 * @param	string	$template	Name of the template.
-	 * @throws	\Temma\Exceptions\IOException	If the template file doesn't exist.
+	 * @throws	\Temma\Exceptions\IO	If the template file doesn't exist.
 	 */
 	public function setTemplate(string $path, string $template) : void {
 		TµLog::log('Temma/Web', 'DEBUG', "Searching template '$template'.");
@@ -98,7 +100,7 @@ class SmartyView extends \Temma\Web\View {
 			return;
 		}
 		TµLog::log('Temma/Web', 'WARN', "No one template found with name '$template'.");
-		throw new \Temma\Exceptions\IOException("Can't find template '$template'.", \Temma\Exceptions\IOException::NOT_FOUND);
+		throw new TµIOException("Can't find template '$template'.", TµIOException::NOT_FOUND);
 	}
 	/** Init. */
 	public function init() : void {

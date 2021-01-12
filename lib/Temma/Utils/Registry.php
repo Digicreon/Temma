@@ -9,6 +9,7 @@
 namespace Temma\Utils;
 
 use \Temma\Base\Log as TµLog;
+use \Temma\Exceptions\IO as TµIOException;
 
 /**
  * Registry object, useful to store global data.
@@ -249,14 +250,14 @@ class Registry implements \ArrayAccess {
 	 * @param	string	$path	Path to the XML file.
 	 * @param	string	$key	Name of the key which associated value will contain the XML data.
 	 * @return	\Temma\Utils\Registry	The current object.
-	 * @throws	\Temma\Exceptions\IOException	If the XML file can't be read.
+	 * @throws	\Temma\Exceptions\IO	If the XML file can't be read.
 	 */
 	public function readXml(string $path, string $key) : \Temma\Utils\Registry {
 		// read XML file
 		$xml = simplexml_load_file($path);
 		if ($xml === false) {
 			TµLog::log('Temma/Utils', 'WARN', "Unable to read XML file '$path'.");
-			throw new \Temma\Exceptions\IOException("Unable to read XML file '$path'.", \Temma\Exceptions\IOException::BAD_FORMAT);
+			throw new TµIOException("Unable to read XML file '$path'.", TµIOException::BAD_FORMAT);
 		}
 		// store the XML data
 		$this->set($key, $xml);

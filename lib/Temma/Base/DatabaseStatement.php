@@ -9,6 +9,7 @@
 namespace Temma\Base;
 
 use \Temma\Base\Log as TµLog;
+use \Temma\Exceptions\Database as TµDatabaseException;
 
 /**
  * Database statement object.
@@ -42,24 +43,24 @@ class DatabaseStatement {
 	 * Executes a prepared query without fetching data.
 	 * @param	?array	$parameters	(optional) Array of parameters.
 	 * @return	int	The number of modified lines.
-	 * @throws	\Temma\Exceptions\DatabaseException	If an error occurs.
+	 * @throws	\Temma\Exceptions\Database	If an error occurs.
 	 */
 	public function exec(?array $parameters=null) : int {
 		if (!$this->_statement->execute($parameters)) {
 			$err = $this->_statement->errorCode();
-			throw new \Temma\Exceptions\DatabaseException($err, \Temma\Exceptions\DatabaseException::QUERY);
+			throw new TµDatabaseException($err, TµDatabaseException::QUERY);
 		}
 		return ($this->_statement->rowCount());
 	}
 	/**
 	 * Executes a prepared SQL query and fetch one line of data.
 	 * @return	array	An associative array which contains the line of data.
-	 * @throws	\Temma\Exceptions\DatabaseException	If an error occurs.
+	 * @throws	\Temma\Exceptions\Database	If an error occurs.
 	 */
 	public function queryOne() : array {
 		if (!$this->_statement->execute($parameters)) {
 			$err = $this->_statement->errorCode();
-			throw new \Temma\Exceptions\DatabaseException($err, \Temma\Exceptions\DatabaseException::QUERY);
+			throw new TµDatabaseException($err, TµDatabaseException::QUERY);
 		}
 		return ($this->_statement->fetchAll(PDO::FETCH_ASSOC));
 	}
@@ -67,12 +68,12 @@ class DatabaseStatement {
 	 * Executes a prepared query and fetch all lines of returned data
 	 * @param	?array	$parameters	(optional) Array of parameters.
 	 * @return	bool	True if everything was fine, false otherwise.
-	 * @throws	\Temma\Exceptions\DatabaseException	If an error occurs.
+	 * @throws	\Temma\Exceptions\Database	If an error occurs.
 	 */
 	public function queryAll(?array $parameters=null) : bool {
 		if (!$this->_statement->execute($parameters)) {
 			$err = $this->_statement->errorCode();
-			throw new \Temma\Exceptions\DatabaseException($err, \Temma\Exceptions\DatabaseException::QUERY);
+			throw new TµDatabaseException($err, TµDatabaseException::QUERY);
 		}
 		return ($this->_statement->fetchAll(PDO::FETCH_ASSOC));
 	}

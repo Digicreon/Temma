@@ -8,6 +8,9 @@
 
 namespace Temma\Base;
 
+use \Temma\Exceptions\Application as TµApplicationException;
+use \Temma\Exceptions\IO as TµIOException;
+
 /**
  * Object for log management.
  *
@@ -290,15 +293,15 @@ class Log {
 	 * @param	string|null	$class			Log class of the message. Could be null.
 	 * @param	string|null	$priority		Criticity level of the message. Could be null.
 	 * @param	string		$message		Text message.
-	 * @throws	\Temma\Exceptions\ApplicationException	If no log file was defined.
-	 * @throws	\Temma\Exceptions\IOException		If there was a writing error.
+	 * @throws	\Temma\Exceptions\Application	If no log file was defined.
+	 * @throws	\Temma\Exceptions\IO		If there was a writing error.
 	 */
 	static private function _writeLog(?string $class, ?string $priority, string $message) : void {
 		if (!self::$_enable)
 			return;
 		// check if there is a configured output
 		if (!self::$_logPath && !self::$_logToStdOut && !self::$_logToStdErr && !self::$_logCallbacks)
-			throw new \Temma\Exceptions\ApplicationException('No log file set.', \Temma\Exceptions\ApplicationException::API);
+			throw new TµApplicationException('No log file set.', TµApplicationException::API);
 		// create the message
 		$text = date('c') . ' [' . self::$_requestId . '] ' . (isset(self::$_labels[$priority]) ? (self::$_labels[$priority] . ' ') : '');
 		if (!empty($class) && $class != self::DEFAULT_CLASS)
@@ -323,7 +326,7 @@ class Log {
 			$path = self::$_logPath;
 			$flags = (substr($path, 0, 6) != 'php://') ? FILE_APPEND : null;
 			if (file_put_contents($path, $text, $flags) === false)
-				throw new \Temma\Exceptions\IOException("Unable to write on log file '$path'.", \Temma\Exceptions\IOException::UNWRITABLE);
+				throw new TµIOException("Unable to write on log file '$path'.", TµIOException::UNWRITABLE);
 		}
 		// output: stdout
 		if (self::$_logToStdOut)

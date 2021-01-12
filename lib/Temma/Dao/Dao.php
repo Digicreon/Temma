@@ -8,6 +8,8 @@
 
 namespace Temma\Dao;
 
+use \Temma\Exceptions\Dao as TµDaoException;
+
 /**
  * Basic object for database access.
  *
@@ -89,7 +91,7 @@ class Dao {
 	 * @param	string			$dbName		(optional) Name of the database.
 	 * @param	array			$fields		(optional) List of table's fields (may be remapped 'table_field' => 'aliased_name').
 	 * @param	string			$criteriaObject	(optional) Name of the criteria object. (default: \Temma\Dao\Criteria)
-	 * @throws	\Temma\Exceptions\DaoException	Si l'objet de critère n'est pas bon.
+	 * @throws	\Temma\Exceptions\Dao	If the criteria object is not of the right type.
 	 */
 	public function __construct(\Temma\Base\Database $db, \Temma\Base\Cache $cache=null, string $tableName=null, string $idField='id', string $dbName=null,
 	                            array $fields=null, string $criteriaObject=null) {
@@ -107,7 +109,7 @@ class Dao {
 			$this->_fields = [];
 		if (!empty($criteriaObject)) {
 			if (!is_subclass_of($criteriaObject, '\Temma\Dao\Criteria'))
-				throw new \Temma\Exceptions\DaoException("Bad object type.", \Temma\Exceptions\DaoException::CRITERIA);
+				throw new TµDaoException("Bad object type.", TµDaoException::CRITERIA);
 			$this->_criteriaObject = $criteriaObject;
 		}
 	}
@@ -174,8 +176,8 @@ class Dao {
 	 *					  otherwise the field will keep its former value in database)
 	 *					- TRUE to update all fields (using the values given as the first parameter)
 	 * @return	int	The primary key of the created record.
-	 * @throws	\Temma\Exceptions\DaoException	If the input data are not well formed.
-	 * @throws	Exception			If there was a problem during insertion.
+	 * @throws	\Temma\Exceptions\Dao	If the input data are not well formed.
+	 * @throws	\Exception		If there was a problem during insertion.
 	 */
 	public function create(array $data, $safeData=null) : int {
 		// Flush cache for this DAO
@@ -189,7 +191,7 @@ class Dao {
 				$set[] = "`$key` = NULL";
 			else {
 				if (!is_string($value) && !is_numeric($value) && !is_bool($value))
-					throw new \Temma\Exceptions\DaoException("Bad field value for key '$key'.", \Temma\Exceptions\DaoException::FIELD);
+					throw new TµDaoException("Bad field value for key '$key'.", TµDaoException::FIELD);
 				$key = (($field = array_search($key, $this->_fields)) === false || is_int($field)) ? $key : $field;
 				$set[] = "`$key` = " . $this->_db->quote($value);
 			}
@@ -278,7 +280,7 @@ class Dao {
 	 * @param	?string|\Temma\Dao\Criteria	$criteria	Primary key of the record that must be updated, or a search criteria.
 	 *					Null to update all records. (default: null)
 	 * @param	array	$fields		Associative array where the keys are the fields to update, and their values are the new values to update.
-	 * @throws	\Temma\Exceptions\DaoException	If the criteria or the fields array are not well formed.
+	 * @throws	\Temma\Exceptions\Dao	If the criteria or the fields array are not well formed.
 	 */
 	public function update($criteria=null, array $fields) : void {
 		// effacement du cache pour cette DAO
@@ -299,7 +301,7 @@ class Dao {
 			else if (is_null($value))
 				$set[] = "`$field` = NULL";
 			else
-				throw new \Temma\Exceptions\DaoException("Bad field '$field' value.", \Temma\Exceptions\DaoException::VALUE);
+				throw new TµDaoException("Bad field '$field' value.", TµDaoException::VALUE);
 		}
 		$sql .= implode(',', $set);
 		$sql .= ' WHERE ';
@@ -308,7 +310,7 @@ class Dao {
 		else if ($criteria instanceof \Temma\Dao\Criteria)
 			$sql .= $criteria->generate();
 		else
-			throw new \Temma\Exceptions\DaoException("Bad criteria type.", \Temma\Exceptions\DaoException::CRITERIA);
+			throw new TµDaoException("Bad criteria type.", TµDaoException::CRITERIA);
 		$this->_db->exec($sql);
 	}
 	/**
