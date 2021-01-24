@@ -416,6 +416,7 @@ class Framework {
 	 */
 	private function _execPlugin(string $pluginName, string $pluginType) : ?int {
 		TµLog::log('Temma/Web', 'INFO', "Executing plugin '$pluginName'.");
+		$methodName = ($pluginType === 'pre') ? self::PLUGINS_PREPLUGIN_METHOD : self::PLUGINS_POSTPLUGIN_METHOD;
 		try {
 			// check that the plugin exists
 			if (!class_exists($pluginName)) {
@@ -434,7 +435,6 @@ class Framework {
 				throw new TµHttpException("Plugin '$pluginName' is not a subclass of \\Temma\\Web\\Plugin.", 500);
 			}
 			// define the plugin method that must be called
-			$methodName = ($pluginType === 'pre') ? self::PLUGINS_PREPLUGIN_METHOD : self::PLUGINS_POSTPLUGIN_METHOD;
 			$reflector = new \ReflectionMethod($pluginName, $methodName);
 			if ($reflector->getDeclaringClass()->getName() !== ltrim($pluginName, '\\')) {
 				$methodName = self::PLUGINS_PLUGIN_METHOD;
