@@ -33,6 +33,8 @@ try {
 	$errorPage = '';
 	if (is_a($e, '\Temma\Exceptions\Http'))
 		$errorCode = $e->getCode();
+	else
+		TµLog::log('Temma/Web', 'CRIT', $e->getTrace());
 	if (isset($temma))
 		$errorPage = $temma->getErrorPage($errorCode);
 	$errorString = errorCodeToErrorString($errorCode);
