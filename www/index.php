@@ -26,7 +26,7 @@ try {
 	$temma = new \Temma\Web\Framework();
 	$temma->init();
 	$temma->process();
-} catch (Exception $e) {
+} catch (\Throwable $e) {
 	// error management
 	TµLog::log('Temma/Web', 'CRIT', "Critical error: '" . $e->getMessage() . "'.");
 	$errorCode = 500;
