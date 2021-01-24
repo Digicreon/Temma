@@ -79,7 +79,7 @@ class Loader extends \Temma\Utils\Registry {
 	/* ************************ CONSTRUCTION ********************** */
 	/**
 	 * Constructor.
-	 * @param	array	$data		(optional) Associative array of data used to fill the registry.
+	 * @param	array		$data		(optional) Associative array of data used to fill the registry.
 	 * @param	\Closure	$builder	(optional) Builder function.
 	 */
 	public function __construct(?array $data=null, ?\Closure $builder=null) {

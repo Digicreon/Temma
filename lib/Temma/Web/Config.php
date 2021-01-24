@@ -134,7 +134,7 @@ class Config {
 		// log file and log manager configuration
 		$logPath = null;
 		if (!array_key_exists('logFile', $ini))
-			$logPath = self::LOG_DIR;
+			$logPath = self::LOG_DIR . '/' . self::LOG_FILE;
 		else if (is_string($ini['logFile']) && !empty($ini['logFile']))
 			$logPath = $ini['logFile'];
 		if ($logPath && $logPath[0] != '/')
