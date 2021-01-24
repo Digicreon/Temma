@@ -82,8 +82,9 @@ class Framework {
 		else {
 			$this->_dataSources = [];
 			$foundDb = $foundCache = false;
-			foreach ($this->_config->dataSources as $name => $dsn)
+			foreach ($this->_config->dataSources as $name => $dsn) {
 				$this->_dataSources[$name] = \Temma\Base\Datasource::factory($dsn);
+			}
 		}
 		// get the session if needed
 		if ($this->_config->enableSessions) {

@@ -110,7 +110,7 @@ class Cache extends Datasource {
 	 * Returns the current cache expiration delay.
 	 * @return	int	The current expiration delay.
 	 */
-	public function getExpiration(void) : int {
+	public function getExpiration() : int {
 		return ($this->_defaultExpiration);
 	}
 	/**
