@@ -318,7 +318,7 @@ class Log {
 				self::$_logPath = $result['logPath'];
 			if (isset($result['logToStdOut']) && is_bool($result['logToStdOut']))
 				self::$_logToStdOut = $result['logToStdOut'];
-			if (isset($result['logToStdErr'] && is_bool($result['logToStdErr']))
+			if (isset($result['logToStdErr']) && is_bool($result['logToStdErr']))
 				self::$_logToStdErr = $result['logToStdErr'];
 		}
 		// output: log file
