@@ -415,6 +415,11 @@ class Framework {
 		TµLog::log('Temma/Web', 'INFO', "Executing plugin '$pluginName'.");
 		$methodName = ($pluginType === 'pre') ? self::PLUGINS_PREPLUGIN_METHOD : self::PLUGINS_POSTPLUGIN_METHOD;
 		try {
+			// if the plugin object's name doesn't start with a backslash, prepend the default namespace
+			if ($pluginName[0] != '\\') {
+				$defaultNamespace = rtrim($this->_config->defaultNamespace, '\\');
+				$pluginName = "$defaultNamespace\\$pluginName";
+			}
 			// check that the plugin exists
 			if (!class_exists($pluginName)) {
 				// can't find the object, try with the default namespace
@@ -478,7 +483,7 @@ class Framework {
 		TµLog::log('Temma/Web', 'INFO', "Loading view '$name'.");
 		// no defined view, use the default view
 		if (empty($name)) {
-			TµLog::log('Temma/Web', 'DEBUG', "Using default view.");
+			TµLog::log('Temma/Web', 'DEBUG', "Using default view '" . $this->_config->defaultView . "'.");
 			$name = $this->_config->defaultView;
 		}
 		// load the view
