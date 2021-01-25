@@ -1,7 +1,7 @@
 <?php
 
 /**
- * JsonView
+ * Json view
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2010-2019, Amaury Bouchard
  */
@@ -16,7 +16,7 @@ namespace Temma\Views;
  *
  * @link	http://json.org/
  */
-class JsonView extends \Temma\Web\View {
+class Json extends \Temma\Web\View {
 	/** Data that must be JSON-encoded. */
 	private $_data = null;
 	/** Debug mode. */

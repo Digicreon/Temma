@@ -1,7 +1,7 @@
 <?php
 
 /**
- * RssView
+ * Rss view
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	2009-2020, Amaury Bouchard
  */
@@ -28,7 +28,7 @@ namespace Temma\Views;
  * </li>
  * </ul>
  */
-class RssView extends \Temma\Web\View {
+class Rss extends \Temma\Web\View {
 	/** Site title. */
 	private $_title = null;
 	/** Site URL. */

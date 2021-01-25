@@ -1,7 +1,7 @@
 <?php
 
 /**
- * PhpView
+ * Php view
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2010-2019, Amaury Bouchard
  */
@@ -14,7 +14,7 @@ use \Temma\Exceptions\IO as TµIOException;
 /**
  * View for templates written in plain PHP.
  */
-class PhpView extends \Temma\Web\View {
+class Php extends \Temma\Web\View {
 	/** Tell if the generated page could be stored in cache. */
 	private $_isCacheable = false;
 	/** Name of the template. */

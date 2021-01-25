@@ -1,7 +1,7 @@
 <?php
 
 /**
- * SmartyView
+ * Smarty view
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	2007-2019, Amaury Bouchard
  */
@@ -19,7 +19,7 @@ require_once('smarty3/Smarty.class.php');
  *
  * @link	http://smarty.net/
  */
-class SmartyView extends \Temma\Web\View {
+class Smarty extends \Temma\Web\View {
 	/** Name of the temporary directory where Smarty compiled files must be written. */
 	const COMPILED_DIR = 'templates_compile';
 	/** Name of the temporary directory where Smarty cache files must be written. */

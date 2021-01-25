@@ -1,7 +1,7 @@
 <?php
 
 /**
- * ICalView
+ * ICal view
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2010-2019, Amaury Bouchard
  */
@@ -13,7 +13,7 @@ namespace Temma\Views;
  * Get its data from an "ical" template variable.
  * The name of the downloaded file is fetched from the "filename" template variable.
  */
-class ICalView extends \Temma\Web\View {
+class ICal extends \Temma\Web\View {
 	/** Calendar data. */
 	private $_ical = null;
 	/** Name of the downloadable file. */
