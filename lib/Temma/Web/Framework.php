@@ -22,9 +22,9 @@ use \Temma\Exceptions\IO as TµIOException;
  */
 class Framework {
 	/** Name of the roott action. */
-	const CONTROLLERS_ROOT_ACTION = 'index';
+	const CONTROLLERS_ROOT_ACTION = '__invoke';
 	/** Name of the proxy action. */
-	const CONTROLLERS_PROXY_ACTION = '__invoke';
+	const CONTROLLERS_PROXY_ACTION = '__clone';
 	/** Name of controllers' init method. */
 	const CONTROLLERS_INIT_METHOD = '__wakeup';
 	/** Name of controllers' finalize method. */
@@ -77,14 +77,10 @@ class Framework {
 		// load the configuration, log system init
 		$this->_loadConfig();
 		// connect to data sources
-		if (isset($this->_executorController))
-			$this->_dataSources = $this->_executorController->getDataSources();
-		else {
-			$this->_dataSources = [];
-			$foundDb = $foundCache = false;
-			foreach ($this->_config->dataSources as $name => $dsn) {
-				$this->_dataSources[$name] = \Temma\Base\Datasource::factory($dsn);
-			}
+		$this->_dataSources = [];
+		$foundDb = $foundCache = false;
+		foreach ($this->_config->dataSources as $name => $dsn) {
+			$this->_dataSources[$name] = \Temma\Base\Datasource::factory($dsn);
 		}
 		// get the session if needed
 		if ($this->_config->enableSessions) {
@@ -181,7 +177,7 @@ class Framework {
 				// process the controller
 				TµLog::log('Temma/Web', 'DEBUG', "Controller processing.");
 				try {
-					$execStatus = $this->_executorController->subProcess($this->_objectControllerName, $this->_actionName);
+					$execStatus = $this->_executorController->_subProcess($this->_objectControllerName, $this->_actionName);
 				} catch (TµFlowException $fe) {
 					$execStatus = $fe->getCode();
 				}
