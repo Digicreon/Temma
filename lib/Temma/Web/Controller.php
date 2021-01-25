@@ -58,7 +58,7 @@ class Controller implements \ArrayAccess {
 		}
 		// creation of the DAO if needed
 		if (isset($executor) && isset($this->_temmaAutoDao) && $this->_temmaAutoDao !== false) {
-			$this->_dao = $this->loadDao($this->_temmaAutoDao);
+			$this->_dao = $this->_loadDao($this->_temmaAutoDao);
 		}
 	}
 	/** Destructor. */
@@ -87,7 +87,7 @@ class Controller implements \ArrayAccess {
 	 * @param	string|array	$param	Name of the DAO object, or an associative array with parameters.
 	 * @return	\Temma\Dao\Dao	The loaded DAO.
 	 */
-	public function loadDao($param) : \Temma\Dao\Dao {
+	public function _loadDao($param) : \Temma\Dao\Dao {
 		$daoConf = [
 			'object'   => '\Temma\Dao\Dao',
 			'criteria' => null,
@@ -143,7 +143,7 @@ class Controller implements \ArrayAccess {
 	 * @param	int	$code	The HTTP error code.
 	 * @return	int	self::EXEC_HALT (useful value to return from the controller).
 	 */
-	final protected function httpError(int $code) : int {
+	final protected function _httpError(int $code) : int {
 		$this->_loader->response->setHttpError($code);
 		return (self::EXEC_HALT);
 	}
@@ -153,7 +153,7 @@ class Controller implements \ArrayAccess {
 	 * @param	int	$code	The HTTP return code.
 	 * @return	int	self::EXEC_HALT (useful value to return from the controller).
 	 */
-	final protected function httpCode(int $code) : int {
+	final protected function _httpCode(int $code) : int {
 		$this->_loader->response->setHttpCode($code);
 		return (self::EXEC_HALT);
 	}
@@ -162,14 +162,14 @@ class Controller implements \ArrayAccess {
 	 * @return	int	The configured error code (403, 404, 500, ...) or null
 	 *			if no error was configured.
 	 */
-	final protected function getHttpError() : ?int {
+	final protected function _getHttpError() : ?int {
 		return ($this->_loader->response->getHttpError());
 	}
 	/**
 	 * Returns the configured HTTP return code.
 	 * @return	int	The configured return code, or null if no code was configured.
 	 */
-	final protected function getHttpCode() : ?int {
+	final protected function _getHttpCode() : ?int {
 		return ($this->_loader->response->getHttpCode());
 	}
 	/**
@@ -177,7 +177,7 @@ class Controller implements \ArrayAccess {
 	 * @param	?string	$url	Redirection URL, or null to remove the redirection.
 	 * @return	int	self::EXEC_HALT (useful value to return from the controller).
 	 */
-	final protected function redirect(?string $url) : int {
+	final protected function _redirect(?string $url) : int {
 		$this->_loader->response->setRedirection($url);
 		return (self::EXEC_HALT);
 	}
@@ -186,7 +186,7 @@ class Controller implements \ArrayAccess {
 	 * @param	string	$url	Redirection URL.
 	 * @return	int	self::EXEC_HALT (useful value to return from the controller).
 	 */
-	final protected function redirect301(string $url) : int {
+	final protected function _redirect301(string $url) : int {
 		$this->_loader->response->setRedirection($url, true);
 		return (self::EXEC_HALT);
 	}
@@ -195,7 +195,7 @@ class Controller implements \ArrayAccess {
 	 * @param	string	$view	Name of the view.
 	 * @return	\Temma\Web\Controller	The current object.
 	 */
-	final protected function view(string $view) : \Temma\Web\Controller {
+	final protected function _view(string $view) : \Temma\Web\Controller {
 		$this->_loader->response->setView($view);
 		return ($this);
 	}
@@ -204,7 +204,7 @@ class Controller implements \ArrayAccess {
 	 * @param	string	$template	Template name.
 	 * @return	\Temma\Web\Controller	The current object.
 	 */
-	final protected function template(string $template) : \Temma\Web\Controller {
+	final protected function _template(string $template) : \Temma\Web\Controller {
 		$this->_loader->response->setTemplate($template);
 		return ($this);
 	}
@@ -213,7 +213,7 @@ class Controller implements \ArrayAccess {
 	 * @param	string	$prefix	The template prefix path.
 	 * @return	\Temma\Web\Controller	The current object.
 	 */
-	final protected function templatePrefix(string $prefix) : \Temma\Web\Controller {
+	final protected function _templatePrefix(string $prefix) : \Temma\Web\Controller {
 		$this->_loader->response->setTemplatePrefix($prefix);
 		return ($this);
 	}
@@ -234,20 +234,6 @@ class Controller implements \ArrayAccess {
 	 */
 	public function offsetGet(/* mixed */ $name) /* : mixed */ {
 		return ($this->_loader->response[$name] ?? null);
-	}
-	/**
-	 * Returns a template variable.
-	 * @param	string		$name		Name of the variable
-	 * @param	mixed|Closure	$default	(optional) Default value if the data doesn't exist.
-	 *						If this parameter is a regular value, it will be stored as a value associated
-	 *						to the requested variable, and returned by this method.
-	 *						If this parameter is an anonymous function, and the requested data doesn't exist,
-	 *						the function will be executed, it's returned value will be stored as a value
-	 *						associated to the requested variable, and returned by this method.
-	 * @return	mixed	The template variable's data.
-	 */
-	final public function get(string $name, /* mixed */ $default=null) /* : mixed */ {
-		return ($this->_loader->response->getData($name, $default, $this->_loader));
 	}
 	/**
 	 * Remove a template variable.
@@ -275,7 +261,7 @@ class Controller implements \ArrayAccess {
 	 * @return	int|null	The sub-controller's execution status (self::EXE_FORWARD, etc.). Could be null (==self::EXEC_FORWARD).
 	 * @throws	\Temma\Exceptions\Http	If the requested controller or action doesn't exist.
 	 */
-	final public function subProcess(string $controller, ?string $action=null, ?array $parameters=null) : ?int {
+	final public function _subProcess(string $controller, ?string $action=null, ?array $parameters=null) : ?int {
 		TµLog::log('Temma/Web', 'DEBUG', "Subprocess of '$controller'::'$action'.");
 		// checks
 		if (!class_exists($controller) || !is_subclass_of($controller, '\Temma\Web\Controller')) {
