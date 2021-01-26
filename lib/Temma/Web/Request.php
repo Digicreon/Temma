@@ -124,9 +124,9 @@ class Request {
 	 * Returns an action parameter.
 	 * @param	int	$index		Parameter's index.
 	 * @param	mixed	$default	(optional) Default value if the parameter doesn't exist.
-	 * @return	string	The associated value.
+	 * @return	?string	The associated value.
 	 */
-	public function getParam(int $index, /* mixed */ $default=null) : string {
+	public function getParam(int $index, /* mixed */ $default=null) : ?string {
 		if (isset($this->_params[$index]))
 			return ($this->_params[$index]);
 		return ($default);
