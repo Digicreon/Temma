@@ -55,7 +55,7 @@ use \Temma\Base\Log as TµLog;
  * }
  * </code>
  */
-class NDatabase extends \Temma\Base\Datasource {
+class NDatabase extends \Temma\Base\Datasource implements \ArrayAccess {
 	/** Default Redis connection port. */
 	const DEFAULT_REDIS_PORT = 6379;
 	/** Number of the default Redis base. */
@@ -212,6 +212,41 @@ class NDatabase extends \Temma\Base\Datasource {
 		$this->_connect();
 		$this->_ndb->delete($key);
 		return ($this);
+	}
+	/**
+	 * Get a data from cache, array-like syntax.
+	 * @param	string	$key	Index key.
+	 * @return	mixed	The data fetched from the cache, or null.
+	 */
+	public function offsetGet(/* mixed */ $key) /* : mixed */ {
+		return ($this->get($key));
+	}
+	/**
+	 * Add data in cache, array-like syntax.
+	 * @param	string	$key	Index key.
+	 * @param	mixed	$data	Data value. The data is deleted if the value is null.
+	 */
+	public function offsetSet(/* mixed */ $key, /* mixed */ $data) : void {
+		if (is_null($data))
+			$this->remove($key);
+		else
+			$this->set($key, $data);
+	}
+	/**
+	 * Remove data from cache, array-like syntax.
+	 * @param	string	$key	Index key.
+	 */
+	public function offsetUnset(/* mixed */ $key) : void {
+		$this->remove($key);
+	}
+	/**
+	 * Tell if a variable is set in cache, array-like syntax.
+	 * @param	string	$key	Index key.
+	 * @return	bool	True if the variable is set, false otherwise.
+	 */
+	public function offsetExists(/* mixed */ $key) : bool {
+		$this->_connect();
+		return ($this->_ndb->exists($key) ? true : false);
 	}
 }
 

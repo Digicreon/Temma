@@ -30,7 +30,7 @@ namespace Temma\Base;
  * Connection using Unix socket:
  * <tt>memcache:///var/run/memcached.sock:0</tt>
  */
-class Cache extends Datasource {
+class Cache extends Datasource implements \ArrayAccess {
 	/** Constante : Préfixe des variables de cache contenant le "sel" de préfixe. */
 	const PREFIX_SALT_PREFIX = '|_cache_salt';
 	/** Constante : Numéro de port Memcached par défaut. */
@@ -188,7 +188,7 @@ class Cache extends Datasource {
 	 * @param	mixed	$data	Data value. The data is deleted if the value is null.
 	 */
 	public function offsetSet(/* mixed */ $key, /* mixed */ $data) : void {
-		$this->set($key, $value);
+		$this->set($key, $data);
 	}
 	/**
 	 * Remove data from cache, array-like syntax.
