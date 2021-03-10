@@ -58,7 +58,7 @@ class Rss extends \Temma\Web\View {
 		$this->_articles = $this->_response->getData('articles');
 	}
 	/** Write HTTP headers. */
-	public function sendHeaders($headers=null) : void {
+	public function sendHeaders($headers=null) :void {
 		parent::sendHeaders([
 			'Content-Type'  => 'application/rss+xml; charset=UTF-8',
 			'Cache-Control'	=> 'no-cache, no-store, must-revalidate, max-age=0, post-check=0, pre-check=0',
@@ -100,13 +100,13 @@ class Rss extends \Temma\Web\View {
 			if (($article['guid'] ?? null))
 				print("\t\t<guid isPermalink=\"true\">" . htmlspecialchars($article['guid'], ENT_COMPAT, 'UTF-8') . "</guid>\n");
 			else
-				print("\t\t<guid isPermaLink=\"true\">" . htmlspecialchars($url, ENT_COMPAT, 'UTF-8') . "</guid>\n");
+				print("\t\t<guid isPermaLink=\"true\">" . htmlspecialchars($article['url'], ENT_COMPAT, 'UTF-8') . "</guid>\n");
 			// author
 			if (($article['author'] ?? null))
 				print("\t\t<author>" . htmlspecialchars($article['author'], ENT_COMPAT, 'UTF-8') . "</author>\n");
 			// date
 			if (($article['pubDate'] ?? null)) {
-				$date = $article['creationDate'];
+				$date = $article['pubDate'];
 				$year = (int)substr($date, 0, 4);
 				$month = (int)substr($date, 5, 2);
 				$day = (int)substr($date, 8, 2);
