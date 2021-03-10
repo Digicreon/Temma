@@ -47,7 +47,7 @@ class Rss extends \Temma\Web\View {
 	private $_articles = null;
 
 	/** Init. */
-	public function init() {
+	public function init() : void {
 		$this->_domain = $this->_response->getData('domain');
 		$this->_title = $this->_response->getData('title');
 		$this->_description = $this->_response->getData('description');
@@ -58,7 +58,7 @@ class Rss extends \Temma\Web\View {
 		$this->_articles = $this->_response->getData('articles');
 	}
 	/** Write HTTP headers. */
-	public function sendHeaders($headers=null) {
+	public function sendHeaders($headers=null) : void {
 		parent::sendHeaders([
 			'Content-Type'  => 'application/rss+xml; charset=UTF-8',
 			'Cache-Control'	=> 'no-cache, no-store, must-revalidate, max-age=0, post-check=0, pre-check=0',
@@ -67,7 +67,7 @@ class Rss extends \Temma\Web\View {
 		]);
 	}
 	/** Write body. */
-	public function sendBody() {
+	public function sendBody() : void {
 		print('<' . '?xml version="1.0" encoding="UTF-8"?' . ">\n");
 		print("<rss version=\"2.0\">\n");
 		print("<channel>\n");
