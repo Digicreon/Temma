@@ -8,6 +8,8 @@
 
 namespace Temma\Views;
 
+use \Temma\Base\Log as TµLog;
+
 /**
  * View for RSS streams.
  *
@@ -69,7 +71,7 @@ class Rss extends \Temma\Web\View {
 	/** Write body. */
 	public function sendBody() : void {
 		print('<' . '?xml version="1.0" encoding="UTF-8"?' . ">\n");
-		print("<rss version=\"2.0\">\n");
+		print("<rss version=\"2.0\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\">\n");
 		print("<channel>\n");
 		if ($this->_domain)
 			print("\t<link>" . htmlspecialchars($this->_domain, ENT_COMPAT, 'UTF-8') . "/</link>\n");
@@ -102,8 +104,10 @@ class Rss extends \Temma\Web\View {
 			else
 				print("\t\t<guid isPermaLink=\"true\">" . htmlspecialchars($article['url'], ENT_COMPAT, 'UTF-8') . "</guid>\n");
 			// author
-			if (($article['author'] ?? null))
+			if (($article['author'] ?? null)) {
 				print("\t\t<author>" . htmlspecialchars($article['author'], ENT_COMPAT, 'UTF-8') . "</author>\n");
+				print("\t\t<dc:creator>" . htmlspecialchars($article['author'], ENT_COMPAT, 'UTF-8') . "</dc:creator>\n");
+			}
 			// date
 			if (($article['pubDate'] ?? null)) {
 				$date = $article['pubDate'];
@@ -116,6 +120,15 @@ class Rss extends \Temma\Web\View {
 				$time = mktime($hour, $min, $sec, $month, $day, $year);
 				$pubDate = date('r', $time);
 				print("\t\t<pubDate>$pubDate</pubDate>\n");
+			}
+			// image
+			if (($article['image'] ?? null)) {
+				$mimetype = 'image/jpeg';
+				if (isset($article['imageType']) && $article['imageType'] == 'png')
+					$mimetype = 'image/png';
+				else if (isset($article['imageType']) && $article['imageType'] == 'gif')
+					$mimetype = 'image/gif';
+				print("\t\t<enclosure type=\"$mimetype\" length=\"10000\" url=\"" . $article['image'] . "\"/>\n");
 			}
 			// description
 			$content = !($article['abstract'] ?? '') ? '' : ($article['abstract'] . ' (...)');
