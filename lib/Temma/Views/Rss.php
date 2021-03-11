@@ -137,6 +137,15 @@ class Rss extends \Temma\Web\View {
 			$content = trim($content);
 			if ($content)
 				print("\t\t<description>" . htmlspecialchars($content, ENT_COMPAT, 'UTF-8') . "</description>\n");
+			// categories
+			if (isset($article['categories']) && is_array($article['categories'])) {
+				foreach ($article['categories'] as $cat) {
+					$cat = trim($cat);
+					if (!$cat)
+						continue;
+					print("\t\t<category>" . htmlspecialchars($cat, ENT_COMPAT, 'UTF-8') . "</category>\n");
+				}
+			}
 			print("\t</item>\n");
 		}
 		print("</channel>\n</rss>");
