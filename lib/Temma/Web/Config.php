@@ -39,6 +39,8 @@ class Config {
 	const TEMPLATES_DIR = 'templates';
 	/** Name of the temporary files directory. */
 	const TEMP_DIR = 'tmp';
+	/** Name of the "var" directory. */
+	const VAR_DIR = 'var';
 	/** Name of the web directory. */
 	const WEB_DIR = 'www';
 	/** Name of the default loader (dependency injection container). */
@@ -81,6 +83,8 @@ class Config {
 	protected $_viewsPath = null;
 	/** Path to the templates directory. */
 	protected $_templatesPath = null;
+	/** Path to the "var" directory. */
+	protected $_varPath = null;
 	/** Path to the web root directory. */
 	protected $_webPath = null;
 	/** Name of the loader object. */
@@ -257,6 +261,7 @@ class Config {
 		// definitions
 		$this->_logPath = $logPath;
 		$this->_tmpPath = $this->_appPath . '/' . self::TEMP_DIR;
+		$this->_varPath = $this->_appPath . '/' . self::VAR_DIR;
 		$this->_includesPath = $includesPath;
 		$this->_controllersPath = $controllersPath;
 		$this->_viewsPath = $viewsPath;
