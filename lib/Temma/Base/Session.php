@@ -63,6 +63,8 @@ class Session implements \ArrayAccess {
 	private $_data = null;
 	/** Session identifier. */
 	private $_sessionId = null;
+	/** Tell if the cookie was sent. */
+	private $_cookieSent = false;
 
 	/* ********** CONSTRUCTION ********** */
 	/**
@@ -96,7 +98,7 @@ class Session implements \ArrayAccess {
 		$this->_data = [];
 		$this->_cookieName = $cookieName;
 		// search for the session ID in the received cookies
-		$oldSessionId = isset($_COOKIE[$cookieName]) ? $_COOKIE[$cookieName] : null;
+		$oldSessionId = $_COOKIE[$cookieName] ?? null;
 		$this->_sessionId = $oldSessionId;
 		// creation of the new session ID
 		$newSessionId = hash('md5', time() . mt_rand(0, 0xffff) . mt_rand(0, 0xffff) . mt_rand(0, 0xffff) . mt_rand(0, 0xffff));
@@ -111,28 +113,40 @@ class Session implements \ArrayAccess {
 			else
 				unset($_COOKIE[$cookieName]);
 			$newSessionId = $this->_sessionId;
+			$mustSendCookie = true;
 		}
 		$this->_sessionId = $newSessionId;
 		// compute expiration date
 		if (!isset($this->_data))
 			$duration = self::SHORT_DURATION;
 		$this->_duration = $duration;
-		$timestamp = time() + $duration;
+		// send cookie right now if needed
+		if ($this->_data) {
+			// data were fetched from cache
+			$this->sendCookie();
+		}
+	}
+	/** Send the cookie to store the session ID on the browser. */
+	public function sendCookie() : void {
+		if ($this->_cookieSent)
+			return;
+		$timestamp = time() + $this->_duration;
 		$expiration = date('Y-m-d H-i-s', $timestamp);
 		// store the session ID in cookie
 		if (!preg_match("/[^.]+\.[^.]+$/", $_SERVER['HTTP_HOST'], $matches))
 			$host = $_SERVER['HTTP_HOST'];
 		else
 			$host = $matches[0];
-		if (!isset($_COOKIE[$cookieName]) || empty($_COOKIE[$cookieName]) || $this->_sessionId != $oldSessionId && !headers_sent()) {
-			TµLog::log('Temma/Base', 'DEBUG', "Send cookie '$cookieName' - '$newSessionId' - '$timestamp' - '.$host'");
+		$oldSessionId = $_COOKIE[$this->_cookieName] ?? null;
+		if (!isset($_COOKIE[$this->_cookieName]) || empty($_COOKIE[$this->_cookieName]) || $this->_sessionId != $oldSessionId && !headers_sent()) {
+			TµLog::log('Temma/Base', 'DEBUG', "Send cookie '{$this->_cookieName}' - '{$this->_sessionId}' - '$timestamp' - '.$host'");
 			// send the cookie
 			if (PHP_VERSION_ID < 70300) {
 				// PHP < 7.3: use a hack to send the 'samesite' attribute
-				setcookie($cookieName, $newSessionId, $timestamp, '/; samesite=Lax', ".$host", false);
+				setcookie($this->_cookieName, $this->_sessionId, $timestamp, '/; samesite=Lax', ".$host", false);
 			} else {
 				// PHP >= 7.3: use an associative array
-				setcookie($cookieName, $newSessionId, [
+				setcookie($this->_cookieName, $this->_sessionId, [
 					'expires'	=> $timestamp,
 					'path'		=> '/',
 					'domain'	=> ".$host",
@@ -141,6 +155,7 @@ class Session implements \ArrayAccess {
 					'samesite'	=> 'Lax'
 				]);
 			}
+			$this->_cookieSent = true;
 		}
 	}
 
@@ -212,6 +227,8 @@ class Session implements \ArrayAccess {
 			'data'		=> $this->_data
 		];
 		$this->_cache->set('sess:' . $this->_sessionId, $cacheData, $this->_duration);
+		// send the cookie to the browser
+		$this->sendCookie();
 	}
 	/**
 	 * Add data in session, array-like syntax.
@@ -263,6 +280,8 @@ class Session implements \ArrayAccess {
 			'data'		=> $this->_data
 		];
 		$this->_cache->set('sess:' . $this->_sessionId, $cacheData, $this->_duration);
+		// send the cookie to the browser
+		$this->sendCookie();
 	}
 	/**
 	 * Tell if a data exists, array-like syntax.
