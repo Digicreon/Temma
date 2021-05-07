@@ -116,13 +116,14 @@ class Config {
 	 */
 	public function __construct(string $appPath) {
 		$this->_appPath = $appPath;
+		$this->_etcPath = $this->_appPath . '/' . self::ETC_DIR;
 	}
 	/**
 	 * Reads the "temma.json" configuration file.
+	 * @param	?array	$overConf	(optional) Associative array that contains data used to override the configuration file.
 	 * @throws	\Temma\Exceptions\Framework	If the configuration file is not correct.
 	 */
-	public function readConfigurationFile() : void {
-		$this->_etcPath = $this->_appPath . '/' . self::ETC_DIR;
+	public function readConfigurationFile(?array $overConf=null) : void {
 		// load the configuration file
 		$phpConfigPath = $this->_etcPath . '/' . self::PHP_CONFIG_FILE_NAME;
 		$jsonConfigPath = $this->_etcPath . '/' . self::JSON_CONFIG_FILE_NAME;
@@ -134,6 +135,8 @@ class Config {
 		if (is_null($_globalTemmaConfig))
 			throw new TµFrameworkException("Unable to read configuration file '$jsonConfigPath'.", TµFrameworkException::CONFIG);
 		$ini = $_globalTemmaConfig;
+		if ($overConf)
+			$ini = array_replace_recursive($ini, $overConf);
 
 		// log file and log manager configuration
 		$logPath = null;
