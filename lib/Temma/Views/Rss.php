@@ -124,14 +124,14 @@ class Rss extends \Temma\Web\View {
 			// image
 			if (($article['image'] ?? null)) {
 				$mimetype = 'image/jpeg';
-				if (isset($article['imageType']) && $article['imageType'] == 'png')
+				if (($article['imageType'] ?? null) === 'png')
 					$mimetype = 'image/png';
-				else if (isset($article['imageType']) && $article['imageType'] == 'gif')
+				else if (($article['imageType'] ?? null) === 'gif')
 					$mimetype = 'image/gif';
 				print("\t\t<enclosure type=\"$mimetype\" length=\"10000\" url=\"" . $article['image'] . "\"/>\n");
 			}
 			// description
-			$content = !($article['abstract'] ?? '') ? '' : ($article['abstract'] . ' (...)');
+			$content = $article['abstract'] ?? '';
 			$content = str_replace('href="/', 'href="' . $this->_domain . '/', $content);
 			$content = str_replace('src="/', 'src="' . $this->_domain . '/', $content);
 			$content = trim($content);
