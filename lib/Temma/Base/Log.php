@@ -212,8 +212,8 @@ class Log {
 		$backtrace = debug_backtrace();
 		if (is_array($backtrace) && count($backtrace) > 1) {
 			$txt = '';
-			if (isset($backtrace[1]['file']) && isset($backtrace[1]['line']))
-				$txt .= '[' . basename($backtrace[1]['file']) . ':' . $backtrace[1]['line'] . '] ';
+			if (isset($backtrace[0]['file']) && isset($backtrace[0]['line']))
+				$txt .= '[' . basename($backtrace[0]['file']) . ':' . $backtrace[0]['line'] . '] ';
 			if (isset($backtrace[1]['class']) && isset($backtrace[1]['type']))
 				$txt .= $backtrace[1]['class'] . $backtrace[1]['type'];
 			if (isset($backtrace[1]['function']))
