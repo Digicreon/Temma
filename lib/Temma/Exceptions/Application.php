@@ -24,5 +24,7 @@ class Application extends \Exception {
 	const UNAUTHORIZED = 3;
 	/** Dependency error. */
 	const DEPENDENCY = 4;
+	/** Ask for retry. */
+	const RETRY = 5;
 }
 
