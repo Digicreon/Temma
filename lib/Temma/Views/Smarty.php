@@ -9,7 +9,7 @@
 namespace Temma\Views;
 
 use \Temma\Base\Log as TµLog;
-use \Temma\Exceptions\Framewor as TµFrameworkException;
+use \Temma\Exceptions\Framework as TµFrameworkException;
 use \Temma\Exceptions\IO as TµIOException;
 
 include('smarty3/Autoloader.php');
