@@ -12,8 +12,8 @@ use \Temma\Base\Log as TµLog;
 use \Temma\Exceptions\Framework as TµFrameworkException;
 use \Temma\Exceptions\IO as TµIOException;
 
-include('smarty3/Autoloader.php');
-include('smarty3/bootstrap.php');
+include_once('smarty3/Autoloader.php');
+include_once('smarty3/bootstrap.php');
 require_once('smarty3/Smarty.class.php');
 
 /**
