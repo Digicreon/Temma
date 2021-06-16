@@ -117,10 +117,11 @@ class Text {
 	}
 	/**
 	 * Transform a text to an URL-compatible string.
-	 * @param	?string	$txt	The text to convert.
+	 * @param	?string	$txt			The text to convert.
+	 * @param	bool	$avoidUnderscores	Set to true to replace underscores with dashes. (default: true)
 	 * @return	string	The converted text.
 	 */
-	static public function urlize(?string $txt) : string {
+	static public function urlize(?string $txt, bool $avoidUnderscores=true) : string {
 		if (!$txt)
 			return ('');
 		// vowels
@@ -161,11 +162,13 @@ class Text {
 		$mask = '&';
 		$txt = str_replace($mask, 'et', $txt);
 		// all other letters
-		$txt = preg_replace("/[^a-zA-Z0-9- \+]/", ' ', $txt);
+		$txt = preg_replace("/[^a-zA-Z0-9-_ \+]/", ' ', $txt);
 		// remove multiple spaces
                 $txt = preg_replace("/\s+/", ' ', $txt);
 		// process spaces
-		$mask = [' ', '&nbsp;', '&#160;', '_'];
+		$mask = [' ', '&nbsp;', '&#160;'];
+		if ($avoidUnderscores)
+			$mask[] = '_';
                 $txt = str_replace($mask, '-', $txt);
 		// remove multiple minus
                 $txt = preg_replace('/-+/', '-', $txt);
