@@ -66,7 +66,7 @@ class Smarty extends \Temma\Web\View {
 		if (is_string($pluginsDir))
 			$pluginPathList[] = $pluginsDir;
 		else if (is_array($pluginsDir))
-			$pluginPathList = array_merge($pluginsPathList, $pluginsDir);
+			$pluginPathList = array_merge($pluginPathList, $pluginsDir);
 		if (method_exists($this->_smarty, 'setPluginsDir')) {
 			$pluginPathList = array_merge($this->_smarty->getPluginsDir(), $pluginPathList);
 			$this->_smarty->setPluginsDir($pluginPathList);
