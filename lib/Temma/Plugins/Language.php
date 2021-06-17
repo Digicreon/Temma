@@ -35,7 +35,7 @@ class Language extends \Temma\Web\Plugin {
 		if (!in_array($currentLang, $supportedLanguages)) {
 			// the language wasn't given as first URL chunk
 			// search for the navigator's preferred language
-			$acceptedLanguages = $_SERVER['HTTP_ACCEPT_LANGUAGE'] : '';
+			$acceptedLanguages = $_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? '';
 			foreach (explode(',', $acceptedLanguages) as $acceptedLanguage) {
 				if (($pos = strpos($acceptedLanguage, ';')) !== false ||
 				    ($pos = strpos($acceptedLanguage, '-')) !== false)
@@ -46,7 +46,7 @@ class Language extends \Temma\Web\Plugin {
 				}
 			}
 			// redirection
-			$this->redirect("/$defaultLanguage" . $_SERVER['REQUEST_URI']);
+			$this->_redirect("/$defaultLanguage" . $_SERVER['REQUEST_URI']);
 			return (self::EXEC_HALT);
 		}
 		// the language was given as first URL chunk
@@ -71,7 +71,9 @@ class Language extends \Temma\Web\Plugin {
 		$this['CONTROLLER'] = $newController;
 		$this['ACTION'] = $newAction;
 		// set the template prefix
-		$this->templatePrefix($currentLang);
+		$prefix = $this->_loader->config->xtra('language', 'templatePrefix', $currentLang);
+		if ($prefix)
+			$this->_templatePrefix($currentLang);
 		// update error pages' path
 		$errorPages = $this->_loader->config->errorPages;
 		if ($errorPages) {
