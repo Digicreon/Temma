@@ -10,6 +10,8 @@
  * @param	mixed		$data	(optional) List of other arguments.
  * @return	string	The translated string.
  * @link	http://www.smarty.net/docs/en/language.modifier.escape
+ * @author	Amaury Bouchard <amaury@æmaury.net>
+ * @copyright	© 2020, Amaury Bouchard
  */
 function smarty_modifier_l10n($str, $count=false, ...$data) {
 	global $smarty;
