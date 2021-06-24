@@ -175,7 +175,7 @@ class Text {
 		// to lower characters
                 $txt = strtolower($txt);
 		// trim spaces and minus
-                $txt = trim($txt, '-');
+                $txt = trim($txt, '-_');
                 $txt = trim($txt);
                 $txt = empty($txt) ? '-' : $txt;
                 return ($txt);
