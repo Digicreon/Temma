@@ -90,7 +90,7 @@ class HTMLCleaner {
 		//$config->set('HTML.DefinitionRev', 1); 
 		$config->set('Core.Encoding', 'UTF-8');
 		$config->set('Core.EscapeNonASCIICharacters', false);
-		$allowedHtml = 'h1,h2,h3,h4,h5,h6,div[style],p[style|class],span[style],b,i,u,s,blockquote,pre,font[color],ul,ol,li,br,hr,table,thead,tbody,tr,th,td,sup,sub,img[src|alt|data-filename|style|class],ins,del,mark,figure,figcaption,small,a[href|name]';
+		$allowedHtml = 'h1,h2,h3,h4,h5,h6,div[style],p[style|class],span[style],b,i,u,s,blockquote,pre,font[color],ul,ol,li,br,hr,table,thead,tbody,tr,th[colspan|rowspan],td[colspan|rowspan],sup,sub,img[src|alt|data-filename|style|class],ins,del,mark,figure,figcaption,small,a[href|name]';
 		$config->set('HTML.Allowed', $allowedHtml);
 		$config->set('URI.AllowedSchemes', [
 			'http'		=> true,
