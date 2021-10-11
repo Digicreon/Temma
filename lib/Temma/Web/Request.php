@@ -71,15 +71,16 @@ class Request {
 		}
 		TµLog::log('Temma/Web', 'INFO', "URL : '$requestUri'.");
 		$this->_pathInfo = $requestUri;
-		// extraction of URL components
+		// extraction of URL components, url-decode them, and remove empty entries
 		$chunkedUri = explode('/', $requestUri);
-		array_shift($chunkedUri);
-		$this->_controller = array_shift($chunkedUri);
-		$this->_action = array_shift($chunkedUri);
-		$this->_params = [];
-		foreach ($chunkedUri as $chunk)
-			if (strlen(trim($chunk)) > 0)
-				$this->_params[] = $chunk;
+		array_shift($chunkedUri); // remove first element (the URL starts with a slash, so the first chunked element is always empty)
+		array_walk($chunkedUri, function(&$val, $key) {
+			$val = trim(\urldecode($val)); // urldecode all URL chunks, and trim them
+		});
+		$chunkedUri = array_filter($chunkedUri); // remove empty elements
+		$this->_controller = array_shift($chunkedUri); // extraction of the controller, if any
+		$this->_action = array_shift($chunkedUri); // extraction of the action, if any
+		$this->_params = $chunkedUri; // remaining elements are action's parameters
 		// extraction of the path from the site root
 		$this->_sitePath = dirname($_SERVER['SCRIPT_NAME']);
 	}
