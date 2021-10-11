@@ -367,11 +367,12 @@ class Database extends \Temma\Base\Datasource {
 	}
 	/**
 	 * Execute an SQL request and fetch all lines of returned data.
-	 * @param	string	$sql	The SQL request.
+	 * @param	string	$sql		The SQL request.
+	 * @param	?string	$keyField	(optional) Name of the field that must be used as the key for each record.
 	 * @return	array	An array of associative arrays.
 	 * @throws	\Exception	If something went wrong.
 	 */
-	public function queryAll(string $sql) : array {
+	public function queryAll(string $sql, ?string $keyField=null) : array {
 		TµLog::log('Temma/Base', 'DEBUG', "SQL query: $sql");
 		$this->_connect();
 		$result = $this->_db->query($sql);
@@ -382,6 +383,8 @@ class Database extends \Temma\Base\Datasource {
 		}
 		$lines = $result->fetchAll(\PDO::FETCH_ASSOC);
 		$result = null;
+		if ($keyField)
+			$lines = array_column($lines, null, $keyField);
 		return ($lines);
 	}
 	/**
