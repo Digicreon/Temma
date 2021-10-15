@@ -26,8 +26,10 @@ class BaseConvert {
 	 * @link	http://www.ietf.org/rfc/rfc2396.txt
 	 */
 	const BASE71 = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!'()*-._~";
-	/** Base 73, same as base base 54 with some special characters. */
+	/** Base 73, same as base 54 with some special characters. */
 	const BASE73 = '23456789abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ!#%()*+,-./:;=?@[]_';
+	/** Base 80, same as base 85 without HTML special characters '&<>?/'. */
+	const BASE80 = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.-:+=^!*()[]{}@%$#';
 	/**
 	 * Base 85, ZeroMQ fashion. Contains only printable characters that could be used on command-line arguments.
 	 * Superset of base 36 (0-9a-z) and base 62 (0-9a-zA-Z).
@@ -35,18 +37,21 @@ class BaseConvert {
 	 * @link	https://rfc.zeromq.org/spec:32/Z85/
 	 */
 	const BASE85 = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.-:+=^!/*?&<>()[]{}@%$#';
+	/** Base 95, extension of base 85 using all printable ASCII characters. */
+	const BASE95 = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.-:+=^!/*?&<>()[]{}@%$#"\',;\\_`|~ ';
 
 	/**
-	 * Convert a number from any base to any special base.
+	 * Convert a positive number from any base to any special base.
 	 * @param	string	$input		The number to convert.
-	 * @param	int	$inBase		Size of the input base (any number between 2 and 85).
-	 * @param	int	$outBase	Size of the output base. Could be 31, 54, 61, 71 or 73.
+	 * @param	int	$inBase		Size of the input base (any number between 2 and 95).
+	 * @param	int	$outBase	Size of the output base. Could be 31, 54, 61, 71, 73, 80, 85 or 95.
 	 * @return	string	The converted number.
+	 ù @throws	Exception	If the parameters are incorrect.
 	 */
-	static public function convertToSpecialBase($input, $inBase, $outBase) {
-		if ((!is_int($inBase) && !ctype_digit($inBase)) || $inBase < 2 || $inBase > 85)
+	static public function convertToSpecialBase(string $input, int $inBase, int $outBase) : string {
+		if ($inBase < 2 || $inBase > 95)
 			throw new \Exception("Bad input base.");
-		$inDigits = substr(self::BASE85, 0, $inBase);
+		$inDigits = mb_substr(self::BASE95, 0, $inBase, 'ascii');
 		if ($outBase == 31)
 			$outDigits = self::BASE31;
 		else if ($outBase == 54)
@@ -57,18 +62,25 @@ class BaseConvert {
 			$outDigits = self::BASE71;
 		else if ($outBase == 73)
 			$outDigits = self::BASE73;
+		else if ($outBase == 80)
+			$outDigits = self::BASE80;
+		else if ($outBase == 85)
+			$outDigits = self::BASE85;
+		else if ($outBase == 95)
+			$outDigits = self::BASE95;
 		else
 			throw new \Exception("Bad output base.");
 		return (self::convertBase($input, $inDigits, $outDigits));
 	}
 	/**
-	 * Convert a number from any special base to any base.
+	 * Convert a positive number from any special base to any base.
 	 * @param	string	$input		The number to convert.
-	 * @param	int	$inBase		Size of the input base. Could be 31, 54, 71 or 73.
-	 * @param	int	$outBase	Size of the output base (any number between 2 and 85).
+	 * @param	int	$inBase		Size of the input base. Could be 31, 54, 61, 71, 73, 80, 85 or 95.
+	 * @param	int	$outBase	Size of the output base (any number between 2 and 95).
 	 * @return	string	The converted number.
+	 * @throws	Exception	If the parameters are incorrect.
 	 */
-	static public function convertFromSpecialBase($input, $inBase, $outBase) {
+	static public function convertFromSpecialBase(string $input, int $inBase, int $outBase) : string {
 		if ($inBase == 31)
 			$inDigits = self::BASE31;
 		else if ($inBase == 54)
@@ -79,31 +91,36 @@ class BaseConvert {
 			$inDigits = self::BASE71;
 		else if ($inBase == 73)
 			$inDigits = self::BASE73;
+		else if ($inBase == 80)
+			$inDigits = self::BASE80;
+		else if ($inBase == 85)
+			$inDigits = self::BASE85;
+		else if ($inBase == 95)
+			$inDigits = self::BASE95;
 		else
 			throw new \Exception("Bad input base.");
-		if ((!is_int($outBase) && !ctype_digit($outBase)) || $outBase < 2 || $outBase > 85)
+		if ($outBase < 2 || $outBase > 95)
 			throw new \Exception("Bad output base.");
-		$outDigits = substr(self::BASE85, 0, $outBase);
+		$outDigits = mb_substr(self::BASE95, 0, $outBase, 'ascii');
 		return (self::convertBase($input, $inDigits, $outDigits));
 	}
 	/**
-	 * Convert a number from any base to any other base (subsets of base85).
+	 * Convert a positive number from any base to any other base (subsets of base85).
 	 * @param	string		$input		The number to convert.
-	 * @param	int		$inBase		Size of the input base (any number between 2 and 85).
-	 * @param	int		$outBase	Size of the output base (any number between 2 and 85).
+	 * @param	int		$inBase		Size of the input base (any number between 2 and 95).
+	 * @param	int		$outBase	Size of the output base (any number between 2 and 95).
 	 * @return	string		The converted number.
 	 * @throws	Exception	If a digit is outside the base.
 	 */
-	static public function convert($input, $inBase, $outBase) {
-		if ((!is_int($inBase) && !ctype_digit($inBase)) || $inBase < 2 || $inBase > 85 ||
-		    (!is_int($outBase) && !ctype_digit($outBase)) || $outBase < 2 || $outBase > 85)
+	static public function convert(string $input, int $inBase, int $outBase) : string {
+		if ($inBase < 2 || $inBase > 95 || $outBase < 2 || $outBase > 95)
 			throw new \Exception("Bad base.");
-		$inDigits = substr(self::BASE85, 0, $inBase);
-		$outDigits = substr(self::BASE85, 0, $outBase);
+		$inDigits = mb_substr(self::BASE95, 0, $inBase, 'ascii');
+		$outDigits = mb_substr(self::BASE95, 0, $outBase, 'ascii');
 		return (self::convertBase($input, $inDigits, $outDigits));
 	}
 	/**
-	 * Convert a number from any base to any other base.
+	 * Convert a positive number from any base to any other base.
 	 * @param	int|string	$value		The number to convert.
 	 * @param	string		$inDigits	The input base's digits.
 	 * @param	string		$outDigits	The output base's digits.
@@ -111,16 +128,15 @@ class BaseConvert {
 	 * @throws	Exception	If a digit is outside the base.
 	 * @link	http://www.technischedaten.de/pmwiki2/pmwiki.php?n=Php.BaseConvert
 	 */
-	static public function convertBase($value, $inDigits, $outDigits) {
-		$inBase = strlen($inDigits);
-		$outBase = strlen($outDigits);
+	static public function convertBase(/*int|string*/ $value, string $inDigits, string $outDigits) : string {
+		$inBase = mb_strlen($inDigits, 'ascii');
+		$outBase = mb_strlen($outDigits, 'ascii');
 		$decimal = '0';
 		$level = 0;
 		$result = '';
-		$value = trim((string)$value, "\r\n\t +");
-		$signe = ($value{0} === '-') ? '-' : '';
+		$value = trim((string)$value, "\r\n\t" . ((strpos($inDigits, ' ') === false) ? '' : ' '));
 		$value = ltrim($value, '-0');
-		$len = strlen($value);
+		$len = mb_strlen($value, 'ascii');
 		for ($i = 0; $i < $len; $i++) {
 			$newValue = strpos($inDigits, $value{$len - 1 - $i});
 			if ($newValue === false)
@@ -130,7 +146,7 @@ class BaseConvert {
 			$decimal = bcadd($decimal, bcmul(bcpow($inBase, $i), $newValue));
 		}
 		if ($outBase == 10)
-			return ($signe.$decimal); // shortcut
+			return ($decimal); // shortcut
 		while (bccomp(bcpow($outBase, $level++), $decimal) !== 1)
 			;
 		for ($i = ($level - 2); $i >= 0; $i--) {
@@ -140,6 +156,6 @@ class BaseConvert {
 			$result .= $outDigits{$number};
 		}
 		$result = empty($result) ? '0' : $result;
-		return ($signe.$result);
+		return ($result);
 	}
 }
