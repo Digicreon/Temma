@@ -382,7 +382,6 @@ class Database extends \Temma\Base\Datasource {
 			throw new \Exception($errStr);
 		}
 		$lines = $result->fetchAll(\PDO::FETCH_ASSOC);
-		$result = null;
 		if ($keyField)
 			$lines = array_column($lines, null, $keyField);
 		return ($lines);
