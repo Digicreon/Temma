@@ -3,7 +3,7 @@
 /**
  * Language
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2011-2020, Amaury Bouchard
+ * @copyright	© 2011-2021, Amaury Bouchard
  */
 
 namespace Temma\Plugins;
@@ -33,7 +33,12 @@ class Language extends \Temma\Web\Plugin {
 		}
 		$currentLang = $this['CONTROLLER'];
 		if (!in_array($currentLang, $supportedLanguages)) {
-			// the language wasn't given as first URL chunk
+			/* the language wasn't given as first URL chunk */
+			// no language required if the method is POST or PUT
+			if (in_array(($_SERVER['REQUEST_METHOD'] ?? null), ['POST', 'PUT'])) {
+				TµLog::log('Temma/Web', 'DEBUG', "No language required for POST/PUT request.");
+				return (self::EXEC_FORWARD);
+			}
 			// search for the navigator's preferred language
 			$acceptedLanguages = $_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? '';
 			foreach (explode(',', $acceptedLanguages) as $acceptedLanguage) {
@@ -49,7 +54,7 @@ class Language extends \Temma\Web\Plugin {
 			$this->_redirect("/$defaultLanguage" . $_SERVER['REQUEST_URI']);
 			return (self::EXEC_HALT);
 		}
-		// the language was given as first URL chunk
+		/* the language was given as first URL chunk */
 		// we shift all URL chunks
 		$newController = $this['ACTION'];
 		$this->_loader->request->setController($newController);
