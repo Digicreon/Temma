@@ -256,7 +256,7 @@ class Cache extends Datasource implements \ArrayAccess {
 			return (false);
 		$origPrefix = $this->_prefix;
 		$origKey = $key;
-		$key = $this->_getSaltedPrevix() . $key;
+		$key = $this->_getSaltedPrefix() . $key;
 		if ($this->_memcache->get($key) === false && $this->_memcache->getResultCode() == \Memcached::RES_NOTFOUND)
 			return (false);
 		return (true);
