@@ -3,7 +3,18 @@
 /**
  * Timer
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2007-2019, Amaury Bouchard
+ * @copyright	© 2007-2021, Amaury Bouchard
+ *
+ * <code>
+ * // creates a timer
+ * $timer = new \Temma\Utils\Timer();
+ * // starts the timer
+ * $timer->start();
+ * // stops the timer
+ * $timer->stop();
+ * // show the duration
+ * print($timer->getTime());
+ * </code>
  */
 
 namespace Temma\Utils;
@@ -17,18 +28,29 @@ class Timer {
 	/** Date of timing end. */
 	protected $_end = null;
 
-	/** Starts a timing. */
-	public function start() : void {
+	/**
+	 * Starts a timing.
+	 * @return	\Temma\Utils\Timer	The current instance.
+	 */
+	public function start() : \Temma\Utils\Timer {
 		$this->_begin = microtime(true);
 		$this->_end = null;
+		return ($this);
 	}
-	/** Stops a timing. */
-	public function stop() : void {
+	/**
+	 * Stops a timing.
+	 * @return	\Temma\Utils\Timer	The current instance.
+	 */
+	public function stop() : \Temma\Utils\Timer {
 		$this->_end = microtime(true);
 	}
-	/** Resume a timing. */
-	public function resume() : void {
+	/**
+	 * Resume a timing.
+	 * @return	\Temma\Utils\Timer	The current instance.
+	 */
+	public function resume() : \Temma\Utils\Timer {
 		$this->_end = null;
+		return ($this);
 	}
 	/**
 	 * Returns the elapsed time during a timing.
