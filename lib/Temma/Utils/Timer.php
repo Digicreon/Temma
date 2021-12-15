@@ -43,6 +43,7 @@ class Timer {
 	 */
 	public function stop() : \Temma\Utils\Timer {
 		$this->_end = microtime(true);
+		return ($this);
 	}
 	/**
 	 * Resume a timing.
