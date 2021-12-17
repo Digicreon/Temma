@@ -61,7 +61,7 @@ class Request {
 				throw new TµFrameworkException('No PATH_INFO nor REQUEST_URI environment variable.', TµFrameworkException::CONFIG);
 			// for SEO purpose: if the URL ends with a slash, do a redirection without it
 			// hint: PATH_INFO is not filled when we access to the Temma project's root (being at the site root or in a sub-directory)
-			if (isset($_SERVER['PATH_INFO']) && !empty($PATH_INFO) && substr($requestUri, -1) == '/') {
+			if (isset($_SERVER['PATH_INFO']) && !empty($_SERVER['PATH_INFO']) && substr($requestUri, -1) == '/') {
 				$url = substr($requestUri, 0, -1) . ((isset($_SERVER['QUERY_STRING']) && !empty($_SERVER['QUERY_STRING'])) ? ('?' . $_SERVER['QUERY_STRING']) : '');
 				TµLog::log('Temma/Web', 'DEBUG', "Redirecting to '$url'.");
 				header('HTTP/1.1 301 Moved Permanently');
@@ -77,7 +77,9 @@ class Request {
 		array_walk($chunkedUri, function(&$val, $key) {
 			$val = trim(\urldecode($val)); // urldecode all URL chunks, and trim them
 		});
-		$chunkedUri = array_filter($chunkedUri); // remove empty elements
+		$chunkedUri = array_filter($chunkedUri, function($chunk) {
+			return isset($chunk[0]);
+		}); // remove empty elements
 		$this->_controller = array_shift($chunkedUri); // extraction of the controller, if any
 		$this->_action = array_shift($chunkedUri); // extraction of the action, if any
 		$this->_params = $chunkedUri; // remaining elements are action's parameters
