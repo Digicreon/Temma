@@ -93,6 +93,8 @@ class Config {
 	protected $_logFile = null;
 	/** Log manager(s). */
 	protected $_logManager = null;
+	/** Definition of log levels. */
+	protected $_logLevels = null;
 	/** Controller names' suffix. */
 	protected $_controllersSuffix = null;
 	/** Name of the root controller. */
@@ -138,7 +140,7 @@ class Config {
 		if ($overConf)
 			$ini = array_replace_recursive($ini, $overConf);
 
-		// log file and log manager configuration
+		// path to log file
 		$logPath = null;
 		if (!array_key_exists('application', $ini) || !array_key_exists('logFile', $ini['application']))
 			$logPath = self::LOG_DIR . '/' . self::LOG_FILE;
@@ -146,40 +148,6 @@ class Config {
 			$logPath = $ini['application']['logFile'];
 		if ($logPath && $logPath[0] != '/')
 			$logPath = $this->_appPath . '/' . $logPath;
-		$logManager = $ini['logManager'] ?? null;
-		if (!$logPath && !$logManager) {
-			TµLog::disable();
-		} else {
-			if ($logPath)
-				TµLog::setLogFile($logPath);
-			if ($logManager) {
-				if (is_string($logManager))
-					$logManager = [$logManager];
-				foreach ($logManager as $manager) {
-					$reflect = new \ReflectionClass($manager);
-					if (!$reflect->implementsInterface('\Temma\Web\LogManager')) {
-						throw new TµFrameworkException("Log manager '$manager' doesn't implements \Temma\Web\LogManager interface.", TµFrameworkException::CONFIG);
-					}
-					TµLog::addCallback(function($text, $priority, $class) use ($manager) {
-						return $manager::log($text, $priority, $class);
-					});
-				}
-			}
-		}
-
-		// check log thresholds
-		$loglevels = self::LOG_LEVEL;
-		if (isset($ini['loglevels'])) {
-			if (is_string($ini['loglevels'])) {
-				$loglevels = $ini['loglevels'];
-			} else if (is_array($ini['loglevels'])) {
-				$loglevels = [];
-				foreach ($ini['loglevels'] as $class => $level) {
-					$loglevels[$class] = $level;
-				}
-			}
-		}
-		TµLog::setThreshold($loglevels);
 
 		// define the error pages
 		$this->_errorPages = [];
@@ -263,6 +231,8 @@ class Config {
 
 		// definitions
 		$this->_logPath = $logPath;
+		$this->_logManager = $ini['logManager'] ?? null;
+		$this->_logLevels = $ini['loglevels'] ?? null;
 		$this->_tmpPath = $this->_appPath . '/' . self::TEMP_DIR;
 		$this->_varPath = $this->_appPath . '/' . self::VAR_DIR;
 		$this->_includesPath = $includesPath;

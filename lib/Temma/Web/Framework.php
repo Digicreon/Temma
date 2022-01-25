@@ -41,6 +41,8 @@ class Framework {
 	const ROUTE_MAX_DEPTH = 4;
 	/** Name of the template variable that will contain data automatically imported from configuration. */
 	const AUTOIMPORT_VARIABLE = 'conf';
+	/** Loader object. */
+	private $_loader = null;
 	/** Configuration object. */
 	private $_config = null;
 	/** List of data sources. */
@@ -74,20 +76,37 @@ class Framework {
 	}
 	/** Framework init: read the configuration, connect to data sources, create the session. */
 	public function init() : void {
+		// extraction of request parameters
+		$this->_request = new \Temma\Web\Request();
+		// create the response object
+		$this->_response = new \Temma\Web\Response();
+		// create the loader
+		$this->_loader = new \Temma\Utils\Proxy();
 		// load the configuration, log system init
 		$this->_loadConfig();
+		// create the loader object (dependency injection container)
+		$loaderName = $this->_config->loader;
+		$this->_loader = new $loaderName([
+			'config'   => $this->_config,
+			'request'  => $this->_request,
+			'response' => $this->_response,
+		]);
+		// initialization of the log system
+		$this->_configureLog();
 		// connect to data sources
 		$this->_dataSources = [];
 		$foundDb = $foundCache = false;
 		foreach ($this->_config->dataSources as $name => $dsn) {
 			$this->_dataSources[$name] = \Temma\Base\Datasource::factory($dsn);
 		}
+		$this->_loader->set('dataSources', $this->_dataSources);
 		// get the session if needed
 		if ($this->_config->enableSessions) {
 			$sessionSource = (isset($this->_config->sessionSource) && isset($this->_dataSources[$this->_config->sessionSource])) ?
 					 $this->_dataSources[$this->_config->sessionSource] : null;
 			$this->_session = \Temma\Base\Session::factory($sessionSource, $this->_config->sessionName);
 		}
+		$this->_loader->set('session', $this->_session);
 	}
 	/**
 	 * In case of automatic configuration (using a generated configuration object), this method store the configuration object.
@@ -96,25 +115,13 @@ class Framework {
 	 */
 	public function setConfig(\Temma\Web\Config $config)  : void {
 		$this->_config = $config;
+		$this->_loader->set('config', $config);
 	}
 	/**
 	 * Starts the execution flow: extract request parameters, initialize variables, pre-plugins/controller/post-plugins execution.
 	 */
 	public function process() : void {
 		/* ********** INIT ********** */
-		// extraction of request parameters
-		$this->_request = new \Temma\Web\Request();
-		// create the response object
-		$this->_response = new \Temma\Web\Response();
-		// create the loader object (dependency injection container)
-		$loaderName = $this->_config->loader;
-		$this->_loader = new $loaderName([
-			'dataSources' => $this->_dataSources,
-			'session'     => $this->_session,
-			'config'      => $this->_config,
-			'request'     => $this->_request,
-			'response'    => $this->_response,
-		]);
 		// create the executor controller if needed
 		$this->_executorController = $this->_executorController ?? new \Temma\Web\Controller($this->_loader);
 		// variables init
@@ -292,6 +299,54 @@ class Framework {
 		// read the configuration
 		$this->_config = new \Temma\Web\Config($appPath);
 		$this->_config->readConfigurationFile();
+	}
+	/** Configure the log system. */
+	private function _configureLog() : void {
+		$logPath = $this->_config->logPath;
+		$logManager = $this->_config->logManager;
+		// check if the log is disabled
+		if (!$logPath && !$logManager) {
+			TµLog::disable();
+			return;
+		}
+		// checked if a log file was set
+		if ($logPath)
+			TµLog::setLogFile($logPath);
+		// check is a log manager was set
+		if ($logManager) {
+			if (is_string($logManager))
+				$logManager = [$logManager];
+			foreach ($logManager as $managerName) {
+				// check if the object exists and implements the right interface
+				try {
+					$reflect = new \ReflectionClass($managerName);
+					if (!$reflect->implementsInterface('\Temma\Web\LogManager'))
+						throw new TµFrameworkException("Log manager '$managerName' doesn't implements \Temma\Web\LogManager interface.", TµFrameworkException::CONFIG);
+					if ($reflect->implementsInterface('\Temma\Base\Loadable'))
+						$manager = new $managerName($this->_loaderProxy);
+					else
+						$manager = new $managerName();
+					TµLog::addCallback(function($traceId, $text, $priority, $class) use ($manager) {
+						return $manager->log($traceId, $text, $priority, $class);
+					});
+				} catch (\ReflectionException $re) {
+					throw new TµFrameworkException("Log manager '$managerName' doesn't exist.", TµFrameworkException::CONFIG);
+				}
+			}
+		}
+		// manage log thresholds
+		$logLevels = $this->_config->logLevels;
+		$usedLogLevels = TµLog::checkLogLevel($logLevels);
+		if (!$usedLogLevels && is_array($logLevels)) {
+			$usedLogLevels = [];
+			foreach ($logLevels as $class => $level) {
+				if (($level = TµLog::checkLogLevel($level)))
+					$usedLogLevels[$class] = $level;
+			}
+		}
+		if (!$usedLogLevels)
+			$usedLogLevels = \Temma\Web\Config::LOG_LEVEL;
+		TµLog::setThreshold($usedLogLevels);
 	}
 
 	/* ********** CONTROLLERS/PLUGINS LOADING ********** */

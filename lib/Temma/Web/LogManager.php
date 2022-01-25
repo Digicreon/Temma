@@ -14,6 +14,7 @@ namespace Temma\Web;
 interface LogManager {
 	/**
 	 * Receives a log message and handle it.
+	 * @param	string	$traceId	Trace identifier.
 	 * @param	string	$text		Text of the message.
 	 * @param	?string	$priority	Priority of the message (DEBUG, INFO, NOTE, WARN, ERROR, CRIT). Could be null.
 	 * @param	?string	$class		Log class of the message.
@@ -25,5 +26,5 @@ interface LogManager {
 	 *				- logToStdOut: Set to true to force log output to the standard output.
 	 *				- logToStdErr: Set to true to force log output to the error output.
 	 */
-	public function log(string $text, ?string $priority, ?string $class);
+	public function log(string $traceId, string $text, ?string $priority, ?string $class) : void;
 }
