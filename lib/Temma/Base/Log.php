@@ -79,7 +79,7 @@ class Log {
 	const INFO = 'INFO';
 	/** Constant - notification; normal but significant message (default threshold). */
 	const NOTE = 'NOTE';
-	/** Constant - alert message; the applicatino doesn't work as it should but it could continue to run. */
+	/** Constant - alert message; the application doesn't work as it should but it could continue to run. */
 	const WARN = 'WARN';
 	/** Constant - error message; the application doesn't work as it should and it must stop. */
 	const ERROR = 'ERROR';
@@ -133,9 +133,9 @@ class Log {
 	}
 	/**
 	 * Add a callback function, that will be used to write custom log messages.
-	 * @param	\Closure	$func	The callback function.
+	 * @param	callable	$func	The callback function.
 	 */
-	static public function addCallback(\Closure $func) : void {
+	static public function addCallback(callable $func) : void {
 		self::$_enable = true;
 		self::$_logCallbacks[] = $func;
 	}
@@ -169,7 +169,7 @@ class Log {
 	 *							or value of the default threshold, or list of classes with their associated thresholds.
 	 * @param	string		$threshold		(optional) Threshold value.
 	 */
-	static public function setThreshold(/* mixed */ $classOrThreshold, ?string $threshold=null) : void {
+	static public function setThreshold(/* string|array */ $classOrThreshold, ?string $threshold=null) : void {
 		if (is_string($classOrThreshold) && is_string($threshold))
 			self::$_threshold[$classOrThreshold] = $threshold;
 		else {
@@ -182,13 +182,10 @@ class Log {
 	/**
 	 * Write a log message.
 	 * @param	mixed	$classOrMessageOrPriority	Log message (1 param) or criticity level (2 params) or log class (3 params).
-	 * @param	?mixed	$messageOrPriority		(optional) Log message (2 params) or criticity level (3 params).
-	 * @param	?mixed	$message			(optional) Log message (3 params).
+	 * @param	mixed	$messageOrPriority		(optional) Log message (2 params) or criticity level (3 params).
+	 * @param	mixed	$message			(optional) Log message (3 params).
 	 */
-	static public function log(/* mixed */ $classOrMessageOrPriority, /* ?mixed */ $messageOrPriority=null, /* ?mixed */ $message=null) : void {
-		if (is_null(self::$_requestId)) {
-			self::$_requestId = substr(base_convert(hash('md5', mt_rand()), 16, 36), 0, 4);
-		}
+	static public function log(/* mixed */ $classOrMessageOrPriority, /* mixed */ $messageOrPriority=null, /* mixed */ $message=null) : void {
 		// parameters processing
 		if (!is_null($message) && !is_null($messageOrPriority)) {
 			$class = $classOrMessageOrPriority;
@@ -286,6 +283,18 @@ class Log {
 			$message = print_r($message, true);
 		self::_writeLog($class, $priority, "$txt: $message");
 	}
+	/**
+	 * Utility function, used to validate a log level string.
+	 * @param	mixed	$loglevel	The variable that should be a valid log level.
+	 * @return	?string	The upper-case log level, if the input was valid, or null.
+	 */
+	static public function checkLogLevel(/* mixed */ $loglevel) : ?string {
+		if (is_string($loglevel) &&
+		    ($loglevel = strtoupper($loglevel)) &&
+		    in_array($loglevel, [self::DEBUG, self::INFO, self::NOTE, self::WARN, self::ERROR, self::CRIT]))
+			return ($loglevel);
+		return (null);
+	}
 
 	/* ********************** PRIVATE METHODS *************** */
 	/**
@@ -299,6 +308,9 @@ class Log {
 	static private function _writeLog(?string $class, ?string $priority, string $message) : void {
 		if (!self::$_enable)
 			return;
+		if (is_null(self::$_requestId)) {
+			self::$_requestId = substr(base_convert(bin2hex(random_bytes(3)), 16, 36), 0, 4);
+		}
 		// check if there is a configured output
 		if (!self::$_logPath && !self::$_logToStdOut && !self::$_logToStdErr && !self::$_logCallbacks)
 			throw new TµApplicationException('No log file set.', TµApplicationException::API);
@@ -309,17 +321,7 @@ class Log {
 		$text .= $message . "\n";
 		// output: callbacks
 		foreach (self::$_logCallbacks as $callback) {
-			$result = $callback($message, self::$_labels[$priority], $class);
-			if ($result === false)
-				return;
-			if (!is_array($result))
-				continue;
-			if (isset($result['logPath']) && !empty($result['logPath']))
-				self::$_logPath = $result['logPath'];
-			if (isset($result['logToStdOut']) && is_bool($result['logToStdOut']))
-				self::$_logToStdOut = $result['logToStdOut'];
-			if (isset($result['logToStdErr']) && is_bool($result['logToStdErr']))
-				self::$_logToStdErr = $result['logToStdErr'];
+			$callback(self::$_requestId, $message, $priority, $class);
 		}
 		// output: log file
 		if (self::$_logPath) {

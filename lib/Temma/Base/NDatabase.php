@@ -168,11 +168,11 @@ class NDatabase extends \Temma\Base\Datasource implements \ArrayAccess {
 	/**
 	 * Fetch one or many key-value pairs.
 	 * @param	string|array	$key		Key or list of keys.
-	 * @param	\Closure	$callback	(optional) Function called if the data is not found, only if the key is unique.
+	 * @param	?callable	$callback	(optional) Function called if the data is not found, only if the key is unique.
 	 *						The data returned by this function will be added to the database, and returned by the method.
 	 * @return	mixed	The value associated to the key, or an associative array with key-value pairs. If a value doesn't exists, it is null.
 	 */
-	public function get(/* mixed */ $key, ?\Closure $callback=null) /* : mixed */ {
+	public function get(/* string|array */ $key, ?callable $callback=null) /* : mixed */ {
 		$this->_connect();
 		if (is_array($key)) {
 			$values = $this->_ndb->mget($key);
@@ -182,7 +182,7 @@ class NDatabase extends \Temma\Base\Datasource implements \ArrayAccess {
 			return ($result);
 		}
 		$value = $this->_ndb->get($key);
-		if ($value === false && isset($callback)) {
+		if ($value === false && is_callable($callback)) {
 			$value = $callback();
 			$this->set($key, $value);
 			return ($value);

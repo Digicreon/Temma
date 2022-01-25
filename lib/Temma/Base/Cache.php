@@ -200,14 +200,14 @@ class Cache extends Datasource implements \ArrayAccess {
 	/**
 	 * Get a data from cache.
 	 * @param	string		$key		Index key.
-	 * @param	\Closure	$callback	(optional) Callback function called if the data is not found in cache.
+	 * @param	?callable	$callback	(optional) Callback function called if the data is not found in cache.
 	 *						Data returned by this function will be added into cache, and returned by the method.
 	 * @param	int		$expire		(optional) Expiration duration, in seconds. If it is set to zero (or if it's not given),
 	 *						it will be set to 24 hours. If it is set to -1 or a value greater than 2592000 (30 days),
 	 *						it will be set to 30 days. This parameter is used only if the '$callback' parameter is given.
 	 * @return	mixed	The data fetched from the cache (and returned by the callback if needed), or null.
 	 */
-	public function get(string $key, ?\Closure $callback=null, int $expire=0) /* : mixed */ {
+	public function get(string $key, ?callable $callback=null, int $expire=0) /* : mixed */ {
 		$origPrefix = $this->_prefix;
 		$origKey = $key;
 		$key = $this->_getSaltedPrefix() . $key;
@@ -217,7 +217,7 @@ class Cache extends Datasource implements \ArrayAccess {
 			if ($data === false && $this->_memcache->getResultCode() != \Memcached::RES_SUCCESS)
 				$data = null;
 		}
-		if (is_null($data) && isset($callback)) {
+		if (is_null($data) && is_callable($callback)) {
 			$data = $callback();
 			$this->_prefix = $origPrefix;
 			$this->set($origKey, $data, $expire);

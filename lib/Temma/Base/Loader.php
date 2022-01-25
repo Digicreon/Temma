@@ -80,18 +80,18 @@ class Loader extends \Temma\Utils\Registry {
 	/**
 	 * Constructor.
 	 * @param	array		$data		(optional) Associative array of data used to fill the registry.
-	 * @param	\Closure	$builder	(optional) Builder function.
+	 * @param	?callable	$builder	(optional) Builder function.
 	 */
-	public function __construct(?array $data=null, ?\Closure $builder=null) {
+	public function __construct(?array $data=null, ?callable $builder=null) {
 		$this->_builder = $builder;
 		parent::__construct($data);
 	}
 	/**
 	 * Define the builder function.
-	 * @param	\Closure	$builder	Builder function.
+	 * @param	callable	$builder	Builder function.
 	 * @return	\Temma\Base\Loader	The current object.
 	 */
-	public function setBuilder(\Closure $builder) : \Temma\Base\Loader {
+	public function setBuilder(callable $builder) : \Temma\Base\Loader {
 		$this->_builder = $builder;
 		return ($this);
 	}
@@ -99,16 +99,24 @@ class Loader extends \Temma\Utils\Registry {
 	/* ****************** DATA WRITING **************** */
 	/**
 	 * Add data to the loader.
-	 * @param	string	$key	Index key.
-	 * @param	mixed	$data	Associated value.
-	 *				If the value is a scalar (int, float, string, bool, array) or an array,
-	 *				it will be simply returned when fetched. If the value is an anonymous
-	 *				function, this function will be executed the first time the data is fetched,
-	 *				and its returned value will be stored as the value, and returned.
+	 * @param	string|array	$key	If a string is given, it's the index key, and a value should be given.
+	 *					If an array is given, its key/value pairs are used to set loader's values,
+	 *					and the second parameter is not used.
+	 * @param	mixed		$data	Value associated to the key.
+	 *					If this value is null, the key is removed.
+	 *					If the value is a scalar (int, float, string, bool, array) or an array,
+	 *					it will be simply returned when fetched. If the value is an anonymous
+	 *					function, this function will be executed the first time the data is fetched,
+	 *					and its returned value will be stored as the value, and returned.
 	 * @return	\Temma\Base\Loader	The current object.
 	 */
-	public function set(/* string */ $key, /* mixed */ $data=null) : \Temma\Utils\Registry {
-		$this->_data[$key] = $data;
+	public function set(/* string|array */ $key, /* mixed */ $data=null) : \Temma\Utils\Registry {
+		if (is_array($key))
+			$this->_data = array_merge($this->_data, $key);
+		else if (is_null($data))
+			unset($this->_data[$key]);
+		else
+			$this->_data[$key] = $data;
 		return ($this);
 	}
 
