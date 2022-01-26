@@ -231,7 +231,7 @@ class Config {
 
 		// definitions
 		$this->_logPath = $logPath;
-		$this->_logManager = $ini['logManager'] ?? null;
+		$this->_logManager = $ini['application']['logManager'] ?? null;
 		$this->_logLevels = $ini['loglevels'] ?? null;
 		$this->_tmpPath = $this->_appPath . '/' . self::TEMP_DIR;
 		$this->_varPath = $this->_appPath . '/' . self::VAR_DIR;

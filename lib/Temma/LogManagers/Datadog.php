@@ -43,7 +43,7 @@ use \Temma\Base\Log as TµLog;
  * - class:   Used to know which part of your application as written the log trace.
  * </code>
  */
-class Datadog implements \Temma\Base\Loader, \Temma\Web\LogManager {
+class Datadog implements \Temma\Base\Loadable, \Temma\Web\LogManager {
 	/** Datadog API connection URL. */
 	private ?string $_url;
 	/** Datadog API key. */
