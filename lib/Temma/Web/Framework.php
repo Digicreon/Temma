@@ -80,8 +80,6 @@ class Framework {
 		$this->_request = new \Temma\Web\Request();
 		// create the response object
 		$this->_response = new \Temma\Web\Response();
-		// create the loader
-		$this->_loader = new \Temma\Utils\Proxy();
 		// load the configuration, log system init
 		$this->_loadConfig();
 		// create the loader object (dependency injection container)
@@ -323,7 +321,7 @@ class Framework {
 					if (!$reflect->implementsInterface('\Temma\Web\LogManager'))
 						throw new TµFrameworkException("Log manager '$managerName' doesn't implements \Temma\Web\LogManager interface.", TµFrameworkException::CONFIG);
 					if ($reflect->implementsInterface('\Temma\Base\Loadable'))
-						$manager = new $managerName($this->_loaderProxy);
+						$manager = new $managerName($this->_loader);
 					else
 						$manager = new $managerName();
 					TµLog::addCallback(function($traceId, $text, $priority, $class) use ($manager) {
