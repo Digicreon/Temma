@@ -242,7 +242,6 @@ class Config {
 		$this->_webPath = $this->_appPath . '/' . self::WEB_DIR;
 		$this->_loader = $ini['application']['loader'] ?? null;
 		$this->_logFile = $logPath;
-		$this->_logManager = $logManager;
 		$this->_controllersSuffix = $ini['application']['controllersSuffix'] ?? '';
 		$this->_rootController = $ini['application']['rootController'] ?? null;
 		$this->_defaultController = $ini['application']['defaultController'] ?? null;
