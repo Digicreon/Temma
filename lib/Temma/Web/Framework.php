@@ -102,7 +102,7 @@ class Framework {
 			$sessionSource = (isset($this->_config->sessionSource) && isset($this->_dataSources[$this->_config->sessionSource])) ?
 					 $this->_dataSources[$this->_config->sessionSource] : null;
 			$this->_session = \Temma\Base\Session::factory($sessionSource, $this->_config->sessionName, $this->_config->sessionDuration,
-			                                               null, $this->_config->sessionSecure);
+			                                               1200, $this->_config->sessionSecure);
 		}
 		$this->_loader->set('session', $this->_session);
 	}
