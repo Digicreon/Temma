@@ -73,10 +73,12 @@ class Session implements \ArrayAccess {
 	 * @param	string			$cookieName	(optional) Name of the session cookie. "TEMMA_SESSION" by default.
 	 * @param	int			$duration	(optional) Session duration. One year by default.
 	 * @param	int			$renewDelay	(optional) Delay before session ID renewal. 20 minutes by default.
+	 * @param	bool			$secure		(optional) True to send session cookie only on HTTPS connections. False by default.
 	 * @return	\Temma\Base\Session	The created instance.
 	 */
-	static public function factory(?\Temma\Base\Datasource $cache=null, string $cookieName='TEMMA_SESSION', int $duration=31536000, int $renewDelay=1200) : \Temma\Base\Session {
-		return (new \Temma\Base\Session($cache, $cookieName, $duration, $renewDelay));
+	static public function factory(?\Temma\Base\Datasource $cache=null, string $cookieName='TEMMA_SESSION', int $duration=31536000,
+	                               int $renewDelay=1200, bool $secure=false) : \Temma\Base\Session {
+		return (new \Temma\Base\Session($cache, $cookieName, $duration, $renewDelay, $secure));
 	}
 	/**
 	 * Constructor.
@@ -84,8 +86,9 @@ class Session implements \ArrayAccess {
 	 * @param	string			$cookieName	(optional) Name of the session cookie. "TEMMA_SESSION" by default.
 	 * @param	int			$duration	(optional) Session duration. One year by default.
 	 * @param	int			$renewDelay	(optional) Delay before session ID renewal. 20 minutes by default.
+	 * @param	bool			$secure		(optional) True to send session cookie only on HTTPS connections. False by default.
 	 */
-	private function __construct(?\Temma\Base\Datasource $cache=null, ?string $cookieName=null, ?int $duration=null, ?int $renewDelay=null) {
+	private function __construct(?\Temma\Base\Datasource $cache=null, ?string $cookieName=null, ?int $duration=null, ?int $renewDelay=null, bool $secure=false) {
 		TµLog::log('Temma/Base', 'DEBUG', "Session object creation.");
 		// fetch the cache
 		if (isset($cache) && $cache->isEnabled())
@@ -143,15 +146,15 @@ class Session implements \ArrayAccess {
 			// send the cookie
 			if (PHP_VERSION_ID < 70300) {
 				// PHP < 7.3: use a hack to send the 'samesite' attribute
-				setcookie($this->_cookieName, $this->_sessionId, $timestamp, '/; samesite=Lax', ".$host", false);
+				setcookie($this->_cookieName, $this->_sessionId, $timestamp, '/; samesite=Lax', ".$host", $secure, true);
 			} else {
 				// PHP >= 7.3: use an associative array
 				setcookie($this->_cookieName, $this->_sessionId, [
 					'expires'	=> $timestamp,
 					'path'		=> '/',
 					'domain'	=> ".$host",
-					'secure'	=> false,
-					'httponly'	=> false,
+					'secure'	=> $secure,
+					'httponly'	=> true,
 					'samesite'	=> 'Lax'
 				]);
 			}

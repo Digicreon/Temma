@@ -93,7 +93,6 @@ class Framework {
 		$this->_configureLog();
 		// connect to data sources
 		$this->_dataSources = [];
-		$foundDb = $foundCache = false;
 		foreach ($this->_config->dataSources as $name => $dsn) {
 			$this->_dataSources[$name] = \Temma\Base\Datasource::factory($dsn);
 		}
@@ -102,7 +101,8 @@ class Framework {
 		if ($this->_config->enableSessions) {
 			$sessionSource = (isset($this->_config->sessionSource) && isset($this->_dataSources[$this->_config->sessionSource])) ?
 					 $this->_dataSources[$this->_config->sessionSource] : null;
-			$this->_session = \Temma\Base\Session::factory($sessionSource, $this->_config->sessionName);
+			$this->_session = \Temma\Base\Session::factory($sessionSource, $this->_config->sessionName, $this->_config->sessionDuration,
+			                                               null, $this->_config->sessionSecure);
 		}
 		$this->_loader->set('session', $this->_session);
 	}

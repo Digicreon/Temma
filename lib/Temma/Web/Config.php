@@ -23,6 +23,10 @@ class Config {
 	const LOG_LEVEL = 'WARN';
 	/** Name of the cookie which contains the session ID. */
 	const SESSION_NAME = 'TemmaSession';
+	/** Default session duration (one year). */
+	const SESSION_DURATION = 31536000;
+	/** Default secure parameter for sessions. */
+	const SESSION_SECURE = false;
 	/** Name of the directory which contains the application's configuration files. */
 	const ETC_DIR = 'etc';
 	/** Name of the log directory. */
@@ -67,6 +71,10 @@ class Config {
 	protected $_sessionName = null;
 	/** Name of the data source used to store session data. */
 	protected $_sessionSource = null;
+	/** Tell if session cookies must be sent only on HTTPS connections. */
+	protected $_sessionSecure = null;
+	/** Session duration. */
+	protected $_sessionDuration = null;
 	/** Path to the application root directory. */
 	protected $_appPath = null;
 	/** Path to the configuration directory. */
@@ -228,6 +236,11 @@ class Config {
 		$this->_sessionName = (isset($ini['application']['sessionName']) && !empty($ini['application']['sessionName'])) ? $ini['application']['sessionName'] : self::SESSION_NAME;
 		// define the data source that stores the sessions
 		$this->_sessionSource = (isset($ini['application']['sessionSource']) && !empty($ini['application']['sessionSource'])) ? $ini['application']['sessionSource'] : null;
+		// define if session cookies are secured
+		$this->_sessionSecure = (isset($ini['application']['sessionSecure']) && is_bool($ini['application']['sessionSecure'])) ? $ini['application']['sessionSecure'] : self::SESSION_SECURE;
+		// define session duration
+		$this->_sessionDuration = (isset($ini['application']['sessionDuration']) && !empty($ini['application']['sessionDuration'])) ?
+		                          $ini['application']['sessionDuration'] : self::SESSION_DURATION;
 
 		// definitions
 		$this->_logPath = $logPath;
