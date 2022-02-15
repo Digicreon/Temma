@@ -138,7 +138,7 @@ class BaseConvert {
 		$value = ltrim($value, '-0');
 		$len = mb_strlen($value, 'ascii');
 		for ($i = 0; $i < $len; $i++) {
-			$newValue = strpos($inDigits, $value{$len - 1 - $i});
+			$newValue = strpos($inDigits, $value[$len - 1 - $i]);
 			if ($newValue === false)
 				throw new \Exception('Bad Char in input 1', E_USER_ERROR);
 			if ($newValue >= $inBase)
@@ -153,7 +153,7 @@ class BaseConvert {
 			$factor = bcpow($outBase, $i);
 			$number = bcdiv($decimal, $factor, 0);
 			$decimal = bcmod($decimal, $factor);
-			$result .= $outDigits{$number};
+			$result .= $outDigits[$number];
 		}
 		$result = empty($result) ? '0' : $result;
 		return ($result);
