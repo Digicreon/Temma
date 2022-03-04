@@ -12,9 +12,9 @@ use \Temma\Base\Log as TµLog;
 use \Temma\Exceptions\Framework as TµFrameworkException;
 use \Temma\Exceptions\IO as TµIOException;
 
-include_once('smarty3/Autoloader.php');
-include_once('smarty3/bootstrap.php');
-require_once('smarty3/Smarty.class.php');
+include_once('smarty4/Autoloader.php');
+include_once('smarty4/bootstrap.php');
+require_once('smarty4/Smarty.class.php');
 
 /**
  * View used for Smarty templates.
@@ -56,9 +56,20 @@ class Smarty extends \Temma\Web\View {
 		// create the Smarty object
 		$this->_smarty = new \Smarty();
 		$smarty = $this->_smarty;
-		$this->_smarty->compile_dir = $compiledDir;
-		$this->_smarty->cache_dir = $cacheDir;
-		$this->_smarty->error_reporting = E_ALL & ~E_NOTICE;
+		if (method_exists($this->_smarty, 'setCompileDir'))
+			$this->_smarty->setCompileDir($compileDire);
+		else
+			$this->_smarty->compile_dir = $compiledDir;
+		if (method_exists($this->_smarty, 'setCacheDir'))
+			$this->_smarty->setCacheDir($cacheDir);
+		else
+			$this->_smarty->cache_dir = $cacheDir;
+		if (method_exists($this->_smarty, 'setErrorReporting'))
+			$this->_smarty->setErrorReporting(E_ALL & ~E_NOTICE);
+		else
+			$this->_smarty->error_reporting = E_ALL & ~E_NOTICE;
+		if (method_exists($this->_smarty, 'muteUndefinedOrNullWarnings'))
+			$this->_smarty->muteUndefinedOrNullWarnings();
 		// add plugins include path
 		$pluginPathList = [];
 		$pluginPathList[] = $config->appPath . '/' . self::PLUGINS_DIR;
@@ -91,7 +102,10 @@ class Smarty extends \Temma\Web\View {
 	 */
 	public function setTemplate(string $path, string $template) : void {
 		TµLog::log('Temma/Web', 'DEBUG', "Searching template '$template'.");
-		$this->_smarty->template_dir = $path;
+		if (method_exists($this->_smarty, 'setTemplateDir'))
+			$this->_smarty->setTemplateDir($path);
+		else
+			$this->_smarty->template_dir = $path;
 		if (method_exists($this->_smarty, 'templateExists')) {
 			if ($this->_smarty->templateExists($template)) {
 				$this->_template = $template;
