@@ -57,7 +57,7 @@ class Smarty extends \Temma\Web\View {
 		$this->_smarty = new \Smarty();
 		$smarty = $this->_smarty;
 		if (method_exists($this->_smarty, 'setCompileDir'))
-			$this->_smarty->setCompileDir($compileDire);
+			$this->_smarty->setCompileDir($compiledDir);
 		else
 			$this->_smarty->compile_dir = $compiledDir;
 		if (method_exists($this->_smarty, 'setCacheDir'))
