@@ -26,7 +26,8 @@ class Language extends \Temma\Web\Plugin {
 			return (self::EXEC_FORWARD);
 		$defaultLanguage = $this->_loader->config->xtra('language', 'default');
 		$supportedLanguages = $this->_loader->config->xtra('language', 'supported');
-		if (!$defaultLanguage || !is_array($supportedLanguages)) {
+		$protectedUrls = $this->_loader->config->xtra('language', 'protectedUrls', []);
+		if (!$defaultLanguage || !is_array($supportedLanguages) || !is_array($protectedUrls)) {
 			// the configuration is wrong
 			TµLog::log('Temma/Web', 'WARN', "Wrong configuration for language plugin.");
 			return (self::EXEC_FORWARD);
@@ -37,6 +38,11 @@ class Language extends \Temma\Web\Plugin {
 			// no language required if the method is POST or PUT
 			if (in_array(($_SERVER['REQUEST_METHOD'] ?? null), ['POST', 'PUT'])) {
 				TµLog::log('Temma/Web', 'DEBUG', "No language required for POST/PUT request.");
+				return (self::EXEC_FORWARD);
+			}
+			// no language required for protected URLs
+			if (in_array($this['URL'], $protectedUrls)) {
+				TµLog::log('Temma/Web', 'DEBUG', "No language required for protected URL.");
 				return (self::EXEC_FORWARD);
 			}
 			// search for the navigator's preferred language
