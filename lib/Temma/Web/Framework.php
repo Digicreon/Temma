@@ -91,6 +91,13 @@ class Framework {
 		]);
 		// initialization of the log system
 		$this->_configureLog();
+		// check the requested URL and log it
+		if ($_SERVER['REQUEST_URI'] == '/index.php') {
+			TµLog::log('Temma/Web', 'DEBUG', "Requested URL '/index.php', redirecting to '/'.");
+			header("Location: /");
+			exit();
+		} else
+			TµLog::log('Temma/Web', 'DEBUG', "Processing URL '" . $_SERVER['REQUEST_URI'] . "'.");
 		// connect to data sources
 		$this->_dataSources = [];
 		foreach ($this->_config->dataSources as $name => $dsn) {
@@ -436,7 +443,7 @@ class Framework {
 			$prePlugins = array_merge($prePlugins, $plugins[$this->_controllerName]['_pre']);
 		if (isset($plugins[$this->_controllerName][$this->_actionName]['_pre']))
 			$prePlugins = array_merge($prePlugins, $plugins[$this->_controllerName][$this->_actionName]['_pre']);
-		TµLog::log('Temma/Web', 'DEBUG', "Pre plugins: " . print_r($prePlugins, true));
+		TµLog::log('Temma/Web', 'DEBUG', $prePlugins ? ("Pre plugins: " . print_r($prePlugins, true)) : 'No pre plugins.');
 		return ($prePlugins);
 	}
 	/**
@@ -454,7 +461,7 @@ class Framework {
 			$postPlugins = array_merge($postPlugins, $plugins[$this->_controllerName]['_post']);
 		if (isset($plugins[$this->_controllerName][$this->_actionName]['_post']))
 			$postPlugins = array_merge($postPlugins, $plugins[$this->_controllerName][$this->_actionName]['_post']);
-		TµLog::log('Temma/Web', 'DEBUG', "Post plugins: " . print_r($postPlugins, true));
+		TµLog::log('Temma/Web', 'DEBUG', $postPlugins ? ("Post plugins: " . print_r($postPlugins, true)) : 'No post plugins.');
 		return ($postPlugins);
 	}
 	/**
@@ -533,9 +540,10 @@ class Framework {
 	 */
 	private function _loadView() : \Temma\Web\View {
 		$name = $this->_response->getView();
-		TµLog::log('Temma/Web', 'INFO', "Loading view '$name'.");
-		// no defined view, use the default view
-		if (empty($name)) {
+		if ($name) {
+			TµLog::log('Temma/Web', 'INFO', "Loading view '$name'.");
+		} else {
+			// no defined view, use the default view
 			TµLog::log('Temma/Web', 'DEBUG', "Using default view '" . $this->_config->defaultView . "'.");
 			$name = $this->_config->defaultView;
 		}

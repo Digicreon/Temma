@@ -21,7 +21,6 @@ require_once('Temma/Base/Autoload.php');
 use \Temma\Base\Log as TµLog;
 
 // framework startup
-TµLog::log('Temma/Web', 'DEBUG', "Processing URL '" . $_SERVER['REQUEST_URI'] . "'.");
 try {
 	$temma = new \Temma\Web\Framework();
 	$temma->init();
