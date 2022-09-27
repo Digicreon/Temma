@@ -411,7 +411,7 @@ class Framework {
 		}
 		// if the controller object's name doesn't start with a backslash, prepend the default namespace
 		if ($this->_objectControllerName[0] != '\\') {
-			$defaultNamespace = rtrim($this->_config->defaultNamespace, '\\');
+			$defaultNamespace = rtrim(($this->_config->defaultNamespace ?? ''), '\\');
 			$this->_objectControllerName = "$defaultNamespace\\" . $this->_objectControllerName;
 		}
 		// check that the controller object exists
@@ -477,7 +477,7 @@ class Framework {
 		try {
 			// if the plugin object's name doesn't start with a backslash, prepend the default namespace
 			if ($pluginName[0] != '\\') {
-				$defaultNamespace = rtrim($this->_config->defaultNamespace, '\\');
+				$defaultNamespace = rtrim(($this->_config->defaultNamespace ?? ''), '\\');
 				$pluginName = "$defaultNamespace\\$pluginName";
 			}
 			// check that the plugin exists
@@ -567,7 +567,7 @@ class Framework {
 				$action = $this->_actionName ? $this->_actionName : self::CONTROLLERS_PROXY_ACTION;
 				$template = $controller . '/' . $action . self::TEMPLATE_EXTENSION;
 			}
-			$templatePrefix = trim($this->_response->getTemplatePrefix(), '/');
+			$templatePrefix = trim(($this->_response->getTemplatePrefix() ?? ''), '/');
 			if (!empty($templatePrefix))
 				$template = $templatePrefix . '/' . $template;
 			TµLog::log('Temma/Web', 'DEBUG', "Initializing view '" . get_class($view) . "' with template '$template'.");
