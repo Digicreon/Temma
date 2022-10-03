@@ -186,7 +186,7 @@ class Config {
 			$logPath = $ini['application']['logFile'];
 		if ($logPath && $logPath[0] != '/')
 			$logPath = $this->_appPath . '/' . $logPath;
-		$this->_logFile = $logPath;
+		$this->_logPath = $logPath;
 
 		// define the error pages
 		$this->_errorPages = [];
