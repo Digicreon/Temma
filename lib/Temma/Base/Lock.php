@@ -10,6 +10,7 @@ namespace Temma\Base;
 
 use \Temma\Base\Log as TµLog;
 use \Temma\Exceptions\IO as TµIOException;
+use \Temma\Exceptions\Application as TµAppException;
 
 /**
  * Object for lock management.
@@ -17,80 +18,111 @@ use \Temma\Exceptions\IO as TµIOException;
  * This object may be used to ensure that only one program has access to the same resource,
  * or a program could be executed only once at a time.
  * <code>
- * // basic usage: try to lock the execution of the current program
+ * // 1. Basic usage: try to lock the execution of the current program
  * if (!\Temma\Base\Lock::lock(__FILE__)) {
  *     // the program is already in use
  * }
  *
- * // lock the access to a given file
+ * // 2. Lock a file and wait until it's available, and unlock it afterwards
+ * \Temma\Base\Lock::lock($pathToResource, true);
+ * ... do something
+ * \Temma\Base\Lock::unlock($pathToResource);
+ *
+ * // 3. Lock the access to a given file
  * // if the file is already locked, wait until it is available
  * try {
  *     $lock = new \Temma\Base\Lock('/path/to/file');
  * } catch (\Temma\Exceptions\IO $eio) {
  *     // an error occurred
  * }
- * // use the resource
- * ...
- * // release the lock
- * $lock->unlock();
+ * ... use the resource
+ * unset($lock); // release the lock
+ *
+ * // 4. Lock a given file using a non-blocking method
+ * try {
+ *     $lock = new \Temma\Base\Lock('/path/to/file', false);
+ * } catch (\Temma\Exceptions\Application $ea) {
+ *     // the file if already locked
+ * } catch (\Temma\Exceptions\IO $eio) {
+ *     // an error occurred
+ * }
+ * ... use the resource
+ * unset($lock); // release the lock
  * </code>
  */
 class Lock {
-	/** Opened semaphore. */
-	private $_semaphore = null;
+	/** File descriptor opened on the locked file. */
+	private mixed $_fileDescriptor = null;
+	/** List of locked files. */
+	static private ?array $_lockedFiles = null;
 
 	/**
 	 * Contructor. Must be used when a resource need to be locked but not until the end of the program's execution.
 	 * @param	string	$path		Path to the file to lock.
 	 * @param	bool	$blocking	(optional) Set to true to block until the resource is available, or to false to get an immediate response. (default: true)
+	 * @throws	\Temma\Exceptions\IO		If an error occurs.
+	 * @throws	\Temma\Exceptions\Application	If the file is already locked, in non-blocking mode.
 	 */
 	public function __construct(string $path, bool $blocking=true) {
 		TµLog::log('Temma/Base', 'DEBUG', "Lock file '$path'.");
-		// get file's inode
-		$inode = fileinode($path);
-		if (!$inode) {
-			TµLog::log('Temma/Base', 'WARN', "Unable to get inode of file '$path'.");
-			throw new TµIOException("Unable to get inode of file '$path'.", TµIOException::UNLOCKABLE);
+		// open file descriptor
+		$fp = fopen($path, 'r');
+		if ($fp === false) {
+			TµLog::log('Temma/Base', 'WARN', "Unable to open file '$path' descriptor.");
+			throw new TµIOException("Unable to open file '$path' descriptor.", TµIOException::UNREADABLE);
 		}
-		// create semaphore
-		if (($this->_semaphore = sem_get($inode)) === false) {
-			$this->_semaphore = null;
-			TµLog::log('Temma/Base', 'WARN', "Unable to get semaphore for file '$path'.");
-			throw new TµIOException("nable to get semaphore for file '$path'.", TµIOException::UNLOCKABLE);
+		// lock file
+		$operation = $blocking ? LOCK_EX : (LOCK_EX | LOCK_NB);
+		if (!flock($fp, $operation)) {
+			fclose($fp);
+			if (!$blocking) {
+				TµLog::log('Temma/Base', 'DEBUG', "File '$path' is already locked.");
+				throw new TµAppException("'File '$path' is already locked.", TµAppException::RETRY);
+			}
+			TµLog::log('Temma/Base', 'DEBUG', "Error while locking file '$path'.");
+			throw new TµIOException("Unable to lock file '$path'.", TµIOException::UNLOCKABLE);
 		}
-		// acquire semaphre
-		$result = sem_acquire($this->_semaphore, $blocking);
-		TµLog::log('Temma/Base', 'DEBUG', "Lock result: " . ($result ? 'success' : 'failure') . ".");
+		$this->_fileDescriptor = $fp;
+		TµLog::log('Temma/Base', 'DEBUG', "File '$path' locked.");
 	}
 	/** Unlock a locked file. */
-	public function unlock() {
-		sem_release($this->_semaphore);
+	public function __destruct() {
+		fclose($this->_fileDescriptor);
 	}
 	/**
-	 * Lock the access to the given file, until the end of the current program's execution.
+	 * Lock the access to the given file, until the end of the current program's execution or a call to the unlock() method.
 	 * @param	string	path		Path to the file to lock.
 	 * @param	bool	$blocking	(optional) Set to true to block until the resource is available. (default: false)
-	 * @return	bool	True if the resource has been successfully locked, false if it was already locked.
+	 * @return	bool	True if the resource has been successfully locked, false if it was already locked (in non-blocking mode).
 	 * @throws	\Temma\Exceptions\IO	If an error occurs.
 	 */
 	static public function lock(string $path, bool $blocking=false) : bool {
 		TµLog::log('Temma/Base', 'DEBUG', "Lock file '$path'.");
-		// get file's inode
-		$inode = fileinode($path);
-		if (!$inode) {
-			TµLog::log('Temma/Base', 'WARN', "Unable to get inode of file '$path'.");
+		self::$_lockedFiles ??= [];
+		// check if the file was locked by the same process
+		if ((self::$_lockedFiles[$path] ?? false)) {
 			return (false);
 		}
-		// create semaphore
-		$semaphore = sem_get($inode);
-		if ($semaphore === false) {
-			TµLog::log('Temma/Base', 'WARN', "Unable to get semaphore for file '$path'.");
+		// try to lock the file
+		try {
+			$lock = new self($path, $blocking);
+		} catch (TµIOException $ioe) {
+			throw $ioe;
+		} catch (TµAppException $ae) {
 			return (false);
 		}
-		// acquire semaphre
-		$result = sem_acquire($semaphore, $blocking);
-		TµLog::log('Temma/Base', 'DEBUG', "Lock result: " . ($result ? 'success' : 'failure') . ".");
-		return ($result);
+		// store the lock
+		self::$_lockedFiles[$path] = $lock;
+		return (true);
+	}
+	/**
+	 * Unlock a previously locked file.
+	 * @param	stirng	$path	Path to the locked file.
+	 */
+	static public function unlock(string $path) : void {
+		if (!self::$_lockedFiles || !isset(self::$_lockedFiles[$path]))
+			return;
+		unset(self::$_lockedFiles[$path]);
 	}
 }
 
