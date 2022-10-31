@@ -302,7 +302,6 @@ class Log {
 	 * @param	string|null	$class			Log class of the message. Could be null.
 	 * @param	string|null	$priority		Criticity level of the message. Could be null.
 	 * @param	string		$message		Text message.
-	 * @throws	\Temma\Exceptions\Application	If no log file was defined.
 	 * @throws	\Temma\Exceptions\IO		If there was a writing error.
 	 */
 	static private function _writeLog(?string $class, ?string $priority, string $message) : void {
@@ -311,24 +310,20 @@ class Log {
 		if (is_null(self::$_requestId)) {
 			self::$_requestId = substr(base_convert(bin2hex(random_bytes(3)), 16, 36), 0, 4);
 		}
-		// check if there is a configured output
-		if (!self::$_logPath && !self::$_logToStdOut && !self::$_logToStdErr && !self::$_logCallbacks)
-			throw new TµApplicationException('No log file set.', TµApplicationException::API);
 		// create the message
 		$text = date('c') . ' [' . self::$_requestId . '] ' . (isset(self::$_labels[$priority]) ? (self::$_labels[$priority] . ' ') : '');
 		if (!empty($class) && $class != self::DEFAULT_CLASS)
 			$text .= "-$class- ";
 		$text .= $message . "\n";
+		// check if there is a configured output
+		if (!self::$_logPath && !self::$_logToStdOut && !self::$_logToStdErr && !self::$_logCallbacks) {
+			// no configured output: write to stderr
+			fwrite(STDERR, $text);
+			return;
+		}
 		// output: callbacks
 		foreach (self::$_logCallbacks as $callback) {
 			$callback(self::$_requestId, $message, $priority, $class);
-		}
-		// output: log file
-		if (self::$_logPath) {
-			$path = self::$_logPath;
-			$flags = (substr($path, 0, 6) != 'php://') ? FILE_APPEND : null;
-			if (file_put_contents($path, $text, $flags) === false)
-				throw new TµIOException("Unable to write on log file '$path'.", TµIOException::UNWRITABLE);
 		}
 		// output: stdout
 		if (self::$_logToStdOut)
@@ -336,6 +331,13 @@ class Log {
 		// output: stderr
 		if (self::$_logToStdErr)
 			fwrite(STDERR, $text);
+		// output: log file
+		if (self::$_logPath) {
+			$path = self::$_logPath;
+			$flags = (substr($path, 0, 6) != 'php://') ? FILE_APPEND : null;
+			if (file_put_contents($path, $text, $flags) === false)
+				throw new TµIOException("Unable to write on log file '$path'.", TµIOException::UNWRITABLE);
+		}
 	}
 }
 
