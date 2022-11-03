@@ -277,7 +277,7 @@ class Controller implements \ArrayAccess {
 		try {
 			$status = $obj->$method();
 		} catch (\Error $e) {
-			TµLog::log('Temma/Web', 'ERROR', "Unable to initialize the controller '$controller': " . $e->getMessage());
+			TµLog::log('Temma/Web', 'ERROR', "Unable to initialize the controller '$controller' [" . $e->getFile() . ':' . $e->getLine() . ']: ' . $e->getMessage());
 			throw new TµHttpException("Unable to initialize the controller '$controller'.", 500);
 		}
 		if ($status !== self::EXEC_FORWARD)
@@ -313,7 +313,7 @@ class Controller implements \ArrayAccess {
 			TµLog::log('Temma/Web', 'ERROR', "$controller::$method: " . $ace->getMessage());
 			throw new TµHttpException("$controller::$method: " . $ace->getMessage(), 404);
 		} catch (\Error $e) {
-			TµLog::log('Temma/Web', 'ERROR', "$controller::$method: " . $e->getMessage());
+			TµLog::log('Temma/Web', 'ERROR', "$controller::$method" . '[' . $e->getFile() . ':' . $e->getLine() . ']: ' . $e->getMessage());
 			throw new TµHttpException("Unable to execute method '$method' on controller '$controller'.", 404);
 		}
 		if ($status !== self::EXEC_FORWARD)
@@ -324,7 +324,7 @@ class Controller implements \ArrayAccess {
 		try {
 			$status = $obj->$method();
 		} catch (\Error $e) {
-			TµLog::log('Temma/Web', 'ERROR', "Unable to finalize the controller '$controller'.");
+			TµLog::log('Temma/Web', 'ERROR', "Unable to finalize the controller '$controller' [" . $e->getFile() . ':' . $e->getLine() . ']: ' . $e->getMessage());
 			throw new TµHttpException("Unable to finalize the controller '$controller'.", 500);
 		}
 		return ($status);
