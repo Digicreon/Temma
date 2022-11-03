@@ -107,6 +107,8 @@ class Config {
 	protected $_logManager = null;
 	/** Definition of log levels. */
 	protected $_logLevels = null;
+	/** Definition of buffering log levels. */
+	protected $_bufferingLogLevels = null;
 	/** Controller names' suffix. */
 	protected $_controllersSuffix = null;
 	/** Name of the root controller. */
@@ -272,6 +274,7 @@ class Config {
 		// definitions
 		$this->_logManager = $ini['application']['logManager'] ?? null;
 		$this->_logLevels = $ini['loglevels'] ?? null;
+		$this->_bufferingLogLevels = $ini['bufferingLoglevels'] ?? null;
 		$this->_tmpPath = $this->_appPath . '/' . self::TEMP_DIR;
 		$this->_varPath = $this->_appPath . '/' . self::VAR_DIR;
 		$this->_templatesPath = $this->_appPath . '/' . self::TEMPLATES_DIR;

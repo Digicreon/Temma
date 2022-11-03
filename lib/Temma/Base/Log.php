@@ -101,8 +101,12 @@ class Log {
 	static private $_enable = true;
 	/** Current threshold. */
 	static private $_threshold = [
-		self::DEFAULT_CLASS	=> self::NOTE,
+		self::DEFAULT_CLASS => self::NOTE,
 	];
+	/** Threshold for buffered messages. */
+	static private $_bufferingThreshold = null;
+	/** Buffer of waiting messages. */
+	static private $_messageBuffer = null;
 	/** Array of sorted log levels.*/
 	static private $_levels = [
 		'DEBUG'	=> 10,
@@ -167,7 +171,7 @@ class Log {
 	 * Define the criticity threshold.
 	 * @param	string|array	$classOrThreshold	Name of the class for which the threshold is defined (in the second parameter)
 	 *							or value of the default threshold, or list of classes with their associated thresholds.
-	 * @param	string		$threshold		(optional) Threshold value.
+	 * @param	?string		$threshold		(optional) Threshold value.
 	 */
 	static public function setThreshold(/* string|array */ $classOrThreshold, ?string $threshold=null) : void {
 		if (is_string($classOrThreshold) && is_string($threshold))
@@ -177,6 +181,29 @@ class Log {
 				self::$_threshold = $classOrThreshold;
 			else if (is_string($classOrThreshold))
 				self::$_threshold[self::DEFAULT_CLASS] = $classOrThreshold;
+		}
+	}
+	/**
+	 * Define the criticity threshold for buffered messages.
+	 * By default, messages are not buffered.
+	 * @param	string|array|null	$classOrThreshold	Name of the class for which the buffering threshold is defined (in the second parameter)
+	 *								or value of the default buffering threshold, or list of classes with their associated thresholds,
+	 *								or null to remove message buffering.
+	 * @param	?string			$threshold		(optional) Threshold value.
+	 */
+	static public function setBufferingThreshold(/* string|array|null */ $classOrThreshold, ?string $threshold=null) : void {
+		if (is_null($classOrThreshold)) {
+			self::$_bufferingThreshold = null;
+			return;
+		}
+		self::$_bufferingThreshold = is_array(self::$_bufferingThreshold) ? self::$_bufferingThreshold : [];
+		if (is_string($classOrThreshold) && is_string($threshold))
+			self::$_bufferingThreshold[$classOrThreshold] = $threshold;
+		else {
+			if (is_array($classOrThreshold))
+				self::$_bufferingThreshold = $classOrThreshold;
+			else if (is_string($classOrThreshold))
+				self::$_bufferingThreshold[self::DEFAULT_CLASS] = $classOrThreshold;
 		}
 	}
 	/**
@@ -199,9 +226,19 @@ class Log {
 			$priority = self::INFO;
 			$message = $classOrMessageOrPriority;
 		}
+		$priority = isset(self::$_levels[$priority]) ? $priority : self::INFO;
+		$writeLog = true;
+		$bufferLog = false;
 		// the message is not written if its criticity is lower than the defined threshold
 		if ((isset(self::$_threshold[$class]) && self::$_levels[$priority] < self::$_levels[self::$_threshold[$class]]) ||
-		    (!isset(self::$_threshold[$class]) && (!isset(self::$_threshold[self::DEFAULT_CLASS]) || self::$_levels[$priority] < self::$_levels[self::$_threshold[self::DEFAULT_CLASS]])))
+		    (!isset(self::$_threshold[$class]) && (!isset(self::$_threshold[self::DEFAULT_CLASS]) || self::$_levels[$priority] < self::$_levels[self::$_threshold[self::DEFAULT_CLASS]]))) {
+			$writeLog = false;
+			// message critivity is too low
+			// check if the message must be buffered
+			if (isset(self::$_bufferingThreshold[$class]) && self::$_levels[$priority] >= self::$_levels[self::$_bufferingThreshold[$class]])
+				$bufferLog = true;
+		}
+		if (!$writeLog && !$bufferLog)
 			return;
 		// log processing
 		if (!is_string($message))
@@ -231,6 +268,21 @@ class Log {
 			}
 			$message = $txt;
 		}
+		// add message to buffer if needed
+		if ($bufferLog) {
+			self::$_messageBuffer ??= [];
+			self::$_messageBuffer[] = [$class, $priority, $message];
+		}
+		// quit if the message must not be written
+		if (!$writeLog)
+			return;
+		// write all buffered and the message
+		if (self::$_messageBuffer) {
+			foreach (self::$_messageBuffer as $log) {
+				self::_writeLog($log[0], $log[1], $log[2]);
+			}
+			self::$_messageBuffer = null;
+		}
 		self::_writeLog($class, $priority, $message);
 	}
 	/**
@@ -243,47 +295,6 @@ class Log {
 		self::_writeLog(null, null, $message);
 	}
 	/**
-	 * Write a detailed log message.
-	 * The first parameter (log class) if optional.
-	 * @param	string		$classOrPriority	Log class or criticity level.
-	 * @param	string		$priorityOrMessage	Criticity level or log message.
-	 * @param	string		$messageOrFile		Log message of the name of the file from where the method was called.
-	 * @param	string|int	$fileOrLine		File name or line number where the method was called.
-	 * @param	int|string	$lineOrCaller		Number of the line where the method was called, or the name of the caller function.
-	 * @param	string		$caller			(optional) Name of the caller function.
-	 */
-	static public function fullLog(string $classOrPriority, string $priorityOrMessage, string $messageOrFile,
-	                               /* mixed */ $fileOrLine, /* mixed */ $lineOrCaller, ?string $caller=null) : void {
-		// parameters processing
-		if (is_null($caller)) {
-			// 5 parameters: no log class
-			$caller = $lineOrCaller;
-			$line = $fileOrLine;
-			$file = $messageOrFile;
-			$message = $priorityOrMessage;
-			$priority = $classOrPriority;
-			$class = self::DEFAULT_CLASS;
-		} else {
-			// 6 parameters: log class given
-			$line = $lineOrCaller;
-			$file = $fileOrLine;
-			$message = $messageOrFile;
-			$priority = $priorityOrMessage;
-			$class = $classOrPriority;
-		}
-		// the message is not written if its criticity level if lower than the defined theshold
-		if ((isset(self::$_threshold[$class]) && self::$_levels[$priority] < self::$_levels[self::$_threshold[$class]]) ||
-		    (!isset(self::$_threshold[$class]) && self::$_levels[$priority] < self::$_levels[self::$_threshold[self::DEFAULT_CLASS]]))
-			return;
-		// processing
-		$txt = '[' . basename($file) . ":$line]";
-		if (!empty($caller))
-			$txt .= " $caller()";
-		if (!is_string($message))
-			$message = print_r($message, true);
-		self::_writeLog($class, $priority, "$txt: $message");
-	}
-	/**
 	 * Utility function, used to validate a log level string.
 	 * @param	mixed	$loglevel	The variable that should be a valid log level.
 	 * @return	?string	The upper-case log level, if the input was valid, or null.
@@ -291,7 +302,7 @@ class Log {
 	static public function checkLogLevel(/* mixed */ $loglevel) : ?string {
 		if (is_string($loglevel) &&
 		    ($loglevel = strtoupper($loglevel)) &&
-		    in_array($loglevel, [self::DEBUG, self::INFO, self::NOTE, self::WARN, self::ERROR, self::CRIT]))
+		    isset(self::$_levels[$loglevel]))
 			return ($loglevel);
 		return (null);
 	}

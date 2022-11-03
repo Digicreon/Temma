@@ -352,6 +352,20 @@ class Framework {
 		if (!$usedLogLevels)
 			$usedLogLevels = \Temma\Web\Config::LOG_LEVEL;
 		TµLog::setThreshold($usedLogLevels);
+		// manage buffering log thresholds
+		$bufferingLogLevels = $this->_config->bufferingLogLevels;
+		if ($bufferingLogLevels) {
+			$usedBufferingLogLevels = TµLog::checkLogLevel($bufferingLogLevels);
+			if (!$usedBufferingLogLevels && is_array($bufferingLogLevels)) {
+				$usedBufferingLogLevels = [];
+				foreach ($bufferingLogLevels as $class => $level) {
+					if (($level = TµLog::checkLogLevel($level)))
+						$usedBufferingLogLevels[$class] = $level;
+				}
+			}
+			if ($usedBufferingLogLevels)
+				TµLog::setBufferingThreshold($usedBufferingLogLevels);
+		}
 	}
 
 	/* ********** CONTROLLERS/PLUGINS LOADING ********** */
