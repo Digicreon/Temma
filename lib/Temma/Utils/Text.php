@@ -170,6 +170,8 @@ class Text {
 		if ($avoidUnderscores)
 			$mask[] = '_';
                 $txt = str_replace($mask, '-', $txt);
+		// replace plus with minus
+		$txt = str_replace('+', '-', $txt);
 		// remove multiple minus
                 $txt = preg_replace('/-+/', '-', $txt);
 		// to lower characters
