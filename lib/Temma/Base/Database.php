@@ -119,7 +119,7 @@ class Database extends \Temma\Base\Datasource {
 	 * @param	string	$login		(optional) User login (for PDO compatibility).
 	 * @param	string	$password	(optional) User password (for PDO compatibility).
 	 */
-	private function __construct(string $dsn, ?string $login=null, ?string $password=null) {
+	protected function __construct(string $dsn, ?string $login=null, ?string $password=null) {
 		TµLog::log('Temma/Base', 'DEBUG', "Database object creation with DSN: '$dsn'.");
 		// parameters extraction
 		$params = null;
@@ -369,10 +369,11 @@ class Database extends \Temma\Base\Datasource {
 	 * Execute an SQL request and fetch all lines of returned data.
 	 * @param	string	$sql		The SQL request.
 	 * @param	?string	$keyField	(optional) Name of the field that must be used as the key for each record.
+	 * @param	?string	$valueField	(optional) Name of the field that will be used as value for each record.
 	 * @return	array	An array of associative arrays.
 	 * @throws	\Exception	If something went wrong.
 	 */
-	public function queryAll(string $sql, ?string $keyField=null) : array {
+	public function queryAll(string $sql, ?string $keyField=null, ?string $valueField=null) : array {
 		TµLog::log('Temma/Base', 'DEBUG', "SQL query: $sql");
 		$this->_connect();
 		$result = $this->_db->query($sql);
@@ -382,8 +383,8 @@ class Database extends \Temma\Base\Datasource {
 			throw new \Exception($errStr);
 		}
 		$lines = $result->fetchAll(\PDO::FETCH_ASSOC);
-		if ($keyField)
-			$lines = array_column($lines, null, $keyField);
+		if ($keyField || $valueField)
+			$lines = array_column($lines, $valueField, $keyField);
 		return ($lines);
 	}
 	/**
