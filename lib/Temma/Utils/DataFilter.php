@@ -174,7 +174,7 @@ class DataFilter {
 	 * @throws	\Temma\Exceptions\IO		If the contract is not well formed (BAD_FORMAT).
 	 * @throws	\Temma\Exceptions\Application	If the input data doesn't respect the contract (API).
 	 */
-	static public function process($in, $contract, bool $pedantic=true) {
+	static public function process(/* mixed */ $in, /* mixed */ $contract, bool $pedantic=true) /* : mixed */ {
 		if ($contract === null)
 			return ($in);
 		// process simple contracts
@@ -229,7 +229,7 @@ class DataFilter {
 			throw new TµApplicationException("Data doesn't respect contract (not an array).", TµApplicationException::API);
 		// process scalar input
 		if (!is_array($in)) {
-			return (self::_processScalar($in, $contractType, $contractDefault, $contractMin, $contractMax, $contractMinLen, $contractMaxLen, $contractMask, $contractValues, $pedantic));
+			return (self::_processScalar($in, $contractType, $contractDefault, $contractMin, $contractMax, $contractMask, $contractValues, $pedantic));
 		}
 		// process list input
 		if ($contractType == 'list') {

@@ -6,7 +6,7 @@
  * @copyright	© 2012-2020, Amaury Bouchard
  */
 
-namespace Temma;
+namespace Temma\Dao;
 
 use \Temma\Exceptions\Dao as TµDaoException;
 
@@ -15,7 +15,7 @@ use \Temma\Exceptions\Dao as TµDaoException;
  *
  * @see	\Temma\Dao\Dao
  */
-class DaoCriteria {
+class Criteria {
 	/** DAO object initiating the criteria. */
 	private $_dao = null;
 	/** Database connection. */
@@ -32,7 +32,7 @@ class DaoCriteria {
 	 * @param	string			$type	(optional) 'and', 'or'. (default: 'and')
 	 * @throws	\Temma\Exceptions\Dao	If there is a bad criteria combination.
 	 */
-	public function __construct(\Temma\Base\Database $db, \Temma\Dao\Dao $dao, string $type='and') {
+	final public function __construct(\Temma\Base\Database $db, \Temma\Dao\Dao $dao, string $type='and') {
 		$this->_db = $db;
 		$this->_dao = $dao;
 		$this->_elements = [];

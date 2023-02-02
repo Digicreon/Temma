@@ -41,6 +41,10 @@ class Framework {
 	const ROUTE_MAX_DEPTH = 4;
 	/** Name of the template variable that will contain data automatically imported from configuration. */
 	const AUTOIMPORT_VARIABLE = 'conf';
+	/** List of controllers. */
+	private $_controllers = null;
+	/* List of views. */
+	private $_views = null;
 	/** Loader object. */
 	private $_loader = null;
 	/** Configuration object. */

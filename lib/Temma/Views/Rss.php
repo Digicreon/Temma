@@ -31,6 +31,8 @@ use \Temma\Base\Log as TµLog;
  * </ul>
  */
 class Rss extends \Temma\Web\View {
+	/** Site domain. */
+	private $_domain = null;
 	/** Site title. */
 	private $_title = null;
 	/** Site URL. */

@@ -26,9 +26,10 @@ class Json extends \Temma\Web\View {
 	public function init() : void {
 		$this->_data = $this->_response->getData('json');
 		$this->_debug = $this->_response->getData('jsonDebug', false);
+		$contract = $this->_response->getData('contract');
 		// output filtering
-		if ($parameters)
-			$this->_data = \Temma\Utils\DataFilter::process($this->_data, $parameters[0]);
+		if ($contract)
+			$this->_data = \Temma\Utils\DataFilter::process($this->_data, $contract);
 	}
 	/** Write HTTP headers. */
 	public function sendHeaders(?array $headers=null) : void {

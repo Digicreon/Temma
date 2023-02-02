@@ -143,6 +143,7 @@ class Session implements \ArrayAccess {
 		$oldSessionId = $_COOKIE[$this->_cookieName] ?? null;
 		if (!isset($_COOKIE[$this->_cookieName]) || empty($_COOKIE[$this->_cookieName]) || $this->_sessionId != $oldSessionId && !headers_sent()) {
 			TµLog::log('Temma/Base', 'DEBUG', "Send cookie '{$this->_cookieName}' - '{$this->_sessionId}' - '$timestamp' - '.$host'");
+			$secure = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off') ? true : false;
 			// send the cookie
 			if (PHP_VERSION_ID < 70300) {
 				// PHP < 7.3: use a hack to send the 'samesite' attribute

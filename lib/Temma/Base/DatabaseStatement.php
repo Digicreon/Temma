@@ -54,15 +54,16 @@ class DatabaseStatement {
 	}
 	/**
 	 * Executes a prepared SQL query and fetch one line of data.
+	 * @param	?array	$parameters	(optional) Array of parameters.
 	 * @return	array	An associative array which contains the line of data.
 	 * @throws	\Temma\Exceptions\Database	If an error occurs.
 	 */
-	public function queryOne() : array {
+	public function queryOne(?array $parameters=null) : array {
 		if (!$this->_statement->execute($parameters)) {
 			$err = $this->_statement->errorCode();
 			throw new TµDatabaseException($err, TµDatabaseException::QUERY);
 		}
-		return ($this->_statement->fetchAll(PDO::FETCH_ASSOC));
+		return ($this->_statement->fetchAll(\PDO::FETCH_ASSOC));
 	}
 	/**
 	 * Executes a prepared query and fetch all lines of returned data
@@ -75,7 +76,7 @@ class DatabaseStatement {
 			$err = $this->_statement->errorCode();
 			throw new TµDatabaseException($err, TµDatabaseException::QUERY);
 		}
-		return ($this->_statement->fetchAll(PDO::FETCH_ASSOC));
+		return ($this->_statement->fetchAll(\PDO::FETCH_ASSOC));
 	}
 	/**
 	 * Return the error code of the last execution.

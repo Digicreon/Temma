@@ -277,12 +277,15 @@ class Dao {
 	}
 	/**
 	 * Update one or more records.
-	 * @param	?string|\Temma\Dao\Criteria	$criteria	Primary key of the record that must be updated, or a search criteria.
-	 *					Null to update all records. (default: null)
-	 * @param	array	$fields		Associative array where the keys are the fields to update, and their values are the new values to update.
+	 * @param	string|\Temma\Dao\Criteria|null	$criteria	Primary key of the record that must be updated, or a search criteria.
+	 *								Null to update all records. (default: null)
+	 * @param	array	$fields					Associative array where the keys are the fields to update, and their
+	 *								values are the new values to update. (default: empty array)
 	 * @throws	\Temma\Exceptions\Dao	If the criteria or the fields array are not well formed.
 	 */
-	public function update($criteria=null, array $fields) : void {
+	public function update(/* string|\Temma\Dao\Criteria|null */ $criteria=null, array $fields=[]) : void {
+		if (!$fields)
+			return;
 		// effacement du cache pour cette DAO
 		$this->_flushCache();
 		// constitution et exécution de la requête
