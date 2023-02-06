@@ -348,11 +348,12 @@ class Database extends \Temma\Base\Datasource {
 	}
 	/**
 	 * Execute an SQL request and fetch one line of data.
-	 * @param	string	$sql	The SQL request.
+	 * @param	string	$sql		The SQL request.
+	 * @param	?string	$valueField	(optional) Name of the field whose value will be returned.
 	 * @return	array	An associative array which contains the line of data.
 	 * @throws	\Exception	If something went wrong.
 	 */
-	public function queryOne(string $sql) : array {
+	public function queryOne(string $sql, ?string $valueField=null) : array {
 		TµLog::log('Temma/Base', 'DEBUG', "SQL query: $sql");
 		$this->_connect();
 		$result = $this->_db->query($sql);
@@ -363,7 +364,10 @@ class Database extends \Temma\Base\Datasource {
 		}
 		$line = $result->fetch(\PDO::FETCH_ASSOC);
 		$result = null;
-		return (is_array($line) ? $line : []);
+		$line = is_array($line) ? $line : [];
+		if ($valueField)
+			return ($line[$valueField] ?? null);
+		return ($line);
 	}
 	/**
 	 * Execute an SQL request and fetch all lines of returned data.
