@@ -55,28 +55,38 @@ class DatabaseStatement {
 	/**
 	 * Executes a prepared SQL query and fetch one line of data.
 	 * @param	?array	$parameters	(optional) Array of parameters.
+	 * @param	?string	$valueField	(optional) Name of the field whose value will be returned.
 	 * @return	array	An associative array which contains the line of data.
 	 * @throws	\Temma\Exceptions\Database	If an error occurs.
 	 */
-	public function queryOne(?array $parameters=null) : array {
+	public function queryOne(?array $parameters=null, ?string $valueField=null) : array {
 		if (!$this->_statement->execute($parameters)) {
 			$err = $this->_statement->errorCode();
 			throw new TµDatabaseException($err, TµDatabaseException::QUERY);
 		}
-		return ($this->_statement->fetchAll(\PDO::FETCH_ASSOC));
+		$line = $this->_statement->fetch(\PDO::FETCH_ASSOC);
+		$line = is_array($line) ? $line : [];
+		if ($valueField)
+			return ($line[$valueField] ?? null);
+		return ($line);
 	}
 	/**
 	 * Executes a prepared query and fetch all lines of returned data
 	 * @param	?array	$parameters	(optional) Array of parameters.
+	 * @param	?string	$keyField	(optional) Name of the field that must be used as the key for each record.
+	 * @param	?string	$valueField	(optional) Name of the field that will be used as value for each record.
 	 * @return	bool	True if everything was fine, false otherwise.
 	 * @throws	\Temma\Exceptions\Database	If an error occurs.
 	 */
-	public function queryAll(?array $parameters=null) : bool {
+	public function queryAll(?array $parameters=null, ?string $keyField=null, ?string $valueField=null) : bool {
 		if (!$this->_statement->execute($parameters)) {
 			$err = $this->_statement->errorCode();
 			throw new TµDatabaseException($err, TµDatabaseException::QUERY);
 		}
-		return ($this->_statement->fetchAll(\PDO::FETCH_ASSOC));
+		$lines = $this->_statement->fetchAll(\PDO::FETCH_ASSOC);
+		if ($keyField || $valueField)
+			$lines = array_column($lines, $valueField, $keyField);
+		return ($lines);
 	}
 	/**
 	 * Return the error code of the last execution.
