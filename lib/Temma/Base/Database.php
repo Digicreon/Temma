@@ -350,10 +350,10 @@ class Database extends \Temma\Base\Datasource {
 	 * Execute an SQL request and fetch one line of data.
 	 * @param	string	$sql		The SQL request.
 	 * @param	?string	$valueField	(optional) Name of the field whose value will be returned.
-	 * @return	array	An associative array which contains the line of data.
+	 * @return	mixed	An associative array which contains the line of data, or the value which field's name has been given as paramete.
 	 * @throws	\Exception	If something went wrong.
 	 */
-	public function queryOne(string $sql, ?string $valueField=null) : array {
+	public function queryOne(string $sql, ?string $valueField=null) /* : mixed */ {
 		TµLog::log('Temma/Base', 'DEBUG', "SQL query: $sql");
 		$this->_connect();
 		$result = $this->_db->query($sql);
@@ -374,7 +374,7 @@ class Database extends \Temma\Base\Datasource {
 	 * @param	string	$sql		The SQL request.
 	 * @param	?string	$keyField	(optional) Name of the field that must be used as the key for each record.
 	 * @param	?string	$valueField	(optional) Name of the field that will be used as value for each record.
-	 * @return	array	An array of associative arrays.
+	 * @return	array	An array of associative arrays, or an array of values.
 	 * @throws	\Exception	If something went wrong.
 	 */
 	public function queryAll(string $sql, ?string $keyField=null, ?string $valueField=null) : array {
