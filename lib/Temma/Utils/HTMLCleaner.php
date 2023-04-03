@@ -38,7 +38,16 @@ class HTMLCleaner {
 		$text = nl2br($text);
 		$text = self::clean($text, null, $nofollow);
 		if ($urlProcess) {
-			$text = preg_replace('/(http[s]?:\/\/)([^\s<\),]+)/e', "'<a href=\"\\1\\2\" title=\"\\1\\2\">'.((strlen('\\1\\2')>55)?(substr('\\1\\2',0,55).'...'):'\\1\\2').'</a>'", $text);
+			$text = preg_replace_callback('/(http[s]?:\/\/)([^\s<\),]+)/', function($matches) {
+				$url = $matches[1] . $matches[2];
+				$str = '<a href="' . $url . '" title="' . $url . '">';
+				if (mb_strlen($url) > 55)
+					$str .= mb_substr($url, 0, 55) . '...';
+				else
+					$str .= $url;
+				$str .= '</a>';
+				return ($str);
+			}, $text);
 		}
 		return ($text);
 	}

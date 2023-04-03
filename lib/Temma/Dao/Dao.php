@@ -232,7 +232,7 @@ class Dao {
 	 * @param	?int			$nbrLimit	(optional) Maximum number of records to return. Null for no limit. (default: null)
 	 * @return	array	List of associative arrays.
 	 */
-	public function search(?\Temma\Dao\Criteria $criteria=null, $sort=null, ?int $limitOffset=null, ?int $nbrLimit=null) : array {
+	public function search(?\Temma\Dao\Criteria $criteria=null, /* ?string|array */ $sort=null, ?int $limitOffset=null, ?int $nbrLimit=null) : array {
 		$cacheVarName = '__dao:' . $this->_dbName . ':' . $this->_tableName . ':count';
 		$sql = 'SELECT ' . $this->_getFieldsString() . ' FROM ' .
 			(!$this->_dbName ? '' : ('`' . $this->_dbName . '`.')) . '`' . $this->_tableName . '`';

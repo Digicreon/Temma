@@ -108,7 +108,7 @@ class Criteria {
 	 * @param	mixed	$value	Comparison value.
 	 * @return	\Temma\Dao\Criteria	The current object.
 	 */
-	public function equal(string $field, $value) : \Temma\Dao\Criteria {
+	public function equal(string $field, /* mixed */ $value) : \Temma\Dao\Criteria {
 		$s = '';
 		if (is_array($value)) {
 			$values = [];
@@ -128,7 +128,7 @@ class Criteria {
 	 * @param	mixed	$value	Comparison value.
 	 * @return	\Temma\Dao\Criteria	The current object.
 	 */
-	public function different(string $field, $value) : \Temma\Dao\Criteria {
+	public function different(string $field, /* mixed */ $value) : \Temma\Dao\Criteria {
 		$s = '';
 		if (is_array($value)) {
 			$values = [];
@@ -169,7 +169,7 @@ class Criteria {
 	 * @param	int|float	$value	Comparison value.
 	 * @return	\Temma\Dao\Criteria	The current object.
 	 */
-	public function lessThan(string $field, $value) : \Temma\Dao\Criteria {
+	public function lessThan(string $field, /* int|float */ $value) : \Temma\Dao\Criteria {
 		$this->_addCriteria($field, '<', $value);
 		return ($this);
 	}
@@ -179,7 +179,7 @@ class Criteria {
 	 * @param	int|float	$value	Comparison value.
 	 * @return	\Temma\Dao\Criteria	The current object.
 	 */
-	public function greaterThan(string $field, $value) : \Temma\Dao\Criteria {
+	public function greaterThan(string $field, /* int|float */ $value) : \Temma\Dao\Criteria {
 		$this->_addCriteria($field, '>', $value);
 		return ($this);
 	}
@@ -189,17 +189,17 @@ class Criteria {
 	 * @param	int|float	$value	Comparison value.
 	 * @return	\Temma\Dao\Criteria	The current object.
 	 */
-	public function lessOrEqualTo(string $field, $value) : \Temma\Dao\Criteria {
+	public function lessOrEqualTo(string $field, /* int|float */ $value) : \Temma\Dao\Criteria {
 		$this->_addCriteria($field, '<=', $value);
 		return ($this);
 	}
 	/**
 	 * Add a "grater or equal to" criterion.
 	 * @param	string		$field	Field name.
-	 * @param	sintrg|int	$value	Comparison value.
-	 * @return	\Temma\DaoCriteria	L'instance de l'objet courant.
+	 * @param	string|int	$value	Comparison value.
+	 * @return	\Temma\Dao\Criteria	L'instance de l'objet courant.
 	 */
-	public function greaterOrEqualTo($field, $value) : \Temma\Dao\Criteria {
+	public function greaterOrEqualTo(string $field, /* string|int */ $value) : \Temma\Dao\Criteria {
 		$this->_addCriteria($field, '>=', $value);
 		return ($this);
 	}

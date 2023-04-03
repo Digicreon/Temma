@@ -270,7 +270,7 @@ class Database extends \Temma\Base\Datasource {
 	public function getError() : string {
 		$this->_connect();
 		$errInfo = $this->_db->errorInfo();
-		return ($errInfo[2] ?? null);
+		return ($errInfo[2] ?? '');
 	}
 	/**
 	 * Check if the connection to the database is still working.
@@ -293,7 +293,7 @@ class Database extends \Temma\Base\Datasource {
 	public function quote(?string $str) : string {
 		$this->_connect();
 		$str = $this->_db->quote((string)$str);
-		return (strlen($str) ? $str : '');
+		return ($str ?: '');
 	}
 	/**
 	 * Escape a character string. If the input is empty, return a 'NULL' string.
@@ -305,7 +305,7 @@ class Database extends \Temma\Base\Datasource {
 			return ('NULL');
 		$this->_connect();
 		$str = $this->_db->quote((string)$str);
-		return (strlen($str) ? $str : '');
+		return ($str ?: '');
 	}
 	/**
 	 * Creates a prepared query.

@@ -78,7 +78,7 @@ class BaseConvert {
 	 * @param	int	$inBase		Size of the input base. Could be 31, 54, 61, 71, 73, 80, 85 or 95.
 	 * @param	int	$outBase	Size of the output base (any number between 2 and 95).
 	 * @return	string	The converted number.
-	 * @throws	Exception	If the parameters are incorrect.
+	 * @throws	\Exception	If the parameters are incorrect.
 	 */
 	static public function convertFromSpecialBase(string $input, int $inBase, int $outBase) : string {
 		if ($inBase == 31)
@@ -110,7 +110,7 @@ class BaseConvert {
 	 * @param	int		$inBase		Size of the input base (any number between 2 and 95).
 	 * @param	int		$outBase	Size of the output base (any number between 2 and 95).
 	 * @return	string		The converted number.
-	 * @throws	Exception	If a digit is outside the base.
+	 * @throws	\Exception	If a digit is outside the base.
 	 */
 	static public function convert(string $input, int $inBase, int $outBase) : string {
 		if ($inBase < 2 || $inBase > 95 || $outBase < 2 || $outBase > 95)
@@ -125,7 +125,7 @@ class BaseConvert {
 	 * @param	string		$inDigits	The input base's digits.
 	 * @param	string		$outDigits	The output base's digits.
 	 * @return	string		The converted number.
-	 * @throws	Exception	If a digit is outside the base.
+	 * @throws	\Exception	If a digit is outside the base.
 	 * @link	http://www.technischedaten.de/pmwiki2/pmwiki.php?n=Php.BaseConvert
 	 */
 	static public function convertBase(/*int|string*/ $value, string $inDigits, string $outDigits) : string {
@@ -153,7 +153,7 @@ class BaseConvert {
 			$factor = bcpow($outBase, $i);
 			$number = bcdiv($decimal, $factor, 0);
 			$decimal = bcmod($decimal, $factor);
-			$result .= $outDigits[$number];
+			$result .= mb_substr($outDigits, $number, 1);
 		}
 		$result = empty($result) ? '0' : $result;
 		return ($result);
