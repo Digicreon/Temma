@@ -54,7 +54,7 @@ class Syslog implements \Temma\Base\Loadable, \Temma\Web\LogManager {
 			$message .= "($class) ";
 		$message .= $text;
 		// send to syslog
-		syslog((self::PRIO_MAPPING[$priority] ?? LOG_NOTE), $message);
+		syslog((self::PRIO_MAPPING[$priority] ?? LOG_NOTICE), $message);
 	}
 }
 
