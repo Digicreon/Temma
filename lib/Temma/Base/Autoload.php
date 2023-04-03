@@ -89,14 +89,9 @@ class Autoload {
 		}
 		$path = str_replace('\\', DIRECTORY_SEPARATOR, ltrim($name, '\\')) . '.php';
 		$realPath = stream_resolve_include_path($path);
-		if ($realPath === false) {
-			trigger_error("Temma Autoload: Unable to locate file '$path'.", E_USER_WARNING);
+		if (!$realPath)
 			return;
-		}
-		$included = include($realPath);
-		if ($included === false) {
-			trigger_error("Temma Autoload: Unable to load file '$realPath'.", E_USER_WARNING);
-		}
+		require($realPath);
 	}
 	/**
 	 * Add include path(s).
