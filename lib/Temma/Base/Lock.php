@@ -91,7 +91,7 @@ class Lock {
 	}
 	/**
 	 * Lock the access to the given file, until the end of the current program's execution or a call to the unlock() method.
-	 * @param	string	path		Path to the file to lock.
+	 * @param	string	$path		Path to the file to lock.
 	 * @param	bool	$blocking	(optional) Set to true to block until the resource is available. (default: false)
 	 * @return	bool	True if the resource has been successfully locked, false if it was already locked (in non-blocking mode).
 	 * @throws	\Temma\Exceptions\IO	If an error occurs.
@@ -117,7 +117,7 @@ class Lock {
 	}
 	/**
 	 * Unlock a previously locked file.
-	 * @param	stirng	$path	Path to the locked file.
+	 * @param	string	$path	Path to the locked file.
 	 */
 	static public function unlock(string $path) : void {
 		if (!self::$_lockedFiles || !isset(self::$_lockedFiles[$path]))

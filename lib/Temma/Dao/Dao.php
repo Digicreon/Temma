@@ -227,12 +227,12 @@ class Dao {
 	/**
 	 * Search records from a search criteria.
 	 * @param	?\Temma\Dao\Criteria	$criteria	(optional) Search criteria. Null to take all records. (default: null)
-	 * @param	?string|array		$sort		(optional) Sort data. Null for natural sort, false for random sort.
+	 * @param	null|string|array	$sort		(optional) Sort data. Null for natural sort, false for random sort.
 	 * @param	?int			$limitOffset	(optional) Offset of the first returned record. (default: 0).
 	 * @param	?int			$nbrLimit	(optional) Maximum number of records to return. Null for no limit. (default: null)
 	 * @return	array	List of associative arrays.
 	 */
-	public function search(?\Temma\Dao\Criteria $criteria=null, /* ?string|array */ $sort=null, ?int $limitOffset=null, ?int $nbrLimit=null) : array {
+	public function search(?\Temma\Dao\Criteria $criteria=null, /* null|string|array */ $sort=null, ?int $limitOffset=null, ?int $nbrLimit=null) : array {
 		$cacheVarName = '__dao:' . $this->_dbName . ':' . $this->_tableName . ':count';
 		$sql = 'SELECT ' . $this->_getFieldsString() . ' FROM ' .
 			(!$this->_dbName ? '' : ('`' . $this->_dbName . '`.')) . '`' . $this->_tableName . '`';

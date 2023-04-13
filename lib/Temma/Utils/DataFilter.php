@@ -179,7 +179,7 @@ class DataFilter {
 			return ($in);
 		// process simple contracts
 		if (in_array($contract, ['null', 'string', '?string', 'int', '?int', 'float', '?float', 'bool', '?bool'])) {
-			return (self::_processScalar($in, $contract, null, null, null, null, null, null, null, $pedantic));
+			return (self::_processScalar($in, $contract, null, null, null, null, null, $pedantic));
 		} else if (!is_array($contract)) {
 			throw new TµIOException("Bad contract.", TµIOException::BAD_FORMAT);
 		}
@@ -271,10 +271,10 @@ class DataFilter {
 	/**
 	 * Process a scalar type.
 	 * @param	mixed		$in		Input value.
-	 * @param	string		$type		Specified type. Set to null (not the 'null' string) or an empty string to get a pass-through.
+	 * @param	?string		$type		Specified type. Set to null (not the 'null' string) or an empty string to get a pass-through.
 	 * @param	mixed		$default	(optional) Default value.
-	 * @param	?float|int	$min		(optional) Number min or string min length.
-	 * @param	?float|int	$max		(optional) Number max or string max length.
+	 * @param	null|float|int	$min		(optional) Number min or string min length.
+	 * @param	null|float|int	$max		(optional) Number max or string max length.
 	 * @param	?string		$mask		(optional) Regexp mask.
 	 * @param	?array		$values		(optional) Enum values.
 	 * @param	bool		$pedantic	(optional) True to throw an exception if the input data doesn't respect the contract. (default: true)
@@ -282,7 +282,8 @@ class DataFilter {
 	 * @throws	\Temma\Exceptions\IO		If the type is not supported (BAD_FORMAT).
 	 * @throws	\Temma\Exceptions\Application	If the input data doesn't respect the contract (API).
 	 */
-	static private function _processScalar($in, ?string $type, $default=null, $min=null, $max=null, ?string $mask=null, ?array $values=null, bool $pedantic=true) {
+	static private function _processScalar(/* mixed */ $in, ?string $type, /* mixed */ $default=null, /* null|float|int */ $min=null, /* null|float|int */ $max=null,
+	                                       ?string $mask=null, ?array $values=null, bool $pedantic=true) {
 		$nullable = false;
 		// no type == passthru
 		if (!$type) {

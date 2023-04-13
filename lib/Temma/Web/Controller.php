@@ -68,17 +68,21 @@ class Controller implements \ArrayAccess {
 	 * Initialization function.
 	 * Called for each controller before the action.
 	 * Could be overloaded in all controllers.
-	 * @return	?int	The return code (self::EXEC_QUIT, ...). Could be null (==self::EXEC_FORWARD).
+	 * The return could be an constant (e.g. `return self::EXEC_QUIT;`) or null (`return (null);`) or nothing (`return;`).
+	 * Null and empty return values are the same than returning `self::EXEC_FORWARD`.
+	 * @link	https://www.temma.net/en/documentation/flow
 	 */
-	public function __wakeup() /* : ?int */ {
+	public function __wakeup() {
 	}
 	/**
 	 * Finalization function.
 	 * Called for each controller after the action.
 	 * Could be overloaded in all controllers.
-	 * @return	?int	The return code (self::EXEC_QUIT, ...). Could be null (==self::EXEC_FORWARD).
+	 * The return could be an constant (e.g. `return self::EXEC_QUIT;`) or null (`return (null);`) or nothing (`return;`).
+	 * Null and empty return values are the same than returning `self::EXEC_FORWARD`.
+	 * @link	https://www.temma.net/en/documentation/flow
 	 */
-	public function __sleep() /* : ?int */ {
+	public function __sleep() {
 	}
 
 	/* ********** DAO MANAGEMENT ********** */

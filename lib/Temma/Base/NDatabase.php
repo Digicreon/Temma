@@ -152,7 +152,7 @@ class NDatabase extends \Temma\Base\Datasource implements \ArrayAccess {
 			$value = json_encode($value);
 			if ($createOnly)
 				$this->_ndb->setnx($key, $value);
-			else if (isset($timeout) && is_numeric($timeout) && $timeout > 0)
+			else if ($timeout > 0)
 				$this->_ndb->setex($key, $timeout, $value);
 			else
 				$this->_ndb->set($key, $value);

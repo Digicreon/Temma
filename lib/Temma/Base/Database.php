@@ -108,7 +108,7 @@ class Database extends \Temma\Base\Datasource {
 	 * @return	\Temma\Base\Database	The created object.
 	 * @throws	\Exception	If something went wrong.
 	 */
-	static public function factory(string $dsn) : \Temma\Base\Datasource {
+	static public function factory(string $dsn) : \Temma\Base\Database {
 		// instance creation
 		$instance = new self($dsn);
 		return ($instance);
@@ -214,7 +214,7 @@ class Database extends \Temma\Base\Datasource {
 	 * Manage a transaction automatically.
 	 * @param	\Callable	$callback	Anonymous function.
 	 */
-	public function transaction(Callable $callback) : void {
+	public function transaction(\Callable $callback) : void {
 		TµLog::log('Temma/Base', 'DEBUG', "Starting a transaction.");
 		$this->startTransaction();
 		try {
@@ -287,20 +287,22 @@ class Database extends \Temma\Base\Datasource {
 	}
 	/**
 	 * Escape a character string.
-	 * @param	?string	$str	The string to escape.
+	 * @param	mixed	$str	The string to escape.
 	 * @return	string	The escaped string.
 	 */
-	public function quote(?string $str) : string {
+	public function quote(mixed $str) : string {
 		$this->_connect();
+		if ($str === false)
+			return ('\'0\'');
 		$str = $this->_db->quote((string)$str);
 		return ($str ?: '');
 	}
 	/**
 	 * Escape a character string. If the input is empty, return a 'NULL' string.
-	 * @param	?string	$str	The string to escape.
+	 * @param	mixed	$str	The string to escape.
 	 * @return	string	The escaped string, or 'NULL' if the string is empty.
 	 */
-	public function quoteNull(?string $str) : string {
+	public function quoteNull(mixed $str) : string {
 		if (!$str)
 			return ('NULL');
 		$this->_connect();

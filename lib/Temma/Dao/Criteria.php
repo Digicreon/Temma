@@ -234,7 +234,7 @@ class Criteria {
 	/**
 	 * Add a search criterion using the default combination type.
 	 * @param	string	$field		Field name.
-	 * @param	?string	$operator	(optional) Search operator. (default: '')
+	 * @param	string	$operator	(optional) Search operator. (default: '')
 	 * @param	string	$value		(optional) Search value.
 	 */
 	protected function _addCriteria(string $field, string $operator='', ?string $value=null) : void {

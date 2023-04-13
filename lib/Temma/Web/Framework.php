@@ -415,8 +415,8 @@ class Framework {
 			}
 			// management of the suffix
 			$controllersSuffix = $this->_config->controllersSuffix;
-			if (!empty($controllerSuffix) && substr($this->_objectControllerName, -strlen($controllerSuffix)) != $controllerSuffix)
-				$this->_objectControllerName .= $controllerSuffix;
+			if (!empty($controllersSuffix) && substr($this->_objectControllerName, -strlen($controllersSuffix)) != $controllersSuffix)
+				$this->_objectControllerName .= $controllersSuffix;
 		}
 		if (empty($this->_objectControllerName)) {
 			// no requested controller, use the default controller
@@ -545,7 +545,7 @@ class Framework {
 		          $this->_actionName === self::PLUGINS_POSTPLUGIN_METHOD ||
 		          $this->_actionName === self::PLUGINS_PLUGIN_METHOD) &&
 		         is_a($this->_objectControllerName, '\Temma\Web\Plugin')) {
-			TµLog::l('Temma/Web', 'ERROR', "Try to execute a plugin method as an action on the controller '" . $this->_objectControllerName . "'.");
+			TµLog::log('Temma/Web', 'ERROR', "Try to execute a plugin method as an action on the controller '" . $this->_objectControllerName . "'.");
 			throw new TµHttpException("Try to execute a plugin method as an action on the controller '" . $this->_objectControllerName . "'.", 500);
 		}
 	}

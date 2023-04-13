@@ -129,7 +129,7 @@ class Log {
 	/* ******************** PUBLIC METHODS ****************** */
 	/**
 	 * Set the path ot the log file.
-	 * @param	string	path	Path to the log file.
+	 * @param	string	$path	Path to the log file.
 	 */
 	static public function setLogFile(string $path) : void {
 		self::$_enable = true;
