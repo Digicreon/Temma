@@ -26,6 +26,12 @@ use \Temma\Base\Log as TµLog;
  *         <li>abstract: Short description of the article.</li>
  *         <li>url: URL of the article.</li>
  *         <li>title: Title of the article.</li>
+ *         <li>guid: (optional) Unique identifier of the article (use its URL if not defined).</li>
+ *         <li>author: (optional) Name and email address of the article's author.</li>
+ *         <li>pubDate: (optional) Date of publication.</li>
+ *         <li>image: (optional) URL of the article's image.</li>
+ *         <li>imageType: (optional) Type of the article's image ('jpg', 'png', 'gif' or 'webp').</li>
+ *         <li>categories: (optional) List of categories.</li>
  *     </ul>
  * </li>
  * </ul>
@@ -95,23 +101,23 @@ class Rss extends \Temma\Web\View {
 		else
 			print("\t<category>Blog</category>\n");
 		foreach ($this->_articles as $article) {
-			if (!($article['url'] ?? null) || !trim($article['title'] ?? ''))
+			if (!($article['url'] ?? false) || !trim($article['title'] ?? ''))
 				continue;
 			print("\t<item>\n");
 			print("\t\t<title>" . htmlspecialchars($article['title'], ENT_COMPAT, 'UTF-8') . "</title>\n");
 			print("\t\t<link>" . htmlspecialchars($article['url'], ENT_COMPAT, 'UTF-8') . "</link>\n");
 			// guid
-			if (($article['guid'] ?? null))
+			if (($article['guid'] ?? false))
 				print("\t\t<guid isPermalink=\"true\">" . htmlspecialchars($article['guid'], ENT_COMPAT, 'UTF-8') . "</guid>\n");
 			else
 				print("\t\t<guid isPermaLink=\"true\">" . htmlspecialchars($article['url'], ENT_COMPAT, 'UTF-8') . "</guid>\n");
 			// author
-			if (($article['author'] ?? null)) {
+			if (($article['author'] ?? false)) {
 				print("\t\t<author>" . htmlspecialchars($article['author'], ENT_COMPAT, 'UTF-8') . "</author>\n");
 				print("\t\t<dc:creator>" . htmlspecialchars($article['author'], ENT_COMPAT, 'UTF-8') . "</dc:creator>\n");
 			}
 			// date
-			if (($article['pubDate'] ?? null)) {
+			if (($article['pubDate'] ?? false)) {
 				$date = $article['pubDate'];
 				$year = (int)substr($date, 0, 4);
 				$month = (int)substr($date, 5, 2);
@@ -124,13 +130,15 @@ class Rss extends \Temma\Web\View {
 				print("\t\t<pubDate>$pubDate</pubDate>\n");
 			}
 			// image
-			if (($article['image'] ?? null)) {
+			if (($article['image'] ?? false)) {
 				$mimetype = 'image/jpeg';
 				if (($article['imageType'] ?? null) === 'png')
 					$mimetype = 'image/png';
 				else if (($article['imageType'] ?? null) === 'gif')
 					$mimetype = 'image/gif';
-				print("\t\t<enclosure type=\"$mimetype\" length=\"10000\" url=\"" . $article['image'] . "\"/>\n");
+				else if (($article['imageType'] ?? null) === 'webp')
+					$mimietype = 'image/webp';
+				print("\t\t<enclosure type=\"$mimetype\" length=\"10000\" url=\"" . htmlspecialchars($article['image'], ENT_COMPAT, 'UTF-8') . "\"/>\n");
 			}
 			// description
 			$content = $article['abstract'] ?? '';
