@@ -329,7 +329,7 @@ class Log {
 		// check if there is a configured output
 		if (!self::$_logPath && !self::$_logToStdOut && !self::$_logToStdErr && !self::$_logCallbacks) {
 			// no configured output: write to stderr
-			fwrite(STDERR, $text);
+			file_put_contents('php://stderr', $text);
 			return;
 		}
 		// output: callbacks
@@ -341,7 +341,7 @@ class Log {
 			print($text);
 		// output: stderr
 		if (self::$_logToStdErr)
-			fwrite(STDERR, $text);
+			file_put_contents('php://stderr', $text);
 		// output: log file
 		if (self::$_logPath) {
 			$path = self::$_logPath;
