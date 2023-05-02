@@ -59,10 +59,12 @@ class Request {
 					$requestUri = substr($requestUri, $rootPathLen);
 			} else
 				throw new TµFrameworkException('No PATH_INFO nor REQUEST_URI environment variable.', TµFrameworkException::CONFIG);
+			// remove multiple slashes at the beginning of the request URI
+			$requestUri = '/' . ltrim($requestUri);
 			// for SEO purpose: if the URL ends with a slash, do a redirection without it (only for GET requests)
 			// hint: PATH_INFO is not filled when we access to the Temma project's root (being at the site root or in a sub-directory)
 			if ($_SERVER['REQUEST_METHOD'] == 'GET' && isset($_SERVER['PATH_INFO']) && !empty($_SERVER['PATH_INFO']) && substr($requestUri, -1) == '/') {
-				$url = substr($requestUri, 0, -1) . ((isset($_SERVER['QUERY_STRING']) && !empty($_SERVER['QUERY_STRING'])) ? ('?' . $_SERVER['QUERY_STRING']) : '');
+				$url = '/' . rtrim($requestUri, '/') . ((isset($_SERVER['QUERY_STRING']) && !empty($_SERVER['QUERY_STRING'])) ? ('?' . $_SERVER['QUERY_STRING']) : '');
 				TµLog::log('Temma/Web', 'DEBUG', "Redirecting to '$url'.");
 				header('HTTP/1.1 301 Moved Permanently');
 				header("Location: $url");
