@@ -3,7 +3,7 @@
 /**
  * View
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2007-2019, Amaury Bouchard
+ * @copyright	© 2007-2023, Amaury Bouchard
  */
 
 namespace Temma\Web;
@@ -13,26 +13,22 @@ namespace Temma\Web;
  */
 abstract class View {
 	/** List of data sources. */
-	protected $_dataSources = null;
+	protected array $_dataSources;
 	/** Configuration object. */
-	protected $_config = null;
+	protected \Temma\Web\Config $_config;
 	/** Response object. */
-	protected $_response = null;
-	/** View parameters. */
-	protected $_parameters = null;
+	protected ?\Temma\Web\Response $_response = null;
 
 	/**
 	 * Constructor.
 	 * @param	array			$dataSources	List of data sources.
 	 * @param	\Temma\Web\Config	$config		Configuration object.
 	 * @param	\Temma\Web\Response	$response	Response object.
-	 * @param	array			$parameters	Special parameters.
 	 */
-	public function __construct(array $dataSources, \Temma\Web\Config $config, ?\Temma\Web\Response $response=null, array ...$parameters) {
+	public function __construct(array $dataSources, \Temma\Web\Config $config, ?\Temma\Web\Response $response=null) {
 		$this->_dataSources = $dataSources;
 		$this->_config = $config;
 		$this->_response = $response;
-		$this->_parameters = $parameters;
 	}
 	/** Destructor. */
 	public function __destruct() {
@@ -78,10 +74,6 @@ abstract class View {
 		$headersDefault = $this->_config->xtra('headers', 'default');
 		if (is_array($headersDefault)) {
 			$headers = array_merge($headers, $headersDefault);
-		}
-		// add headers given as parameters
-		if (isset($this->_parameters['header']) && is_array($this->_parameters['header'])) {
-			$headers = array_merge($headers, $this->_parameters['headers']);
 		}
 		// send the headers
 		if (is_array($headers)) {

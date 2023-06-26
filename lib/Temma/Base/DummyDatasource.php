@@ -3,7 +3,7 @@
 /**
  * DummyDatasource
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2012-2019, Amaury Bouchard
+ * @copyright	© 2012-2023, Amaury Bouchard
  */
 
 namespace Temma\Base;
@@ -29,7 +29,7 @@ class DummyDatasource extends \Temma\Base\Datasource {
 	 * @param	array	$args	List of parameters.
 	 * @return	null	This method always returns null.
 	 */
-	public function __call(string $name, array $args) {
+	public function __call(string $name, array $args) /* : null */ {
 		TµLog::log('Temma/Base', 'DEBUG', "Dummy datasource called on method '$name'.");
 		return (null);
 	}
@@ -40,7 +40,7 @@ class DummyDatasource extends \Temma\Base\Datasource {
 	 *						Its return value will be returned by the method.
 	 * @return	mixed	The data returned by the anonymous function, or null.
 	 */
-	public function get(string $key, ?callable $callback=null) {
+	public function get(string $key, ?callable $callback=null) : mixed {
 		TµLog::log('Temma/Base', 'DEBUG', "Dummy datasource get() call.");
 		if (is_callable($callback))
 			return ($callback());

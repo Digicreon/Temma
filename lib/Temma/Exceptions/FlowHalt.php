@@ -3,7 +3,7 @@
 /**
  * FlowHalt
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2020, Amaury Bouchard
+ * @copyright	© 2020-2023, Amaury Bouchard
  */
 
 namespace Temma\Exceptions;
@@ -14,7 +14,7 @@ namespace Temma\Exceptions;
 class FlowHalt extends Flow {
 	/** Constructor. */
 	public function __construct() {
-		parent::__construct(null, \Temma\Web\Controller::EXEC_HALT);
+		parent::__construct('', \Temma\Web\Controller::EXEC_HALT);
 	}
 }
 

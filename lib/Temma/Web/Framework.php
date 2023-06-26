@@ -3,7 +3,7 @@
 /**
  * Framework
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2007-2019, Amaury Bouchard
+ * @copyright	© 2007-2023, Amaury Bouchard
  */
 
 namespace Temma\Web;
@@ -41,39 +41,31 @@ class Framework {
 	const ROUTE_MAX_DEPTH = 4;
 	/** Name of the template variable that will contain data automatically imported from configuration. */
 	const AUTOIMPORT_VARIABLE = 'conf';
-	/** List of controllers. */
-	private $_controllers = null;
-	/* List of views. */
-	private $_views = null;
 	/** Loader object. */
-	private $_loader = null;
+	private ?\Temma\Base\Loader $_loader = null;
 	/** Configuration object. */
-	private $_config = null;
+	private ?\Temma\Web\Config $_config = null;
 	/** List of data sources. */
-	private $_dataSources = null;
+	private array $_dataSources = [];
 	/** Session object. */
-	private $_session = null;
+	private ?\Temma\Base\Session $_session = null;
 	/** Request object. */
-	private $_request = null;
+	private ?\Temma\Web\Request $_request = null;
 	/** Response object. */
-	private $_response = null;
+	private ?\Temma\Web\Response $_response = null;
 	/** "neutral" controller object. */
-	private $_executorController = null;
-	/** Name of the controller called in first place. */
-	private $_initControllerName = null;
+	private ?\Temma\Web\Controller $_executorController = null;
 	/** Name of the executed controller. */
-	private $_controllerName = null;
+	private ?string $_controllerName = null;
 	/** Name of the object corresponding to the controller. */
-	private $_objectControllerName = null;
+	private ?string $_objectControllerName = null;
 	/** Name of the executed action. */
-	private $_actionName = null;
+	private ?string $_actionName = null;
 	/** Reflexion object over the controller (for checking purposes). */
-	private $_controllerReflection = null;
+	private ?\ReflectionClass $_controllerReflection = null;
 
 	/** Constructor. */
 	public function __construct() {
-		$this->_controllers = [];
-		$this->_views = [];
 	}
 	/** Destructor. */
 	public function __destruct() {
@@ -103,7 +95,6 @@ class Framework {
 		} else
 			TµLog::log('Temma/Web', 'DEBUG', "Processing URL '" . $_SERVER['REQUEST_URI'] . "'.");
 		// connect to data sources
-		$this->_dataSources = [];
 		foreach ($this->_config->dataSources as $name => $dsn) {
 			$this->_dataSources[$name] = \Temma\Base\Datasource::factory($dsn);
 		}
@@ -112,8 +103,7 @@ class Framework {
 		if ($this->_config->enableSessions) {
 			$sessionSource = (isset($this->_config->sessionSource) && isset($this->_dataSources[$this->_config->sessionSource])) ?
 					 $this->_dataSources[$this->_config->sessionSource] : null;
-			$this->_session = \Temma\Base\Session::factory($sessionSource, $this->_config->sessionName, $this->_config->sessionDuration,
-			                                               1200, $this->_config->sessionSecure);
+			$this->_session = \Temma\Base\Session::factory($sessionSource, $this->_config->sessionName, $this->_config->sessionDuration);
 		}
 		$this->_loader->set('session', $this->_session);
 	}
@@ -188,7 +178,7 @@ class Framework {
 		/* ********** CONTROLLER ********** */
 		if ($this->_controllerReflection->getName() == 'Temma\Web\Controller')
 			throw new TµHttpException("The requested page doesn't exists.", 404);
-		if ($execStatus === \Temma\Web\Controller::EXEC_FORWARD) {
+		if (!$execStatus) { // $execStatus === \Temma\Web\Controller::EXEC_FORWARD || $execStatus === \Temma\Web\Controller::EXEC_FORWARD_THROWABLE
 			do {
 				// process the controller
 				TµLog::log('Temma/Web', 'DEBUG', "Controller processing.");
@@ -211,7 +201,7 @@ class Framework {
 		}
 
 		/* ********** POST-PLUGINS ********** */
-		if ($execStatus === \Temma\Web\Controller::EXEC_FORWARD) {
+		if (!$execStatus) { // $execStatus === \Temma\Web\Controller::EXEC_FORWARD || $execStatus === \Temma\Web\Controller::EXEC_FORWARD_THROWABLE
 			TµLog::log('Temma/Web', 'DEBUG', "Processing of post-process plugins.");
 			// generate the list of post-plugins
 			$postPlugins = $this->_generatePostPluginsList();
@@ -284,7 +274,7 @@ class Framework {
 	/**
 	 * Returns the path to the HTML page corresponding to an HTTP error code.
 	 * @param	int	$code	The HTTP error code.
-	 * @return	string|null	The path to the file, or null if it's not defined.
+	 * @return	?string	The path to the file, or null if it's not defined.
 	 */
 	public function getErrorPage(int $code)  : ?string {
 		$errorPages = $this->_config->errorPages;
@@ -293,6 +283,15 @@ class Framework {
 		if (isset($errorPages['default']) && !empty($errorPages['default']))
 			return ($this->_config->webPath . '/' . $errorPages['default']);
 		return (null);
+	}
+
+	/* ********** GETTERS ********** */
+	/**
+	 * Returns the loader.
+	 * @return	?\Temma\Base\Loader	The current loader object.
+	 */
+	public function getLoader() : ?\Temma\Base\Loader {
+		return ($this->_loader);
 	}
 
 	/* ********** PRIVATE METHODS ********** */
@@ -378,7 +377,7 @@ class Framework {
 	 * @throws	\Temma\Exceptions\Http	If the controller doesn't exist.
 	 */
 	private function _setControllerName() : void {
-		$this->_initControllerName = $this->_controllerName = $this->_request->getController();
+		$this->_controllerName = $this->_request->getController();
 		if (!empty($proxyName = $this->_config->proxyController)) {
 			// a proxy controller was defined
 			$this->_objectControllerName = $proxyName;
@@ -488,49 +487,46 @@ class Framework {
 	 * @param	string	$pluginType	Type of plugin ('pre' or 'post').
 	 * @return	int	Plugin execution status.
 	 * @throws	\Temma\Exceptions\Http	If the plugin doesn't exist.
+	 * @throws	\Temma\Exceptions\Flow	If the plugin throws a Flow exception.
 	 */
 	private function _execPlugin(string $pluginName, string $pluginType) : ?int {
 		TµLog::log('Temma/Web', 'INFO', "Executing plugin '$pluginName'.");
 		$methodName = ($pluginType === 'pre') ? self::PLUGINS_PREPLUGIN_METHOD : self::PLUGINS_POSTPLUGIN_METHOD;
-		try {
-			// if the plugin object's name doesn't start with a backslash, prepend the default namespace
-			if ($pluginName[0] != '\\') {
-				$defaultNamespace = rtrim(($this->_config->defaultNamespace ?? ''), '\\');
-				$pluginName = "$defaultNamespace\\$pluginName";
+		// if the plugin object's name doesn't start with a backslash, prepend the default namespace
+		if ($pluginName[0] != '\\') {
+			$defaultNamespace = rtrim(($this->_config->defaultNamespace ?? ''), '\\');
+			$pluginName = "$defaultNamespace\\$pluginName";
+		}
+		// check that the plugin exists
+		if (!class_exists($pluginName)) {
+			// can't find the object, try with the default namespace
+			$defaultNamespace = $this->_config->defaultNamespace;
+			$fullPluginName = "$defaultNamespace\\" . $pluginName;
+			if (empty($defaultNamespace) || !class_exists($fullPluginName)) {
+				TµLog::log('Temma/Web', 'ERROR', "Plugin '$pluginName' doesn't exist.");
+				throw new TµHttpException("Plugin '$pluginName' doesn't exist.", 500);
 			}
-			// check that the plugin exists
-			if (!class_exists($pluginName)) {
-				// can't find the object, try with the default namespace
-				$defaultNamespace = $this->_config->defaultNamespace;
-				$fullPluginName = "$defaultNamespace\\" . $pluginName;
-				if (empty($defaultNamespace) || !class_exists($fullPluginName)) {
-					TµLog::log('Temma/Web', 'ERROR', "Plugin '$pluginName' doesn't exist.");
-					throw new TµHttpException("Plugin '$pluginName' doesn't exist.", 500);
-				}
-				$pluginName = $fullPluginName;
-			}
-			// check object's type
-			if (!is_subclass_of($pluginName, '\Temma\Web\Plugin')) {
-				TµLog::log('Temma/Web', 'ERROR', "Plugin '$pluginName' is not a subclass of \\Temma\\Web\\Plugin.");
-				throw new TµHttpException("Plugin '$pluginName' is not a subclass of \\Temma\\Web\\Plugin.", 500);
-			}
-			// define the plugin method that must be called
+			$pluginName = $fullPluginName;
+		}
+		// check object's type
+		if (!is_subclass_of($pluginName, '\Temma\Web\Plugin')) {
+			TµLog::log('Temma/Web', 'ERROR', "Plugin '$pluginName' is not a subclass of \\Temma\\Web\\Plugin.");
+			throw new TµHttpException("Plugin '$pluginName' is not a subclass of \\Temma\\Web\\Plugin.", 500);
+		}
+		// define the plugin method that must be called
+		$reflector = new \ReflectionMethod($pluginName, $methodName);
+		if ($reflector->getDeclaringClass()->getName() !== ltrim($pluginName, '\\')) {
+			$methodName = self::PLUGINS_PLUGIN_METHOD;
 			$reflector = new \ReflectionMethod($pluginName, $methodName);
 			if ($reflector->getDeclaringClass()->getName() !== ltrim($pluginName, '\\')) {
-				$methodName = self::PLUGINS_PLUGIN_METHOD;
-				$reflector = new \ReflectionMethod($pluginName, $methodName);
-				if ($reflector->getDeclaringClass()->getName() !== ltrim($pluginName, '\\')) {
-					TµLog::log('Temma/Web', 'ERROR', "Plugin '$pluginName' has no executable '$pluginType' method.");
-					throw new TµHttpException("Plugin '$pluginName' has no executable '$pluginType' method.", 500);
-				}
+				TµLog::log('Temma/Web', 'ERROR', "Plugin '$pluginName' has no executable '$pluginType' method.");
+				throw new TµHttpException("Plugin '$pluginName' has no executable '$pluginType' method.", 500);
 			}
-			// execute the plugin
-			$plugin = new $pluginName($this->_loader, $this->_executorController);
-			$pluginReturn = $plugin->$methodName();
-			return ($pluginReturn);
-		} catch (\Exception $e) { }
-		TµLog::log('Temma/Web', 'DEBUG', "Unable to execute plugin '$pluginName'::'$methodName'.");
-		throw new TµHttpException("Unable to execute plugin '$pluginName'::'$methodName'.", 500);
+		}
+		// execute the plugin
+		$plugin = new $pluginName($this->_loader, $this->_executorController);
+		$pluginReturn = $plugin->$methodName();
+		return ($pluginReturn);
 	}
 
 	/* ********** ACTION ********** */
@@ -544,7 +540,7 @@ class Framework {
 		else if (($this->_actionName === self::PLUGINS_PREPLUGIN_METHOD ||
 		          $this->_actionName === self::PLUGINS_POSTPLUGIN_METHOD ||
 		          $this->_actionName === self::PLUGINS_PLUGIN_METHOD) &&
-		         is_a($this->_objectControllerName, '\Temma\Web\Plugin')) {
+		         is_a($this->_objectControllerName, '\Temma\Web\Plugin', true)) {
 			TµLog::log('Temma/Web', 'ERROR', "Try to execute a plugin method as an action on the controller '" . $this->_objectControllerName . "'.");
 			throw new TµHttpException("Try to execute a plugin method as an action on the controller '" . $this->_objectControllerName . "'.", 500);
 		}
@@ -574,7 +570,7 @@ class Framework {
 	}
 	/**
 	 * View init.
-	 * @param	\Temma\Web\View		$view		The view object.
+	 * @param	\Temma\Web\View		$view	The view object.
 	 * @throws	\Temma\Exceptions\Framework	If no template could be used.
 	 */
 	private function _initView(\Temma\Web\View $view) : void {

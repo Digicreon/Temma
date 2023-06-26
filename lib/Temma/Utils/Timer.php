@@ -3,7 +3,7 @@
 /**
  * Timer
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2007-2021, Amaury Bouchard
+ * @copyright	© 2007-2023, Amaury Bouchard
  *
  * <code>
  * // creates a timer
@@ -24,9 +24,9 @@ namespace Temma\Utils;
  */
 class Timer {
 	/** Date of timing start. */
-	protected $_begin = null;
+	protected ?float $_begin = null;
 	/** Date of timing end. */
-	protected $_end = null;
+	protected ?float $_end = null;
 
 	/**
 	 * Starts a timing.

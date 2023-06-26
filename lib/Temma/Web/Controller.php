@@ -3,7 +3,7 @@
 /**
  * Controller
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2012-2019, Amaury Bouchard
+ * @copyright	© 2012-2023, Amaury Bouchard
  */
 
 namespace Temma\Web;
@@ -17,12 +17,14 @@ use \Temma\Exceptions\Http as TµHttpException;
 class Controller implements \ArrayAccess {
 	/** Execution flow constant: go to the next step (next plugin, for example). */
 	const EXEC_FORWARD = null;
+	/** Execution flow constant: same as EXEC_FORWARD, but can be used as an exception code. */
+	const EXEC_FORWARD_THROWABLE = 0;
 	/** Execution flow constant: stop the current flow (pre-plugins, controller, post-plugins). */
-	const EXEC_STOP = 0;
+	const EXEC_STOP = 1;
 	/** Execution flow constant: stop controller/plugins execution and go to the view. */
-	const EXEC_HALT = 1;
+	const EXEC_HALT = 2;
 	/** Execution flow constant: stop everything (even the view). */
-	const EXEC_QUIT = 2;
+	const EXEC_QUIT = 3;
 	/**
 	 * Execution flow constant: restart the execution.
 	 * The behaviour depends on what has returned this value:
@@ -30,17 +32,21 @@ class Controller implements \ArrayAccess {
 	 * - If it's a controller method (__wakeup, action or __sleep), the execution restarts from the init method.
 	 * - If it's a post-plugin, the execution restarts from the first post-plugin.
 	 */
-	const EXEC_RESTART = 3;
+	const EXEC_RESTART = 4;
 	/** Execution flow constant: restart the whole execution, from the first pre-plugin. */
-	const EXEC_REBOOT = 4;
+	const EXEC_REBOOT = 5;
 	/** Loader object (dependency injection container). */
-	protected $_loader = null;
-	/** Executor controller object (the one who called this object; could be null). */
-	private $_executorController = null;
+	protected \Temma\Base\Loader $_loader;
 	/** Session object. */
-	protected $_session = null;
+	protected ?\Temma\Base\Session $_session = null;
+	/** Config object. */
+	protected ?\Temma\Web\Config $_config = null;
+	/** Request object. */
+	protected ?\Temma\Web\Request $_request = null;
+	/** Response object. */
+	protected ?\Temma\Web\Response $_response = null;
 	/** DAO object. */
-	protected $_dao = null;
+	protected ?\Temma\Dao\Dao $_dao = null;
 
 	/**
 	 * Constructor.
@@ -50,8 +56,10 @@ class Controller implements \ArrayAccess {
 	 */
 	public function __construct(\Temma\Base\Loader $loader, ?\Temma\Web\Controller $executor=null) {
 		$this->_loader = $loader;
-		$this->_executorController = $executor;
 		$this->_session = $loader->session;
+		$this->_config = $loader->config;
+		$this->_request = $loader->request;
+		$this->_response = $loader->response;
 		// top-level controller: definition of the template variable which contains the session ID
 		if (is_null($executor) && isset($loader->session) && $loader->config->enableSessions) {
 			$this['SESSIONID'] = $loader->session->getSessionId();
@@ -69,7 +77,7 @@ class Controller implements \ArrayAccess {
 	 * Called for each controller before the action.
 	 * Could be overloaded in all controllers.
 	 * The return could be an constant (e.g. `return self::EXEC_QUIT;`) or null (`return (null);`) or nothing (`return;`).
-	 * Null and empty return values are the same than returning `self::EXEC_FORWARD`.
+	 * Null and zero return values are the same than returning `self::EXEC_FORWARD`.
 	 * @link	https://www.temma.net/en/documentation/flow
 	 */
 	public function __wakeup() {
@@ -79,7 +87,7 @@ class Controller implements \ArrayAccess {
 	 * Called for each controller after the action.
 	 * Could be overloaded in all controllers.
 	 * The return could be an constant (e.g. `return self::EXEC_QUIT;`) or null (`return (null);`) or nothing (`return;`).
-	 * Null and empty return values are the same than returning `self::EXEC_FORWARD`.
+	 * Null and zero return values are the same than returning `self::EXEC_FORWARD`.
 	 * @link	https://www.temma.net/en/documentation/flow
 	 */
 	public function __sleep() {
@@ -91,7 +99,7 @@ class Controller implements \ArrayAccess {
 	 * @param	string|array	$param	Name of the DAO object, or an associative array with parameters.
 	 * @return	\Temma\Dao\Dao	The loaded DAO.
 	 */
-	public function _loadDao($param) : \Temma\Dao\Dao {
+	public function _loadDao(string|array $param) : \Temma\Dao\Dao {
 		$daoConf = [
 			'object'   => '\Temma\Dao\Dao',
 			'criteria' => null,
@@ -125,7 +133,7 @@ class Controller implements \ArrayAccess {
 		return ($dao);
 	}
 
-	/* ********** METHODS CALLED BY THE CHILDREN OBJECTS ********** */
+	/* ********** METHODS CALLABLE BY THE CHILDREN OBJECTS ********** */
 	/**
 	 * Magical method which returns the requested data source.
 	 * @param	string	$dataSource	Name of the data source.
@@ -148,7 +156,7 @@ class Controller implements \ArrayAccess {
 	 * @return	int	self::EXEC_HALT (useful value to return from the controller).
 	 */
 	final protected function _httpError(int $code) : int {
-		$this->_loader->response->setHttpError($code);
+		$this->_response->setHttpError($code);
 		return (self::EXEC_HALT);
 	}
 	/**
@@ -158,7 +166,7 @@ class Controller implements \ArrayAccess {
 	 * @return	int	self::EXEC_HALT (useful value to return from the controller).
 	 */
 	final protected function _httpCode(int $code) : int {
-		$this->_loader->response->setHttpCode($code);
+		$this->_response->setHttpCode($code);
 		return (self::EXEC_HALT);
 	}
 	/**
@@ -167,14 +175,14 @@ class Controller implements \ArrayAccess {
 	 *			if no error was configured.
 	 */
 	final protected function _getHttpError() : ?int {
-		return ($this->_loader->response->getHttpError());
+		return ($this->_response->getHttpError());
 	}
 	/**
 	 * Returns the configured HTTP return code.
 	 * @return	int	The configured return code, or null if no code was configured.
 	 */
 	final protected function _getHttpCode() : ?int {
-		return ($this->_loader->response->getHttpCode());
+		return ($this->_response->getHttpCode());
 	}
 	/**
 	 * Define an HTTP redirection (302).
@@ -182,7 +190,7 @@ class Controller implements \ArrayAccess {
 	 * @return	int	self::EXEC_HALT (useful value to return from the controller).
 	 */
 	final protected function _redirect(?string $url) : int {
-		$this->_loader->response->setRedirection($url);
+		$this->_response->setRedirection($url);
 		return (self::EXEC_HALT);
 	}
 	/**
@@ -191,7 +199,7 @@ class Controller implements \ArrayAccess {
 	 * @return	int	self::EXEC_HALT (useful value to return from the controller).
 	 */
 	final protected function _redirect301(string $url) : int {
-		$this->_loader->response->setRedirection($url, true);
+		$this->_response->setRedirection($url, true);
 		return (self::EXEC_HALT);
 	}
 	/**
@@ -200,7 +208,7 @@ class Controller implements \ArrayAccess {
 	 * @return	\Temma\Web\Controller	The current object.
 	 */
 	final protected function _view(string $view) : \Temma\Web\Controller {
-		$this->_loader->response->setView($view);
+		$this->_response->setView($view);
 		return ($this);
 	}
 	/**
@@ -209,7 +217,7 @@ class Controller implements \ArrayAccess {
 	 * @return	\Temma\Web\Controller	The current object.
 	 */
 	final protected function _template(string $template) : \Temma\Web\Controller {
-		$this->_loader->response->setTemplate($template);
+		$this->_response->setTemplate($template);
 		return ($this);
 	}
 	/**
@@ -218,41 +226,41 @@ class Controller implements \ArrayAccess {
 	 * @return	\Temma\Web\Controller	The current object.
 	 */
 	final protected function _templatePrefix(string $prefix) : \Temma\Web\Controller {
-		$this->_loader->response->setTemplatePrefix($prefix);
+		$this->_response->setTemplatePrefix($prefix);
 		return ($this);
 	}
 
 	/* ********** MANAGEMENT OF "TEMPLATE VARIABLES" ********** */
 	/**
 	 * Set a template variable, array-like syntax.
-	 * @param	string	$name	Name of the variable.
+	 * @param	mixed	$name	Name of the variable.
 	 * @param	mixed	$value	Associated value.
 	 */
-	final public function offsetSet(/* mixed */ $name, /* mixed */ $value) : void {
-		$this->_loader->response[$name] = $value;
+	final public function offsetSet(mixed $name, mixed $value) : void {
+		$this->_response[$name] = $value;
 	}
 	/**
 	 * Return a template variable, array-like syntax.
-	 * @param	string	$name	Variable name.
+	 * @param	mixed	$name	Variable name.
 	 * @return	mixed	The template variable's data or null if it doesn't exist.
 	 */
-	public function offsetGet(/* mixed */ $name) /* : mixed */ {
-		return ($this->_loader->response[$name] ?? null);
+	public function offsetGet(mixed $name) : mixed {
+		return ($this->_response[$name] ?? null);
 	}
 	/**
 	 * Remove a template variable.
-	 * @param	string	$name	Name of the variable.
+	 * @param	mixed	$name	Name of the variable.
 	 */
-	public function offsetUnset(/* mixed */ $name) : void {
-		unset($this->_loader->response[$name]);
+	public function offsetUnset(mixed $name) : void {
+		unset($this->_response[$name]);
 	}
 	/**
 	 * Tell if a template variable exists.
-	 * @param	string	$name	Name of the variable.
+	 * @param	mixed	$name	Name of the variable.
 	 * @return	bool	True if the variable was defined, false otherwise.
 	 */
-	public function offsetExists(/* mixed */ $name) : bool {
-		return (isset($this->_loader->response[$name]));
+	public function offsetExists(mixed $name) : bool {
+		return (isset($this->_response[$name]));
 	}
 
 	/* ********** SUB-PROCESS ********** */
@@ -262,8 +270,9 @@ class Controller implements \ArrayAccess {
 	 * @param	string	$action		(optional) Action name. Call the default action if not defined.
 	 * @param	array	$parameters	(optional) List of parameters given to the sub-controller.
 	 *					If not given, use the parameters received by the main controller.
-	 * @return	int|null	The sub-controller's execution status (self::EXE_FORWARD, etc.). Could be null (==self::EXEC_FORWARD).
+	 * @return	?int	The sub-controller's execution status (self::EXE_FORWARD, etc.). Could be null (==self::EXEC_FORWARD).
 	 * @throws	\Temma\Exceptions\Http	If the requested controller or action doesn't exist.
+	 * @throws	\Temma\Exceptions\Flow	If the requested controller or action throws a Flow exception.
 	 */
 	final public function _subProcess(string $controller, ?string $action=null, ?array $parameters=null) : ?int {
 		TµLog::log('Temma/Web', 'DEBUG', "Subprocess of '$controller'::'$action'.");
@@ -271,6 +280,14 @@ class Controller implements \ArrayAccess {
 		if (!class_exists($controller) || !is_subclass_of($controller, '\Temma\Web\Controller')) {
 			TµLog::log('Temma/Web', 'ERROR', "Sub-controller '$controller' doesn't exists.");
 			throw new TµHttpException("Unable to find controller '$controller'.", 404);
+		}
+
+		/* ********** attributes on the controller ********** */
+		$actionReflection = new \ReflectionClass($controller);
+		$attributes = $actionReflection->getAttributes();
+		foreach ($attributes as $attribute) {
+			TµLog::log('Temma/Web', 'DEBUG', "Action attribute '{$attribute->getName()}'.");
+			$attribute->newInstance();
 		}
 
 		/* ********** init ********** */
@@ -284,7 +301,7 @@ class Controller implements \ArrayAccess {
 			TµLog::log('Temma/Web', 'ERROR', "Unable to initialize the controller '$controller' [" . $e->getFile() . ':' . $e->getLine() . ']: ' . $e->getMessage());
 			throw new TµHttpException("Unable to initialize the controller '$controller'.", 500);
 		}
-		if ($status !== self::EXEC_FORWARD)
+		if ($status) // $status !== self::EXEC_FORWARD && $status !== self::EXEC_FORWARD_THROWABLE
 			return ($status);
 
 		/* ********** find the right method to execute ********** */
@@ -309,6 +326,14 @@ class Controller implements \ArrayAccess {
 			$method = $action;
 		}
 
+		/* ********** attributes on the action ********** */
+		$actionReflection = new \ReflectionMethod($obj, $method);
+		$attributes = $actionReflection->getAttributes();
+		foreach ($attributes as $attribute) {
+			TµLog::log('Temma/Web', 'DEBUG', "Action attribute '{$attribute->getName()}'.");
+			$attribute->newInstance();
+		}
+
 		/* ********** execution ********** */
 		$parameters = $parameters ?? $this->_loader->request->getParams();
 		try {
@@ -320,7 +345,7 @@ class Controller implements \ArrayAccess {
 			TµLog::log('Temma/Web', 'ERROR', "$controller::$method" . '[' . $e->getFile() . ':' . $e->getLine() . ']: ' . $e->getMessage());
 			throw new TµHttpException("Unable to execute method '$method' on controller '$controller'.", 404);
 		}
-		if ($status !== self::EXEC_FORWARD)
+		if ($status) // $status !== self::EXEC_FORWARD && $status !== self::EXEC_FORWARD_THROWABLE
 			return ($status);
 
 		/* ********** finalization ********** */

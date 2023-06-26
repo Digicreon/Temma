@@ -3,7 +3,7 @@
 /**
  * CsvView
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2020, Amaury Bouchard
+ * @copyright	© 2020-2023, Amaury Bouchard
  */
 
 namespace Temma\Views;
@@ -16,9 +16,9 @@ namespace Temma\Views;
  */
 class Csv extends \Temma\Web\View {
 	/** Data that must be exported. */
-	private $_csv = null;
+	private ?array $_csv = null;
 	/** Name of the downloadable file. */
-	private $_filename = null;
+	private ?string $_filename = null;
 
 	/** Init. */
 	public function init() : void {

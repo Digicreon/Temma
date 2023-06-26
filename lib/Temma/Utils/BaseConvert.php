@@ -2,7 +2,8 @@
 
 /**
  * BaseConvert
- * @copyright	© Amaury Bouchard <amaury@amaury.net>
+ * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2017-2023 Amaury Bouchard
  */
 
 namespace Temma\Utils;
@@ -128,7 +129,7 @@ class BaseConvert {
 	 * @throws	\Exception	If a digit is outside the base.
 	 * @link	http://www.technischedaten.de/pmwiki2/pmwiki.php?n=Php.BaseConvert
 	 */
-	static public function convertBase(/*int|string*/ $value, string $inDigits, string $outDigits) : string {
+	static public function convertBase(int|string $value, string $inDigits, string $outDigits) : string {
 		$inBase = mb_strlen($inDigits, 'ascii');
 		$outBase = mb_strlen($outDigits, 'ascii');
 		$decimal = '0';
@@ -159,3 +160,4 @@ class BaseConvert {
 		return ($result);
 	}
 }
+

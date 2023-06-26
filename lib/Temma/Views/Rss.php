@@ -3,7 +3,7 @@
 /**
  * Rss view
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	2009-2020, Amaury Bouchard
+ * @copyright	2009-2023, Amaury Bouchard
  */
 
 namespace Temma\Views;
@@ -38,23 +38,21 @@ use \Temma\Base\Log as TµLog;
  */
 class Rss extends \Temma\Web\View {
 	/** Site domain. */
-	private $_domain = null;
+	private ?string $_domain = null;
 	/** Site title. */
-	private $_title = null;
-	/** Site URL. */
-	private $_link = null;
+	private ?string $_title = null;
 	/** Site description. */
-	private $_description = null;
+	private ?string $_description = null;
 	/** Site language. */
-	private $_language = null;
+	private ?string $_language = null;
 	/** Contact email address. */
-	private $_contact = null;
+	private ?string $_contact = null;
 	/** Category. */
-	private $_category = null;
+	private ?string $_category = null;
 	/** Copyright. */
-	private $_copyright = null;
+	private ?string $_copyright = null;
 	/** List of articles. */
-	private $_articles = null;
+	private ?array $_articles = null;
 
 	/** Init. */
 	public function init() : void {

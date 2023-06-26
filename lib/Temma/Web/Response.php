@@ -3,7 +3,7 @@
 /**
  * Response
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2007-2019, Amaury Bouchard
+ * @copyright	© 2007-2023, Amaury Bouchard
  */
 
 namespace Temma\Web;
@@ -14,24 +14,22 @@ use \Temma\Base\Log as TµLog;
  * Object use to manage the response of a controller execution.
  */
 class Response implements \ArrayAccess {
-	/** HTTP headers. */
-	private $_headers = null;
 	/** Redirection URL. */
-	private $_redirect = null;
+	private ?string $_redirect = null;
 	/** Redirection code (301, 302). */
-	private $_redirectCode = 302;
+	private int $_redirectCode = 302;
 	/** HTTP error code. */
-	private $_httpError = null;
+	private ?int $_httpError = null;
 	/** HTTP return code. */
-	private $_httpCode = 200;
+	private int $_httpCode = 200;
 	/** Name of the view. */
-	private $_view = null;
+	private ?string $_view = null;
 	/** Prefix to add at the beginning of the template path. */
-	private $_templatePrefix = null;
+	private ?string $_templatePrefix = null;
 	/** Name of the template. */
-	private $_template = null;
+	private ?string $_template = null;
 	/** Template variables. */
-	private $_data = null;
+	private array $_data = [];
 
 	/**
 	 * Constructor.
@@ -42,8 +40,6 @@ class Response implements \ArrayAccess {
 		TµLog::log('Temma/Web', 'DEBUG', "Response creation.");
 		$this->_view = $view;
 		$this->_template = $template;
-		$this->_data = [];
-		$this->_headers = [];
 	}
 	/**
 	 * Define a redirection.
@@ -91,17 +87,17 @@ class Response implements \ArrayAccess {
 	}
 	/**
 	 * Add a template variable, object-oriented syntax.
-	 * @param	string	$name	Data name.
+	 * @param	mixed	$name	Data name.
 	 * @param	mixed	$value	Data value.
 	 */
-	public function offsetSet(/* mixed */ $name, /* mixed */ $value) : void {
+	public function offsetSet(mixed $name, mixed $value) : void {
 		$this->_data[$name] = $value;
 	}
 	/**
 	 * Remove a template variable.
-	 * @param	string	$name	Name of the variable.
+	 * @param	mixed	$name	Name of the variable.
 	 */
-	public function offsetUnset(/* mixed */ $name) : void {
+	public function offsetUnset(mixed $name) : void {
 		$this->_data[$name] = null;
 		unset($this->_data[$name]);
 	}
@@ -170,7 +166,7 @@ class Response implements \ArrayAccess {
 	 *					Not used if the second parameter is not set or is not a callback.
 	 * @return	mixed	The requested data, or an associative array with all data.
 	 */
-	public function getData(?string $key=null, /* mixed */ $default=null, /* mixed */ $callbackParam=null) /* : mixed */ {
+	public function getData(?string $key=null, mixed $default=null, mixed $callbackParam=null) : mixed {
 		if (is_null($key))
 			return ($this->_data);
 		if (isset($this->_data[$key]))
@@ -182,18 +178,18 @@ class Response implements \ArrayAccess {
 	}
 	/**
 	 * Returns a template variable, array-like syntax.
-	 * @param	string	$name	Name of the variable.
+	 * @param	mixed	$name	Name of the variable.
 	 * @return	mixed	The associated value, or null.
 	 */
-	public function offsetGet(/* mixed */ $name) /* : mixed */ {
+	public function offsetGet(mixed $name) : mixed {
 		return ($this->_data[$name] ?? null);
 	}
 	/**
 	 * Tell if a template variable exists, array-link syntax.
-	 * @param	string	$name	Name of the variable.
+	 * @param	mixed	$name	Name of the variable.
 	 * @return	bool	True if the variable is defined.
 	 */
-	public function offsetExists(/* mixed */ $name) : bool {
+	public function offsetExists(mixed $name) : bool {
 		return (isset($this->_data[$name]));
 	}
 }

@@ -3,7 +3,7 @@
 /**
  * Lock
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2008-2019, Amaury Bouchard
+ * @copyright	© 2008-2023, Amaury Bouchard
  */
 
 namespace Temma\Utils;
@@ -38,13 +38,13 @@ use \Temma\Exceptions\IO as TµIOException;
  */
 class Lock {
 	/** Constant - suffix added to the lock file names. */
-	const LOCK_SUFFIX = ".lck";
+	const LOCK_SUFFIX = ".lock";
 	/** Constant - duration of the default lock timeout, in seconds. 10 minutes by default. */
 	const LOCK_TIMEOUT = 600;
 	/** Lock file's handler. */
-	protected $_fileHandle = null;
+	protected /* ?resource */ $_fileHandle = null;
 	/** Path to the lock file. */
-	protected $_lockPath = null;
+	protected ?string $_lockPath = null;
 
 	/**
 	 * Creation of a lock.

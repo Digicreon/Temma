@@ -3,7 +3,7 @@
 /**
  * Registry
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2007-2019, Amaury Bouchard
+ * @copyright	© 2007-2023, Amaury Bouchard
  */
 
 namespace Temma\Utils;
@@ -63,7 +63,7 @@ use \Temma\Exceptions\IO as TµIOException;
  */
 class Registry implements \ArrayAccess {
 	/** Associative array that contains the stored data. */
-	protected $_data = null;
+	protected ?array $_data = null;
 
 	/* ************************ CONSTRUCTION ********************** */
 	/**
@@ -94,7 +94,7 @@ class Registry implements \ArrayAccess {
 	 * @param	mixed		$data		(optional) Associated value. Leave empty if an array is given as first parameter.
 	 * @return	\Temma\Utils\Registry	The current object.
 	 */
-	public function set(/* mixed */ $keyOrArray, /* mixed */ $data=null) : \Temma\Utils\Registry {
+	public function set(string|array $keyOrArray, mixed $data=null) : \Temma\Utils\Registry {
 		if (is_array($keyOrArray))
 			$this->_data = array_merge($this->_data, $keyOrArray);
 		else
@@ -106,15 +106,15 @@ class Registry implements \ArrayAccess {
 	 * @param	string	$key	Index key.
 	 * @param	mixed	$data	Associated value.
 	 */
-	public function __set(string $key, /* mixed */ $data) {
+	public function __set(string $key, mixed $data) {
 		$this->set($key, $data);
 	}
 	/**
 	 * Add data to the registry, array-like syntax.
-	 * @param	string	$key	Index key.
+	 * @param	mixed	$key	Index key.
 	 * @param	mixed	$data	Associated value.
 	 */
-	public function offsetSet(/* mixed */ $key, /* mixed */ $data) : void {
+	public function offsetSet(mixed $key, mixed $data) : void {
 		$this->set($key, $data);
 	}
 
@@ -125,7 +125,7 @@ class Registry implements \ArrayAccess {
 	 * @param	mixed	$default	(optional) Default value that must be returned is the requested key doesn't exist.
 	 * @return	mixed	The associated value, or null.
 	 */
-	public function get(string $key, /* mixed */ $default=null) /* : mixed */ {
+	public function get(string $key, mixed $default=null) : mixed {
 		return ($this->_data[$key] ?? $default);
 	}
 	/**
@@ -133,7 +133,7 @@ class Registry implements \ArrayAccess {
 	 * @param	string	$key	Index key.
 	 * @return	mixed	The associated value, or null.
 	 */
-	public function __get(string $key) /* : mixed */ {
+	public function __get(string $key) : mixed {
 		return ($this->get($key));
 	}
 	/**
@@ -141,7 +141,7 @@ class Registry implements \ArrayAccess {
 	 * @param	string	$key	Index key.
 	 * @return	mixed	The associated value, or null.
 	 */
-	public function offsetGet(/* mixed */ $key) /* : mixed */ {
+	public function offsetGet(mixed $key) : mixed {
 		return ($this->get($key));
 	}
 
@@ -167,7 +167,7 @@ class Registry implements \ArrayAccess {
 	 * @param	string	$key	Index key.
 	 * @return	bool	True if the key was defined, false otherwise.
 	 */
-	public function offsetExists(/* mixed */ $key) : bool {
+	public function offsetExists(mixed $key) : bool {
 		return ($this->isset($key));
 	}
 
@@ -193,7 +193,7 @@ class Registry implements \ArrayAccess {
 	 * Remove data from registry, array-like syntax.
 	 * @param	string	$key	Index key.
 	 */
-	public function offsetUnset(/* mixed */ $key) : void {
+	public function offsetUnset(mixed $key) : void {
 		$this->unset($key);
 	}
 

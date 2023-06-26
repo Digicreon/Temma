@@ -3,7 +3,7 @@
 /**
  * DatabaseStatement
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2020, Amaury Bouchard
+ * @copyright	© 2020-2023, Amaury Bouchard
  */
 
 namespace Temma\Base;
@@ -19,9 +19,9 @@ use \Temma\Exceptions\Database as TµDatabaseException;
  */
 class DatabaseStatement {
 	/** \Temma\Base\Database object. */
-	protected $_db = null;
+	protected ?\Temma\Base\Database $_db = null;
 	/** PDOStatement object. */
-	protected $_statement = null;
+	protected ?\PDOStatement $_statement = null;
 
 	/* ************************ CONSTRUCTION ********************** */
 	/**
@@ -75,10 +75,10 @@ class DatabaseStatement {
 	 * @param	?array	$parameters	(optional) Array of parameters.
 	 * @param	?string	$keyField	(optional) Name of the field that must be used as the key for each record.
 	 * @param	?string	$valueField	(optional) Name of the field that will be used as value for each record.
-	 * @return	bool	True if everything was fine, false otherwise.
+	 * @return	array	An array of associative arrays, or an array of values.
 	 * @throws	\Temma\Exceptions\Database	If an error occurs.
 	 */
-	public function queryAll(?array $parameters=null, ?string $keyField=null, ?string $valueField=null) : bool {
+	public function queryAll(?array $parameters=null, ?string $keyField=null, ?string $valueField=null) : array {
 		if (!$this->_statement->execute($parameters)) {
 			$err = $this->_statement->errorCode();
 			throw new TµDatabaseException($err, TµDatabaseException::QUERY);

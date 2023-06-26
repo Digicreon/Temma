@@ -3,7 +3,7 @@
 /**
  * Lock
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2021, Amaury Bouchard
+ * @copyright	© 2021-2023, Amaury Bouchard
  */
 
 namespace Temma\Base;
@@ -52,7 +52,7 @@ use \Temma\Exceptions\Application as TµAppException;
  */
 class Lock {
 	/** File descriptor opened on the locked file. */
-	private mixed $_fileDescriptor = null;
+	private /*?resource*/ $_fileDescriptor = null;
 	/** List of locked files. */
 	static private ?array $_lockedFiles = null;
 

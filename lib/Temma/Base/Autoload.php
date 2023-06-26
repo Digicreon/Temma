@@ -3,7 +3,7 @@
 /**
  * Autoload
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2012-2019, Amaury Bouchard
+ * @copyright	© 2012-2023, Amaury Bouchard
  */
 
 namespace Temma\Base;
@@ -38,13 +38,13 @@ namespace Temma\Base;
  */
 class Autoload {
 	/** List of known namespaces. */
-	static protected $_namespaces = [];
+	static protected array $_namespaces = [];
 
 	/**
 	 * Starts the autoloader.
-	 * @param	string|array	$path	(optional) Include path, or list of include paths, or associative array of namespaces associated to paths.
+	 * @param	null|string|array	$path	(optional) Include path, or list of include paths, or associative array of namespaces associated to paths.
 	 */
-	static public function autoload(/* mixed */ $path=null) : void {
+	static public function autoload(null|string|array $path=null) : void {
 		// autoloader init
 		spl_autoload_register([get_called_class(), 'load'], true, true);
 		if ($path)
@@ -54,7 +54,7 @@ class Autoload {
 	 * Loads a class, an interface or a trait.
 	 * @param	string	$name	The namespaced name of the class.
 	 */
-	static public function load(/* string */ $name) /* : void */ {
+	static public function load(string $name) : void {
 		$name = '\\' . ltrim($name, '\\');
 		// check if there is some configured namespaces
 		if (self::$_namespaces) {
@@ -98,7 +98,7 @@ class Autoload {
 	 * @param	string|array	$path	Include path, or list of include paths, or associative array of namespaces associated to paths.
 	 * @throws	\Exception	If the parameter is not valid.
 	 */
-	static public function addIncludePath(/* mixed */ $path) : void {
+	static public function addIncludePath(string|array $path) : void {
 		if (is_string($path))
 			$path = [$path];
 		else if (!is_array($path))

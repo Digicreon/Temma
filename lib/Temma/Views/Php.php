@@ -3,7 +3,7 @@
 /**
  * Php view
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2010-2019, Amaury Bouchard
+ * @copyright	© 2010-2023, Amaury Bouchard
  */
 
 namespace Temma\Views;
@@ -16,9 +16,9 @@ use \Temma\Exceptions\IO as TµIOException;
  */
 class Php extends \Temma\Web\View {
 	/** Tell if the generated page could be stored in cache. */
-	private $_isCacheable = false;
+	private bool $_isCacheable = false;
 	/** Name of the template. */
-	private $_template = null;
+	private ?string $_template = null;
 
 	/**
 	 * Tell that this view uses templates.

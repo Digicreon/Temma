@@ -3,7 +3,7 @@
 /**
  * DataContract
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2020, Amaury Bouchard
+ * @copyright	© 2020-2023, Amaury Bouchard
  */
 
 namespace Temma\Utils;
@@ -167,19 +167,18 @@ use \Temma\Exceptions\Application as TµApplicationException;
 class DataFilter {
 	/**
 	 * Cleanup data using a contract.
-	 * @param	mixed	$in		Input data.
-	 * @param	mixed	$contract	The contract. If set to null, the function act as a pass-through.
-	 * @param	bool	$pedantic	(optional) True to throw an exception if the input data doesn't respect the contract. (default: true)
+	 * @param	mixed			$in		Input data.
+	 * @param	null|string|array	$contract	The contract. If set to null, the function act as a pass-through.
 	 * @return	mixed	The cleaned data.
 	 * @throws	\Temma\Exceptions\IO		If the contract is not well formed (BAD_FORMAT).
 	 * @throws	\Temma\Exceptions\Application	If the input data doesn't respect the contract (API).
 	 */
-	static public function process(/* mixed */ $in, /* mixed */ $contract, bool $pedantic=true) /* : mixed */ {
+	static public function process(mixed $in, null|string|array $contract) : mixed {
 		if ($contract === null)
 			return ($in);
 		// process simple contracts
-		if (in_array($contract, ['null', 'string', '?string', 'int', '?int', 'float', '?float', 'bool', '?bool'])) {
-			return (self::_processScalar($in, $contract, null, null, null, null, null, $pedantic));
+		if (is_string($contract) && in_array($contract, ['null', 'string', '?string', 'int', '?int', 'float', '?float', 'bool', '?bool'])) {
+			return (self::_processScalar($in, $contract));
 		} else if (!is_array($contract)) {
 			throw new TµIOException("Bad contract.", TµIOException::BAD_FORMAT);
 		}
@@ -214,7 +213,7 @@ class DataFilter {
 		if (isset($contract['mask'])) {
 			if (!is_string($contract['mask']))
 				throw new TµIOException("Bad contract (mask is not a string).", TµIOException::BAD_FORMAT);
-			$contractMask = $contract['mask'] ?? null;
+			$contractMask = $contract['mask'];
 		}
 		// check input value
 		if (is_null($in)) {
@@ -229,7 +228,7 @@ class DataFilter {
 			throw new TµApplicationException("Data doesn't respect contract (not an array).", TµApplicationException::API);
 		// process scalar input
 		if (!is_array($in)) {
-			return (self::_processScalar($in, $contractType, $contractDefault, $contractMin, $contractMax, $contractMask, $contractValues, $pedantic));
+			return (self::_processScalar($in, $contractType, $contractDefault, $contractMin, $contractMax, $contractMask, $contractValues));
 		}
 		// process list input
 		if ($contractType == 'list') {
@@ -273,17 +272,16 @@ class DataFilter {
 	 * @param	mixed		$in		Input value.
 	 * @param	?string		$type		Specified type. Set to null (not the 'null' string) or an empty string to get a pass-through.
 	 * @param	mixed		$default	(optional) Default value.
-	 * @param	null|float|int	$min		(optional) Number min or string min length.
-	 * @param	null|float|int	$max		(optional) Number max or string max length.
+	 * @param	null|int|float	$min		(optional) Number min or string min length.
+	 * @param	null|int|float	$max		(optional) Number max or string max length.
 	 * @param	?string		$mask		(optional) Regexp mask.
 	 * @param	?array		$values		(optional) Enum values.
-	 * @param	bool		$pedantic	(optional) True to throw an exception if the input data doesn't respect the contract. (default: true)
-	 * @return	mixed
+	 * @return	mixed	The filtered input value.
 	 * @throws	\Temma\Exceptions\IO		If the type is not supported (BAD_FORMAT).
 	 * @throws	\Temma\Exceptions\Application	If the input data doesn't respect the contract (API).
 	 */
-	static private function _processScalar(/* mixed */ $in, ?string $type, /* mixed */ $default=null, /* null|float|int */ $min=null, /* null|float|int */ $max=null,
-	                                       ?string $mask=null, ?array $values=null, bool $pedantic=true) {
+	static private function _processScalar(mixed $in, ?string $type, mixed $default=null, null|int|float $min=null, null|int|float $max=null,
+	                                       ?string $mask=null, ?array $values=null) : mixed {
 		$nullable = false;
 		// no type == passthru
 		if (!$type) {
@@ -291,7 +289,7 @@ class DataFilter {
 		}
 		// null type
 		if ($type === 'null') {
-			if ($pedantic && $in !== null)
+			if ($in !== null)
 				throw new TµApplicationException("Data doesn't respect contract (should be null).", TµApplicationException::API);
 			return (null);
 		}
@@ -306,12 +304,11 @@ class DataFilter {
 				return ($default);
 			if ($nullable)
 				return (null);
-			if ($pedantic)
-				throw new TµApplicationException("Data doesn't respect contract (null value).", TµApplicationException::API);
+			throw new TµApplicationException("Data doesn't respect contract (null value).", TµApplicationException::API);
 		}
 		// other scalar types
 		if ($type === 'string') {
-			if ($pedantic && !is_scalar($in))
+			if (!is_scalar($in))
 				throw new TµApplicationException("Data doesn't respect contract (can't cast to string).", TµApplicationException::API);
 			if (is_bool($in))
 				$in = $in ? 'true' : 'false';
@@ -325,14 +322,17 @@ class DataFilter {
 					$in = $default;
 				else if ($nullable)
 					$in = null;
-				else if ($pedantic)
+				else
 					throw new TµApplicationException("Data doesn't respect contract (string too short).", TµApplicationException::API);
 			}
 			return ($in);
 		}
 		if ($type === 'int') {
-			if ($pedantic && filter_var($in, FILTER_VALIDATE_INT) === false)
+			if (filter_var($in, FILTER_VALIDATE_INT) === false) {
+				if ($default !== null)
+					return ($default);
 				throw new TµApplicationException("Data doesn't respect contract (can't cast to int).", TµApplicationException::API);
+			}
 			$in = (int)$in;
 			if ($min !== null)
 				$in = min($in, (int)$min);
@@ -341,8 +341,11 @@ class DataFilter {
 			return ((int)$in);
 		}
 		if ($type === 'float') {
-			if ($pedantic && filter_var($in, FILTER_VALIDATE_FLOAT) === false)
+			if (filter_var($in, FILTER_VALIDATE_FLOAT) === false) {
+				if ($default !== null)
+					return ($default);
 				throw new TµApplicationException("Data doesn't respect contract (can't cast to float).", TµApplicationException::API);
+			}
 			$in = (float)$in;
 			if ($min !== null)
 				$in = min($in, $min);
@@ -367,17 +370,18 @@ class DataFilter {
 				return (true);
 			if ((is_int($in) && $in === 0) || (is_float($in) && $in === 0.0))
 				return (false);
-			if ($pedantic)
-				throw new TµApplicationException("Data doesn't respect contract (not a boolean).", TµApplicationException::API);
-			return ((bool)$in);
+			if ($default !== null)
+				return ($default);
+			throw new TµApplicationException("Data doesn't respect contract (not a boolean).", TµApplicationException::API);
 		}
 		if ($type === 'enum') {
 			if (in_array($in, $values))
 				return ($in);
-			if ($pedantic || $default === null)
-				throw new TµApplicationException("Data doesn't respect contract (bad enum value '$in').", TµApplicationException::API);
-			return ($default);
+			if ($default !== null)
+				return ($default);
+			throw new TµApplicationException("Data doesn't respect contract (bad enum value '$in').", TµApplicationException::API);
 		}
 		throw new TµIOException("Bad type '$type'.", TµIOException::BAD_FORMAT);
 	}
 }
+

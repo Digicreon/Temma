@@ -3,7 +3,7 @@
 /**
  * Json view
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2010-2019, Amaury Bouchard
+ * @copyright	© 2010-2023, Amaury Bouchard
  */
 
 namespace Temma\Views;
@@ -18,9 +18,9 @@ namespace Temma\Views;
  */
 class Json extends \Temma\Web\View {
 	/** Data that must be JSON-encoded. */
-	private $_data = null;
+	private mixed $_data = null;
 	/** Debug mode. */
-	private $_debug = false;
+	private bool $_debug = false;
 
 	/** Init. */
 	public function init() : void {

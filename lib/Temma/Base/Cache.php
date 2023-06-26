@@ -3,7 +3,7 @@
 /**
  * Cache
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2009-2019, Amaury Bouchard
+ * @copyright	© 2009-2023, Amaury Bouchard
  */
 
 namespace Temma\Base;
@@ -18,12 +18,18 @@ namespace Temma\Base;
  * // init
  * $cache = \Temma\Base\Cache::factory('memcache://localhost');
  * // alternative init
- * $cache = \Temma\Base\DataSource('memcache://localhost');
+ * $cache = \Temma\Base\DataSource::factory('memcache://localhost');
+ *
  * // add a variable to cache
+ * $cache['variable name'] = $data;
  * $cache->set('variable name', $data);
+ *
  * // read a variable from cache
+ * $data = $cache['variable name'];
  * $data = $cache->get('variable name');
+ *
  * // remove variable from cache
+ * unset($cache['variable name']);
  * $cache->set('variable name', null);
  * </code>
  *
@@ -31,18 +37,18 @@ namespace Temma\Base;
  * <tt>memcache:///var/run/memcached.sock:0</tt>
  */
 class Cache extends Datasource implements \ArrayAccess {
-	/** Constante : Préfixe des variables de cache contenant le "sel" de préfixe. */
+	/** Constant : Prefix of the cache variables which contains the prefix salt. */
 	const PREFIX_SALT_PREFIX = '|_cache_salt';
-	/** Constante : Numéro de port Memcached par défaut. */
+	/** Constant : Default Memcache port number. */
 	const DEFAULT_MEMCACHE_PORT = 11211;
-	/** Indique si on doit utiliser le cache ou non. */
-	protected $_enabled = false;
-	/** Objet de connexion au serveur memcache. */
-	protected $_memcache = null;
-	/** Durée de mise en cache par défaut (24 heures). */
-	protected $_defaultExpiration = 86400;
-	/** Préfixe de regroupement des variables de cache. */
-	protected $_prefix = '';
+	/** Tell if the cache must be used or not. */
+	protected bool $_enabled = false;
+	/** Connection object to the Memcache server. */
+	protected ?\Memcached $_memcache = null;
+	/** Default cache duration (24 hours). */
+	protected int $_defaultExpiration = 86400;
+	/** Cache variable grouping prefix. */
+	protected string $_prefix = '';
 
 	/* ************************** CONSTRUCTION ******************** */
 	/**
@@ -88,7 +94,7 @@ class Cache extends Datasource implements \ArrayAccess {
 				$this->_memcache = $memcache;
 				$this->_enabled = true;
 			}
-		} else if (count($servers) > 1) {
+		} else {
 			if ($memcache->addServers($servers)) {
 				$this->_memcache = $memcache;
 				$this->_enabled = true;
@@ -166,7 +172,7 @@ class Cache extends Datasource implements \ArrayAccess {
 	 *				it will be set to 30 days.
 	 * @return	mixed	The old value for the given index key.
 	 */
-	public function set(string $key, /* mixed */ $data=null, int $expire=0) /* : mixed */ {
+	public function set(string $key, mixed $data=null, int $expire=0) : mixed {
 		$oldValue = $this->get($key);
 		$key = $this->_getSaltedPrefix() . $key;
 		if (is_null($data)) {
@@ -184,17 +190,17 @@ class Cache extends Datasource implements \ArrayAccess {
 	}
 	/**
 	 * Add data in cache, array-like syntax.
-	 * @param	string	$key	Index key.
+	 * @param	mixed	$key	Index key.
 	 * @param	mixed	$data	Data value. The data is deleted if the value is null.
 	 */
-	public function offsetSet(/* mixed */ $key, /* mixed */ $data) : void {
+	public function offsetSet(mixed $key, mixed $data) : void {
 		$this->set($key, $data);
 	}
 	/**
 	 * Remove data from cache, array-like syntax.
-	 * @param	string	$key	Index key.
+	 * @param	mixed	$key	Index key.
 	 */
-	public function offsetUnset(/* mixed */ $key) : void {
+	public function offsetUnset(mixed $key) : void {
 		$this->set($key, null);
 	}
 	/**
@@ -207,7 +213,7 @@ class Cache extends Datasource implements \ArrayAccess {
 	 *						it will be set to 30 days. This parameter is used only if the '$callback' parameter is given.
 	 * @return	mixed	The data fetched from the cache (and returned by the callback if needed), or null.
 	 */
-	public function get(string $key, ?callable $callback=null, int $expire=0) /* : mixed */ {
+	public function get(string $key, ?callable $callback=null, int $expire=0) : mixed {
 		$origPrefix = $this->_prefix;
 		$origKey = $key;
 		$key = $this->_getSaltedPrefix() . $key;
@@ -226,10 +232,10 @@ class Cache extends Datasource implements \ArrayAccess {
 	}
 	/**
 	 * Get a data from cache, array-like syntax.
-	 * @param	string	$key	Index key.
+	 * @param	mixed	$key	Index key.
 	 * @return	mixed	The data fetched from the cache, or null.
 	 */
-	public function offsetGet(/* mixed */ $key) /* : mixed */ {
+	public function offsetGet(mixed $key) : mixed {
 		return ($this->get($key));
 	}
 	/**
@@ -263,10 +269,10 @@ class Cache extends Datasource implements \ArrayAccess {
 	}
 	/**
 	 * Tell if a variable is set in cache, array-like syntax.
-	 * @param	string	$key	Index key.
+	 * @param	mixed	$key	Index key.
 	 * @return	bool	True if the variable is set, false otherwise.
 	 */
-	public function offsetExists(/* mixed */ $key) : bool {
+	public function offsetExists(mixed $key) : bool {
 		return ($this->isSet($key));
 	}
 

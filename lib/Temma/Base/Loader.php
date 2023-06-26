@@ -3,7 +3,7 @@
 /**
  * Loader
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2019, Amaury Bouchard
+ * @copyright	© 2019-2023, Amaury Bouchard
  */
 
 namespace Temma\Base;
@@ -74,7 +74,7 @@ use \Temma\Base\Log as TµLog;
  */
 class Loader extends \Temma\Utils\Registry {
 	/** Builder function. */
-	protected $_builder = null;
+	protected /*?callable*/ $_builder = null;
 
 	/* ************************ CONSTRUCTION ********************** */
 	/**
@@ -110,7 +110,7 @@ class Loader extends \Temma\Utils\Registry {
 	 *					and its returned value will be stored as the value, and returned.
 	 * @return	\Temma\Base\Loader	The current object.
 	 */
-	public function set(/* string|array */ $key, /* mixed */ $data=null) : \Temma\Utils\Registry {
+	public function set(string|array $key, mixed $data=null) : \Temma\Base\Loader {
 		if (is_array($key))
 			$this->_data = array_merge($this->_data, $key);
 		else if (is_null($data))
@@ -127,7 +127,7 @@ class Loader extends \Temma\Utils\Registry {
 	 * @param	mixed	$default	(optional) Default value that must be returned is the requested key doesn't exist.
 	 * @return	mixed	The associated value, or null.
 	 */
-	public function get(string $key, /* mixed */ $default=null) /* : mixed */ {
+	public function get(string $key, mixed $default=null) : mixed {
 		if (isset($this->_data[$key])) {
 			if ($this->_data[$key] instanceof \Closure)
 				$this->_data[$key] = $this->_data[$key]($this);

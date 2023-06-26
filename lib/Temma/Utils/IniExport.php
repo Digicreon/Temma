@@ -3,7 +3,7 @@
 /**
  * IniExport
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2012-2019, Amaury Bouchard
+ * @copyright	© 2012-2023, Amaury Bouchard
  */
 
 namespace Temma\Utils;
@@ -41,11 +41,11 @@ class IniExport {
 	/**
 	 * Generate a INI stream.
 	 * @param	mixed	$data		Data to serialize.
-	 * @param	bool	$sections	(optional) True if there is sections.
-	 * @return	string	The generated INI.
+	 * @param	bool	$sections	(optional) True if there are sections.
+	 * @return	string	The generated INI stream.
 	 * @throws	\Exception	If a non-scalar data is found.
 	 */
-	static public function generate(/* mixed */ $data, bool $sections=false) : string {
+	static public function generate(mixed $data, bool $sections=false) : string {
 		if (!$sections) {
 			return (self::_generateContent($data));
 		}
@@ -61,7 +61,7 @@ class IniExport {
 	 * @param	mixed	$data	Data to serialize.
 	 * @return	string	The serialized string.
 	 */
-	static private function _generateContent(/* mixed */ $data) : string {
+	static private function _generateContent(mixed $data) : string {
 		$ini = '';
 		foreach ($data as $key => $value) {
 			if (is_array($value)) {

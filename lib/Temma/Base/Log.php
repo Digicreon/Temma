@@ -3,7 +3,7 @@
 /**
  * Log
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2007-2019, Amaury Bouchard
+ * @copyright	© 2007-2023, Amaury Bouchard
  */
 
 namespace Temma\Base;
@@ -88,27 +88,27 @@ class Log {
 	/** Nameof the default log class. */
 	const DEFAULT_CLASS = 'default';
 	/** Request identifier. */
-	static private $_requestId = null;
+	static private ?string $_requestId = null;
 	/** Path to the log file. */
-	static private $_logPath = null;
+	static private ?string $_logPath = null;
 	/** List of callback functions that must be called to write custom log messages. */
-	static private $_logCallbacks = [];
+	static private array $_logCallbacks = [];
 	/** Flag for STDOUT writing. */
-	static private $_logToStdOut = false;
+	static private bool $_logToStdOut = false;
 	/** Flag for STDERR writing. */
-	static private $_logToStdErr = false;
+	static private bool $_logToStdErr = false;
 	/** Log writing flag. */
-	static private $_enable = true;
+	static private bool $_enable = true;
 	/** Current threshold. */
-	static private $_threshold = [
+	static private array $_threshold = [
 		self::DEFAULT_CLASS => self::NOTE,
 	];
 	/** Threshold for buffered messages. */
-	static private $_bufferingThreshold = null;
+	static private ?array $_bufferingThreshold = null;
 	/** Buffer of waiting messages. */
-	static private $_messageBuffer = null;
+	static private ?array $_messageBuffer = null;
 	/** Array of sorted log levels.*/
-	static private $_levels = [
+	static private array $_levels = [
 		'DEBUG'	=> 10,
 		'INFO'	=> 20,
 		'NOTE'	=> 30,
@@ -117,7 +117,7 @@ class Log {
 		'CRIT'	=> 60
 	];
 	/** Array of log level text labels. */
-	static private $_labels = [
+	static private array $_labels = [
 		'DEBUG'	=> 'DEBUG',
 		'INFO'	=> 'INFO ',
 		'NOTE'	=> 'NOTE ',
@@ -173,25 +173,23 @@ class Log {
 	 *							or value of the default threshold, or list of classes with their associated thresholds.
 	 * @param	?string		$threshold		(optional) Threshold value.
 	 */
-	static public function setThreshold(/* string|array */ $classOrThreshold, ?string $threshold=null) : void {
+	static public function setThreshold(string|array $classOrThreshold, ?string $threshold=null) : void {
 		if (is_string($classOrThreshold) && is_string($threshold))
 			self::$_threshold[$classOrThreshold] = $threshold;
-		else {
-			if (is_array($classOrThreshold))
-				self::$_threshold = $classOrThreshold;
-			else if (is_string($classOrThreshold))
-				self::$_threshold[self::DEFAULT_CLASS] = $classOrThreshold;
-		}
+		else if (is_array($classOrThreshold))
+			self::$_threshold = $classOrThreshold;
+		else if (is_string($classOrThreshold))
+			self::$_threshold[self::DEFAULT_CLASS] = $classOrThreshold;
 	}
 	/**
 	 * Define the criticity threshold for buffered messages.
 	 * By default, messages are not buffered.
-	 * @param	string|array|null	$classOrThreshold	Name of the class for which the buffering threshold is defined (in the second parameter)
+	 * @param	null|string|array	$classOrThreshold	Name of the class for which the buffering threshold is defined (in the second parameter)
 	 *								or value of the default buffering threshold, or list of classes with their associated thresholds,
 	 *								or null to remove message buffering.
 	 * @param	?string			$threshold		(optional) Threshold value.
 	 */
-	static public function setBufferingThreshold(/* string|array|null */ $classOrThreshold, ?string $threshold=null) : void {
+	static public function setBufferingThreshold(null|string|array $classOrThreshold, ?string $threshold=null) : void {
 		if (is_null($classOrThreshold)) {
 			self::$_bufferingThreshold = null;
 			return;
@@ -212,7 +210,7 @@ class Log {
 	 * @param	mixed	$messageOrPriority		(optional) Log message (2 params) or criticity level (3 params).
 	 * @param	mixed	$message			(optional) Log message (3 params).
 	 */
-	static public function log(/* mixed */ $classOrMessageOrPriority, /* mixed */ $messageOrPriority=null, /* mixed */ $message=null) : void {
+	static public function log(mixed $classOrMessageOrPriority, mixed $messageOrPriority=null, mixed $message=null) : void {
 		// parameters processing
 		if (!is_null($message) && !is_null($messageOrPriority)) {
 			$class = $classOrMessageOrPriority;
@@ -259,11 +257,11 @@ class Log {
 					if (++$offset < 2)
 						continue;
 					$txt .= "\n\t#" . ($offset - 1) . '  ' . 
-						(isset($trace['class']) ? $trace['class'] : '') . 
-						(isset($trace['type']) ? $trace['type'] : '') . 
-						(isset($trace['function']) ? $trace['function'] : '') . '() called at [' .
-						(isset($trace['file']) ? $trace['file'] : '') . ':' . 
-						(isset($trace['line']) ? $trace['line'] : '') . ']';
+						($trace['class'] ?? '') . 
+						($trace['type'] ?? '') . 
+						$trace['function'] . '() called at [' .
+						($trace['file'] ?? '') . ':' . 
+						($trace['line'] ?? '') . ']';
 				}
 			}
 			$message = $txt;
@@ -289,7 +287,7 @@ class Log {
 	 * Write a simple log message. This message will always be writtent.
 	 * @param	mixed	$message	Log message.
 	 */
-	static public function l(/* mixed */ $message) : void {
+	static public function l(mixed $message) : void {
 		if (!is_string($message))
 			$message = print_r($message, true);
 		self::_writeLog(null, null, $message);
@@ -299,7 +297,7 @@ class Log {
 	 * @param	mixed	$loglevel	The variable that should be a valid log level.
 	 * @return	?string	The upper-case log level, if the input was valid, or null.
 	 */
-	static public function checkLogLevel(/* mixed */ $loglevel) : ?string {
+	static public function checkLogLevel(mixed $loglevel) : ?string {
 		if (is_string($loglevel) &&
 		    ($loglevel = strtoupper($loglevel)) &&
 		    isset(self::$_levels[$loglevel]))

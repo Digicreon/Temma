@@ -3,7 +3,7 @@
 /**
  * FlowForward
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2021, Amaury Bouchard
+ * @copyright	© 2021-2023, Amaury Bouchard
  */
 
 namespace Temma\Exceptions;
@@ -14,7 +14,7 @@ namespace Temma\Exceptions;
 class FlowForward extends Flow {
 	/** Constructor. */
 	public function __construct() {
-		parent::__construct(null, \Temma\Web\Controller::EXEC_FORWARD);
+		parent::__construct('', \Temma\Web\Controller::EXEC_FORWARD_THROWABLE);
 	}
 }
 

@@ -3,7 +3,7 @@
 /**
  * Syslog
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2022, Amaury Bouchard
+ * @copyright	© 2022-2023, Amaury Bouchard
  */
 
 namespace Temma\LogManagers;
@@ -45,7 +45,13 @@ class Syslog implements \Temma\Base\Loadable, \Temma\Web\LogManager {
 			$facility = self::FACILITY_MAPPING[$facility] ?? LOG_USER;
 		openlog('', LOG_PERROR, $facility);
 	}
-	/** Sends the application logs to the local Syslog server. */
+	/**
+	 * Sends the application logs to the local Syslog server.
+	 * @param	string	$traceId	Request identifier.
+	 * @param	string	$text		Log text.
+	 * @param	?string	$priority	Priority of the log message.
+	 * @param	?string	$class		Class of the log message.
+	 */
 	public function log(string $traceId, string $text,
 	                    ?string $priority, ?string $class) : void {
 		// creation of the message

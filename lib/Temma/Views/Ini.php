@@ -3,7 +3,7 @@
 /**
  * Ini view
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2012-2019, Amaury Bouchard
+ * @copyright	© 2012-2023, Amaury Bouchard
  */
 
 namespace Temma\Views;
@@ -16,9 +16,9 @@ namespace Temma\Views;
  */
 class Ini extends \Temma\Web\View {
 	/** Data that must be INI-encoded. */
-	private $_data = null;
+	private mixed $_data = null;
 	/** Name of the downloadable file. */
-	private $_filename = null;
+	private ?string $_filename = null;
 
 	/** Init. */
 	public function init() : void {

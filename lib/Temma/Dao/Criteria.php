@@ -3,7 +3,7 @@
 /**
  * Criteria
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2012-2020, Amaury Bouchard
+ * @copyright	© 2012-2023, Amaury Bouchard
  */
 
 namespace Temma\Dao;
@@ -17,13 +17,13 @@ use \Temma\Exceptions\Dao as TµDaoException;
  */
 class Criteria {
 	/** DAO object initiating the criteria. */
-	private $_dao = null;
+	private ?\Temma\Dao\Dao $_dao = null;
 	/** Database connection. */
-	protected $_db = null;
+	protected ?\Temma\Base\Database $_db = null;
 	/** Type of criteria boolean combination. */
-	protected $_type = 'and';
+	protected string $_type = 'and';
 	/** List of request elements. */
-	protected $_elements = null;
+	protected array $_elements = [];
 
 	/**
 	 * Constructor.
@@ -35,7 +35,6 @@ class Criteria {
 	final public function __construct(\Temma\Base\Database $db, \Temma\Dao\Dao $dao, string $type='and') {
 		$this->_db = $db;
 		$this->_dao = $dao;
-		$this->_elements = [];
 		if (strcasecmp($type, 'and') && strcasecmp($type, 'or'))
 			throw new TµDaoException("Bad criteria combination type '$type'.", TµDaoException::CRITERIA);
 		$this->_type = strtolower($type);
@@ -108,7 +107,7 @@ class Criteria {
 	 * @param	mixed	$value	Comparison value.
 	 * @return	\Temma\Dao\Criteria	The current object.
 	 */
-	public function equal(string $field, /* mixed */ $value) : \Temma\Dao\Criteria {
+	public function equal(string $field, mixed $value) : \Temma\Dao\Criteria {
 		$s = '';
 		if (is_array($value)) {
 			$values = [];
@@ -128,7 +127,7 @@ class Criteria {
 	 * @param	mixed	$value	Comparison value.
 	 * @return	\Temma\Dao\Criteria	The current object.
 	 */
-	public function different(string $field, /* mixed */ $value) : \Temma\Dao\Criteria {
+	public function different(string $field, mixed $value) : \Temma\Dao\Criteria {
 		$s = '';
 		if (is_array($value)) {
 			$values = [];
@@ -169,7 +168,7 @@ class Criteria {
 	 * @param	int|float	$value	Comparison value.
 	 * @return	\Temma\Dao\Criteria	The current object.
 	 */
-	public function lessThan(string $field, /* int|float */ $value) : \Temma\Dao\Criteria {
+	public function lessThan(string $field, int|float $value) : \Temma\Dao\Criteria {
 		$this->_addCriteria($field, '<', $value);
 		return ($this);
 	}
@@ -179,7 +178,7 @@ class Criteria {
 	 * @param	int|float	$value	Comparison value.
 	 * @return	\Temma\Dao\Criteria	The current object.
 	 */
-	public function greaterThan(string $field, /* int|float */ $value) : \Temma\Dao\Criteria {
+	public function greaterThan(string $field, int|float $value) : \Temma\Dao\Criteria {
 		$this->_addCriteria($field, '>', $value);
 		return ($this);
 	}
@@ -189,17 +188,17 @@ class Criteria {
 	 * @param	int|float	$value	Comparison value.
 	 * @return	\Temma\Dao\Criteria	The current object.
 	 */
-	public function lessOrEqualTo(string $field, /* int|float */ $value) : \Temma\Dao\Criteria {
+	public function lessOrEqualTo(string $field, int|float $value) : \Temma\Dao\Criteria {
 		$this->_addCriteria($field, '<=', $value);
 		return ($this);
 	}
 	/**
 	 * Add a "grater or equal to" criterion.
 	 * @param	string		$field	Field name.
-	 * @param	string|int	$value	Comparison value.
+	 * @param	int|float	$value	Comparison value.
 	 * @return	\Temma\Dao\Criteria	L'instance de l'objet courant.
 	 */
-	public function greaterOrEqualTo(string $field, /* string|int */ $value) : \Temma\Dao\Criteria {
+	public function greaterOrEqualTo(string $field, int|float $value) : \Temma\Dao\Criteria {
 		$this->_addCriteria($field, '>=', $value);
 		return ($this);
 	}
@@ -235,9 +234,9 @@ class Criteria {
 	 * Add a search criterion using the default combination type.
 	 * @param	string	$field		Field name.
 	 * @param	string	$operator	(optional) Search operator. (default: '')
-	 * @param	string	$value		(optional) Search value.
+	 * @param	mixed	$value		(optional) Search value.
 	 */
-	protected function _addCriteria(string $field, string $operator='', ?string $value=null) : void {
+	protected function _addCriteria(string $field, string $operator='', mixed $value=null) : void {
 		$this->_addTypedCriteria($this->_type, $field, $operator, $value);
 	}
 	/**

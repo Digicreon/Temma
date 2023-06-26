@@ -3,7 +3,7 @@
 /**
  * Database
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2007-2019, Amaury Bouchard
+ * @copyright	© 2007-2023, Amaury Bouchard
  */
 
 namespace Temma\Base;
@@ -93,13 +93,13 @@ use \Temma\Exceptions\Database as TµDatabaseException;
  */
 class Database extends \Temma\Base\Datasource {
 	/** Database connection objet. */
-	protected $_db = null;
+	protected ?\PDO $_db = null;
 	/** Database connection parameters. */
-	protected $_params = null;
+	protected null|string|array $_params = null;
 	/** Connection user (PDO compatibility). */
-	protected $_login = null;
+	protected ?string $_login = null;
 	/** Connection password (PDO compatibility). */
-	protected $_password = null;
+	protected ?string $_password = null;
 
 	/* ************************ CONSTRUCTION ********************** */
 	/**
@@ -212,9 +212,9 @@ class Database extends \Temma\Base\Datasource {
 	/* ***************************** TRANSACTIONS ************************ */
 	/**
 	 * Manage a transaction automatically.
-	 * @param	\Callable	$callback	Anonymous function.
+	 * @param	callable	$callback	Anonymous function.
 	 */
-	public function transaction(\Callable $callback) : void {
+	public function transaction(callable $callback) : void {
 		TµLog::log('Temma/Base', 'DEBUG', "Starting a transaction.");
 		$this->startTransaction();
 		try {
@@ -355,7 +355,7 @@ class Database extends \Temma\Base\Datasource {
 	 * @return	mixed	An associative array which contains the line of data, or the value which field's name has been given as paramete.
 	 * @throws	\Exception	If something went wrong.
 	 */
-	public function queryOne(string $sql, ?string $valueField=null) /* : mixed */ {
+	public function queryOne(string $sql, ?string $valueField=null) : mixed {
 		TµLog::log('Temma/Base', 'DEBUG', "SQL query: $sql");
 		$this->_connect();
 		$result = $this->_db->query($sql);
@@ -400,7 +400,7 @@ class Database extends \Temma\Base\Datasource {
 	 */
 	public function lastInsertId() : int {
 		$this->_connect();
-		return ($this->_db->lastInsertId());
+		return ((int)$this->_db->lastInsertId());
 	}
 }
 

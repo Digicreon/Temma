@@ -3,7 +3,7 @@
 /**
  * FlowStop
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2020, Amaury Bouchard
+ * @copyright	© 2020-2023, Amaury Bouchard
  */
 
 namespace Temma\Exceptions;
@@ -14,7 +14,7 @@ namespace Temma\Exceptions;
 class FlowStop extends Flow {
 	/** Constructor. */
 	public function __construct() {
-		parent::__construct(null, \Temma\Web\Controller::EXEC_STOP);
+		parent::__construct('', \Temma\Web\Controller::EXEC_STOP);
 	}
 }
 

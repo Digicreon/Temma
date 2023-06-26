@@ -4,7 +4,7 @@
  * Temma framework bootstrap script.
  *
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2007-2019, Amaury Bouchard
+ * @copyright	© 2007-2023, Amaury Bouchard
  * @package	Temma
  */
 
@@ -27,12 +27,22 @@ try {
 	$temma->process();
 } catch (\Throwable $e) {
 	// error management
-	TµLog::log('Temma/Web', 'CRIT', "Critical error: '" . $e->getMessage() . "'.");
+	TµLog::log('Temma/Web', 'CRIT', "??Critical error: '" . $e->getMessage() . "'.");
 	$errorCode = 500;
 	$errorPage = '';
-	if (is_a($e, '\Temma\Exceptions\Http'))
+	if (is_a($e, '\Temma\Exceptions\Http')) {
 		$errorCode = $e->getCode();
-	else
+	} else if (is_a($e, '\Temma\Exceptions\Application')) {
+		$code = $e->getCode();
+		if ($code == \Temma\Exceptions\Application::AUTHENTICATION)
+			$errorCode = 401;
+		else if ($code == \Temma\Exceptions\Application::UNAUTHORIZED)
+			$errorCode = 403;
+		else if ($code == \Temma\Exceptions\Application::RETRY)
+			$errorCode = 449;
+		else
+			$errorCode = 400;
+	} else
 		TµLog::log('Temma/Web', 'CRIT', $e->getTrace());
 	if (isset($temma))
 		$errorPage = $temma->getErrorPage($errorCode);

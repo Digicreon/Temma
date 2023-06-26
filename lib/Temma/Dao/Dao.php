@@ -3,7 +3,7 @@
 /**
  * Dao
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2012-2020, Amaury Bouchard
+ * @copyright	© 2012-2023, Amaury Bouchard
  */
 
 namespace Temma\Dao;
@@ -64,37 +64,37 @@ use \Temma\Exceptions\Dao as TµDaoException;
  */
 class Dao {
 	/** Name of the criteria object. */
-	protected $_criteriaObject = '\Temma\Dao\Criteria';
+	protected string $_criteriaObject = '\Temma\Dao\Criteria';
 	/** Database connection. */
-	protected $_db = null;
+	protected \Temma\Base\Database $_db;
 	/** Cache connection. */
-	protected $_cache = null;
+	protected ?\Temma\Base\Datasource $_cache;
 	/** Tell if the cache must be disabled. */
-	protected $_disableCache = false;
+	protected bool $_disableCache = false;
 	/** Name of the database. */
-	protected $_dbName = null;
+	protected ?string $_dbName = null;
 	/** Name of the table. */
-	protected $_tableName = null;
+	protected ?string $_tableName = null;
 	/** Name of the table's primary key. */
-	protected $_idField = null;
+	protected ?string $_idField = null;
 	/** List of the table's fields (with rename mapping if needed) */
-	protected $_fields = null;
+	protected ?array $_fields = null;
 	/** String with the list of fields (after generation from the list of fields). */
-	private $_fieldsString = null;
+	private ?string $_fieldsString = null;
 
 	/**
 	 * Constructor.
 	 * @param	\Temma\Base\Database	$db		Connection to the database.
-	 * @param	\Temma\Base\Cache	$cache		(optional) Connection to the cache server.
-	 * @param	string			$tableName	(optional) Name of the table.
-	 * @param	string			$idField	(optional) Name of the primary key. (default: 'id')
-	 * @param	string			$dbName		(optional) Name of the database.
-	 * @param	array			$fields		(optional) List of table's fields (may be remapped 'table_field' => 'aliased_name').
-	 * @param	string			$criteriaObject	(optional) Name of the criteria object. (default: \Temma\Dao\Criteria)
+	 * @param	?\Temma\Base\Datasource	$cache		(optional) Connection to the cache server.
+	 * @param	?string			$tableName	(optional) Name of the table.
+	 * @param	?string			$idField	(optional) Name of the primary key. (default: 'id')
+	 * @param	?string			$dbName		(optional) Name of the database.
+	 * @param	?array			$fields		(optional) List of table's fields (may be remapped 'table_field' => 'aliased_name').
+	 * @param	?string			$criteriaObject	(optional) Name of the criteria object. (default: \Temma\Dao\Criteria)
 	 * @throws	\Temma\Exceptions\Dao	If the criteria object is not of the right type.
 	 */
-	public function __construct(\Temma\Base\Database $db, \Temma\Base\Cache $cache=null, string $tableName=null, string $idField='id', string $dbName=null,
-	                            array $fields=null, string $criteriaObject=null) {
+	public function __construct(\Temma\Base\Database $db, ?\Temma\Base\Datasource $cache=null, ?string $tableName=null,
+	                            ?string $idField='id', ?string $dbName=null, ?array $fields=null, ?string $criteriaObject=null) {
 		$this->_db = $db;
 		$this->_cache = $cache;
 		if (empty($this->_tableName))
@@ -227,12 +227,12 @@ class Dao {
 	/**
 	 * Search records from a search criteria.
 	 * @param	?\Temma\Dao\Criteria	$criteria	(optional) Search criteria. Null to take all records. (default: null)
-	 * @param	null|string|array	$sort		(optional) Sort data. Null for natural sort, false for random sort.
+	 * @param	null|false|string|array	$sort		(optional) Sort data. Null for natural sort, false for random sort.
 	 * @param	?int			$limitOffset	(optional) Offset of the first returned record. (default: 0).
 	 * @param	?int			$nbrLimit	(optional) Maximum number of records to return. Null for no limit. (default: null)
 	 * @return	array	List of associative arrays.
 	 */
-	public function search(?\Temma\Dao\Criteria $criteria=null, /* null|string|array */ $sort=null, ?int $limitOffset=null, ?int $nbrLimit=null) : array {
+	public function search(?\Temma\Dao\Criteria $criteria=null, null|false|string|array $sort=null, ?int $limitOffset=null, ?int $nbrLimit=null) : array {
 		$cacheVarName = '__dao:' . $this->_dbName . ':' . $this->_tableName . ':count';
 		$sql = 'SELECT ' . $this->_getFieldsString() . ' FROM ' .
 			(!$this->_dbName ? '' : ('`' . $this->_dbName . '`.')) . '`' . $this->_tableName . '`';
@@ -243,10 +243,10 @@ class Dao {
 		}
 		if (!is_null($sort)) {
 			$sortList = [];
-			if (is_string($sort))
-				$sortList[] = $sort;
-			else if ($sort === false)
+			if ($sort === false)
 				$sortList[] = 'RAND()';
+			else if (is_string($sort))
+				$sortList[] = $sort;
 			else if (is_array($sort)) {
 				foreach ($sort as $key => $value) {
 					$field = is_int($key) ? $value : $key;
@@ -277,13 +277,13 @@ class Dao {
 	}
 	/**
 	 * Update one or more records.
-	 * @param	string|\Temma\Dao\Criteria|null	$criteria	Primary key of the record that must be updated, or a search criteria.
-	 *								Null to update all records. (default: null)
-	 * @param	array	$fields					Associative array where the keys are the fields to update, and their
-	 *								values are the new values to update. (default: empty array)
+	 * @param	null|int|string|\Temma\Dao\Criteria	$criteria	Primary key of the record that must be updated, or a search criteria.
+	 *									Null to update all records. (default: null)
+	 * @param	array					$fields		Associative array where the keys are the fields to update, and their
+	 *									values are the new values to update. (default: empty array)
 	 * @throws	\Temma\Exceptions\Dao	If the criteria or the fields array are not well formed.
 	 */
-	public function update(/* string|\Temma\Dao\Criteria|null */ $criteria=null, array $fields=[]) : void {
+	public function update(null|int|string|\Temma\Dao\Criteria $criteria=null, array $fields=[]) : void {
 		if (!$fields)
 			return;
 		// effacement du cache pour cette DAO
@@ -307,29 +307,32 @@ class Dao {
 				throw new TµDaoException("Bad field '$field' value.", TµDaoException::VALUE);
 		}
 		$sql .= implode(',', $set);
-		$sql .= ' WHERE ';
-		if (is_int($criteria) || is_string($criteria))
-			$sql .= '`' . $this->_idField . "` = " . $this->_db->quote($criteria);
-		else if ($criteria instanceof \Temma\Dao\Criteria)
-			$sql .= $criteria->generate();
-		else
-			throw new TµDaoException("Bad criteria type.", TµDaoException::CRITERIA);
+		if (!is_null($criteria)) {
+			$sql .= ' WHERE ';
+			if (is_int($criteria) || is_string($criteria))
+				$sql .= '`' . $this->_idField . "` = " . $this->_db->quote($criteria);
+			else
+				$sql .= $criteria->generate();
+		}
 		$this->_db->exec($sql);
 	}
 	/**
 	 * Delete one or more records.
-	 * @param	int|\Temma\Dao\Criteria	$criteria	Primary key of the record that must be deleted, or a search criteria.
+	 * @param	null|int|string|\Temma\Dao\Criteria	$criteria	(optional) Primary key of the record that must be deleted, or a search criteria.
+	 *									Null to remove all entries. (default: null)
 	 */
-	public function remove($criteria) : void {
+	public function remove(null|int|string|\Temma\Dao\Criteria $criteria=null) : void {
 		// effacement du cache pour cette DAO
 		$this->_flushCache();
 		// constitution et exécution de la requête
-		$sql = 'DELETE FROM ' . (!$this->_dbName ? '' : ('`' . $this->_dbName . '`.')) . '`' . $this->_tableName . '`' .
-			' WHERE ';
-		if (is_int($criteria) || is_string($criteria))
-			$sql .= '`' . $this->_idField . "` = " . $this->_db->quote($criteria);
-		else
-			$sql .= $criteria->generate();
+		$sql = 'DELETE FROM ' . (!$this->_dbName ? '' : ('`' . $this->_dbName . '`.')) . '`' . $this->_tableName . '`';
+		if (!is_null($criteria)) {
+			$sql .= ' WHERE ';
+			if (is_int($criteria) || is_string($criteria))
+				$sql .= '`' . $this->_idField . "` = " . $this->_db->quote($criteria);
+			else
+				$sql .= $criteria->generate();
+		}
 		$this->_db->exec($sql);
 	}
 	/**
@@ -348,19 +351,19 @@ class Dao {
 	/* ***************** CACHE MANAGEMENT ************* */
 	/**
 	 * Disabled cache.
-	 * @param	?mixed	$p	(optional) Value to return. (default: null)
-	 * @return	\Temma\Dao\Dao	The value given as parameter, or the instance of the current object (if the parameter was null).
+	 * @param	mixed	$p	(optional) Value to return. (default: null)
+	 * @return	mixed	The value given as parameter, or the instance of the current object (if the parameter was null).
 	 */
-	public function disableCache($p=null) {
+	public function disableCache(mixed $p=null) : mixed {
 		$this->_disableCache = true;
 		return ($p ?? $this);
 	}
 	/**
 	 * Enable cache.
 	 * @param	mixed	$p	(optional) Value to return. (default: null)
-	 * @return	\Temma\Dao\Dao	The value given as parameter, or the instance of the current object (if the parameter was null).
+	 * @return	mixed	The value given as parameter, or the instance of the current object (if the parameter was null).
 	 */
-	public function enableCache($p=null) {
+	public function enableCache(mixed $p=null) : mixed {
 		$this->_disableCache = false;
 		return ($p ?? $this);
 	}
@@ -370,7 +373,7 @@ class Dao {
 	 * Generate the string with the fields list.
 	 * @return	string	The generated string.
 	 */
-	protected function _getFieldsString() {
+	protected function _getFieldsString() : string {
 		if ($this->_fieldsString)
 			return ($this->_fieldsString);
 		if (!$this->_fields)
@@ -392,7 +395,7 @@ class Dao {
 	 * @param	string	$cacheVarName	Name of the variable to fetch.
 	 * @return	mixed	Variable value.
 	 */
-	protected function _getCache(string $cacheVarName) {
+	protected function _getCache(string $cacheVarName) : mixed {
 		if (!$this->_cache || $this->_disableCache)
 			return (null);
 		return ($this->_cache->get($cacheVarName));

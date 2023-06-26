@@ -3,7 +3,7 @@
 /**
  * NDatabase
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2012-2019, Amaury Bouchard
+ * @copyright	© 2012-2023, Amaury Bouchard
  */
 
 namespace Temma\Base;
@@ -61,9 +61,9 @@ class NDatabase extends \Temma\Base\Datasource implements \ArrayAccess {
 	/** Number of the default Redis base. */
 	const DEFAULT_REDIS_BASE = 0;
 	/** Connection object. */
-	protected $_ndb = null;
+	protected ?\Redis $_ndb = null;
 	/** Connection parameters. */
-	protected $_params = null;
+	protected ?array $_params = null;
 
 	/* ************************ CONSTRUCTION ********************** */
 	/**
@@ -75,6 +75,7 @@ class NDatabase extends \Temma\Base\Datasource implements \ArrayAccess {
 	static public function factory(string $dsn) : \Temma\Base\Datasource {
 		TµLog::log('Temma/Base', 'DEBUG', "\Temma\Base\NDatabase object creation with DSN: '$dsn'.");
 		// extraction of connection parameters
+		$type = $host = $port = null;
 		if (preg_match("/^redis-sock:\/\/([^#]+)#?(.*)$/", $dsn, $matches)) {
 			$type = 'redis';
 			$host = $matches[1];
@@ -145,7 +146,7 @@ class NDatabase extends \Temma\Base\Datasource implements \ArrayAccess {
 	 * @return	mixed	The old value associated to the given key.
 	 * @throws	\Exception	If something went wrong.
 	 */
-	public function set(/* mixed */ $key, /* mixed */ $value=null, int $timeout=0, bool $createOnly=false) /* : mixed */ {
+	public function set(string|array $key, mixed $value=null, int $timeout=0, bool $createOnly=false) : mixed {
 		$this->_connect();
 		if (!is_array($key)) {
 			$oldValue = $this->get($key);
@@ -172,7 +173,7 @@ class NDatabase extends \Temma\Base\Datasource implements \ArrayAccess {
 	 *						The data returned by this function will be added to the database, and returned by the method.
 	 * @return	mixed	The value associated to the key, or an associative array with key-value pairs. If a value doesn't exists, it is null.
 	 */
-	public function get(/* string|array */ $key, ?callable $callback=null) /* : mixed */ {
+	public function get(string|array $key, ?callable $callback=null) : mixed {
 		$this->_connect();
 		if (is_array($key)) {
 			$values = $this->_ndb->mget($key);
@@ -208,25 +209,25 @@ class NDatabase extends \Temma\Base\Datasource implements \ArrayAccess {
 	 * @param	string|array	$key	Key or a list of keys.
 	 * @return	\Temma\Base\NDatabase	The current object.
 	 */
-	public function remove(/* mixed */ $key) : \Temma\Base\NDatabase {
+	public function remove(string|array $key) : \Temma\Base\NDatabase {
 		$this->_connect();
 		$this->_ndb->delete($key);
 		return ($this);
 	}
 	/**
 	 * Get a data from cache, array-like syntax.
-	 * @param	string	$key	Index key.
+	 * @param	mixed	$key	Index key.
 	 * @return	mixed	The data fetched from the cache, or null.
 	 */
-	public function offsetGet(/* mixed */ $key) /* : mixed */ {
+	public function offsetGet(mixed $key) : mixed {
 		return ($this->get($key));
 	}
 	/**
 	 * Add data in cache, array-like syntax.
-	 * @param	string	$key	Index key.
+	 * @param	mixed	$key	Index key.
 	 * @param	mixed	$data	Data value. The data is deleted if the value is null.
 	 */
-	public function offsetSet(/* mixed */ $key, /* mixed */ $data) : void {
+	public function offsetSet(mixed $key, mixed $data) : void {
 		if (is_null($data))
 			$this->remove($key);
 		else
@@ -234,17 +235,17 @@ class NDatabase extends \Temma\Base\Datasource implements \ArrayAccess {
 	}
 	/**
 	 * Remove data from cache, array-like syntax.
-	 * @param	string	$key	Index key.
+	 * @param	mixed	$key	Index key.
 	 */
-	public function offsetUnset(/* mixed */ $key) : void {
+	public function offsetUnset(mixed $key) : void {
 		$this->remove($key);
 	}
 	/**
 	 * Tell if a variable is set in cache, array-like syntax.
-	 * @param	string	$key	Index key.
+	 * @param	mixed	$key	Index key.
 	 * @return	bool	True if the variable is set, false otherwise.
 	 */
-	public function offsetExists(/* mixed */ $key) : bool {
+	public function offsetExists(mixed $key) : bool {
 		$this->_connect();
 		return ($this->_ndb->exists($key) ? true : false);
 	}

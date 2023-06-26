@@ -3,7 +3,7 @@
 /**
  * ICal view
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2010-2019, Amaury Bouchard
+ * @copyright	© 2010-2023, Amaury Bouchard
  */
 
 namespace Temma\Views;
@@ -15,9 +15,9 @@ namespace Temma\Views;
  */
 class ICal extends \Temma\Web\View {
 	/** Calendar data. */
-	private $_ical = null;
+	private ?array $_ical = null;
 	/** Name of the downloadable file. */
-	private $_filename = null;
+	private ?string $_filename = null;
 
 	/** Init. */
 	public function init() : void {
@@ -95,7 +95,7 @@ class ICal extends \Temma\Web\View {
 		print($this->_escape($attr, $text) . "\r\n");
 	}
 	/**
-	 * Transform a text by escaping special characters and cutting it to the write size.
+	 * Transform a text by escaping special characters and cutting it to the right size.
 	 * @param	string	$attr	Attribute name (ending with ":"). Is not escaped.
 	 * @param	string	$text	Text to escape.
 	 * @param	bool	$wrap	(optional) True to cut lines. True by default.

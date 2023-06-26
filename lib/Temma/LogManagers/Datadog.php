@@ -3,7 +3,7 @@
 /**
  * Datadog
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2022, Amaury Bouchard
+ * @copyright	© 2022-2023, Amaury Bouchard
  */
 
 namespace Temma\LogManagers;
@@ -58,7 +58,13 @@ class Datadog implements \Temma\Base\Loadable, \Temma\Web\LogManager {
 		$this->_apiKey = $loader->config->xtra('datadog', 'apiKey');
 		$this->_service = $loader->config->xtra('datadog', 'service');
 	}
-	/** Sends the application logs to Datadog. */
+	/**
+	 * Sends the application logs to Datadog.
+	 * @param	string	$traceId	Request identifier.
+	 * @param	string	$text		Log text.
+	 * @param	?string	$priority	Priority of the log message.
+	 * @param	?string	$class		Class of the log message.
+	 */
 	public function log(string $traceId, string $text,
 	                    ?string $priority, ?string $class) : void {
 		// check connection parameters

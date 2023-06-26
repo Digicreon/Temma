@@ -3,7 +3,7 @@
 /**
  * Request
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2007-2019, Amaury Bouchard
+ * @copyright	© 2007-2023, Amaury Bouchard
  */
 
 namespace Temma\Web;
@@ -16,19 +16,15 @@ use \Temma\Exceptions\Framework as TµFrameworkException;
  */
 class Request {
 	/** PathInfo data. */
-	private $_pathInfo = null;
+	private string $_pathInfo;
 	/** Name of the requested controller. */
-	private $_controller = null;
+	private ?string $_controller = null;
 	/** Name of the requested action. */
-	private $_action = null;
+	private ?string $_action = null;
 	/** Parameters for the action. */
-	private $_params = null;
+	private ?array $_params = null;
 	/** Path from the site root. */
-	private $_sitePath = null;
-	/** Received JSON data. */
-	private $_json = null;
-	/** Received XML data. */
-	private $_xml = null;
+	private string $_sitePath;
 
 	/**
 	 * Constructor.
@@ -137,7 +133,7 @@ class Request {
 	 * @param	mixed	$default	(optional) Default value if the parameter doesn't exist.
 	 * @return	?string	The associated value.
 	 */
-	public function getParam(int $index, /* mixed */ $default=null) : ?string {
+	public function getParam(int $index, mixed $default=null) : ?string {
 		if (isset($this->_params[$index]))
 			return ($this->_params[$index]);
 		return ($default);

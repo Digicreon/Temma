@@ -3,7 +3,7 @@
 /**
  * Json
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2019-2020, Amaury Bouchard
+ * @copyright	© 2019-2023, Amaury Bouchard
  */
 
 namespace Temma\Utils;
@@ -22,7 +22,7 @@ class Json {
 	 * @return	mixed	The decoded data.
 	 * @link	https://stackoverflow.com/questions/8148797/a-json-parser-for-php-that-supports-comments/43439966#43439966
 	 */
-	static public function decode(string $json, bool $assoc=false, int $depth=512, $options=0) /* : mixed */ {
+	static public function decode(string $json, bool $assoc=false, int $depth=512, $options=0) : mixed {
 		$json = preg_replace('~(" (?:[^"\\\\] | \\\\\\\\ | \\\\")*+ ") | \# [^\v]*+ | // [^\v]*+ | /\* .*? \*/~xs', '$1', $json);
 		return (json_decode($json, $assoc, $depth, $options));
 	}
@@ -32,7 +32,7 @@ class Json {
 	 * @param	string	$path	Path to the file.
 	 * @return	mixed	The decoded data.
 	 */
-	static public function decodeFile(string $path) /* : mixed */ {
+	static public function decodeFile(string $path) : mixed {
 		return (self::decode(file_get_contents($path), true));
 	}
 }

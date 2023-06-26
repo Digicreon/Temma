@@ -3,7 +3,7 @@
 /**
  * Session
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2010-2020, Amaury Bouchard
+ * @copyright	© 2010-2023, Amaury Bouchard
  */
 
 namespace Temma\Base;
@@ -54,17 +54,17 @@ class Session implements \ArrayAccess {
 	/** Constant: Long session duration (1 year). */
 	const LONG_DURATION = 31536000;
 	/** Cache management object. */
-	private $_cache = null;
+	private ?\Temma\Base\Datasource $_cache = null;
 	/** Name of the session cookie. */
-	private $_cookieName = null;
+	private ?string $_cookieName = null;
 	/** Session duration. */
-	private $_duration = null;
+	private ?int $_duration = null;
 	/** Associative array of session data. */
-	private $_data = null;
+	private ?array $_data = null;
 	/** Session identifier. */
-	private $_sessionId = null;
+	private ?string $_sessionId = null;
 	/** Tell if the cookie was sent. */
-	private $_cookieSent = false;
+	private bool $_cookieSent = false;
 
 	/* ********** CONSTRUCTION ********** */
 	/**
@@ -72,23 +72,18 @@ class Session implements \ArrayAccess {
 	 * @param	\Temma\Base\Datasource	$cache		(optional) Cache management object.
 	 * @param	string			$cookieName	(optional) Name of the session cookie. "TEMMA_SESSION" by default.
 	 * @param	int			$duration	(optional) Session duration. One year by default.
-	 * @param	int			$renewDelay	(optional) Delay before session ID renewal. 20 minutes by default.
-	 * @param	bool			$secure		(optional) True to send session cookie only on HTTPS connections. False by default.
 	 * @return	\Temma\Base\Session	The created instance.
 	 */
-	static public function factory(?\Temma\Base\Datasource $cache=null, string $cookieName='TEMMA_SESSION', int $duration=31536000,
-	                               int $renewDelay=1200, bool $secure=false) : \Temma\Base\Session {
-		return (new \Temma\Base\Session($cache, $cookieName, $duration, $renewDelay, $secure));
+	static public function factory(?\Temma\Base\Datasource $cache=null, string $cookieName='TEMMA_SESSION', int $duration=31536000) : \Temma\Base\Session {
+		return (new \Temma\Base\Session($cache, $cookieName, $duration));
 	}
 	/**
 	 * Constructor.
 	 * @param	\Temma\Base\Datasource	$cache		(optional) Cache management object.
 	 * @param	string			$cookieName	(optional) Name of the session cookie. "TEMMA_SESSION" by default.
 	 * @param	int			$duration	(optional) Session duration. One year by default.
-	 * @param	int			$renewDelay	(optional) Delay before session ID renewal. 20 minutes by default.
-	 * @param	bool			$secure		(optional) True to send session cookie only on HTTPS connections. False by default.
 	 */
-	private function __construct(?\Temma\Base\Datasource $cache=null, ?string $cookieName=null, ?int $duration=null, ?int $renewDelay=null, bool $secure=false) {
+	private function __construct(?\Temma\Base\Datasource $cache=null, ?string $cookieName=null, ?int $duration=null) {
 		TµLog::log('Temma/Base', 'DEBUG', "Session object creation.");
 		// fetch the cache
 		if (isset($cache) && $cache->isEnabled())
@@ -211,7 +206,7 @@ class Session implements \ArrayAccess {
 	 * @param	mixed	$value	(optional) Data value. The data is removed if the value is null. Null by default.
 	 * @link	http://php.net/manual/function.serialize.php
 	 */
-	public function set(string $key, /* mixed */ $value=null) : void {
+	public function set(string $key, mixed $value=null) : void {
 		TµLog::log('Temma/Base', 'DEBUG', "Setting value for key '$key'.");
 		if (!isset($this->_cache)) {
 			if (is_null($value))
@@ -227,8 +222,8 @@ class Session implements \ArrayAccess {
 			$this->_data[$key] = $value;
 		// data sync
 		$cacheData = [
-			'_magic'	=> 'Ax',
-			'data'		=> $this->_data
+			'_magic' => 'Ax',
+			'data'   => $this->_data,
 		];
 		$this->_cache->set('sess:' . $this->_sessionId, $cacheData, $this->_duration);
 		// send the cookie to the browser
@@ -236,17 +231,17 @@ class Session implements \ArrayAccess {
 	}
 	/**
 	 * Add data in session, array-like syntax.
-	 * @param	string	$key	Data name.
+	 * @param	mixed	$key	Data name.
 	 * @param	mixed	$value	Data value. The data is removed if the value is null.
 	 */
-	public function offsetSet(/* mixed */ $key, /* mixed */ $value) : void {
+	public function offsetSet(mixed $key, mixed $value) : void {
 		$this->set($key, $value);
 	}
 	/**
 	 * Remove data from session, array-like syntax.
-	 * @param	string	$key	Data name.
+	 * @param	mixed	$key	Data name.
 	 */
-	public function offsetUnset(/* mixed */ $key) : void {
+	public function offsetUnset(mixed $key) : void {
 		$this->set($key, null);
 	}
 	/**
@@ -256,7 +251,7 @@ class Session implements \ArrayAccess {
 	 * @param	string	$arrayKey	Name of the associative array key.
 	 * @param	mixed	$value		(optional) Data value. The data is removed if the value is null. Null by default.
 	 */
-	public function setArray(string $key, string $arrayKey, /* mixed */ $value=null) : void {
+	public function setArray(string $key, string $arrayKey, mixed $value=null) : void {
 		TµLog::log('Temma/Base', 'DEBUG', "Setting value for array '$key\[$arrayKey\]'.");
 		if (!isset($this->_cache)) {
 			if (is_null($value)) {
@@ -289,10 +284,10 @@ class Session implements \ArrayAccess {
 	}
 	/**
 	 * Tell if a data exists, array-like syntax.
-	 * @param	string $key	Data name.
+	 * @param	mixed	$key	Data name.
 	 * @return	bool	True if the data exists, false otherwise.
 	 */
-	public function offsetExists(/* mixed */ $key) : bool {
+	public function offsetExists(mixed $key) : bool {
 		if (!isset($this->_cache))
 			return (isset($_SESSION[$key]));
 		return (isset($this->_data[$key]));
@@ -304,7 +299,7 @@ class Session implements \ArrayAccess {
 	 * @return	mixed	Value of the session data.
 	 * @link	http://php.net/manual/function.unserialize.php
 	 */
-	public function get(string $key, /* mixed */ $default=null) /* : mixed */ {
+	public function get(string $key, mixed $default=null) : mixed {
 		TµLog::log('Temma/Base', 'DEBUG', "Returning value for key '$key'.");
 		if (!isset($this->_cache)) {
 			if (!isset($_SESSION[$key]) && isset($default))
@@ -321,10 +316,10 @@ class Session implements \ArrayAccess {
 	}
 	/**
 	 * Fetch a session data, array-like syntax.
-	 * @param	string	$key	Data name.
+	 * @param	mixed	$key	Data name.
 	 * @return	mixed	Value of the session data.
 	 */
-	public function offsetGet(/* mixed */ $key) /* : mixed */ {
+	public function offsetGet(mixed $key) : mixed {
 		return ($this->get($key));
 	}
 	/**

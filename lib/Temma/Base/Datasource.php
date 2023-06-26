@@ -3,7 +3,7 @@
 /**
  * Datasource
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2012-2019, Amaury Bouchard
+ * @copyright	© 2012-2023, Amaury Bouchard
  */
 
 namespace Temma\Base;
@@ -53,6 +53,26 @@ abstract class Datasource {
 	 */
 	public function isEnabled() : bool {
 		return (true);
+	}
+	/**
+	 * Squeleton method for a getter method implemented by derived classes.
+	 * @param	string	$key	Key of the data.
+	 * @return	mixed	The fetched data.
+	 * @throws	\Temma\Exceptions\Database	Always throws an exception.
+	 */
+	public function get(string $key) : mixed {
+		throw new \Temma\Exceptions\Database("No get() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);
+	}
+	/**
+	 * Squeleton method for a setter method implemented by derived classes.
+	 * @param	string	$key		Key of the new data.
+	 * @param	mixed	$value		Value of the data.
+	 * @param	int	$expires	Expiration duration.
+	 * @return	mixed	The old value for the key.
+	 * @throws 	\Temma\Exceptions\Database	Always throws an exception.
+	 */
+	public function set(string $key, mixed $value=null, int $expires=0) : mixed {
+		throw new \Temma\Exceptions\Database("No set() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);
 	}
 }
 

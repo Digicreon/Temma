@@ -3,7 +3,7 @@
 /**
  * Smarty view
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	2007-2019, Amaury Bouchard
+ * @copyright	2007-2023, Amaury Bouchard
  */
 
 namespace Temma\Views;
@@ -29,11 +29,11 @@ class Smarty extends \Temma\Web\View {
 	/** Path to the smarty plugins directory. */
 	const PLUGINS_DIR = 'lib/smarty/plugins';
 	/** Flag telling if the page could be stored in cache. */
-	private $_isCacheable = false;
+	private bool $_isCacheable = false;
 	/** Smarty object. */
-	private $_smarty = null;
+	private \Smarty $_smarty;
 	/** Name of the template. */
-	private $_template = null;
+	private ?string $_template = null;
 
 	/**
 	 * Constructor.
@@ -56,20 +56,10 @@ class Smarty extends \Temma\Web\View {
 		// create the Smarty object
 		$this->_smarty = new \Smarty();
 		$smarty = $this->_smarty;
-		if (method_exists($this->_smarty, 'setCompileDir'))
-			$this->_smarty->setCompileDir($compiledDir);
-		else
-			$this->_smarty->compile_dir = $compiledDir;
-		if (method_exists($this->_smarty, 'setCacheDir'))
-			$this->_smarty->setCacheDir($cacheDir);
-		else
-			$this->_smarty->cache_dir = $cacheDir;
-		if (method_exists($this->_smarty, 'setErrorReporting'))
-			$this->_smarty->setErrorReporting(E_ALL & ~E_NOTICE);
-		else
-			$this->_smarty->error_reporting = E_ALL & ~E_NOTICE;
-		if (method_exists($this->_smarty, 'muteUndefinedOrNullWarnings'))
-			$this->_smarty->muteUndefinedOrNullWarnings();
+		$this->_smarty->setCompileDir($compiledDir);
+		$this->_smarty->setCacheDir($cacheDir);
+		$this->_smarty->setErrorReporting(E_ALL & ~E_NOTICE);
+		$this->_smarty->muteUndefinedOrNullWarnings();
 		// add plugins include path
 		$pluginPathList = [];
 		$pluginPathList[] = $config->appPath . '/' . self::PLUGINS_DIR;
@@ -78,14 +68,8 @@ class Smarty extends \Temma\Web\View {
 			$pluginPathList[] = $pluginsDir;
 		else if (is_array($pluginsDir))
 			$pluginPathList = array_merge($pluginPathList, $pluginsDir);
-		if (method_exists($this->_smarty, 'setPluginsDir')) {
-			$pluginPathList = array_merge($this->_smarty->getPluginsDir(), $pluginPathList);
-			$this->_smarty->setPluginsDir($pluginPathList);
-		} else {
-			foreach ($pluginPathList as $_path) {
-				$this->_smarty->plugins_dir[] = $_path;
-			}
-		}
+		$pluginPathList = array_merge($this->_smarty->getPluginsDir(), $pluginPathList);
+		$this->_smarty->setPluginsDir($pluginPathList);
 	}
 	/**
 	 * Tell that this view use template files.
@@ -102,16 +86,8 @@ class Smarty extends \Temma\Web\View {
 	 */
 	public function setTemplate(string $path, string $template) : void {
 		TµLog::log('Temma/Web', 'DEBUG', "Searching template '$template'.");
-		if (method_exists($this->_smarty, 'setTemplateDir'))
-			$this->_smarty->setTemplateDir($path);
-		else
-			$this->_smarty->template_dir = $path;
-		if (method_exists($this->_smarty, 'templateExists')) {
-			if ($this->_smarty->templateExists($template)) {
-				$this->_template = $template;
-				return;
-			}
-		} else if ($this->_smarty->template_exists($template)) {
+		$this->_smarty->setTemplateDir($path);
+		if ($this->_smarty->templateExists($template)) {
 			$this->_template = $template;
 			return;
 		}
