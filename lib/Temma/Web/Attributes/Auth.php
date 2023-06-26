@@ -60,6 +60,10 @@ use \Temma\Exceptions\Application as TµApplicationException;
  * - Redirects non-administrators to the given URL:
  * #[TµAuth(isAdmin: true, redirect: '/unauthorized')]
  *
+ * - Redirects unauthenticated users to the URL defined in the
+ *   'homeRedir' template variable.
+ * #[TµAuth(redirectVar: 'homeDir')]
+ *
  * - Redirects unauthenticated users to the URL defined in the 'authRedirect' key
  *   of the 'x-security' configuration variable:
  * #[TµAuth(redirectConfig: true)]
@@ -83,13 +87,15 @@ class Auth extends \Temma\Web\Attributes\Attribute {
 	 *							- false if the user must not be authenticated.
 	 *							- null if the user can be authenticated or not.
 	 * @param	?string			$redirect	(optional) Redirection URL used if there is an authentication problem (instead of throwing an exception).
+	 * @param	?string			$redirectVar	(optional) Name of the template variable which contains the redirection URL.
 	 * @param	bool			$redirectConfig	(optional) True to use the 'authRedirect' key in the 'x-security' configuration variable.
 	 * @throws	\Temma\Exceptions\Application	If the user is not authorized.
 	 * @throws	\Temma\Exceptions\FlowHalt	If the user is not authorized and a redirect URL has been given.
 	 */
 	public function __construct(null|string|array $role=null, null|string|array $roles=null,
 	                            null|string|array $service=null, null|string|array $services=null,
-	                            ?bool $isAdmin=null, ?bool $authenticated=true, ?string $redirect=null, bool $redirectConfig=false) {
+	                            ?bool $isAdmin=null, ?bool $authenticated=true, ?string $redirect=null,
+	                            ?string $redirectVar=null, bool $redirectConfig=false) {
 		try {
 			// check authentication
 			if ($authenticated === true && !($this['currentUser']['id'] ?? false)) {
@@ -142,7 +148,7 @@ class Auth extends \Temma\Web\Attributes\Attribute {
 			if (is_string($services))
 				$authServices[] = $services;
 			else if (is_array($services))
-				$authServices = array_merge($authServices, $services);)
+				$authServices = array_merge($authServices, $services);
 			if ($authServices) {
 				$userServicees = array_fill_keys(($this['currentUser']['services'] ?? []), true);
 				$found = false;
@@ -163,6 +169,14 @@ class Auth extends \Temma\Web\Attributes\Attribute {
 				TµLog::log('Temma/Web', 'DEBUG', "Redirecting to '$redirect'.");
 				$this->_redirect($redirect);
 				throw new \Temma\Exceptions\FlowHalt();
+			}
+			if ($redirectVar) {
+				$url = $this[$redirectVar];
+				if ($url) {
+					TµLog::log('Temma/Web', 'DEBUG', "Redirecting to '$url'.");
+					$this->_redirect($url);
+					throw new \Temma\Exceptions\FlowHalt();
+				}
 			}
 			if ($redirectConfig) {
 				$url = $this->_getConfig()->xtra('security', 'authRedirect');

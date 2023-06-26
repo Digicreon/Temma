@@ -347,8 +347,8 @@ class Referer extends \Temma\Web\Attributes\Attribute {
 			if ($redirectVar) {
 				$url = $this[$redirectVar];
 				if ($url) {
-					TµLog::log('Temma/Web', 'DEBUG', "Redirecting to '{$this['redirectVar']}'.");
-					$this->_redirect($this[$redirectVar]);
+					TµLog::log('Temma/Web', 'DEBUG', "Redirecting to '$url'.");
+					$this->_redirect($url);
 					throw new \Temma\Exceptions\FlowHalt();
 				}
 			}
