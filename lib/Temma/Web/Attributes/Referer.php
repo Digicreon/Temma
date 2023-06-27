@@ -123,7 +123,7 @@ class Referer extends \Temma\Web\Attributes\Attribute {
 	 * @throws	\Temma\Exceptions\FlowHalt	If the user is not authorized and a redirect URL has been given.
 	 */
 	public function __construct(null|bool|string|array $domain=null, null|string|array $domains=null,
-	                            null|string|array $domainSuffix=null, null|string|array $DomainSuffixes=null,
+	                            null|string|array $domainSuffix=null, null|string|array $domainSuffixes=null,
 	                            ?string $domainRegex=null, ?string $domainVar=null, bool $domainConfig=false,
 	                            null|bool|string $https=null, null|string|array $uri=null,
 	                            null|string|array $uriPrefix=null, null|string|array $uriPrefixes=null,
@@ -131,7 +131,7 @@ class Referer extends \Temma\Web\Attributes\Attribute {
 	                            ?string $uriRegex=null, ?string$uriVar=null, bool $uriConfig=false,
 	                            null|bool|string|array $url=null, ?string $urlRegex=null,
 	                            ?string $urlVar=null, bool $urlConfig=false,
-	                            ?string $redirect=null, bool $redirectConfig=false) {
+	                            ?string $redirect=null, ?string $redirectVar=null, bool $redirectConfig=false) {
 		try {
 			// check referer
 			if (!($_SERVER['HTTP_REFERER'] ?? false) ||
@@ -175,7 +175,7 @@ class Referer extends \Temma\Web\Attributes\Attribute {
 					$checkDomains = array_merge($checkDomains, $this[$domainVar]);
 			}
 			if ($domainConfig) {
-				$conf = $this->getConfig()->xtra('security', 'refererDomain');
+				$conf = $this->_getConfig()->xtra('security', 'refererDomain');
 				if (is_string($conf))
 					$checkDomains[] = $conf;
 				else if (is_array($conf))
@@ -235,7 +235,7 @@ class Referer extends \Temma\Web\Attributes\Attribute {
 					$checkUrl = array_merge($checkUrl, $this[$urlVar]);
 			}
 			if ($urlConfig) {
-				$conf = $this->getConfig()->xtra('security', 'refererUrl');
+				$conf = $this->_getConfig()->xtra('security', 'refererUrl');
 				if (is_string($conf))
 					$checkUrl[] = $conf;
 				else if (is_array($conf))
@@ -254,6 +254,11 @@ class Referer extends \Temma\Web\Attributes\Attribute {
 					throw new TµApplicationException("No matching URL.", TµApplicationException::UNAUTHORIZED);
 				}
 			}
+			// check URL regex
+			if ($urlRegex && preg_match($urlRegex, $_SERVER['HTTP_REFERER']) === false) {
+				TµLog::log('Temma/Web', 'WARN', "Referer URL doesn't match regex.");
+				throw new TµApplicationException("Referer URL doesn't match regex.", TµApplicationException::UNAUTHORIZED);
+			}
 			// check URI
 			$checkUri = [];
 			if (is_string($uri))
@@ -267,7 +272,7 @@ class Referer extends \Temma\Web\Attributes\Attribute {
 					$checkUri = array_merge($checkUri, $this[$uriVar]);
 			}
 			if ($uriConfig) {
-				$conf = $this->getConfig()->xtra('security', 'refererUri');
+				$conf = $this->_getConfig()->xtra('security', 'refererUri');
 				if (is_string($conf))
 					$checkUri[] = $conf;
 				else if (is_array($conf))

@@ -39,6 +39,14 @@ abstract class Attribute implements \ArrayAccess {
 		return (isset($temma->getLoader()->dataSources[$dataSource]));
 	}
 	/**
+	 * Returns the loader object.
+	 * @return	\Temma\Base\Loader	The loader object.
+	 */
+	final protected function _getLoader() : \Temma\Base\Loader {
+		global $temma;
+		return ($temma->getLoader());
+	}
+	/**
 	 * Returns the session object.
 	 * @return	\Temma\Base\Session	The session object.
 	 */
@@ -52,7 +60,7 @@ abstract class Attribute implements \ArrayAccess {
 	 */
 	final protected function _getConfig() : \Temma\Web\Config {
 		global $temma;
-		return ($temma-getLoader()->config);
+		return ($temma->getLoader()->config);
 	}
 	/**
 	 * Returns the request object.

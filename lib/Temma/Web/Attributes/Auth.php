@@ -143,14 +143,14 @@ class Auth extends \Temma\Web\Attributes\Attribute {
 			$authServices = [];
 			if (is_string($service))
 				$authServices = [$service];
-			else if ($is_array($service))
+			else if (is_array($service))
 				$authServices = $service;
 			if (is_string($services))
 				$authServices[] = $services;
 			else if (is_array($services))
 				$authServices = array_merge($authServices, $services);
 			if ($authServices) {
-				$userServicees = array_fill_keys(($this['currentUser']['services'] ?? []), true);
+				$userServices = array_fill_keys(($this['currentUser']['services'] ?? []), true);
 				$found = false;
 				foreach ($authServices as $service) {
 					if (isset($userServices[$service])) {
