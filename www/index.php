@@ -27,7 +27,7 @@ try {
 	$temma->process();
 } catch (\Throwable $e) {
 	// error management
-	TµLog::log('Temma/Web', 'CRIT', "??Critical error: '" . $e->getMessage() . "'.");
+	TµLog::log('Temma/Web', 'CRIT', "Critical error: '" . $e->getMessage() . "'.");
 	$errorCode = 500;
 	$errorPage = '';
 	if (is_a($e, '\Temma\Exceptions\Http')) {

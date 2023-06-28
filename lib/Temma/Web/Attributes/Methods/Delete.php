@@ -39,7 +39,7 @@ class Delete extends \Temma\Web\Attributes\Attribute {
 		if ($_SERVER['REQUEST_METHOD'] == 'DELETE')
 			return;
 		TµLog::log('Temma/Web', 'WARN', "Unauthorized method '{$_SERVER['REQUEST_METHOD']}'.");
-		throw new TµApplicationException("Unauthoried method '{$_SERVER['REQUEST_METHOD']}'.", TµApplicationException::UNAUTHORIZED);
+		throw new TµApplicationException("Unauthorized method '{$_SERVER['REQUEST_METHOD']}'.", TµApplicationException::UNAUTHORIZED);
 	}
 }
 

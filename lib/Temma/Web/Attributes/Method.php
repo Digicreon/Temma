@@ -45,7 +45,7 @@ class Method extends \Temma\Web\Attributes\Attribute {
 			foreach ($forbidden as $method) {
 				if (strtoupper($method) === $_SERVER['REQUEST_METHOD']) {
 					TµLog::log('Temma/Web', 'WARN', "Unauthorized method '{$_SERVER['REQUEST_METHOD']}'.");
-					throw new TµApplicationException("Unauthoried method '{$_SERVER['REQUEST_METHOD']}'.", TµApplicationException::UNAUTHORIZED);
+					throw new TµApplicationException("Unauthorized method '{$_SERVER['REQUEST_METHOD']}'.", TµApplicationException::UNAUTHORIZED);
 				}
 			}
 		}
