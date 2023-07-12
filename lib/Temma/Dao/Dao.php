@@ -151,7 +151,7 @@ class Dao {
 	 * @param	int|string	$id	Primary key of the record.
 	 * @return	array	Associative array.
 	 */
-	public function get($id) : array {
+	public function get(int|string $id) : array {
 		// search data in cache
 		$cacheVarName = '__dao:' . $this->_dbName . ':' . $this->_tableName . ":get:$id";
 		if (($data = $this->_getCache($cacheVarName)) !== null)
@@ -179,7 +179,7 @@ class Dao {
 	 * @throws	\Temma\Exceptions\Dao	If the input data are not well formed.
 	 * @throws	\Exception		If there was a problem during insertion.
 	 */
-	public function create(array $data, $safeData=null) : int {
+	public function create(array $data, mixed $safeData=null) : int {
 		// Flush cache for this DAO
 		$this->_flushCache();
 		// create and execute the query
