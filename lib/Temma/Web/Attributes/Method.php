@@ -28,37 +28,67 @@ use \Temma\Exceptions\Application as TµApplicationException;
  * - Accept all méthods but GET and DELETE:
  * #[TµMethod(forbidden: ['GET', 'DELETE'])]
  *
+ * - Accept POST method only, redirects invalid requests
+ * #[TµMethod('POST', redirect: '/')]
+ *
  * @see	\Temma\Web\Controller
  */
 #[\Attribute(\Attribute::TARGET_CLASS | \Attribute::TARGET_METHOD | \Attribute::IS_REPEATABLE)]
-class Method extends \Temma\Web\Attributes\Attribute {
+class Method extends \Temma\Web\Attribute {
 	/**
 	 * Constructor.
 	 * @param	null|string|array	$allowed	(optional) Allowed method(s).
 	 * @param	null|string|array	$forbidden	(optional) Forbidden method(s).
+	 * @param	?string			$redirect	(optional) Redirection URL if a forbidden (or not authorized) method is used.
+	 * @param	?string			$redirectVar	(optional) Name of the template variable which contains the redirection URL.
 	 * @throws	\Temma\Exceptions\Application	If a forbidden (or not authorized) method is used.
 	 */
-	public function __construct(null|string|array $allowed=null, null|string|array $forbidden=null) {
-		if ($forbidden) {
-			if (is_string($forbidden))
-				$forbidden = [$forbidden];
-			foreach ($forbidden as $method) {
-				if (strtoupper($method) === $_SERVER['REQUEST_METHOD']) {
-					TµLog::log('Temma/Web', 'WARN', "Unauthorized method '{$_SERVER['REQUEST_METHOD']}'.");
-					throw new TµApplicationException("Unauthorized method '{$_SERVER['REQUEST_METHOD']}'.", TµApplicationException::UNAUTHORIZED);
+	public function __construct(null|string|array $allowed=null, null|string|array $forbidden=null, ?string $redirect=null, ?string $redirectVar=null) {
+		try {
+			if ($forbidden) {
+				if (is_string($forbidden))
+					$forbidden = [$forbidden];
+				foreach ($forbidden as $method) {
+					if (strtoupper($method) === $_SERVER['REQUEST_METHOD']) {
+						TµLog::log('Temma/Web', 'WARN', "Unauthorized method '{$_SERVER['REQUEST_METHOD']}'.");
+						throw new TµApplicationException("Unauthorized method '{$_SERVER['REQUEST_METHOD']}'.", TµApplicationException::UNAUTHORIZED);
+					}
 				}
 			}
-		}
-		if (!$allowed)
-			return;
-		if (is_string($allowed))
-			$allowed = [$allowed];
-		foreach ($allowed as $method) {
-			if (strtoupper($method) === $_SERVER['REQUEST_METHOD'])
+			if (!$allowed)
 				return;
+			if (is_string($allowed))
+				$allowed = [$allowed];
+			foreach ($allowed as $method) {
+				if (strtoupper($method) === $_SERVER['REQUEST_METHOD'])
+					return;
+			}
+			TµLog::log('Temma/Web', 'WARN', "Invalid méthod '{$_SERVER['REQUEST_METHOD']}'.");
+			throw new TµApplicationException("Invalid method '{$_SERVER['REQUEST_METHOD']}'.", TµApplicationException::UNAUTHORIZED);
+		} catch (TµApplicationException $e) {
+			// manage redirection URL
+			if ($redirect) {
+				TµLog::log('Temma/Web', 'DEBUG', "Redirecting to '$redirect'.");
+				$this->_redirect($redirect);
+				throw new \Temma\Exceptions\FlowHalt();
+			}
+			if ($redirectVar) {
+				$url = $this[$redirectVar];
+				if ($url) {
+					TµLog::log('Temma/Web', 'DEBUG', "Redirecting to '$url'.");
+					$this->_redirect($url);
+					throw new \Temma\Exceptions\FlowHalt();
+				}
+			}
+			$url = $this->_getConfig()->xtra('security', 'methodRedirect');
+			if ($url) {
+				TµLog::log('Temma/Web', 'DEBUG', "Redirecting to '$url'.");
+				$this->_redirect($url);
+				throw new \Temma\Exceptions\FlowHalt();
+			}
+			// no redirection: throw the exception
+			throw $e;
 		}
-		TµLog::log('Temma/Web', 'WARN', "Invalid méthod '{$_SERVER['REQUEST_METHOD']}'.");
-		throw new TµApplicationException("Invalid method '{$_SERVER['REQUEST_METHOD']}'.", TµApplicationException::UNAUTHORIZED);
 	}
 }
 

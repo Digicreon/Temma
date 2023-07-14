@@ -30,14 +30,21 @@ use \Temma\Exceptions\Application as TµApplicationException;
  * @see \Temma\Web\Controller
  */
 #[\Attribute(\Attribute::TARGET_CLASS | \Attribute::TARGET_METHOD)]
-class Get extends \Temma\Web\Attributes\Attribute {
+class Get extends \Temma\Web\Attribute {
 	/**
 	 * Constructor.
 	 * @throws	\Temma\Exceptions\Application	If a method other than GET is used.
+	 * @throws 	\Temma\Exceptions\FlowHalt	If a redirection is defined.
 	 */
 	public function __construct() {
 		if ($_SERVER['REQUEST_METHOD'] == 'GET')
 			return;
+		$url = $this->_getConfig()->xtra('security', 'methodRedirect');
+		if ($url) {
+			TµLog::log('Temma/Web', 'DEBUG', "Redirecting to '$url'.");
+			$this->_redirect($url);
+			throw new \Temma\Exceptions\FlowHalt();
+		}
 		TµLog::log('Temma/Web', 'WARN', "Unauthorized method '{$_SERVER['REQUEST_METHOD']}'.");
 		throw new TµApplicationException("Unauthorized method '{$_SERVER['REQUEST_METHOD']}'.", TµApplicationException::UNAUTHORIZED);
 	}

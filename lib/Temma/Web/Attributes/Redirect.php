@@ -40,20 +40,22 @@ use \Temma\Exceptions\Application as TµApplicationException;
  * @see	\Temma\Web\Controller
  */
 #[\Attribute(\Attribute::TARGET_CLASS | \Attribute::TARGET_METHOD)]
-class Redirect extends \Temma\Web\Attributes\Attribute {
+class Redirect extends \Temma\Web\Attribute {
 	/**
 	 * Constructor.
 	 * @param	?string	$url	(optional) Redirection URL.
 	 * @param	?string	$var	(optional) Name of the template variable which contains the redirection URL.
-	 * @param	bool	$config	(optional) True to use the 'refererUrl' key of the 'x-security' extended configuration.
-	 * @throws	\Temma\Exceptions\Flow	Always throw a \Temma\Exceptions\FlowHalt exception.
+	 * @throws	\Temma\Exceptions\Flow		When a redirection URL has been defined.
+	 * @throws	\Temma\Exceptions\Application	If no redirection URL has been defined.
 	 */
-	public function __construct(?string $url=null, ?string $var=null, bool $config=false) {
+	public function __construct(?string $url=null, ?string $var=null) {
+		// direct URL
 		if ($url) {
 			TµLog::log('Temma/Web', 'DEBUG', "Redirecting to '$url'.");
 			$this->_redirect($url);
 			throw new \Temma\Exceptions\FlowHalt();
 		}
+		// template variable
 		if ($var) {
 			$url = $this[$var];
 			if ($url) {
@@ -62,14 +64,16 @@ class Redirect extends \Temma\Web\Attributes\Attribute {
 				throw new \Temma\Exceptions\FlowHalt();
 			}
 		}
-		if ($config) {
-			$url = $this->_getConfig()->xtra('security', 'redirect');
-			if ($url) {
-				TµLog::log('Temma/Web', 'DEBUG', "Redirecting to '$url'.");
-				$this->_redirect($url);
-				throw new \Temma\Exceptions\FlowHalt();
-			}
+		// extended configuration
+		$url = $this->_getConfig()->xtra('security', 'redirect');
+		if ($url) {
+			TµLog::log('Temma/Web', 'DEBUG', "Redirecting to '$url'.");
+			$this->_redirect($url);
+			throw new \Temma\Exceptions\FlowHalt();
 		}
+		// no redirection URL defined
+		TµLog::log('Temma/Web', 'DEBUG', "No redirection URL defined.");
+		throw new \Temma\Exceptions\Application("Redirect attribute with no defined URL.", \Temma\Exceptions\Application::UNAUTHORIZED);
 	}
 }
 

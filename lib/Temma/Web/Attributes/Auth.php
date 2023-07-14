@@ -63,7 +63,7 @@ use \Temma\Exceptions\Application as TµApplicationException;
  * @see	\Temma\Web\Controller
  */
 #[\Attribute(\Attribute::TARGET_CLASS | \Attribute::TARGET_METHOD | \Attribute::IS_REPEATABLE)]
-class Auth extends \Temma\Web\Attributes\Attribute {
+class Auth extends \Temma\Web\Attribute {
 	/**
 	 * Constructor.
 	 * @param	null|string|array	$role		(optional) One or many user roles that must be matched (at least one).

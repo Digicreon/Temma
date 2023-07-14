@@ -93,7 +93,7 @@ use \Temma\Exceptions\Application as TµApplicationException;
  * @see	\Temma\Web\Controller
  */
 #[\Attribute(\Attribute::TARGET_CLASS | \Attribute::TARGET_METHOD | \Attribute::IS_REPEATABLE)]
-class Referer extends \Temma\Web\Attributes\Attribute {
+class Referer extends \Temma\Web\Attribute {
 	/**
 	 * Constructor.
 	 * @param	null|bool|string|array	$domain		(optional) Authorized domain.
@@ -118,7 +118,6 @@ class Referer extends \Temma\Web\Attributes\Attribute {
 	 * @param	bool			$urlConfig	(optional) True to use the 'refererUrl' key of the 'x-security' extended configuration.
 	 * @param	?string			$redirect	(optional) Redirection URL used if the referer is not authorized.
 	 * @param	?string			$redirectVar	(optional) Name of the template variable which contains the redirection URL.
-	 * @param	bool			$redirectConfig	(optional) True to use the 'refererRedirect' key in the 'x-security' extended configuration.
 	 * @throws	\Temma\Exceptions\Application	If the referer is not authorized.
 	 * @throws	\Temma\Exceptions\FlowHalt	If the user is not authorized and a redirect URL has been given.
 	 */
@@ -131,7 +130,7 @@ class Referer extends \Temma\Web\Attributes\Attribute {
 	                            ?string $uriRegex=null, ?string$uriVar=null, bool $uriConfig=false,
 	                            null|bool|string|array $url=null, ?string $urlRegex=null,
 	                            ?string $urlVar=null, bool $urlConfig=false,
-	                            ?string $redirect=null, ?string $redirectVar=null, bool $redirectConfig=false) {
+	                            ?string $redirect=null, ?string $redirectVar=null) {
 		try {
 			// check referer
 			if (!($_SERVER['HTTP_REFERER'] ?? false) ||
@@ -357,13 +356,11 @@ class Referer extends \Temma\Web\Attributes\Attribute {
 					throw new \Temma\Exceptions\FlowHalt();
 				}
 			}
-			if ($redirectConfig) {
-				$url = $this->_getConfig()->xtra('security', 'refererRedirect');
-				if ($url) {
-					TµLog::log('Temma/Web', 'DEBUG', "Redirecting to '$url'.");
-					$this->_redirect($url);
-					throw new \Temma\Exceptions\FlowHalt();
-				}
+			$url = $this->_getConfig()->xtra('security', 'refererRedirect');
+			if ($url) {
+				TµLog::log('Temma/Web', 'DEBUG', "Redirecting to '$url'.");
+				$this->_redirect($url);
+				throw new \Temma\Exceptions\FlowHalt();
 			}
 			// no redirection: throw the exception
 			throw $e;
