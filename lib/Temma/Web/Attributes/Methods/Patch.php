@@ -39,7 +39,8 @@ class Patch extends \Temma\Web\Attribute {
 	public function __construct() {
 		if ($_SERVER['REQUEST_METHOD'] == 'PATCH')
 			return;
-		$url = $this->_getConfig()->xtra('security', 'methodRedirect');
+		$url = $this->_getConfig()->xtra('security', 'methodRedirect') ?:
+		       $this->_getConfig()->xtra('security', 'redirect');
 		if ($url) {
 			TµLog::log('Temma/Web', 'DEBUG', "Redirecting to '$url'.");
 			$this->_redirect($url);

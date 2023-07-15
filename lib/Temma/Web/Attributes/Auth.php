@@ -79,12 +79,13 @@ class Auth extends \Temma\Web\Attribute {
 	 *							- false if the user must not be authenticated.
 	 *							- null if the user can be authenticated or not.
 	 * @param	?string			$redirect	(optional) Redirection URL used if there is an authentication problem (instead of throwing an exception).
+	 * @param	?string			$redirectVar	(optional) Name of the template variable which contains the redirection URL.
 	 * @throws	\Temma\Exceptions\Application	If the user is not authorized.
 	 * @throws	\Temma\Exceptions\FlowHalt	If the user is not authorized and a redirect URL has been given.
 	 */
 	public function __construct(null|string|array $role=null, null|string|array $roles=null,
 	                            null|string|array $service=null, null|string|array $services=null,
-	                            ?bool $isAdmin=null, ?bool $authenticated=true, ?string $redirect=null) {
+	                            ?bool $isAdmin=null, ?bool $authenticated=true, ?string $redirect=null, ?string $redirectVar=null) {
 		try {
 			// check authentication
 			if ($authenticated === true && !($this['currentUser']['id'] ?? false)) {
@@ -154,12 +155,10 @@ class Auth extends \Temma\Web\Attribute {
 			}
 		} catch (TµApplicationException $e) {
 			// manage redirection URL
-			if ($redirect) {
-				TµLog::log('Temma/Web', 'DEBUG', "Redirecting to '$redirect'.");
-				$this->_redirect($redirect);
-				throw new \Temma\Exceptions\FlowHalt();
-			}
-			$url = $this->_getConfig()->xtra('security', 'authRedirect');
+			$url = $redirect ?:                                             // direct URL
+			       $this[$redirectVar] ?:                                   // template variable
+			       $this->_getConfig()->xtra('security', 'authRedirect') ?: // specific configuration
+			       $this->_getConfig()->xtra('security', 'redirect');       // general configuration
 			if ($url) {
 				TµLog::log('Temma/Web', 'DEBUG', "Redirecting to '$url'.");
 				$this->_redirect($url);

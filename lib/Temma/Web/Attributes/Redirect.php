@@ -49,23 +49,9 @@ class Redirect extends \Temma\Web\Attribute {
 	 * @throws	\Temma\Exceptions\Application	If no redirection URL has been defined.
 	 */
 	public function __construct(?string $url=null, ?string $var=null) {
-		// direct URL
-		if ($url) {
-			TµLog::log('Temma/Web', 'DEBUG', "Redirecting to '$url'.");
-			$this->_redirect($url);
-			throw new \Temma\Exceptions\FlowHalt();
-		}
-		// template variable
-		if ($var) {
-			$url = $this[$var];
-			if ($url) {
-				TµLog::log('Temma/Web', 'DEBUG', "Redirecting to '$url'.");
-				$this->_redirect($url);
-				throw new \Temma\Exceptions\FlowHalt();
-			}
-		}
-		// extended configuration
-		$url = $this->_getConfig()->xtra('security', 'redirect');
+		$url = $url ?:                                            // direct URL
+		       $this[$var] ?:                                     // template variable
+		       $this->_getConfig()->xtra('security', 'redirect'); // configuration
 		if ($url) {
 			TµLog::log('Temma/Web', 'DEBUG', "Redirecting to '$url'.");
 			$this->_redirect($url);

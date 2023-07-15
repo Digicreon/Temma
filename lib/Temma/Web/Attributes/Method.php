@@ -43,7 +43,8 @@ class Method extends \Temma\Web\Attribute {
 	 * @param	?string			$redirectVar	(optional) Name of the template variable which contains the redirection URL.
 	 * @throws	\Temma\Exceptions\Application	If a forbidden (or not authorized) method is used.
 	 */
-	public function __construct(null|string|array $allowed=null, null|string|array $forbidden=null, ?string $redirect=null, ?string $redirectVar=null) {
+	public function __construct(null|string|array $allowed=null, null|string|array $forbidden=null,
+	                            ?string $redirect=null, ?string $redirectVar=null) {
 		try {
 			if ($forbidden) {
 				if (is_string($forbidden))
@@ -67,20 +68,10 @@ class Method extends \Temma\Web\Attribute {
 			throw new TµApplicationException("Invalid method '{$_SERVER['REQUEST_METHOD']}'.", TµApplicationException::UNAUTHORIZED);
 		} catch (TµApplicationException $e) {
 			// manage redirection URL
-			if ($redirect) {
-				TµLog::log('Temma/Web', 'DEBUG', "Redirecting to '$redirect'.");
-				$this->_redirect($redirect);
-				throw new \Temma\Exceptions\FlowHalt();
-			}
-			if ($redirectVar) {
-				$url = $this[$redirectVar];
-				if ($url) {
-					TµLog::log('Temma/Web', 'DEBUG', "Redirecting to '$url'.");
-					$this->_redirect($url);
-					throw new \Temma\Exceptions\FlowHalt();
-				}
-			}
-			$url = $this->_getConfig()->xtra('security', 'methodRedirect');
+			$url = $redirect ?:                                               // direct URL
+			       $this[$redirectVar] ?:                                     // template variable
+			       $this->_getConfig()->xtra('security', 'methodRedirect') ?: // specific configuration
+			       $this->_getConfig()->xtra('security', 'redirect');         // general configuration
 			if ($url) {
 				TµLog::log('Temma/Web', 'DEBUG', "Redirecting to '$url'.");
 				$this->_redirect($url);

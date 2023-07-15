@@ -52,24 +52,24 @@ use \Temma\Exceptions\Application as TµApplicationException;
  * #[TµReferer(https: 'same')]
  *
  * - Authorize requests coming from a '/fu/bar.html' page:
- * #[TµReferer(uri: '/fu/bar/html')]
+ * #[TµReferer(path: '/fu/bar/html')]
  * - Authorize requests coming from a '/fu.html' or '/bar.html' page:
- * #[TµReferer(uri: ['/fu.html', '/bar.html'])]
- * - Authorize requests coming from any page which URI starts with '/fu/':
- * #[TµReferer(uriPrefix: '/fu/')]
- * - Authorize requests coming from any page which URI starts with '/fu/' or '/bar/':
- * #[TµReferer(uriPrefixes: ['/fu/', '/bar/'])]
- * - Autorize requests coming from any page which URI ends with '/api.xml':
- * #[TµReferer(uriSuffix: '/api.xml')]
- * - Authorize requests coming from any page which URI ends with '/api.xml' or '/api.json':
- * #[TµReferer(uriSuffixes: ['/api.xml', '/api.json'])]
- * - Authorize requests coming from any page which URI matches the given regular expression:
- * #[TµReferer(uriRegex: '/^\/.*testApi.*\.xml$/')]
- * - Authorize requests coming from a page which URI is stored in the 'okURI' template variable:
- * #[TµReferer(uriVar: 'okURI')]
- * - Authorize requests coming from a page which URI is stored in the 'refererUri' key of
+ * #[TµReferer(path: ['/fu.html', '/bar.html'])]
+ * - Authorize requests coming from any page which path starts with '/fu/':
+ * #[TµReferer(pathPrefix: '/fu/')]
+ * - Authorize requests coming from any page which path starts with '/fu/' or '/bar/':
+ * #[TµReferer(pathPrefixes: ['/fu/', '/bar/'])]
+ * - Autorize requests coming from any page which path ends with '/api.xml':
+ * #[TµReferer(pathSuffix: '/api.xml')]
+ * - Authorize requests coming from any page which path ends with '/api.xml' or '/api.json':
+ * #[TµReferer(pathSuffixes: ['/api.xml', '/api.json'])]
+ * - Authorize requests coming from any page which path matches the given regular expression:
+ * #[TµReferer(pathRegex: '/^\/.*testApi.*\.xml$/')]
+ * - Authorize requests coming from a page which path is stored in the 'okPath' template variable:
+ * #[TµReferer(pathVar: 'okPath')]
+ * - Authorize requests coming from a page which path is stored in the 'refererPath' key of
  *   the 'x-security' extended configuration:
- * #[TµReferer(uriConfig: true)]
+ * #[TµReferer(pathConfig: true)]
  *
  * - Authorize requests coming from 'https://www.fubar.com/some/page.html':
  * #[TµReferer(url: 'https://www.fubar.com/some/page.html')]
@@ -104,14 +104,14 @@ class Referer extends \Temma\Web\Attribute {
 	 * @param	?string			$domainVar	(optional) Name of the template variable which contains the authorized domain.
 	 * @param	bool			$domainConfig	(optional) True to use the 'refererDomain' key of the 'x-security' extended configuration.
 	 * @param	null|bool|string	$https		(optional) SSL configuration.
-	 * @param	null|string|array	$uri		(optional) Authorized URI.
-	 * @param	null|string|array	$uriPrefix	(optional) Authorized URI prefix.
-	 * @param	null|string|array	$uriPrefixes	(optional) Authorized URI prefixes.
-	 * @param	null|string|array	$uriSuffix	(optional) Authorized URI suffix.
-	 * @param	null|string|array	$uriSuffixes	(optional) Authorized URI suffixes.
-	 * @param	?string			$uriRegex	(optional) Authorized URI regular expression.
-	 * @param	?string			$uriVar		(optional) Name of the template variable which contains the authorized URI.
-	 * @param	bool			$uriConfig	(optional) True to use the 'refererUri' key of the 'x-security' extended configuration.
+	 * @param	null|string|array	$path		(optional) Authorized path.
+	 * @param	null|string|array	$pathPrefix	(optional) Authorized path prefix.
+	 * @param	null|string|array	$pathPrefixes	(optional) Authorized path prefixes.
+	 * @param	null|string|array	$pathSuffix	(optional) Authorized path suffix.
+	 * @param	null|string|array	$pathSuffixes	(optional) Authorized path suffixes.
+	 * @param	?string			$pathRegex	(optional) Authorized path regular expression.
+	 * @param	?string			$pathVar	(optional) Name of the template variable which contains the authorized path.
+	 * @param	bool			$pathConfig	(optional) True to use the 'refererPath' key of the 'x-security' extended configuration.
 	 * @param	null|bool|string|array	$url		(optional) Authorized URL.
 	 * @param	?string			$urlRegex	(optional) Authorized URL regular expression.
 	 * @param	?string			$urlVar		(optional) Name of the template variable which contains the authorized URL.
@@ -124,10 +124,10 @@ class Referer extends \Temma\Web\Attribute {
 	public function __construct(null|bool|string|array $domain=null, null|string|array $domains=null,
 	                            null|string|array $domainSuffix=null, null|string|array $domainSuffixes=null,
 	                            ?string $domainRegex=null, ?string $domainVar=null, bool $domainConfig=false,
-	                            null|bool|string $https=null, null|string|array $uri=null,
-	                            null|string|array $uriPrefix=null, null|string|array $uriPrefixes=null,
-	                            null|string|array $uriSuffix=null, null|string|array $uriSuffixes=null,
-	                            ?string $uriRegex=null, ?string$uriVar=null, bool $uriConfig=false,
+	                            null|bool|string $https=null, null|string|array $path=null,
+	                            null|string|array $pathPrefix=null, null|string|array $pathPrefixes=null,
+	                            null|string|array $pathSuffix=null, null|string|array $pathSuffixes=null,
+	                            ?string $pathRegex=null, ?string$pathVar=null, bool $pathConfig=false,
 	                            null|bool|string|array $url=null, ?string $urlRegex=null,
 	                            ?string $urlVar=null, bool $urlConfig=false,
 	                            ?string $redirect=null, ?string $redirectVar=null) {
@@ -258,105 +258,95 @@ class Referer extends \Temma\Web\Attribute {
 				TµLog::log('Temma/Web', 'WARN', "Referer URL doesn't match regex.");
 				throw new TµApplicationException("Referer URL doesn't match regex.", TµApplicationException::UNAUTHORIZED);
 			}
-			// check URI
-			$checkUri = [];
-			if (is_string($uri))
-				$checkUri[] = $uri;
-			else if (is_array($uri))
-				$checkUri = $uri;
-			if ($uriVar) {
-				if (is_string($this[$uriVar]))
-					$checkUri[] = $this[$uriVar];
-				else if (is_array($this[$uriVar]))
-					$checkUri = array_merge($checkUri, $this[$uriVar]);
+			// check path
+			$checkPath = [];
+			if (is_string($path))
+				$checkPath[] = $path;
+			else if (is_array($path))
+				$checkPath = $path;
+			if ($pathVar) {
+				if (is_string($this[$pathVar]))
+					$checkPath[] = $this[$pathVar];
+				else if (is_array($this[$pathVar]))
+					$checkPath = array_merge($checkPath, $this[$pathVar]);
 			}
-			if ($uriConfig) {
-				$conf = $this->_getConfig()->xtra('security', 'refererUri');
+			if ($pathConfig) {
+				$conf = $this->_getConfig()->xtra('security', 'refererPath');
 				if (is_string($conf))
-					$checkUri[] = $conf;
+					$checkPath[] = $conf;
 				else if (is_array($conf))
-					$checkUri = array_merge($checkUri, $conf);
+					$checkPath = array_merge($checkPath, $conf);
 			}
-			if ($checkUri) {
+			if ($checkPath) {
 				$found = false;
-				foreach ($checkUri as $uri) {
-					if ($ref['path'] == $uri) {
+				foreach ($checkPath as $path) {
+					if ($ref['path'] == $path) {
 						$found = true;
 						break;
 					}
 				}
 				if (!$found) {
-					TµLog::log('Temma/Web', 'WARN', "No matching URI.");
-					throw new TµApplicationException("No matching URI.", TµApplicationException::UNAUTHORIZED);
+					TµLog::log('Temma/Web', 'WARN', "No matching Path.");
+					throw new TµApplicationException("No matching Path.", TµApplicationException::UNAUTHORIZED);
 				}
 			}
-			// check URI prefix
-			$checkUri = [];
-			if (is_string($uriPrefix))
-				$checkUri[] = $uriPrefix;
-			else if (is_array($uriPrefix))
-				$checkUri = $uriPrefix;
-			if (is_string($uriPrefixes))
-				$checkUri[] = $uriPrefixes;
-			else if (is_array($uriPrefixes))
-				$checkUri = array_merge($checkUri, $uriPrefixes);
-			if ($checkUri) {
+			// check path prefix
+			$checkPath = [];
+			if (is_string($pathPrefix))
+				$checkPath[] = $pathPrefix;
+			else if (is_array($pathPrefix))
+				$checkPath = $pathPrefix;
+			if (is_string($pathPrefixes))
+				$checkPath[] = $pathPrefixes;
+			else if (is_array($pathPrefixes))
+				$checkPath = array_merge($checkPath, $pathPrefixes);
+			if ($checkPath) {
 				$found = false;
-				foreach ($checkUri as $uri) {
-					if (str_starts_with($ref['path'], $uri)) {
+				foreach ($checkPath as $path) {
+					if (str_starts_with($ref['path'], $path)) {
 						$found = true;
 						break;
 					}
 				}
 				if (!$found) {
-					TµLog::log('Temma/Web', 'WARN', "No matching URI prefix.");
-					throw new TµApplicationException("No matching URI prefix.", TµApplicationException::UNAUTHORIZED);
+					TµLog::log('Temma/Web', 'WARN', "No matching path prefix.");
+					throw new TµApplicationException("No matching path prefix.", TµApplicationException::UNAUTHORIZED);
 				}
 			}
-			// check URI suffix
-			$checkUri = [];
-			if (is_string($uriSuffix))
-				$checkUri[] = $uriSuffix;
-			else if (is_array($uriSuffix))
-				$checkUri = $uriSuffix;
-			if (is_string($uriSuffixes))
-				$checkUri[] = $uriSuffixes;
-			else if (is_array($uriSuffixes))
-				$checkUri = array_merge($checkUri, $uriSuffixes);
-			if ($checkUri) {
+			// check path suffix
+			$checkPath = [];
+			if (is_string($pathSuffix))
+				$checkPath[] = $pathSuffix;
+			else if (is_array($pathSuffix))
+				$checkPath = $pathSuffix;
+			if (is_string($pathSuffixes))
+				$checkPath[] = $pathSuffixes;
+			else if (is_array($pathSuffixes))
+				$checkPath = array_merge($checkPath, $pathSuffixes);
+			if ($checkPath) {
 				$found = false;
-				foreach ($checkUri as $uri) {
-					if (str_ends_with($ref['path'], $uri)) {
+				foreach ($checkPath as $path) {
+					if (str_ends_with($ref['path'], $path)) {
 						$found = true;
 						break;
 					}
 				}
 				if (!$found) {
-					TµLog::log('Temma/Web', 'WARN', "No matching URI suffix.");
-					throw new TµApplicationException("No matching URI suffix.", TµApplicationException::UNAUTHORIZED);
+					TµLog::log('Temma/Web', 'WARN', "No matching path suffix.");
+					throw new TµApplicationException("No matching path suffix.", TµApplicationException::UNAUTHORIZED);
 				}
 			}
-			// check URI regex
-			if ($uriRegex && preg_match($uriRegex, $ref['path']) === false) {
-				TµLog::log('Temma/Web', 'WARN', "URI doesn't match regex.");
-				throw new TµApplicationException("URI doesn't match regex.", TµApplicationException::UNAUTHORIZED);
+			// check path regex
+			if ($pathRegex && preg_match($pathRegex, $ref['path']) === false) {
+				TµLog::log('Temma/Web', 'WARN', "Path doesn't match regex.");
+				throw new TµApplicationException("Path doesn't match regex.", TµApplicationException::UNAUTHORIZED);
 			}
 		} catch (TµApplicationException $e) {
 			// manage redirection URL
-			if ($redirect) {
-				TµLog::log('Temma/Web', 'DEBUG', "Redirecting to '$redirect'.");
-				$this->_redirect($redirect);
-				throw new \Temma\Exceptions\FlowHalt();
-			}
-			if ($redirectVar) {
-				$url = $this[$redirectVar];
-				if ($url) {
-					TµLog::log('Temma/Web', 'DEBUG', "Redirecting to '$url'.");
-					$this->_redirect($url);
-					throw new \Temma\Exceptions\FlowHalt();
-				}
-			}
-			$url = $this->_getConfig()->xtra('security', 'refererRedirect');
+			$url = $redirect ?:                                                // direct URL
+			       $this[$redirectVar] ?:                                      // template variable
+			       $this->_getConfig()->xtra('security', 'refererRedirect') ?: // specific configuration
+			       $this->_getConfig()->xtra('security', 'redirect');          // general configuration
 			if ($url) {
 				TµLog::log('Temma/Web', 'DEBUG', "Redirecting to '$url'.");
 				$this->_redirect($url);
