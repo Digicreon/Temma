@@ -283,8 +283,8 @@ class Controller implements \ArrayAccess {
 		}
 
 		/* ********** attributes on the controller ********** */
-		$actionReflection = new \ReflectionClass($controller);
-		$attributes = $actionReflection->getAttributes();
+		$controllerReflection = new \ReflectionClass($controller);
+		$attributes = $controllerReflection->getAttributes();
 		foreach ($attributes as $attribute) {
 			TµLog::log('Temma/Web', 'DEBUG', "Action attribute '{$attribute->getName()}'.");
 			$attribute->newInstance();
@@ -305,9 +305,13 @@ class Controller implements \ArrayAccess {
 			return ($status);
 
 		/* ********** find the right method to execute ********** */
+		$isProxyAction = false;
+		$isDefaultAction = false;
 		// check if this sub-controller has a proxy action
 		$method = \Temma\Web\Framework::CONTROLLERS_PROXY_ACTION;
-		if (!method_exists($controller, $method)) {
+		if (method_exists($controller, $method)) {
+			$isProxyAction = true;
+		} else {
 			// no proxy action defined on this controller
 			if (empty($action)) {
 				// no action was requested, use the root action
@@ -324,10 +328,13 @@ class Controller implements \ArrayAccess {
 			}
 			// the requested action is set, or there is a default action that could handle it
 			$method = $action;
+			if (!method_exists($controller, $action))
+				$isDefaultAction = true;
 		}
 
 		/* ********** attributes on the action ********** */
-		$actionReflection = new \ReflectionMethod($obj, $method);
+		$reflectionMethod = $isDefaultAction ? \Temma\Web\Framework::CONTROLLERS_DEFAULT_ACTION : $method;
+		$actionReflection = new \ReflectionMethod($obj, $reflectionMethod);
 		$attributes = $actionReflection->getAttributes();
 		foreach ($attributes as $attribute) {
 			TµLog::log('Temma/Web', 'DEBUG', "Action attribute '{$attribute->getName()}'.");
@@ -337,7 +344,10 @@ class Controller implements \ArrayAccess {
 		/* ********** execution ********** */
 		$parameters = $parameters ?? $this->_loader->request->getParams();
 		try {
-			$status = $obj->$method(...$parameters);
+			if ($isProxyAction)
+				$status = $obj->$method($action, $parameters);
+			else
+				$status = $obj->$method(...$parameters);
 		} catch (\ArgumentCountError $ace) {
 			TµLog::log('Temma/Web', 'ERROR', "$controller::$method: " . $ace->getMessage());
 			throw new TµHttpException("$controller::$method: " . $ace->getMessage(), 404);

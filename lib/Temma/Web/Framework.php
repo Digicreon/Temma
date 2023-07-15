@@ -25,6 +25,8 @@ class Framework {
 	const CONTROLLERS_ROOT_ACTION = '__invoke';
 	/** Name of the proxy action. */
 	const CONTROLLERS_PROXY_ACTION = '__clone';
+	/** Name of the default action. */
+	const CONTROLLERS_DEFAULT_ACTION = '__call';
 	/** Name of controllers' init method. */
 	const CONTROLLERS_INIT_METHOD = '__wakeup';
 	/** Name of controllers' finalize method. */
