@@ -6,6 +6,8 @@
  * @copyright	© 2023, Amaury Bouchard
  */
 
+namespace Temma\Controllers;
+
 use \Temma\Base\Log as TµLog;
 use \Temma\Web\Attributes\Auth as TµAuth;
 use \Temma\Web\Attributes\Methods\Post as TµPost;
@@ -154,6 +156,8 @@ class Auth extends \Temma\Web\Plugin {
 		// retrieve any status message
 		$this['authStatus'] = $this->_session['authStatus'];
 		unset($this->_session['authStatus']);
+		// template
+		$this->_template('auth/login.tpl');
 	}
 	/** Authentication. */
 	#[TµPost]

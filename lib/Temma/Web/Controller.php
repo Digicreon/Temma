@@ -310,6 +310,7 @@ class Controller implements \ArrayAccess {
 		// check if this sub-controller has a proxy action
 		$method = \Temma\Web\Framework::CONTROLLERS_PROXY_ACTION;
 		if (method_exists($controller, $method)) {
+			// proxy action found
 			$isProxyAction = true;
 		} else {
 			// no proxy action defined on this controller
@@ -344,6 +345,7 @@ class Controller implements \ArrayAccess {
 		/* ********** execution ********** */
 		$parameters = $parameters ?? $this->_loader->request->getParams();
 		try {
+			// call the action (proxy action are called in a special way)
 			if ($isProxyAction)
 				$status = $obj->$method($action, $parameters);
 			else
