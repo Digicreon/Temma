@@ -52,8 +52,6 @@ use \Temma\Base\Log as TµLog;
  * @link	https://www.php.net/manual/en/function.mail.php
  */
 class Email implements \Temma\Base\Loadable {
-	/** Extended configuration from the "temma.json" file. */
-	static private ?array $_config = null;
 	/** Recipients added to all messages. */
 	static private ?array $_cc = [];
 	/** Blinded recipients added to all messages. */
@@ -89,7 +87,7 @@ class Email implements \Temma\Base\Loadable {
 	}
 	/**
 	 * Define blinded recipients for all messages.
-	 * @param	string|array	$cc	Additional blinded recipients.
+	 * @param	string|array	$bcc	Additional blinded recipients.
 	 */
 	static public function setBcc(string|array $bcc) : void {
 		self::$_bcc = is_array($bcc) ? $bcc : [$bcc];
@@ -148,8 +146,8 @@ class Email implements \Temma\Base\Loadable {
 		$params = '';
 		if ($envelopeSender)
 			$params = "-f$envelopeSender";
-		else if (isset(self::$_config['envelopeSender']) && self::$_config['envelopeSender'])
-			$params = '-f' . self::$_config['envelopeSender'];
+		else if (self::$_envelopeSender)
+			$params = '-f' . self::$_envelopeSender;
 		// send the message
 		mail($to, $title, $message, implode("\r\n", $headers), $params);
 	}
@@ -178,7 +176,7 @@ class Email implements \Temma\Base\Loadable {
 			'MIME-Version: 1.0',
 			"From: $from",
 		];
-		if ($ubsubscribe)
+		if ($unsubscribe)
 			$headers[] = "List-Unsubscribe: $unsubscribe";
 		// recipient
 		if (is_array($to)) {
@@ -273,8 +271,8 @@ class Email implements \Temma\Base\Loadable {
 		$params = '';
 		if ($envelopeSender)
 			$params = "-f$envelopeSender";
-		else if (isset(self::$_config['envelopeSender']) && self::$_config['envelopeSender'])
-			$params = '-f' . self::$_config['envelopeSender'];
+		else if (self::$_envelopeSender)
+			$params = '-f' . self::$_envelopeSender;
 		// send the message
 		mail($to, $title, $message, implode("\r\n", $headers), $params);
 	}
