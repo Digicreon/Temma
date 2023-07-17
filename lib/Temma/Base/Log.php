@@ -126,7 +126,7 @@ class Log {
 		'CRIT'	=> 'CRIT '
 	];
 
-	/* ******************** PUBLIC METHODS ****************** */
+	/* ********** PUBLIC METHODS ********** */
 	/**
 	 * Set the path ot the log file.
 	 * @param	string	$path	Path to the log file.
@@ -305,7 +305,7 @@ class Log {
 		return (null);
 	}
 
-	/* ********************** PRIVATE METHODS *************** */
+	/* ********** PRIVATE METHODS ********** */
 	/**
 	 * Write a message into the right media.
 	 * @param	string|null	$class			Log class of the message. Could be null.

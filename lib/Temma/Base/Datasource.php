@@ -16,6 +16,26 @@ use \Temma\Base\Log as TµLog;
  * Must be used in an autoloader-enabled environment.
  */
 abstract class Datasource {
+	/** Database prefixes. */
+	const DATABASE_PREFIXES = [
+		'mysqli:',
+		'mysql:',
+		'pgsql:',
+		'cubrid:',
+		'sybase:',
+		'mssql:',
+		'dblib:',
+		'firebird:',
+		'ibm:',
+		'informix:',
+		'sqlsrv:',
+		'oci:',
+		'odbc:',
+		'sqlite:',
+		'sqlite2:',
+		'4D:',
+	];
+
 	/**
 	 * Factory.
 	 * Create a concrete instance of the object, depending of the given parameters.
@@ -25,26 +45,22 @@ abstract class Datasource {
 	 */
 	static public function factory(string $dsn) : \Temma\Base\Datasource {
 		TµLog::log('Temma/Base', 'DEBUG', "Datasource object creation with DSN: '$dsn'.");
-		if (substr($dsn, 0, 7) === 'mysqli:' || substr($dsn, 0, 6) === 'mysql:' ||
-		    substr($dsn, 0, 6) === 'pgsql:' || substr($dsn, 0, 7) === 'cubrid:' ||
-		    substr($dsn, 0, 7) === 'sybase:' || substr($dsn, 0, 6) === 'mssql:' ||
-		    substr($dsn, 0, 6) === 'dblib:' || substr($dsn, 0, 9) === 'firebird:' ||
-		    substr($dsn, 0, 4) === 'ibm:' || substr($dsn, 0, 9) === 'informix:' ||
-		    substr($dsn, 0, 7) === 'sqlsrv:' || substr($dsn, 0, 4) === 'oci:' ||
-		    substr($dsn, 0, 5) === 'odbc:' || substr($dsn, 0, 7) === 'sqlite:' ||
-		    substr($dsn, 0, 8) === 'sqlite2:' || substr($dsn, 0, 3) === '4D:') {
-			return (\Temma\Base\Database::factory($dsn));
-		} else if (substr($dsn, 0, 11) === 'memcache://') {
+		foreach (self::DATABASE_PREFIXES as $prefix) {
+			if (str_starts_with($dsn, $prefix))
+				return (\Temma\Base\Database::factory($dsn));
+		}
+		if (str_starts_with($dsn, 'memcache://'))
 			return (\Temma\Base\Cache::factory($dsn));
-		} else if (substr($dsn, 0, 8) === 'redis://' || substr($dsn, 0, 13) === 'redis-sock://') {
+		if (str_starts_with($dsn, 'redis://') ||
+		    str_starts_with($dsn, 'redis-sock://'))
 			return (\Temma\Base\NDatabase::factory($dsn));
-		} else if (substr($dsn, 0, 8) == 'dummy://') {
+		if (str_starts_with($dsn, 'dummy://'))
 			return (\Temma\Base\DummyDatasource::factory(''));
-		} else if (substr($dsn, 0, 6) == 'env://') {
+		if (str_starts_with($dsn, 'env://')) {
 			$dsn = getenv(substr($dsn, 6));
 			return (self::factory($dsn));
-		} else
-			throw new \Exception("No valid DSN provided '$dsn'.");
+		}
+		throw new \Exception("No valid DSN provided '$dsn'.");
 	}
 	/**
 	 * For compatibility: Tell if the cache is enabled or not.

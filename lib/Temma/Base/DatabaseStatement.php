@@ -23,7 +23,7 @@ class DatabaseStatement {
 	/** PDOStatement object. */
 	protected ?\PDOStatement $_statement = null;
 
-	/* ************************ CONSTRUCTION ********************** */
+	/* ********** CONSTRUCTION ********** */
 	/**
 	 * Constructor. Should be used only by \Temma\Base\Database object.
 	 * @param	\Temma\Base\Database	$db		The datbase object.
@@ -38,7 +38,7 @@ class DatabaseStatement {
 		unset($this->_statement);
 	}
 
-	/* ********************** REQUESTS *********************** */
+	/* ********** REQUESTS ********** */
 	/**
 	 * Executes a prepared query without fetching data.
 	 * @param	?array	$parameters	(optional) Array of parameters.

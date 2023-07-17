@@ -30,20 +30,20 @@ use \Temma\Exceptions\Database as TµDatabaseException;
  * Simple example:
  * <code>
  * try {
- *	 // object creation, database connection
- *	 $db = new \Temma\Base\Database("mysql://user:pwd@localhost/database");
- *	 // simple request
- *	 $db->exec("DELETE FROM tToto");
- *       // request which fetch one line of data
- *       $result = $db->queryOne("SELECT COUNT(*) AS nbr FROM Foo");
- *       print($result['nbr']);
- *	 // request which fetch many lines of data
- *	 $result = $db->queryAll("SELECT id, name FROM Foo");
- *	 // display results
- *       foreach ($result as $line)
- *               print($line['id'] . " -> " . $line['name'] . "\n");
+ *     // object creation, database connection
+ *     $db = new \Temma\Base\Database("mysql://user:pwd@localhost/database");
+ *     // simple request
+ *     $db->exec("DELETE FROM Bar");
+ *     // request which fetch one line of data
+ *     $result = $db->queryOne("SELECT COUNT(*) AS nbr FROM Foo");
+ *     print($result['nbr']);
+ *     // request which fetch many lines of data
+ *     $result = $db->queryAll("SELECT id, name FROM Foo");
+ *     // display results
+ *     foreach ($result as $line)
+ *         print($line['id'] . " -> " . $line['name'] . "\n");
  * } catch (Exception $e) {
- *	 print("Erreur base de données: " . $e->getMessage());
+ *     print("Erreur base de données: " . $e->getMessage());
  * }
  * </code>
  *
@@ -70,24 +70,24 @@ use \Temma\Exceptions\Database as TµDatabaseException;
  * catch (Exception $e) { }
  * // transactional requests, automatically committed or rolled-back
  * $db->transaction(function($db) use ($userId) {
- *       // insertion request
- *       $db->exec("INSERT INTO Foo SET name = 'pouet'");
- *       // bad request, will raise an exception => roll-back
- *       $db->exec("INSERT foobar");
+ *     // insertion request
+ *     $db->exec("INSERT INTO Foo SET name = 'pouet'");
+ *     // bad request, will raise an exception => roll-back
+ *     $db->exec("INSERT foobar");
  * });
  * // other kind of transactional requests
  * try {
- *	 // start the transaction
- *	 $db->startTransaction();
- *	 // insertion request
- *	 $db->exec("INSERT INTO Foo SET name = 'pouet'");
- *	 // bad request, will raise an exception
- *	 $db->exec("INSERT foobar");
- *	 // commit of the transaction if everything is fine
- *	 $db->commit();
+ *     // start the transaction
+ *     $db->startTransaction();
+ *     // insertion request
+ *     $db->exec("INSERT INTO Foo SET name = 'pouet'");
+ *     // bad request, will raise an exception
+ *     $db->exec("INSERT foobar");
+ *     // commit of the transaction if everything is fine
+ *     $db->commit();
  * } catch (Exception $e) {
- *	 // rollback of the transaction
- *	 $db->rollback();
+ *     // rollback of the transaction
+ *     $db->rollback();
  * }
  * </code>
  */
@@ -101,7 +101,7 @@ class Database extends \Temma\Base\Datasource {
 	/** Connection password (PDO compatibility). */
 	protected ?string $_password = null;
 
-	/* ************************ CONSTRUCTION ********************** */
+	/* ********** CONSTRUCTION ********** */
 	/**
 	 * Factory. Creates an instance of the object, using the given parameters.
 	 * @param	string	$dsn		Database connection string.
@@ -125,13 +125,13 @@ class Database extends \Temma\Base\Datasource {
 		$params = null;
 		if (preg_match("/^([^:]+):\/\/([^:@]+):?([^@]+)?@([^\/:]+):?(\d+)?\/([^#]*)#?(.*)$/", $dsn, $matches)) {
 			$this->_params = [
-				'type'		=> $matches[1],
-				'login'		=> $matches[2],
-				'password'	=> $matches[3],
-				'host'		=> $matches[4],
-				'port'		=> $matches[5],
-				'base'		=> $matches[6],
-				'sock'		=> $matches[7],
+				'type'     => $matches[1],
+				'login'    => $matches[2],
+				'password' => $matches[3],
+				'host'     => $matches[4],
+				'port'     => $matches[5],
+				'base'     => $matches[6],
+				'sock'     => $matches[7],
 			];
 			if ($this->_params['type'] == 'mysqli')
 				$this->_params['type'] = 'mysql';
@@ -149,7 +149,7 @@ class Database extends \Temma\Base\Datasource {
 		//	$this->_db->close();
 	}
 
-	/* ***************************** CONNECTION / DISCONNECTION **************** */
+	/* ********** CONNECTION / DISCONNECTION ********** */
 	/**
 	 * Connection.
 	 * @throws	\Exception	If the connection failed.
@@ -209,7 +209,7 @@ class Database extends \Temma\Base\Datasource {
 	}
 	*/
 
-	/* ***************************** TRANSACTIONS ************************ */
+	/* ********** TRANSACTIONS ********** */
 	/**
 	 * Manage a transaction automatically.
 	 * @param	callable	$callback	Anonymous function.
@@ -262,7 +262,7 @@ class Database extends \Temma\Base\Datasource {
 		}
 	}
 
-	/* ********************** REQUESTS *********************** */
+	/* ********** REQUESTS ********** */
 	/**
 	 * Return the last SQL error.
 	 * @return	string	The last error.

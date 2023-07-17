@@ -76,7 +76,7 @@ class Loader extends \Temma\Utils\Registry {
 	/** Builder function. */
 	protected /*?callable*/ $_builder = null;
 
-	/* ************************ CONSTRUCTION ********************** */
+	/* ********** CONSTRUCTION ********** */
 	/**
 	 * Constructor.
 	 * @param	array		$data		(optional) Associative array of data used to fill the registry.
@@ -96,7 +96,7 @@ class Loader extends \Temma\Utils\Registry {
 		return ($this);
 	}
 
-	/* ****************** DATA WRITING **************** */
+	/* ********** DATA WRITING ********** */
 	/**
 	 * Add data to the loader.
 	 * @param	string|array	$key	If a string is given, it's the index key, and a value should be given.

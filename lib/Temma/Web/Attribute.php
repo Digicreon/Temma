@@ -131,9 +131,9 @@ abstract class Attribute implements \ArrayAccess {
 	/**
 	 * Define the view to use.
 	 * @param	string	$view	Name of the view.
-	 * @return	\Temma\Web\Attributes\Attribute	The current object.
+	 * @return	\Temma\Web\Attribute	The current object.
 	 */
-	final protected function _view(string $view) : \Temma\Web\Attributes\Attribute {
+	final protected function _view(string $view) : \Temma\Web\Attribute {
 		global $temma;
 		$temma->getLoader()->response->setView($view);
 		return ($this);
@@ -141,9 +141,9 @@ abstract class Attribute implements \ArrayAccess {
 	/**
 	 * Define the template to use.
 	 * @param	string	$template	Template name.
-	 * @return	\Temma\Web\Attributes\Attribute	The current object.
+	 * @return	\Temma\Web\Attribute	The current object.
 	 */
-	final protected function _template(string $template) : \Temma\Web\Attributes\Attribute {
+	final protected function _template(string $template) : \Temma\Web\Attribute {
 		global $temma;
 		$temma->getLoader()->response->setTemplate($template);
 		return ($this);
@@ -151,9 +151,9 @@ abstract class Attribute implements \ArrayAccess {
 	/**
 	 * Define the prefix to the template path.
 	 * @param	string	$prefix	The template prefix path.
-	 * @return	\Temma\Web\Attributes\Attribute	The current object.
+	 * @return	\Temma\Web\Attribute	The current object.
 	 */
-	final protected function _templatePrefix(string $prefix) : \Temma\Web\Attributes\Attribute {
+	final protected function _templatePrefix(string $prefix) : \Temma\Web\Attribute {
 		global $temma;
 		$temma->getLoader()->response->setTemplatePrefix($prefix);
 		return ($this);

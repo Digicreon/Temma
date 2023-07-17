@@ -65,7 +65,7 @@ class NDatabase extends \Temma\Base\Datasource implements \ArrayAccess {
 	/** Connection parameters. */
 	protected ?array $_params = null;
 
-	/* ************************ CONSTRUCTION ********************** */
+	/* ********** CONSTRUCTION ********** */
 	/**
 	 * Factory
 	 * @param	string	$dsn	Connection string.
@@ -113,7 +113,7 @@ class NDatabase extends \Temma\Base\Datasource implements \ArrayAccess {
 			$this->_ndb->close();
 	}
 
-	/* ***************************** CONNEXION / DECONNEXION ************************ */
+	/* ********** CONNEXION / DECONNEXION ********** */
 	/**
 	 * Open the connection.
 	 * @throws	\Exception	If something went wrong.
@@ -136,7 +136,7 @@ class NDatabase extends \Temma\Base\Datasource implements \ArrayAccess {
 			$this->_ndb->close();
 	}
 
-	/* ********************** REQUESTS *********************** */
+	/* ********** REQUESTS ********** */
 	/**
 	 * Add one or many key-value pairs.
 	 * @param	string|array	$key		Key, or an associative array of key-value pairs.

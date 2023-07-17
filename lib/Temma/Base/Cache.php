@@ -50,7 +50,7 @@ class Cache extends Datasource implements \ArrayAccess {
 	/** Cache variable grouping prefix. */
 	protected string $_prefix = '';
 
-	/* ************************** CONSTRUCTION ******************** */
+	/* ********** CONSTRUCTION ********** */
 	/**
 	 * Create a new instance of this class.
 	 * @param	string	$dsn	Server connection string.
@@ -102,7 +102,7 @@ class Cache extends Datasource implements \ArrayAccess {
 		}
 	}
 
-	/* ****************** CACHE MANAGEMENT ************ */
+	/* ********** CACHE MANAGEMENT ********** */
 	/**
 	 * Change the default cache expiration.
 	 * @param	int	$expiration	Cache expiration, in seconds. 24 hours by default.
@@ -143,7 +143,7 @@ class Cache extends Datasource implements \ArrayAccess {
 		return ($this->_enabled);
 	}
 
-	/* ************************ DATA MANAGEMENT ****************** */
+	/* ********** DATA MANAGEMENT ********** */
 	/**
 	 * Set the prefix used to group data.
 	 * @param	string	$prefix	(optional) Prefix string. Let it empty to disable prefixes.
@@ -276,7 +276,7 @@ class Cache extends Datasource implements \ArrayAccess {
 		return ($this->isSet($key));
 	}
 
-	/* ************************** PRIVATE METHODS ******************** */
+	/* ********** PRIVATE METHODS ********** */
 	/**
 	 * Returns a salted prefix.
 	 * @return	string	The generated salted prefix.
