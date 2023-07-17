@@ -11,7 +11,7 @@ namespace Temma\Controllers;
 use \Temma\Base\Log as TµLog;
 use \Temma\Web\Attributes\Auth as TµAuth;
 use \Temma\Web\Attributes\Methods\Post as TµPost;
-use \Temma\Utils\Email as TµEmail
+use \Temma\Utils\Email as TµEmail;
 
 /**
  * Authentication controller.
@@ -267,7 +267,7 @@ Best regards";
 			'table' => 'User',
 		];
 		if (isset($conf['userData'])) {
-			if (isset($conf['userData']['base'])))
+			if (isset($conf['userData']['base']))
 				$params['base'] = $conf['userData']['base'];
 			if (isset($conf['userData']['table']))
 				$params['table'] = $conf['userData']['table'];
@@ -276,7 +276,7 @@ Best regards";
 			if (isset($conf['userData']['id']) ||
 			    isset($conf['userData']['email']) ||
 			    isset($conf['userData']['isAdmin']) ||
-			    isset($conf['userData']['roles'] ||
+			    isset($conf['userData']['roles']) ||
 			    isset($conf['userData']['services'])) {
 				$params['fields'] = [];
 				foreach (['id', 'email', 'isAdmin', 'roles', 'services'] as $key) {
