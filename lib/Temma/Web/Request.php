@@ -17,6 +17,8 @@ use \Temma\Exceptions\Framework as TµFrameworkException;
 class Request {
 	/** PathInfo data. */
 	private string $_pathInfo;
+	/** HTTP method of the request. */
+	private ?string $_method = null;
 	/** Name of the requested controller. */
 	private ?string $_controller = null;
 	/** Name of the requested action. */
@@ -69,6 +71,7 @@ class Request {
 		}
 		TµLog::log('Temma/Web', 'INFO', "URL : '$requestUri'.");
 		$this->_pathInfo = $requestUri;
+		$this->_method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 		/* Extraction of URL components, url-decode them, and remove empty entries. */
 		$chunkedUri = explode('/', $requestUri);
 		// remove first element (the URL starts with a slash, so the first chunked element is always empty)
@@ -98,6 +101,13 @@ class Request {
 	 */
 	public function getPathInfo() : string {
 		return ($this->_pathInfo);
+	}
+	/**
+	 * Returns the method.
+	 * @return	string	The method.
+	 */
+	public function getMethod() : string {
+		return ($this->_method);
 	}
 	/**
 	 * Returns the requested controller's name.
@@ -147,6 +157,13 @@ class Request {
 	}
 
 	/* ***************** SETTERS *************** */
+	/**
+	 * Define the HTTP method.
+	 * @param	string	$method	The method.
+	 */
+	public function setMethod(string $method) : void {
+		$this->_method = strtoupper($method);
+	}
 	/**
 	 * Define the controller's name.
 	 * @param	string	$name	The name.
