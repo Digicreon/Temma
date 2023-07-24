@@ -9,6 +9,7 @@
 namespace Temma\Plugins;
 
 use \Temma\Base\Log as TµLog;
+use \Temma\Exceptions\Framework AS TµFrameworkException;
 
 /**
  * Plugin used extends the Temma routing feature.
@@ -17,7 +18,11 @@ use \Temma\Base\Log as TµLog;
  */
 class Router extends \Temma\Web\Plugin {
 	/** Routes multi-dimension array. */
-	private $_routes = null;
+	private array $_routes = [];
+	/** Execution informations. */
+	private string|array $_exec;
+	/** List of stacked parameters. */
+	private array $_parameters;
 
 	/**
 	 * Preplugin method. Checks if the requested page is managed by the router.
@@ -26,40 +31,154 @@ class Router extends \Temma\Web\Plugin {
 	public function preplugin() {
 		TµLog::log('Temma/Web', 'INFO', "Router plugin started.");
 		$this->_extractRoutes();
-		$this->_searchRoute();
+		// get method
+		$currentMethod = $this->_loader->request->getMethod();
+		// get URL chunks
+		$chunks = [];
+		if (($ctrl = $this->_loader->request->getController())) {
+			$chunks[] = $ctrl;
+			if (($action = $this->_loader->request->getAction())) {
+				$chunks[] = $action;
+				$chunks = array_merge($chunks, $this->_loader->request->getParams());
+			}
+		}
+		// process, searching for the actual method or the catchall
+		if ((isset($this->_routes[$currentMethod]) &&
+		     $this->_searchRoute($this->_routes[$currentMethod], $chunks)) ||
+		    (isset($this->_routes['*']) &&
+		     $this->_searchRoute($this->_routes['*'], $chunks))) {
+			// manage plugins
+			if (is_array($this->_exec)) {
+				$plugins = $this->_loader->config->plugins;
+				if (isset($this->_exec['_pre'])) {
+					if (!is_array($this->_exec['_pre']))
+						$this->_exec['_pre'] = [$this->_exec['_pre']];
+					$plugins['_pre'] ??= [];
+					$plugins['_pre'] = array_merge($plugins['_pre'], $this->_exec['_pre']);
+				}
+				if (isset($this->_exec['_post'])) {
+					if (!is_array($this->_exec['_post']))
+						$this->_exec['_post'] = [$this->_exec['_post']];
+					$plugins['_post'] ??= [];
+					$plugins['_post'] = array_merge($plugins['_post'], $this->_exec['_post']);
+				}
+				$this->_loader->config->plugins = $plugins;
+				if (!is_string($this->_exec['exec'] ?? null)) {
+					print("Bad configuration\n");
+					throw new \Exception('Bad configuration.');
+				}
+				$this->_exec = $this->_exec['exec'];
+			}
+			// extract controller and action
+			$res = explode('::', $this->_exec);
+			if (count($res) != 2)
+				throw new \Exception('Mauvaise configuration.');
+			[$controller, $method] = $res;
+			$this['CONTROLLER'] = $controller;
+			$this->_loader->request->setController($controller);
+			if (($pos = mb_strpos($method, '(')) === false) {
+				$action = $method;
+				$params = [];
+			} else {
+				$action = mb_substr($method, 0, $pos);
+				$params = mb_substr($method, $pos + 1, -1);
+				$params = explode(',', $params);
+				foreach ($params as &$p) {
+					$p = trim($p);
+					if ($p[0] == '$') {
+						$p = mb_substr($p, 1);
+						$p = $this->_parameters[$p] ?? null;
+					} else if ($p[0] == '\'' || $p[0] == '"') {
+						$p = mb_substr($p, 1, -1);
+					}
+				}
+			}
+			$this['ACTION'] = $action;
+			$this->_loader->request->setAction($action);
+			$this->_loader->request->setParams($params);
+			// define URL
+			$url = "/$controller/$action";
+			if ($params)
+				$url .= '/' . implode('/', $params);
+			$this['URL'] = $url;
+			return (true);
+		}
+		print("Pas trouvé\n");
+		return (false);
 	}
 
 	/* ********** PRIVATE METHODS ********** */
 	/**
 	 * Search the route for the current URL.
-	 * @param	?string	$method	(optional) HTTP method to search for. If null, try to
-	 *				use the current request's method, or the default one.
+	 * @param	array	$route		Tree of route definition.
+	 * @param	array	$chunks		List of URL chunks.
+	 * @param	array	$parameters	(optional) List of stacked parameters.
 	 * @return	bool	True if a route was found, false otherwise.
+	 * @throws	\Temma\Exceptions\Framework	If the configuration is not correct.
 	 */
-	private function _searchRoute(?string $method=null) : bool {
-		$currentMethod = $_SERVER['REQUEST_METHOD'];
-		// if no method was given, try with the current request's method;
-		// if it doesn't work, try with the catchall
-		if (!$method) {
-			$res = $this->_searchRoute($_SERVER['REQUEST_METHOD']);
-			if ($res)
-				return (true);
-			$res = $this->_searchRoute('*');
-			return ($res);
+	private function _searchRoute(array $route, array $chunks, array $parameters=[]) : bool {
+		if (!$chunks) {
+			if (!$route['exec']) {
+				TµLog::log('Temma/Web', 'WARN', "Route badly configured.");
+				throw new TµFrameworkException("Router: Bad configuration.", TµFrameworkException::CONFIG);
+			}
+			$this->_parameters = $parameters;
+			$this->_exec = $route['exec'];
+			return (true);
 		}
-		// a method was given
-		// manage the root URL ('/')
-		if (!$this['URL'] || $this['URL'] == '/') {
-			if (!isset($this->_routes[$method]['exec']))
-				return (false);
-			$this->_defineRoute($this->_routes[$method]['exec'], null);
+		$chunk = array_shift($chunks);
+		// is there a simple sub element?
+		if (isset($route['sub'][$chunk])) {
+			return $this->_searchRoute($route['sub'][$chunk], $chunks, $parameters);
 		}
-		//if (!(
-		// chunk the URL
-		$chunkedUrl = explode('/', trim($this['URL'], '/'));
-		
+		// search a matching enum
+		if (isset($route['param']['enum'])) {
+			foreach ($route['param']['enum'] as $enum) {
+				if (isset($enum['values'][$chunk])) {
+					$params = $parameters;
+					$params[$enum['name']] = $chunk;
+					if ($this->_searchRoute($enum, $chunks, $params)) {
+						return (true);
+					}
+				}
+			}
+		}
+		// search a matching int
+		if (ctype_digit($chunk) && isset($route['param']['int'])) {
+			foreach ($route['param']['int'] as $int) {
+				$params = $parameters;
+				$params[$int['name']] = $chunk;
+				if ($this->_searchRoute($int, $chunks, $params)) {
+					return (true);
+				}
+			}
+		}
+		// search a matching float
+		if (is_numeric($chunk) && isset($route['param']['float'])) {
+			foreach ($route['param']['float'] as $float) {
+				$params = $parameters;
+				$params[$float['name']] = $chunk;
+				if ($this->_searchRoute($float, $chunks, $params)) {
+					return (true);
+				}
+			}
+		}
+		// search a matching string
+		if (isset($route['param']['string'])) {
+			foreach ($route['param']['string'] as $string) {
+				$params = $parameters;
+				$params[$string['name']] = $chunk;
+				if ($this->_searchRoute($string, $chunks, $params)) {
+					return (true);
+				}
+			}
+		}
+		return (false);
 	}
-	/** Generate the routes array from the configuration. */
+	/**
+	 * Generate the routes array from the configuration.
+	 * @throws	\Temma\Exceptions\Framework	If the configuration is not correct.
+	 */
 	private function _extractRoutes() : void {
 		// get the router configuration
 		$conf = $this->_loader->config->xtra('router');
@@ -134,57 +253,54 @@ class Router extends \Temma\Web\Plugin {
 		 *     ]
 		 * ]
 		 */
-		$this->_routes = [];
 		// loop on each configuration line
 		foreach ($conf as $key => $value) {
 			// extract the HTTP method
-			$pos = strpos($key, ':');
-			$method = $pos ? mb_substr($key, 0, $pos) : '*';
+			$pos = mb_strpos($key, ':');
+			$method = ($pos !== false) ? mb_substr($key, 0, $pos) : '*';
 			// extract the URL and chunk it
-			$url = mb_substr($key, $pos);
-			$url = explode('/', trim($url, '/'));
+			$url = mb_substr($key, $pos + 1);
+			$urlChunks = array_filter(explode('/', trim($url, '/')));
 			// add the route
-			$routes[$method] = $routes[$method] ?? [];
-			if (empty($url)) {
-				$routes[$method]['exec'] = $value;
+			$this->_routes[$method] ??= [];
+			if (!$urlChunks) {
+				$this->_routes[$method]['exec'] = $value;
 				continue;
 			}
+			$oldPtr = &$ptr;
 			$ptr = &$this->_routes[$method];
-			$nbrChunks = count($url);
-			$currentChunk = 0;
-			foreach ($url as $chunk) {
-				$currentChunk++;
+			while (($chunk = array_shift($urlChunks))) {
 				if ($chunk[0] == '[') {
 					// it's a named parameter
-					$ptr['param'] = $ptr['param'] ?? [];
+					$ptr['param'] ??= [];
 					// extract data
 					$data = explode(':', trim($chunk, '[]'));
 					if (count($data) < 2 || !in_array($data[1], ['int', 'float', 'string', 'enum'])) {
 						TµLog::log('Temma/Web', 'WARN', "Router: Bad typed parameter '$chunk'.");
-						continue;
+						throw new TµFrameworkException("Router: Bad typed parameter '$chunk'.", TµFrameworkException::CONFIG);
 					}
 					[$name, $type] = $data;
 					$params = $data[2] ?? null;
 					// store data
-					$ptr['param'][$type] = $ptr['param'][$type] ?? [];
+					$ptr['param'][$type] ??= [];
+					unset($array); // break the link to the previous $array variable, which was used by address
 					$array = [
-						'name '=> $name,
+						'name' => $name,
 					];
 					if ($params)
 						$array['params'] = $params;
-					$ptr['param'][$type][] = $array;
+					$ptr['param'][$type][] = &$array;
 					$ptr = &$array;
 				} else {
 					// it's a sub chunk
-					$ptr['sub'] = $ptr['sub'] ?? [];
+					$ptr['sub'] ??= [];
 					// store data
-					$ptr['sub'][$chunk] = $ptr['sub'][$chunk] ?? [];
-					$ptr['sub'][$chunk] = [];
+					$ptr['sub'][$chunk] ??= [];
 					$ptr = &$ptr['sub'][$chunk];
 				}
-				if ($currentChunk == $nbrChunks)
-					$ptr['exec'] = $value;
 			}
+			// add the object/method to call
+			$ptr['exec'] = trim($value);
 		}
 	}
 }
