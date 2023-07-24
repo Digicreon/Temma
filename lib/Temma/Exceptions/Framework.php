@@ -22,5 +22,7 @@ class Framework extends \Exception {
 	const NO_VIEW = 3;
 	/** No template available. */
 	const NO_TEMPLATE = 4;
+	/** Routing error. */
+	const ROUTE = 5;
 }
 

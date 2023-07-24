@@ -27,6 +27,7 @@ class Router extends \Temma\Web\Plugin {
 	/**
 	 * Preplugin method. Checks if the requested page is managed by the router.
 	 * @return	mixed	Always EXEC_FORWARD.
+	 * @throws	\Temma\Exceptions\Framework	If the configuration is not correct.
 	 */
 	public function preplugin() {
 		TµLog::log('Temma/Web', 'INFO', "Router plugin started.");
@@ -63,16 +64,18 @@ class Router extends \Temma\Web\Plugin {
 					$plugins['_post'] = array_merge($plugins['_post'], $this->_exec['_post']);
 				}
 				$this->_loader->config->plugins = $plugins;
-				if (!is_string($this->_exec['exec'] ?? null)) {
-					print("Bad configuration\n");
-					throw new \Exception('Bad configuration.');
+				if (!is_string($this->_exec['action'] ?? null)) {
+					TµLog::log('Temma/Web', 'WARN', "Router: Bad configuration (missing 'action' key).");
+					throw new TµFrameworkException("Router: Bad configuration (missing 'action' key).", TµFrameworkException::CONFIG);
 				}
-				$this->_exec = $this->_exec['exec'];
+				$this->_exec = $this->_exec['action'];
 			}
 			// extract controller and action
 			$res = explode('::', $this->_exec);
-			if (count($res) != 2)
-				throw new \Exception('Mauvaise configuration.');
+			if (count($res) != 2) {
+				TµLog::log('Temma/Web', 'WARN', "Router: Bad configuration (missing '::' separator between object and method).");
+				throw new TµFrameworkException("Router: Bad configuration (missing '::' separator between object and method).", TµFrameworkException::CONFIG);
+			}
 			[$controller, $method] = $res;
 			$this['CONTROLLER'] = $controller;
 			$this->_loader->request->setController($controller);
@@ -101,10 +104,10 @@ class Router extends \Temma\Web\Plugin {
 			if ($params)
 				$url .= '/' . implode('/', $params);
 			$this['URL'] = $url;
-			return (true);
+			return (self::EXEC_FORWARD);
 		}
-		print("Pas trouvé\n");
-		return (false);
+		TµLog::log('Temma/Web', 'WARN', "Router: no route found.");
+		throw new TµFrameworkException("Router: No route found.", TµFrameworkException::CONFIG);
 	}
 
 	/* ********** PRIVATE METHODS ********** */
