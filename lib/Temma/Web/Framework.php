@@ -454,6 +454,8 @@ class Framework {
 	private function _generatePrePluginsList() : array {
 		$plugins = $this->_config->plugins;
 		$prePlugins = $plugins['_pre'] ?? [];
+		if (!is_array($prePlugins))
+			$prePlugins = [$prePlugins];
 		if (isset($plugins[$this->_objectControllerName]['_pre']))
 			$prePlugins = array_merge($prePlugins, $plugins[$this->_objectControllerName]['_pre']);
 		if (isset($plugins[$this->_objectControllerName][$this->_actionName]['_pre']))
@@ -472,6 +474,8 @@ class Framework {
 	private function _generatePostPluginsList() : array {
 		$plugins = $this->_config->plugins;
 		$postPlugins = $plugins['_post'] ?? [];
+		if (!is_array($postPlugins))
+			$postPlugins = [$postPlugins];
 		if (isset($plugins[$this->_objectControllerName]['_post']))
 			$postPlugins = array_merge($postPlugins, $plugins[$this->_objectControllerName]['_post']);
 		if (isset($plugins[$this->_objectControllerName][$this->_actionName]['_post']))
