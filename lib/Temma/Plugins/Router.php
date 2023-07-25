@@ -31,6 +31,7 @@ class Router extends \Temma\Web\Plugin {
 	 */
 	public function preplugin() {
 		TµLog::log('Temma/Web', 'INFO', "Router plugin started.");
+		// read the configuration
 		$this->_extractRoutes();
 		// get method
 		$currentMethod = $this->_loader->request->getMethod();
@@ -44,70 +45,75 @@ class Router extends \Temma\Web\Plugin {
 			}
 		}
 		// process, searching for the actual method or the catchall
-		if ((isset($this->_routes[$currentMethod]) &&
-		     $this->_searchRoute($this->_routes[$currentMethod], $chunks)) ||
-		    (isset($this->_routes['*']) &&
-		     $this->_searchRoute($this->_routes['*'], $chunks))) {
-			// manage plugins
-			if (is_array($this->_exec)) {
-				$plugins = $this->_loader->config->plugins;
-				if (isset($this->_exec['_pre'])) {
-					if (!is_array($this->_exec['_pre']))
-						$this->_exec['_pre'] = [$this->_exec['_pre']];
-					$plugins['_pre'] ??= [];
-					$plugins['_pre'] = array_merge($plugins['_pre'], $this->_exec['_pre']);
-				}
-				if (isset($this->_exec['_post'])) {
-					if (!is_array($this->_exec['_post']))
-						$this->_exec['_post'] = [$this->_exec['_post']];
-					$plugins['_post'] ??= [];
-					$plugins['_post'] = array_merge($plugins['_post'], $this->_exec['_post']);
-				}
-				$this->_loader->config->plugins = $plugins;
-				if (!is_string($this->_exec['action'] ?? null)) {
-					TµLog::log('Temma/Web', 'WARN', "Router: Bad configuration (missing 'action' key).");
-					throw new TµFrameworkException("Router: Bad configuration (missing 'action' key).", TµFrameworkException::CONFIG);
-				}
-				$this->_exec = $this->_exec['action'];
-			}
-			// extract controller and action
-			$res = explode('::', $this->_exec);
-			if (count($res) != 2) {
-				TµLog::log('Temma/Web', 'WARN', "Router: Bad configuration (missing '::' separator between object and method).");
-				throw new TµFrameworkException("Router: Bad configuration (missing '::' separator between object and method).", TµFrameworkException::CONFIG);
-			}
-			[$controller, $method] = $res;
-			$this['CONTROLLER'] = $controller;
-			$this->_loader->request->setController($controller);
-			if (($pos = mb_strpos($method, '(')) === false) {
-				$action = $method;
-				$params = [];
-			} else {
-				$action = mb_substr($method, 0, $pos);
-				$params = mb_substr($method, $pos + 1, -1);
-				$params = explode(',', $params);
-				foreach ($params as &$p) {
-					$p = trim($p);
-					if ($p[0] == '$') {
-						$p = mb_substr($p, 1);
-						$p = $this->_parameters[$p] ?? null;
-					} else if ($p[0] == '\'' || $p[0] == '"') {
-						$p = mb_substr($p, 1, -1);
-					}
-				}
-			}
-			$this['ACTION'] = $action;
-			$this->_loader->request->setAction($action);
-			$this->_loader->request->setParams($params);
-			// define URL
-			$url = "/$controller/$action";
-			if ($params)
-				$url .= '/' . implode('/', $params);
-			$this['URL'] = $url;
+		if (!(isset($this->_routes[$currentMethod]) && $this->_searchRoute($this->_routes[$currentMethod], $chunks)) &&
+		    !(isset($this->_routes['*']) && $this->_searchRoute($this->_routes['*'], $chunks))) {
+			TµLog::log('Temma/Web', 'DEBUG', "Router: no route found.");
 			return (self::EXEC_FORWARD);
 		}
-		TµLog::log('Temma/Web', 'WARN', "Router: no route found.");
-		throw new TµFrameworkException("Router: No route found.", TµFrameworkException::CONFIG);
+		$returnValue = self::EXEC_FORWARD;
+		// manage plugins
+		if (is_array($this->_exec)) {
+			$plugins = $this->_loader->config->plugins;
+			// add new plugins
+			if (isset($this->_exec['_pre'])) {
+				// remove this plugin from the list of preplugins
+				$offset = array_search('\\' . self::class, $plugins['_pre']);
+				array_splice($plugins['_pre'], 0, $offset + 1);
+				// add new preplugins
+				if (!is_array($this->_exec['_pre']))
+					$this->_exec['_pre'] = [$this->_exec['_pre']];
+				$plugins['_pre'] ??= [];
+				$plugins['_pre'] = array_merge($plugins['_pre'], $this->_exec['_pre']);
+				$returnValue = self::EXEC_RESTART;
+			}
+			if (isset($this->_exec['_post'])) {
+				if (!is_array($this->_exec['_post']))
+					$this->_exec['_post'] = [$this->_exec['_post']];
+				$plugins['_post'] ??= [];
+				$plugins['_post'] = array_merge($plugins['_post'], $this->_exec['_post']);
+			}
+			$this->_loader->config->plugins = $plugins;
+			if (!is_string($this->_exec['action'] ?? null)) {
+				TµLog::log('Temma/Web', 'WARN', "Router: Bad configuration (missing 'action' key).");
+				throw new TµFrameworkException("Router: Bad configuration (missing 'action' key).", TµFrameworkException::CONFIG);
+			}
+			$this->_exec = $this->_exec['action'];
+		}
+		// extract controller and action
+		$res = explode('::', $this->_exec);
+		if (count($res) != 2) {
+			TµLog::log('Temma/Web', 'WARN', "Router: Bad configuration (missing '::' separator between object and method).");
+			throw new TµFrameworkException("Router: Bad configuration (missing '::' separator between object and method).", TµFrameworkException::CONFIG);
+		}
+		[$controller, $method] = $res;
+		$this['CONTROLLER'] = $controller;
+		$this->_loader->request->setController($controller);
+		if (($pos = mb_strpos($method, '(')) === false) {
+			$action = $method;
+			$params = [];
+		} else {
+			$action = mb_substr($method, 0, $pos);
+			$params = mb_substr($method, $pos + 1, -1);
+			$params = explode(',', $params);
+			foreach ($params as &$p) {
+				$p = trim($p);
+				if ($p[0] == '$') {
+					$p = mb_substr($p, 1);
+					$p = $this->_parameters[$p] ?? null;
+				} else if ($p[0] == '\'' || $p[0] == '"') {
+					$p = mb_substr($p, 1, -1);
+				}
+			}
+		}
+		$this['ACTION'] = $action;
+		$this->_loader->request->setAction($action);
+		$this->_loader->request->setParams($params);
+		// define URL
+		$url = "/$controller/$action";
+		if ($params)
+			$url .= '/' . implode('/', $params);
+		$this['URL'] = $url;
+		return ($returnValue);
 	}
 
 	/* ********** PRIVATE METHODS ********** */
@@ -121,9 +127,8 @@ class Router extends \Temma\Web\Plugin {
 	 */
 	private function _searchRoute(array $route, array $chunks, array $parameters=[]) : bool {
 		if (!$chunks) {
-			if (!$route['exec']) {
-				TµLog::log('Temma/Web', 'WARN', "Route badly configured.");
-				throw new TµFrameworkException("Router: Bad configuration.", TµFrameworkException::CONFIG);
+			if (!($route['exec'] ?? null)) {
+				return (false);
 			}
 			$this->_parameters = $parameters;
 			$this->_exec = $route['exec'];
@@ -284,6 +289,11 @@ class Router extends \Temma\Web\Plugin {
 					}
 					[$name, $type] = $data;
 					$params = $data[2] ?? null;
+					$values = null;
+					if ($type == 'enum' && $params) {
+						$values = array_map('trim', explode(',', $params));
+						$values = array_fill_keys($values, true);
+					}
 					// store data
 					$ptr['param'][$type] ??= [];
 					unset($array); // break the link to the previous $array variable, which was used by address
@@ -292,6 +302,8 @@ class Router extends \Temma\Web\Plugin {
 					];
 					if ($params)
 						$array['params'] = $params;
+					if ($values)
+						$array['values'] = $values;
 					$ptr['param'][$type][] = &$array;
 					$ptr = &$array;
 				} else {
@@ -303,7 +315,7 @@ class Router extends \Temma\Web\Plugin {
 				}
 			}
 			// add the object/method to call
-			$ptr['exec'] = trim($value);
+			$ptr['exec'] = is_string($value) ? trim($value) : $value;
 		}
 	}
 }
