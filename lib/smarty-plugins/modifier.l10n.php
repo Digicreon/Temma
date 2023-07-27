@@ -3,9 +3,10 @@
 /**
  * Smarty modifier to translate text strings.
  * @param	string		$str	String to translate
- * @param	array|int	$count	(optional) Information about singular/plural form.
+ * @param	bool|int|array	$count	(optional) Information about singular/plural form.
+ *					If a boolean is given, take plural if it is true.
+ *					If an integer is given, take plural if it is greater than 1.
  *					If an array is given, take plural if it has more than 1 element.
- *					If an integer is given, take plural is it greater than 1.
  *					Singular by default.
  * @param	mixed		$data	(optional) List of other arguments.
  * @return	string	The translated string.
@@ -13,7 +14,7 @@
  * @author	Amaury Bouchard <amaury@æmaury.net>
  * @copyright	© 2020, Amaury Bouchard
  */
-function smarty_modifier_l10n($str, $count=false, ...$data) {
+function smarty_modifier_l10n(string $str, bool|int|array $count=false, ...$data) {
 	global $smarty;
 
 	// search if there was a specified domain ('default' as default domain)
@@ -27,7 +28,9 @@ function smarty_modifier_l10n($str, $count=false, ...$data) {
 		// not found: use the given string
 		$res = $str;
 	} else if (isset($res['plural']) &&
-	           ((is_array($count) && count($count) > 1) || $count > 1)) {
+	           ($count === true ||
+	            (is_int($count) && $count > 1) ||
+	            (is_array($count) && count($count) > 1))) {
 		// use the plural form
 		$res = $res['plural'];
 	} else if (isset($res['singular'])) {
@@ -35,9 +38,8 @@ function smarty_modifier_l10n($str, $count=false, ...$data) {
 		$res = $res['singular'];
 	} // otherwise: keep the taken string
 	// process the string with data if needed
-	if (isset($data)) {
+	if ($data)
 		$res = sprintf($res, ...$data);
-	}
 	// escaping
 	$res = htmlspecialchars($res, ENT_COMPAT, 'UTF-8', true);
 	return ($res);
