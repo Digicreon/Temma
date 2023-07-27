@@ -3,7 +3,22 @@
 # Validation script used to check Temma source code using PHPStan static analyzer.
 # See: https://github.com/phpstan/phpstan/releases
 
-pushd /opt/Temma/bin > /dev/null
+# find the current directory
+DIRNAME="$(dirname "$0")"
+PWD="$(pwd)"
+CURRENT_DIR=""
+if [ "${DIRNAME:0:1}" = "/" ]; then
+	CURRENT_DIR="$DIRNAME"
+elif [ "$DIRNAME" != "." ]; then
+	CURRENT_DIR="$PWD/$DIRNAME"
+else
+	CURRENT_DIR="$PWD"
+fi
+
+VALIDATION_PATHS="$CURRENT_DIR/../controllers
+                  $CURRENT_DIR/../lib"
+
+pushd "$CURRENT_DIR" > /dev/null
 
 # check if the "phpstan.phar" file exists
 if [ ! -e phpstan.phar ]; then
@@ -23,7 +38,7 @@ require_once('/opt/Temma/lib/Temma/Base/Autoload.php');
 fi
 
 # start code anlysis
-./phpstan.phar --autoload-file=autoloader.php --level=5 analyze /opt/Temma/lib/Temma | \
+./phpstan.phar --autoload-file=autoloader.php --level=5 analyze $VALIDATION_PATHS | \
 	grep -v "Access to an undefined property Temma.Base.Loader" | \
 	grep -v "Learn more at https://phpstan.org/user-guide/discovering-symbols" | \
 	grep -v "See: https://phpstan.org/developing-extensions/always-read-written-properties" | \
