@@ -1,43 +1,43 @@
 <?php
 
 /**
- * Delete
+ * Get
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2023, Amaury Bouchard
  */
 
-namespace Temma\Web\Attributes\Methods;
+namespace Temma\Attributes\Methods;
 
 use \Temma\Base\Log as TµLog;
 use \Temma\Exceptions\Application as TµApplicationException;
 
 /**
- * Attribute used to force the DELETE method on an action or on all actions of a controller.
+ * Attribute used to force the GET method on an action or on all actions of a controller.
  *
  * Examples:
- * use \Temma\Web\Attributes\Methods\Delete as TµDelete;
- * #[TµDelete]
- * class DeleteOnlyController {
+ * use \Temma\Attributes\Methods\Get as TµGet;
+ * #[TµGet]
+ * class GetOnlyController {
  *     ...
  * }
  *
- * use \Temma\Web\Attributes\Methods\Delete as TµDelete;
+ * use \Temma\Attributes\Methods\Get as TµGet;
  * class SomeController {
- *     #[TµDelete]
- *     public function deleteOnlyAction() { }
+ *     #[TµGet]
+ *     public function getOnlyAction() { }
  * }
  *
  * @see \Temma\Web\Controller
  */
 #[\Attribute(\Attribute::TARGET_CLASS | \Attribute::TARGET_METHOD)]
-class Delete extends \Temma\Web\Attribute {
+class Get extends \Temma\Web\Attribute {
 	/**
 	 * Constructor.
-	 * @throws	\Temma\Exceptions\Application	If a method other than DELETE is used.
+	 * @throws	\Temma\Exceptions\Application	If a method other than GET is used.
 	 * @throws 	\Temma\Exceptions\FlowHalt	If a redirection is defined.
 	 */
 	public function __construct() {
-		if ($_SERVER['REQUEST_METHOD'] == 'DELETE')
+		if ($_SERVER['REQUEST_METHOD'] == 'GET')
 			return;
 		$url = $this->_getConfig()->xtra('security', 'methodRedirect') ?:
 		       $this->_getConfig()->xtra('security', 'redirect');

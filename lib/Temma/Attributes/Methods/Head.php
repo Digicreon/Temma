@@ -1,43 +1,43 @@
 <?php
 
 /**
- * Get
+ * Head
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2023, Amaury Bouchard
  */
 
-namespace Temma\Web\Attributes\Methods;
+namespace Temma\Attributes\Methods;
 
 use \Temma\Base\Log as TµLog;
 use \Temma\Exceptions\Application as TµApplicationException;
 
 /**
- * Attribute used to force the GET method on an action or on all actions of a controller.
+ * Attribute used to force the HEAD method on an action or an all actions of a controller.
  *
  * Examples:
- * use \Temma\Web\Attributes\Methods\Get as TµGet;
- * #[TµGet]
- * class GetOnlyController {
+ * use \Temma\Attributes\Methods\Head as TµHead;
+ * #[TµHead]
+ * class HeadOnlyController {
  *     ...
  * }
  *
- * use \Temma\Web\Attributes\Methods\Get as TµGet;
+ * use \Temma\Attributes\Methods\Head as TµHead;
  * class SomeController {
- *     #[TµGet]
- *     public function getOnlyAction() { }
+ *     #[TµHead]
+ *     public function headOnlyAction() { }
  * }
  *
  * @see \Temma\Web\Controller
  */
 #[\Attribute(\Attribute::TARGET_CLASS | \Attribute::TARGET_METHOD)]
-class Get extends \Temma\Web\Attribute {
+class Head extends \Temma\Web\Attribute {
 	/**
 	 * Constructor.
-	 * @throws	\Temma\Exceptions\Application	If a method other than GET is used.
+	 * @throws	\Temma\Exceptions\Application	If a method other than HEAD is used.
 	 * @throws 	\Temma\Exceptions\FlowHalt	If a redirection is defined.
 	 */
 	public function __construct() {
-		if ($_SERVER['REQUEST_METHOD'] == 'GET')
+		if ($_SERVER['REQUEST_METHOD'] == 'HEAD')
 			return;
 		$url = $this->_getConfig()->xtra('security', 'methodRedirect') ?:
 		       $this->_getConfig()->xtra('security', 'redirect');

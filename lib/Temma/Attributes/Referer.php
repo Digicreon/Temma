@@ -6,7 +6,7 @@
  * @copyright	© 2023, Amaury Bouchard
  */
 
-namespace Temma\Web\Attributes;
+namespace Temma\Attributes;
 
 use \Temma\Base\Log as TµLog;
 use \Temma\Exceptions\Application as TµApplicationException;
@@ -16,7 +16,7 @@ use \Temma\Exceptions\Application as TµApplicationException;
  *
  * Examples:
  * - Authorize requests coming from the same site only, for all actions of the controller:
- * use \Temma\Web\Attributes\Refere as TµReferer;
+ * use \Temma\Attributes\Referer as TµReferer;
  * #[TµReferer]
  * class SomeController extends \Temma\Web\Controller {
  *     // ...
@@ -29,11 +29,11 @@ use \Temma\Exceptions\Application as TµApplicationException;
  * - Authorize requests coming from the 'fubar.com' domain:
  * #[TµReferer('fubar.com')]
  * - Authorize requests coming from the 'fubar.com' and 'www.fubar.com' domains:
- * #[TµReferer(domains: ['fubar.com', 'www.fubar.com'])]
+ * #[TµReferer(['fubar.com', 'www.fubar.com'])]
  * - Authorize requests coming from any domain ending with '.fubar.com':
  * #[TµReferer(domainSuffix: '.fubar.com')]
  * - Authorize requests coming from any domain ending with '.fubar.com' or '.foobar.com':
- * #[TµReferer(domainSuffixes: ['.fubar.com', '.foobar.com'])]
+ * #[TµReferer(domainSuffix: ['.fubar.com', '.foobar.com'])]
  * - Authorize requests coming from any domain matching the specified regular expression:
  * #[TµReferer(domainRegex: '/^test\d?.fubar.(com|net)$/')]
  * - Authorize requests coming from the domain stored in the 'okDomain' template variable:
@@ -58,11 +58,11 @@ use \Temma\Exceptions\Application as TµApplicationException;
  * - Authorize requests coming from any page which path starts with '/fu/':
  * #[TµReferer(pathPrefix: '/fu/')]
  * - Authorize requests coming from any page which path starts with '/fu/' or '/bar/':
- * #[TµReferer(pathPrefixes: ['/fu/', '/bar/'])]
+ * #[TµReferer(pathPrefix: ['/fu/', '/bar/'])]
  * - Autorize requests coming from any page which path ends with '/api.xml':
  * #[TµReferer(pathSuffix: '/api.xml')]
  * - Authorize requests coming from any page which path ends with '/api.xml' or '/api.json':
- * #[TµReferer(pathSuffixes: ['/api.xml', '/api.json'])]
+ * #[TµReferer(pathSuffix: ['/api.xml', '/api.json'])]
  * - Authorize requests coming from any page which path matches the given regular expression:
  * #[TµReferer(pathRegex: '/^\/.*testApi.*\.xml$/')]
  * - Authorize requests coming from a page which path is stored in the 'okPath' template variable:
@@ -87,8 +87,6 @@ use \Temma\Exceptions\Application as TµApplicationException;
  * #[TµReferer(redirect: '/login')]
  * - Redirect using the URL defined in the 'redirRef' template variable:
  * #[TµReferer(redirectVar: 'redirRef')]
- * - Redirect using the 'refererRedirect' key in the 'x-security' extended configuration:
- * #[TµReferer(redirectConfig: true)]
  *
  * @see	\Temma\Web\Controller
  */
@@ -96,19 +94,15 @@ use \Temma\Exceptions\Application as TµApplicationException;
 class Referer extends \Temma\Web\Attribute {
 	/**
 	 * Constructor.
-	 * @param	null|bool|string|array	$domain		(optional) Authorized domain.
-	 * @param	null|string|array	$domains	(optional) Authorized domains.
-	 * @param	null|string|array	$domainSuffix	(optional) Authorized domain suffix.
-	 * @param	null|string|array	$domainSuffixes	(optional) Authorized domain suffixes.
+	 * @param	null|bool|string|array	$domain		(optional) Authorized domain or list of authorized domains.
+	 * @param	null|string|array	$domainSuffix	(optional) Authorized domain suffix or list of suffixes.
 	 * @param	?string			$domainRegex	(optional) Authorized domain regular expression.
 	 * @param	?string			$domainVar	(optional) Name of the template variable which contains the authorized domain.
 	 * @param	bool			$domainConfig	(optional) True to use the 'refererDomain' key of the 'x-security' extended configuration.
 	 * @param	null|bool|string	$https		(optional) SSL configuration.
 	 * @param	null|string|array	$path		(optional) Authorized path.
-	 * @param	null|string|array	$pathPrefix	(optional) Authorized path prefix.
-	 * @param	null|string|array	$pathPrefixes	(optional) Authorized path prefixes.
-	 * @param	null|string|array	$pathSuffix	(optional) Authorized path suffix.
-	 * @param	null|string|array	$pathSuffixes	(optional) Authorized path suffixes.
+	 * @param	null|string|array	$pathPrefix	(optional) Authorized path prefix or list of prefixes.
+	 * @param	null|string|array	$pathSuffix	(optional) Authorized path suffix or list of suffixes.
 	 * @param	?string			$pathRegex	(optional) Authorized path regular expression.
 	 * @param	?string			$pathVar	(optional) Name of the template variable which contains the authorized path.
 	 * @param	bool			$pathConfig	(optional) True to use the 'refererPath' key of the 'x-security' extended configuration.
@@ -121,12 +115,10 @@ class Referer extends \Temma\Web\Attribute {
 	 * @throws	\Temma\Exceptions\Application	If the referer is not authorized.
 	 * @throws	\Temma\Exceptions\FlowHalt	If the user is not authorized and a redirect URL has been given.
 	 */
-	public function __construct(null|bool|string|array $domain=null, null|string|array $domains=null,
-	                            null|string|array $domainSuffix=null, null|string|array $domainSuffixes=null,
+	public function __construct(null|bool|string|array $domain=null, null|string|array $domainSuffix=null,
 	                            ?string $domainRegex=null, ?string $domainVar=null, bool $domainConfig=false,
 	                            null|bool|string $https=null, null|string|array $path=null,
-	                            null|string|array $pathPrefix=null, null|string|array $pathPrefixes=null,
-	                            null|string|array $pathSuffix=null, null|string|array $pathSuffixes=null,
+	                            null|string|array $pathPrefix=null, null|string|array $pathSuffix=null,
 	                            ?string $pathRegex=null, ?string$pathVar=null, bool $pathConfig=false,
 	                            null|bool|string|array $url=null, ?string $urlRegex=null,
 	                            ?string $urlVar=null, bool $urlConfig=false,
@@ -163,10 +155,6 @@ class Referer extends \Temma\Web\Attribute {
 				$checkDomains[] = $domain;
 			else if (is_array($domain))
 				$checkDomains = $domain;
-			if (is_string($domains))
-				$checkDomains[] = $domains;
-			else if (is_array($domains))
-				$checkDomains = array_merge($checkDomains, $domains);
 			if ($domainVar) {
 				if (is_string($this[$domainVar]))
 					$checkDomains[] = $this[$domainVar];
@@ -175,7 +163,7 @@ class Referer extends \Temma\Web\Attribute {
 			}
 			if ($domainConfig) {
 				$conf = $this->_getConfig()->xtra('security', 'refererDomain');
-				if (is_string($conf))
+			if (is_string($conf))
 					$checkDomains[] = $conf;
 				else if (is_array($conf))
 					$checkDomains = array_merge($checkDomains, $conf);
@@ -194,16 +182,8 @@ class Referer extends \Temma\Web\Attribute {
 				}
 			}
 			// check domain suffix
-			$checkDomains = [];
-			if (is_string($domainSuffix))
-				$checkDomains[] = $domainSuffix;
-			else if (is_array($domainSuffix))
-				$checkDomains = $domainSuffix;
-			if (is_string($domainSuffixes))
-				$checkDomains[] = $domainSuffixes;
-			else if (is_array($domainSuffixes))
-				$checkDomains = array_merge($checkDomains, $domainSuffixes);
-			if ($checkDomains) {
+			if ($domainSuffix) {
+				$checkDomains = is_array($domainSuffix) ? $domainSuffix : [$domainSuffix];
 				$found = false;
 				foreach ($checkDomains as $domain) {
 					if (str_ends_with($ref['host'], $domain)) {
@@ -291,16 +271,8 @@ class Referer extends \Temma\Web\Attribute {
 				}
 			}
 			// check path prefix
-			$checkPath = [];
-			if (is_string($pathPrefix))
-				$checkPath[] = $pathPrefix;
-			else if (is_array($pathPrefix))
-				$checkPath = $pathPrefix;
-			if (is_string($pathPrefixes))
-				$checkPath[] = $pathPrefixes;
-			else if (is_array($pathPrefixes))
-				$checkPath = array_merge($checkPath, $pathPrefixes);
-			if ($checkPath) {
+			if ($pathPrefix) {
+				$checkPath = is_array($pathPrefix) ? $pathPrefix : [$pathPrefix];
 				$found = false;
 				foreach ($checkPath as $path) {
 					if (str_starts_with($ref['path'], $path)) {
@@ -314,16 +286,8 @@ class Referer extends \Temma\Web\Attribute {
 				}
 			}
 			// check path suffix
-			$checkPath = [];
-			if (is_string($pathSuffix))
-				$checkPath[] = $pathSuffix;
-			else if (is_array($pathSuffix))
-				$checkPath = $pathSuffix;
-			if (is_string($pathSuffixes))
-				$checkPath[] = $pathSuffixes;
-			else if (is_array($pathSuffixes))
-				$checkPath = array_merge($checkPath, $pathSuffixes);
-			if ($checkPath) {
+			if ($pathSuffix) {
+				$checkPath = is_array($pathSuffix) ? $pathSuffix : [$pathSuffix];
 				$found = false;
 				foreach ($checkPath as $path) {
 					if (str_ends_with($ref['path'], $path)) {

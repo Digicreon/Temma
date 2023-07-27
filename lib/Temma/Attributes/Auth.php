@@ -6,7 +6,7 @@
  * @copyright	© 2023, Amaury Bouchard
  */
 
-namespace Temma\Web\Attributes;
+namespace Temma\Attributes;
 
 use \Temma\Base\Log as TµLog;
 use \Temma\Exceptions\Application as TµApplicationException;
@@ -22,7 +22,7 @@ use \Temma\Exceptions\Application as TµApplicationException;
  *
  * Examples:
  * - Access to authenticated users only, for all actions of a controller:
- * use \Temma\Web\Attributes\Auth as TµAuth;
+ * use \Temma\Attributes\Auth as TµAuth;
  *
  * #[TµAuth]
  * class SomeController extends \Temma\Web\Controller {
@@ -48,7 +48,7 @@ use \Temma\Exceptions\Application as TµApplicationException;
  * #[TµAuth(service: 'image')]
  *
  * - Access to writers who have access rights on texts or images:
- * #[TµAuth(role: 'writer', services: ['text', 'image'])]
+ * #[TµAuth(role: 'writer', service: ['text', 'image'])]
  *
  * - Access to users who are writers and reviewers at the same time:
  * #[TµAuth('writer')]
@@ -67,9 +67,7 @@ class Auth extends \Temma\Web\Attribute {
 	/**
 	 * Constructor.
 	 * @param	null|string|array	$role		(optional) One or many user roles that must be matched (at least one).
-	 * @param	null|string|array	$roles		(optional) Same as the previous parameter.
 	 * @param	null|string|array	$service	(optional) One or many services that must be matched (at least one).
-	 * @param	null|string|array	$services	(optional) Same as the previous paramter.
 	 * @param	?bool			$isAdmin	(optional) Tell if the user must be super-administrator or not. (default value: null).
 	 *							- true if the user must be an administrator.
 	 *							- false if the user must not be an administrator.
@@ -83,9 +81,9 @@ class Auth extends \Temma\Web\Attribute {
 	 * @throws	\Temma\Exceptions\Application	If the user is not authorized.
 	 * @throws	\Temma\Exceptions\FlowHalt	If the user is not authorized and a redirect URL has been given.
 	 */
-	public function __construct(null|string|array $role=null, null|string|array $roles=null,
-	                            null|string|array $service=null, null|string|array $services=null,
-	                            ?bool $isAdmin=null, ?bool $authenticated=true, ?string $redirect=null, ?string $redirectVar=null) {
+	public function __construct(null|string|array $role=null, null|string|array $service=null,
+	                            ?bool $isAdmin=null, ?bool $authenticated=true,
+	                            ?string $redirect=null, ?string $redirectVar=null) {
 		try {
 			// check authentication
 			if ($authenticated === true && !($this['currentUser']['id'] ?? false)) {
@@ -106,16 +104,8 @@ class Auth extends \Temma\Web\Attribute {
 				throw new TµApplicationException("User is administrator.", TµApplicationException::UNAUTHORIZED);
 			}
 			// check roles
-			$authRoles = [];
-			if (is_string($role))
-				$authRoles[] = $role;
-			else if (is_array($role))
-				$authRoles = $role;
-			if (is_string($roles))
-				$authRoles[] = $roles;
-			else if (is_array($roles))
-				$authRoles = array_merge($authRoles, $roles);
-			if ($authRoles) {
+			if ($role) {
+				$authRoles = is_array($role) ? $role : [$role];
 				$userRoles = array_fill_keys(($this['currentUser']['roles'] ?? []), true);
 				$found = false;
 				foreach ($authRoles as $role) {
@@ -130,16 +120,8 @@ class Auth extends \Temma\Web\Attribute {
 				}
 			}
 			// check services
-			$authServices = [];
-			if (is_string($service))
-				$authServices = [$service];
-			else if (is_array($service))
-				$authServices = $service;
-			if (is_string($services))
-				$authServices[] = $services;
-			else if (is_array($services))
-				$authServices = array_merge($authServices, $services);
-			if ($authServices) {
+			if ($service) {
+				$authServices = is_array($service) ? $service : [$service];
 				$userServices = array_fill_keys(($this['currentUser']['services'] ?? []), true);
 				$found = false;
 				foreach ($authServices as $service) {

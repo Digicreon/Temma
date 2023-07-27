@@ -6,7 +6,7 @@
  * @copyright	© 2023, Amaury Bouchard
  */
 
-namespace Temma\Web\Attributes;
+namespace Temma\Attributes;
 
 use \Temma\Base\Log as TµLog;
 use \Temma\Exceptions\Application as TµApplicationException;
@@ -16,14 +16,14 @@ use \Temma\Exceptions\Application as TµApplicationException;
  *
  * Examples:
  * - Redirects access to any action of a controller:
- * use \Temma\Web\Attributes\Auth as TµRedirect;
+ * use \Temma\Attributes\Redirect as TµRedirect;
  * #[TµRedirect['/somewhere/else']
  * class SomeController extends \Temma\Web\Controller {
  *     ...
  * }
  *
  * - Redirect access to one sepcific action:
- * use \Temma\Web\Attributes\Auth as TµRedirect;
+ * use \Temma\Attributes\Redirect as TµRedirect;
  * class SomeController extends \Temma\Web\Controller {
  *     #[TµRedirect('/somewhere/else')]
  *     public function someAction() {

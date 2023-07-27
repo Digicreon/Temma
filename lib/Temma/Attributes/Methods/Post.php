@@ -1,43 +1,43 @@
 <?php
 
 /**
- * Put
+ * Post
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2023, Amaury Bouchard
  */
 
-namespace Temma\Web\Attributes\Methods;
+namespace Temma\Attributes\Methods;
 
 use \Temma\Base\Log as TµLog;
 use \Temma\Exceptions\Application as TµApplicationException;
 
 /**
- * Attribute used to force the PUT method on an action or on all actions of a controller.
+ * Attribute used to force the POST method on an action or on all actions of a controller.
  *
  * Examples:
- * use \Temma\Web\Attributes\Methods\Put as TµPut;
- * #[TµPut]
- * class PutOnlyController {
+ * use \Temma\Attributes\Methods\Post as TµPost;
+ * #[TµPost]
+ * class PostOnlyController {
  *     ...
  * }
  *
- * use \Temma\Web\Attributes\Methods\Put as TµPut;
+ * use \Temma\Attributes\Methods\Post as TµPost;
  * class SomeController {
- *     #[TµPut]
- *     public function putOnlyAction() { }
+ *     #[TµPost]
+ *     public function postOnlyAction() { }
  * }
  *
  * @see \Temma\Web\Controller
  */
 #[\Attribute(\Attribute::TARGET_CLASS | \Attribute::TARGET_METHOD)]
-class Put extends \Temma\Web\Attribute {
+class Post extends \Temma\Web\Attribute {
 	/**
 	 * Constructor.
-	 * @throws	\Temma\Exceptions\Application	If a method other than PUT is used.
+	 * @throws	\Temma\Exceptions\Application	If a method other than POST is used.
 	 * @throws 	\Temma\Exceptions\FlowHalt	If a redirection is defined.
 	 */
 	public function __construct() {
-		if ($_SERVER['REQUEST_METHOD'] == 'PUT')
+		if ($_SERVER['REQUEST_METHOD'] == 'POST')
 			return;
 		$url = $this->_getConfig()->xtra('security', 'methodRedirect') ?:
 		       $this->_getConfig()->xtra('security', 'redirect');

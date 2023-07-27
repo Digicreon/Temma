@@ -6,7 +6,7 @@
  * @copyright	© 2023, Amaury Bouchard
  */
 
-namespace Temma\Web\Attributes\Methods;
+namespace Temma\Attributes\Methods;
 
 use \Temma\Base\Log as TµLog;
 use \Temma\Exceptions\Application as TµApplicationException;
@@ -15,13 +15,13 @@ use \Temma\Exceptions\Application as TµApplicationException;
  * Attribute used to force the PATCH method on an action or on all actions of a controller.
  *
  * Examples:
- * use \Temma\Web\Attributes\Methods\Patch as TµPatch;
+ * use \Temma\Attributes\Methods\Patch as TµPatch;
  * #[TµPatch]
  * class PatchOnlyController {
  *     ...
  * }
  *
- * use \Temma\Web\Attributes\Methods\Patch as TµPatch;
+ * use \Temma\Attributes\Methods\Patch as TµPatch;
  * class SomeController {
  *     #[TµPatch]
  *     public function patchOnlyAction() { }

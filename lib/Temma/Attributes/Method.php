@@ -6,7 +6,7 @@
  * @copyright	© 2023, Amaury Bouchard
  */
 
-namespace Temma\Web\Attributes;
+namespace Temma\Attributes;
 
 use \Temma\Base\Log as TµLog;
 use \Temma\Exceptions\Application as TµApplicationException;
@@ -16,7 +16,7 @@ use \Temma\Exceptions\Application as TµApplicationException;
  *
  * Examples:
  * - Accept GET method only, for all actions of a controller:
- * use \Temma\Web\Attributes\Method as TµMethod;
+ * use \Temma\Attributes\Method as TµMethod;
  * #[TµMethod('GET')]
  * class SomeController extends \Temma\Web\Controller {
  *     ...
