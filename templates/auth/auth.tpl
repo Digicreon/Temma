@@ -15,6 +15,14 @@
 <html>
 <head>
 	<title>Login page</title>
+	<script>
+		function checkEmail(email) {
+			if (email.value.match(/^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$/))
+				return (true);
+			email.select();
+			return (false);
+		}
+	</script>
 </head>
 <body>
 
@@ -43,8 +51,8 @@
 	{else}
 		{* authentication form *}
 		<p>Please enter you email address</p>
-		<form method="post" action="/auth/authentication">
-			<input type="email" name="email" placeholder="somebody@somewhere.com" />
+		<form method="post" action="/auth/authentication" onsubmit="return checkEmail(this.email)">
+			<input id="email" type="email" name="email" placeholder="somebody@somewhere.com" />
 			<input type="submit" value="Send" />
 		</form>
 		<p><small>

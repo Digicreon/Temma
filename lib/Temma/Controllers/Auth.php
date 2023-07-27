@@ -9,8 +9,8 @@
 namespace Temma\Controllers;
 
 use \Temma\Base\Log as TµLog;
-use \Temma\Web\Attributes\Auth as TµAuth;
-use \Temma\Web\Attributes\Methods\Post as TµPost;
+use \Temma\Attributes\Auth as TµAuth;
+use \Temma\Attributes\Methods\Post as TµPost;
 use \Temma\Utils\Email as TµEmail;
 
 /**
@@ -24,8 +24,9 @@ use \Temma\Utils\Email as TµEmail;
  * * roles:    (set) Assigned roles of the user.
  * * services: (set) Services accessible by the user.
  * And another table named "AuthToken" with these fields:
- * * token:   (string) A 12 characters-long connection token.
- * * user_id: (int) Foreign key to the user.
+ * * token:      (string) A 12 characters-long connection token.
+ * * expiration: (datetime) Expiration date of the token.
+ * * user_id:    (int) Foreign key to the user.
  *
  * Example of tables creation request:
  * ```sql
@@ -174,12 +175,32 @@ class Auth extends \Temma\Web\Plugin {
 		// create DAO objects
 		$this->_createDao();
 		// search the user
-		$data = $this->_userDao->search($this->_dao->criteria()->equal('email', $email));
+		$criteria = $this->_dao->criteria()->equal('email', $email);
+		$data = $this->_userDao->search($criteria);
 		$user = $data[0] ?? null;
 		if (!isset($user['id'])) {
+			// user not registered
 			TµLog::log('Temma/App', 'DEBUG', "Unknown email address '$email'.");
-			$this->_session['authStatus'] = 'tokenSent';
-			return (self::EXEC_HALT);
+			// check if the user must be registered
+			$conf = $this->_config->xtra('security', 'auth');
+			if (!($conf['registration'] ?? false)) {
+				// no automatic registration
+				$this->_session['authStatus'] = 'tokenSent';
+				return (self::EXEC_HALT);
+			}
+			// register the user
+			TµLog::log('Temma/App', 'DEBUG', "Register user '$email'.");
+			$this->_userDao->create([
+				'email' => $email,
+			]);
+			$data = $this->_userDao->search($criteria);
+			$user = $data[0] ?? null;
+			if (!isset($user['id'])) {
+				// unable to register the user
+				TµLog::log('Temma/App', 'DEBUG', "Unable to register user '$email'.");
+				$this->_session['authStatus'] = 'tokenSent';
+				return (self::EXEC_HALT);
+			}
 		}
 		// create the connection token
 		$token = bin2hex(random_bytes(8));
@@ -267,24 +288,26 @@ Best regards";
 			'table' => 'User',
 		];
 		if (isset($conf['userData'])) {
-			if (isset($conf['userData']['base']))
-				$params['base'] = $conf['userData']['base'];
-			if (isset($conf['userData']['table']))
-				$params['table'] = $conf['userData']['table'];
-			if (isset($conf['userData']['id']))
-				$params['id'] = $conf['userData']['id'];
-			if (isset($conf['userData']['id']) ||
-			    isset($conf['userData']['email']) ||
-			    isset($conf['userData']['isAdmin']) ||
-			    isset($conf['userData']['roles']) ||
-			    isset($conf['userData']['services'])) {
-				$params['fields'] = [];
+			$fields = [];
+			foreach ($conf['userData'] as $name => $datum) {
+				if ($name == 'base')
+					$params['base'] = $datum;
+				else if ($name == 'table')
+					$params['table'] = $datum;
+				else if ($name == 'id') {
+					$params['id'] = $datum;
+					$fields[$datum] = 'id';
+				} else if ($name == $datum)
+					$fields[] = $name;
+				else
+					$fields[$datum] = $name;
+			}
+			if ($fields) {
 				foreach (['id', 'email', 'isAdmin', 'roles', 'services'] as $key) {
-					if (isset($conf['userData'][$key]))
-						$params['fields'][$conf['userData'][$key]] = $key;
-					else
-						$params['fields'][] = $key;
+					if (!isset($conf['userData'][$key]))
+						$fields[] = $key;
 				}
+				$params['fields'] = $fields;
 			}
 		}
 		$this->_userDao = $this->_loadDao($params);
