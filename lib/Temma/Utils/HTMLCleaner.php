@@ -36,19 +36,19 @@ class HTMLCleaner {
 		$text = htmlspecialchars($text, ENT_COMPAT, 'UTF-8');
 		$text = strip_tags($text);
 		$text = nl2br($text);
-		$text = self::clean($text, null, $nofollow);
 		if ($urlProcess) {
 			$text = preg_replace_callback('/(http[s]?:\/\/)([^\s<\),]+)/', function($matches) {
 				$url = $matches[1] . $matches[2];
-				$str = '<a href="' . $url . '" title="' . $url . '">';
+				$str = "<a href=\"$url\" title=\"$url\">";
 				if (mb_strlen($url) > 55)
-					$str .= mb_substr($url, 0, 55) . '...';
+					$str .= mb_substr($url, 0, 55) . '…';
 				else
 					$str .= $url;
 				$str .= '</a>';
 				return ($str);
 			}, $text);
 		}
+		$text = self::clean($text, null, $nofollow);
 		return ($text);
 	}
 	/**
@@ -72,10 +72,10 @@ class HTMLCleaner {
 		$to   = ['<b>',      '</b>',      '<i>',  '<i>',   '<s>',      '</s>'];
 		$html = str_replace($from, $to, trim($html));
 		// all texts must start with an opening <p> tag (otherwise HTMLPurifier remove all <ul> and <li> tags but not their contents)
-		if (substr($html, 0, 1) != '<')
+		if ($html[0] != '<')
 			$html = '<p>' . $html;
 		// replace double-br to generate paragraphs
-		$html = preg_replace('/<br \/>\s*<br \/>\s*/m', "\n\n", $html);
+		$html = preg_replace('/<br>\s*<br>\s*/m', "\n\n", $html);
 		// sub-lists management
 		$from = ['</li><ul><li>', '</li><ol><li>'];
 		$to   = ['<ul><li>',      '<ol><li>'];
@@ -196,9 +196,10 @@ class HTMLCleaner {
 			$html = str_replace($from, $to, $html);
 		}
 		// last cleaning
-		$from = ['<p><br>', '<br></p>', "</p>\n\n<p"];
-		$to =   ['<p>',     '</p>',     "</p>\n<p"];
+		$from = ['<p><br>', '<br></p>', "</p>\n\n<p", "<p>\n", "\n<"];
+		$to =   ['<p>',     '</p>',     "</p>\n<p",   '<p>',   '<'];
 		$html = str_replace($from, $to, $html);
+		$html = trim($html);
 		// return
 		return ($html);
 	}
