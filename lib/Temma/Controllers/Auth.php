@@ -275,7 +275,7 @@ It is valid for 1 hour and can only be used once.
 
 Best regards";
 		$message = sprintf($message, $authUrl);
-		$this->_loader->TµEmail->simpleMail($sender, $email, $subject, $message);
+		$this->_loader['\Temma\Utils\Email']->textMail($sender, $email, $subject, $message);
 	}
 	/** Creates the DAO objects. */
 	private function _createDao() : void {
