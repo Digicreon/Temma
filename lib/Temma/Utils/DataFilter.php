@@ -69,9 +69,9 @@ use \Temma\Exceptions\Application as TµApplicationException;
  * * Enum type (with an optional default value)
  * ```
  *	[
- *		'type'		=> 'enum',
- *		'values'	=> ['red', 'green', 'blue'],
- *		'default'	=> 'red',
+ *		'type'    => 'enum',
+ *		'values'  => ['red', 'green', 'blue'],
+ *		'default' => 'red',
  *	]
  * ```
  *
@@ -120,7 +120,7 @@ use \Temma\Exceptions\Application as TµApplicationException;
  *	]
  * ```
  *
- * * Complexe example
+ * * Complex example
  * ```
  *	[
  *		'type' => 'assoc',

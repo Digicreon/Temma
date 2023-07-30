@@ -106,7 +106,7 @@ class BaseConvert {
 		return (self::convertBase($input, $inDigits, $outDigits));
 	}
 	/**
-	 * Convert a positive number from any base to any other base (subsets of base85).
+	 * Convert a positive number from any base to any other base (subsets of base95).
 	 * @param	string		$input		The number to convert.
 	 * @param	int		$inBase		Size of the input base (any number between 2 and 95).
 	 * @param	int		$outBase	Size of the output base (any number between 2 and 95).

@@ -26,7 +26,7 @@ namespace Temma\Utils;
  * // (available colors are: black, red, green, yellow, blue, magenta, cyan, white)
  * print(\Temma\Utils\Ansi::color('red', 'blah blah blah'));
  * // write text in red over a blue background
- * print(\Temma\Utils\Ansi::backColor('blue', 'red', 'bla bla bla'));
+ * print(\Temma\Utils\Ansi::backColor('blue', 'red', 'blah blah blah'));
  * </code>
  */
 class Ansi {
