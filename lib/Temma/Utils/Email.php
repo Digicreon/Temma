@@ -13,11 +13,11 @@ use \Temma\Base\Log as TµLog;
 /**
  * Object used to send emails.
  *
- * Could be used directly as a staticc object:
+ * Could be used directly as a static object:
  * ```php
  * use \Temma\Utils\Email as TµEmail;
- * TµEmail::simpleMail('luke@rebellion.org', 'vader@empire.com', 'I can't beleive it', 'You are my father?');
- * TµEmail::fullMail('vader@empire.com', 'luke@rebellion.org', 'Yes', '<h1>Yes</h1><p>I am your father</p>');
+ * TµEmail::simpleMail('luke@rebellion.org', 'vader@empire.com', "I can't beleive it", "You are my father?");
+ * TµEmail::fullMail('vader@empire.com', 'luke@rebellion.org', "Yes", "<h1>Yes</h1><p>I am your father</p>");
  * ```
  *
  * The "temma.json" configuration file may contain an "x-email" extended configuration,
@@ -53,11 +53,11 @@ use \Temma\Base\Log as TµLog;
  */
 class Email implements \Temma\Base\Loadable {
 	/** Recipients added to all messages. */
-	static private ?array $_cc = [];
+	private ?array $_cc = [];
 	/** Blinded recipients added to all messages. */
-	static private ?array $_bcc = [];
+	private ?array $_bcc = [];
 	/** Envelope sender used for all messages. */
-	static private string $_envelopeSender = '';
+	private string $_envelopeSender = '';
 
 	/**
 	 * Constructeur.
@@ -66,38 +66,84 @@ class Email implements \Temma\Base\Loadable {
 	public function __construct(\Temma\Base\Loader $loader) {
 		$cc = $loader->config?->xtra('email', 'cc');
 		if (is_array($cc))
-			self::$_cc = array_filter($cc);
+			$this->_cc = array_filter($cc);
 		else if (is_string($cc) && $cc)
-			self::$_cc = [$cc];
+			$this->_cc = [$cc];
 		$bcc = $loader->config?->xtra('email', 'bcc');
 		if (is_array($bcc))
-			self::$_bcc = array_filter($bcc);
+			$this->_bcc = array_filter($bcc);
 		else if (is_string($bcc) && $bcc)
-			self::$_bcc = [$bcc];
+			$this->_bcc = [$bcc];
 		$envelopeSender = $loader->config?->xtra('email', 'envelopeSender');
 		if (is_string($envelopeSender))
-			self::$_envelopeSender = trim($envelopeSender);
+			$this->_envelopeSender = trim($envelopeSender);
 	}
 	/**
 	 * Define recipients for all messages.
 	 * @param	string|array	$cc	Additional recipients.
 	 */
-	static public function setCc(string|array $cc) : void {
-		self::$_cc = is_array($cc) ? $cc : [$cc];
+	public function setCc(string|array $cc) : void {
+		$this->_cc = is_array($cc) ? $cc : [$cc];
 	}
 	/**
 	 * Define blinded recipients for all messages.
 	 * @param	string|array	$bcc	Additional blinded recipients.
 	 */
-	static public function setBcc(string|array $bcc) : void {
-		self::$_bcc = is_array($bcc) ? $bcc : [$bcc];
+	public function setBcc(string|array $bcc) : void {
+		$this->_bcc = is_array($bcc) ? $bcc : [$bcc];
 	}
 	/**
 	 * Define the envelope sender for all messages.
 	 * @param	string	$envelopeSender	The envelope sender.
 	 */
-	static public function setEnvelopeSender(string $envelopeSender) : void {
-		self::$_envelopeSender = trim($envelopeSender);
+	public function setEnvelopeSender(string $envelopeSender) : void {
+		$this->_envelopeSender = trim($envelopeSender);
+	}
+	/**
+	 * Send a simple raw-text message, without attachment.
+	 * @param	string		$from		Sender of the message (in the form "Name <address@domain>" or "address@domain").
+	 * @param	string|array	$to		Recipient of the message, or list of recipients (each recipient in the form "Name <address@domain>" or "address@domain").
+	 * @param	string		$title		(optional) Title of the message.
+	 * @param	string		$message	(optional) Content of the message.
+	 * @param	string|array	$cc		(optional) Other recipient, or list of recipients.
+	 * @param	string|array	$bcc		(optional) Blinded recipient, or list of recipients.
+	 * @param	?string		$envelopeSender	(optional) Envelope sender passed to sendmail.
+	 */
+	public function textMail(string $from, string|array $to, string $title='', string $message='',
+	                         string|array $cc='', string|array $bcc='', ?string $envelopeSender=null) : void {
+		$cc = is_array($cc) ? $cc : [$cc];
+		$cc = array_merge($cc, $this->_cc);
+		$bcc = is_array($bcc) ? $bcc : [$bcc];
+		$bcc = array_merge($bcc, $this->_bcc);
+		$envelopeSender = $envelopeSender ?: $this->_envelopeSender;
+		self::simpleMail($from, $to, $title, $message, $cc, $bcc, $envelopeSender);
+	}
+	/**
+	 * Send an HTML mail, with or without a raw text version, with or without attached files.
+	 * @param	string		$from		Sender of the message (in the form "Name <address@domain>" or "address@domain").
+	 * @param	string|array	$to		Recipient of the message, or list of recipients (each recipient in the form "Name <address@domain>" or "address@domain").
+	 * @param	string		$title		(optional) Title of the message.
+	 * @param	string		$html		(optional) HTML content of the message.
+	 * @param	?string		$text		(optional) Raw text content of the message.
+	 * @param	?array		$attachments	(optional) List of files to attach, each one represented by an associative array containing these keys:
+	 *  			               		- filename	Name of the file.
+	 * 			               		- mimetype	MIME type of the file.
+	 * 			               		- data		Binary content of the file.
+	 * @param	string|array	$cc		(optional) Other recipient, or list of recipients.
+	 * @param	string|array	$bcc		(optional) Blinded recipient, or list of recipients.
+	 * @param	?string		$unsubscribe	(optional) Content for the "List-Unsubscribe" header.
+	 *						For example: "<mailto:contact@site.com?subject=Unsubscribe>, <https://www.site.com/mail/unsubscribe>"
+	 * @param	?string		$envelopeSender	(optional) Envelope sender passed to sendmail.
+	 */
+	public function mimeMail(string $from, string|array $to, string $title='', string $html='', ?string $text=null,
+	                         ?array $attachments=null, string|array $cc='', string|array $bcc='',
+	                         ?string $unsubscribe=null, ?string $envelopeSender=null) : void {
+		$cc = is_array($cc) ? $cc : [$cc];
+		$cc = array_merge($cc, $this->_cc);
+		$bcc = is_array($bcc) ? $bcc : [$bcc];
+		$bcc = array_merge($bcc, $this->_bcc);
+		$envelopeSender = $envelopeSender ?: $this->_envelopeSender;
+		self::fullMail($from, $to, $title, $html, $text, $attachments, $cc, $bcc, $unsubscribe, $envelopeSender);
 	}
 	/**
 	 * Send a simple raw-text message, without attachment.
@@ -125,10 +171,6 @@ class Email implements \Temma\Base\Loadable {
 			$cc = array_filter($cc);
 			$cc = implode(', ', $cc);
 		}
-		if (self::$_cc) {
-			$cc .= $cc ? ', ' : '';
-			$cc .= implode(', ', self::$_cc);
-		}
 		if ($cc)
 			$headers[] = "Cc: $cc";
 		// blinded recipients
@@ -136,18 +178,12 @@ class Email implements \Temma\Base\Loadable {
 			$bcc = array_filter($bcc);
 			$bcc = implode(', ', $bcc);
 		}
-		if (self::$_bcc) {
-			$bcc .= $bcc ? ", " : "";
-			$bcc .= implode(', ', self::$_bcc);
-		}
 		if ($bcc)
 			$headers[] = "Bcc: $bcc";
 		// management of the envelope sender
 		$params = '';
 		if ($envelopeSender)
 			$params = "-f$envelopeSender";
-		else if (self::$_envelopeSender)
-			$params = '-f' . self::$_envelopeSender;
 		// send the message
 		mail($to, $title, $message, implode("\r\n", $headers), $params);
 	}
@@ -158,7 +194,7 @@ class Email implements \Temma\Base\Loadable {
 	 * @param	string		$title		(optional) Title of the message.
 	 * @param	string		$html		(optional) HTML content of the message.
 	 * @param	?string		$text		(optional) Raw text content of the message.
-	 * @param	?array		$attachments	(optional) Associative array with the list of files to attach, containing these keys:
+	 * @param	?array		$attachments	(optional) List of files to attach, each one represented by an associative array containing these keys:
 	 *  			               		- filename	Name of the file.
 	 * 			               		- mimetype	MIME type of the file.
 	 * 			               		- data		Binary content of the file.
@@ -188,20 +224,12 @@ class Email implements \Temma\Base\Loadable {
 			$cc = array_filter($cc);
 			$cc = implode(', ', $cc);
 		}
-		if (self::$_cc) {
-			$cc .= $cc ? ', ' : '';
-			$cc .= implode(', ', self::$_cc);
-		}
 		if ($cc)
 			$headers[] = "Cc: $cc";
 		// blinded recipients
 		if (is_array($bcc)) {
 			$bcc = array_filter($bcc);
 			$bcc = implode(', ', $bcc);
-		}
-		if (self::$_bcc) {
-			$bcc .= $bcc ? ", " : "";
-			$bcc .= implode(', ', self::$_bcc);
 		}
 		if ($bcc)
 			$headers[] = "Bcc: $bcc";
@@ -271,8 +299,6 @@ class Email implements \Temma\Base\Loadable {
 		$params = '';
 		if ($envelopeSender)
 			$params = "-f$envelopeSender";
-		else if (self::$_envelopeSender)
-			$params = '-f' . self::$_envelopeSender;
 		// send the message
 		mail($to, $title, $message, implode("\r\n", $headers), $params);
 	}
