@@ -30,22 +30,24 @@ namespace Temma\Utils;
  * Result:
  * <code>
  * [user1]
- * "name"="Alice"
- * "age"=28
+ * name="Alice"
+ * age=28
  * [user2]
- * "name"="Bob"
- * "age"=5
+ * name="Bob"
+ * age=54
  * </code>
  */
 class IniExport {
 	/**
 	 * Generate a INI stream.
-	 * @param	mixed	$data		Data to serialize.
+	 * @param	?array	$data		Data to serialize.
 	 * @param	bool	$sections	(optional) True if there are sections.
 	 * @return	string	The generated INI stream.
 	 * @throws	\Exception	If a non-scalar data is found.
 	 */
-	static public function generate(mixed $data, bool $sections=false) : string {
+	static public function generate(?array $data, bool $sections=false) : string {
+		if (!$data)
+			return ('');
 		if (!$sections) {
 			return (self::_generateContent($data));
 		}
@@ -58,15 +60,19 @@ class IniExport {
 	}
 	/**
 	 * Private method, used to export data.
-	 * @param	mixed	$data	Data to serialize.
+	 * @param	array	$data	Data to serialize.
 	 * @return	string	The serialized string.
+	 * @throws	\Exception	If a non-scalar value is found.
 	 */
-	static private function _generateContent(mixed $data) : string {
+	static private function _generateContent(array $data) : string {
 		$ini = '';
 		foreach ($data as $key => $value) {
 			if (is_array($value)) {
-				foreach ($value as $subvalue) {
-					$ini .= '"' . $key . '[]"=';
+				foreach ($value as $subkey => $subvalue) {
+					if (is_int($subkey))
+						$ini .= $key . '[]=';
+					else
+						$ini .= $key . '[' . $subkey . ']=';
 					if (is_null($subvalue)) {
 						$ini .= 'null';
 					} else if (is_bool($subvalue)) {
@@ -80,7 +86,7 @@ class IniExport {
 					$ini .= "\n";
 				}
 			} else {
-				$ini .= "\"$key\"=";
+				$ini .= $key . '=';
 				if (is_null($value)) {
 					$ini .= 'null';
 				} else if (is_bool($value)) {
