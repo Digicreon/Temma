@@ -6,7 +6,7 @@
  * @copyright	© 2021-2023, Amaury Bouchard
  */
 
-namespace Temma\Base;
+namespace Temma\Utils;
 
 use \Temma\Base\Log as TµLog;
 use \Temma\Exceptions\IO as TµIOException;
@@ -19,19 +19,19 @@ use \Temma\Exceptions\Application as TµAppException;
  * or a program could be executed only once at a time.
  * <code>
  * // 1. Basic usage: try to lock the execution of the current program
- * if (!\Temma\Base\Lock::lock(__FILE__)) {
+ * if (!\Temma\Utils\Lock::lock(__FILE__)) {
  *     // the program is already in use
  * }
  *
  * // 2. Lock a file and wait until it's available, and unlock it afterwards
- * \Temma\Base\Lock::lock($pathToResource, true);
+ * \Temma\Utils\Lock::lock($pathToResource, true);
  * ... do something
- * \Temma\Base\Lock::unlock($pathToResource);
+ * \Temma\Utils\Lock::unlock($pathToResource);
  *
  * // 3. Lock the access to a given file
  * // if the file is already locked, wait until it is available
  * try {
- *     $lock = new \Temma\Base\Lock('/path/to/file');
+ *     $lock = new \Temma\Utils\Lock('/path/to/file');
  * } catch (\Temma\Exceptions\IO $eio) {
  *     // an error occurred
  * }
@@ -40,7 +40,7 @@ use \Temma\Exceptions\Application as TµAppException;
  *
  * // 4. Lock a given file using a non-blocking method
  * try {
- *     $lock = new \Temma\Base\Lock('/path/to/file', false);
+ *     $lock = new \Temma\Utils\Lock('/path/to/file', false);
  * } catch (\Temma\Exceptions\Application $ea) {
  *     // the file if already locked
  * } catch (\Temma\Exceptions\IO $eio) {
