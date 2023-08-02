@@ -27,18 +27,21 @@ class Timer {
 	protected ?float $_begin = null;
 	/** Date of timing end. */
 	protected ?float $_end = null;
+	/** already elapsed time. */
+	protected float $_elapsed = 0.0;
 
 	/**
-	 * Starts a timing.
+	 * Starts a timer.
 	 * @return	\Temma\Utils\Timer	The current instance.
 	 */
 	public function start() : \Temma\Utils\Timer {
 		$this->_begin = microtime(true);
 		$this->_end = null;
+		$this->_elapsed = 0.0;
 		return ($this);
 	}
 	/**
-	 * Stops a timing.
+	 * Stops a timer.
 	 * @return	\Temma\Utils\Timer	The current instance.
 	 */
 	public function stop() : \Temma\Utils\Timer {
@@ -46,10 +49,12 @@ class Timer {
 		return ($this);
 	}
 	/**
-	 * Resume a timing.
+	 * Resume a timer.
 	 * @return	\Temma\Utils\Timer	The current instance.
 	 */
 	public function resume() : \Temma\Utils\Timer {
+		$this->_elapsed = $this->getTime();
+		$this->_begin = microtime(true);
 		$this->_end = null;
 		return ($this);
 	}
@@ -62,7 +67,7 @@ class Timer {
 		if (is_null($this->_begin))
 			return (0);
 		$end = $this->_end ?? microtime(true);
-		$total = $end - $this->_begin;
+		$total = ($end - $this->_begin) + $this->_elapsed;
 		return ($total);
 	}
 }
