@@ -103,11 +103,11 @@ class Criteria {
 	}
 	/**
 	 * Add an equality criterion.
-	 * @param	string	$field	Field name.
-	 * @param	mixed	$value	Comparison value.
+	 * @param	string				$field	Field name.
+	 * @param	null|int|float|string|array	$value	Comparison value(s).
 	 * @return	\Temma\Dao\Criteria	The current object.
 	 */
-	public function equal(string $field, mixed $value) : \Temma\Dao\Criteria {
+	public function equal(string $field, null|int|float|string|array $value) : \Temma\Dao\Criteria {
 		$s = '';
 		if (is_array($value)) {
 			$values = [];
@@ -123,11 +123,11 @@ class Criteria {
 	}
 	/**
 	 * Add a non equality criterion.
-	 * @param	string	$field	Field name.
-	 * @param	mixed	$value	Comparison value.
+	 * @param	string				$field	Field name.
+	 * @param	null|int|float|string|array	$value	Comparison value(s).
 	 * @return	\Temma\Dao\Criteria	The current object.
 	 */
-	public function different(string $field, mixed $value) : \Temma\Dao\Criteria {
+	public function different(string $field, null|int|float|string|array $value) : \Temma\Dao\Criteria {
 		$s = '';
 		if (is_array($value)) {
 			$values = [];
@@ -164,41 +164,41 @@ class Criteria {
 	}
 	/**
 	 * Add a "less than" criterion.
-	 * @param	string		$field	Field name.
-	 * @param	int|float	$value	Comparison value.
+	 * @param	string			$field	Field name.
+	 * @param	int|float|string	$value	Comparison value.
 	 * @return	\Temma\Dao\Criteria	The current object.
 	 */
-	public function lessThan(string $field, int|float $value) : \Temma\Dao\Criteria {
+	public function lessThan(string $field, int|float|string $value) : \Temma\Dao\Criteria {
 		$this->_addCriteria($field, '<', $value);
 		return ($this);
 	}
 	/**
 	 * Add a "greater than" criterion.
-	 * @param	string		$field	Field name.
-	 * @param	int|float	$value	Comparison value.
+	 * @param	string			$field	Field name.
+	 * @param	int|float|string	$value	Comparison value.
 	 * @return	\Temma\Dao\Criteria	The current object.
 	 */
-	public function greaterThan(string $field, int|float $value) : \Temma\Dao\Criteria {
+	public function greaterThan(string $field, int|float|string $value) : \Temma\Dao\Criteria {
 		$this->_addCriteria($field, '>', $value);
 		return ($this);
 	}
 	/**
 	 * Add a "less or equal to" criterion.
-	 * @param	string		$field	Field name.
-	 * @param	int|float	$value	Comparison value.
+	 * @param	string			$field	Field name.
+	 * @param	int|float|string	$value	Comparison value.
 	 * @return	\Temma\Dao\Criteria	The current object.
 	 */
-	public function lessOrEqualTo(string $field, int|float $value) : \Temma\Dao\Criteria {
+	public function lessOrEqualTo(string $field, int|float|string $value) : \Temma\Dao\Criteria {
 		$this->_addCriteria($field, '<=', $value);
 		return ($this);
 	}
 	/**
 	 * Add a "grater or equal to" criterion.
-	 * @param	string		$field	Field name.
-	 * @param	int|float	$value	Comparison value.
+	 * @param	string			$field	Field name.
+	 * @param	int|float|string	$value	Comparison value.
 	 * @return	\Temma\Dao\Criteria	L'instance de l'objet courant.
 	 */
-	public function greaterOrEqualTo(string $field, int|float $value) : \Temma\Dao\Criteria {
+	public function greaterOrEqualTo(string $field, int|float|string $value) : \Temma\Dao\Criteria {
 		$this->_addCriteria($field, '>=', $value);
 		return ($this);
 	}
@@ -210,22 +210,22 @@ class Criteria {
 	public function hasNot(string $field) : \Temma\Dao\Criteria {
 		return ($this->isNot($field));
 	}
-	public function eq($field, $value) : \Temma\Dao\Criteria {
+	public function eq(string $field, null|int|float|string|array $value) : \Temma\Dao\Criteria {
 		return ($this->equal($field, $value));
 	}
-	public function ne($field, $value) : \Temma\Dao\Criteria {
+	public function ne(string $field, null|int|float|string|array $value) : \Temma\Dao\Criteria {
 		return ($this->different($field, $value));
 	}
-	public function lt($field, $value) : \Temma\Dao\Criteria {
+	public function lt(string $field, int|float|string $value) : \Temma\Dao\Criteria {
 		return ($this->lessThan($field, $value));
 	}
-	public function gt($field, $value) : \Temma\Dao\Criteria {
+	public function gt(string $field, int|float|string $value) : \Temma\Dao\Criteria {
 		return ($this->greaterThan($field, $value));
 	}
-	public function le($field, $value) : \Temma\Dao\Criteria {
+	public function le(string $field, int|float|string $value) : \Temma\Dao\Criteria {
 		return ($this->lessOrEqualTo($field, $value));
 	}
-	public function ge($field, $value) : \Temma\Dao\Criteria {
+	public function ge(string $field, int|float|string $value) : \Temma\Dao\Criteria {
 		return ($this->greaterOrEqualTo($field, $value));
 	}
 
@@ -246,7 +246,7 @@ class Criteria {
 	 * @param	string	$operator	(optional) Search operator. (default: '')
 	 * @param	string	$value		(optional) Search value.
 	 */
-	protected function _addTypedCriteria(string$type, string $field, string $operator='', ?string $value=null) : void {
+	protected function _addTypedCriteria(string $type, string $field, string $operator='', ?string $value=null) : void {
 		$field = $this->_dao->getFieldName($field);
 		if ($operator)
 			$criteria = "`$field` $operator " . (isset($value) ? $this->_db->quote($value) : '');
