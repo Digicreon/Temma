@@ -200,7 +200,7 @@ class Auth extends \Temma\Web\Plugin {
 		// create DAO objects
 		$this->_createDao();
 		// search the user
-		$criteria = $this->_dao->criteria()->equal('email', $email);
+		$criteria = $this->_userDao->criteria()->equal('email', $email);
 		$data = $this->_userDao->search($criteria);
 		$user = $data[0] ?? null;
 		if (!isset($user['id'])) {
@@ -255,13 +255,14 @@ class Auth extends \Temma\Web\Plugin {
 			     ->lessThan($this->_expirationFieldName, date('Y-m-d H:i:s'))
 		);
 		// get user ID from the token
-		$tokenData = $this->_tokenDao->get($token);
+		$criteria = $this->_tokenDao->criteria()->equal($this->_tokenFieldName, $token);
+		$tokenData = $this->_tokenDao->search($criteria);
 		// remove the token from database
-		$this->_tokenDao->remove($token);
+		$this->_tokenDao->remove($criteria);
 		// get the user
 		$currentUser = null;
-		if (($tokenData['user_id'] ?? null))
-			$currentUser = $this->_userDao->get($tokenData['user_id']);
+		if (($tokenData[0]['user_id'] ?? null))
+			$currentUser = $this->_userDao->get($tokenData[0]['user_id']);
 		// check the user (hence the token)
 		if (!$currentUser) {
 			$this->_session['authStatus'] = 'badToken';
@@ -366,6 +367,7 @@ Best regards";
 			} else
 				$params['fields'][] = 'user_id';
 		}
+		$this->_tokenDao = $this->_loadDao($params);
 	}
 }
 
