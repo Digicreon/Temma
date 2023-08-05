@@ -152,18 +152,21 @@ class Dao {
 	 * @return	array	Associative array.
 	 */
 	public function get(int|string|\Temma\Dao\Criteria $id) : array {
+		if (is_int($id) || is_string($id)) {
+			$where = '`' . $this->_idField . "` = " . $this->_db->quote($id);
+			$idHash = md5($id);
+		} else {
+			$where = $id->generate();
+			$idHash = md5($where);
+		}
 		// search data in cache
-		$cacheVarName = '__dao:' . $this->_dbName . ':' . $this->_tableName . ":get:$id";
+		$cacheVarName = '__dao:' . $this->_dbName . ':' . $this->_tableName . ":get:$idHash";
 		if (($data = $this->_getCache($cacheVarName)) !== null)
 			return ($data);
 		// query execution
 		$sql = 'SELECT ' . $this->_getFieldsString() . ' FROM ' .
 			(!$this->_dbName ? '' : ('`' . $this->_dbName . '`.')) . '`' . $this->_tableName . '`' .
-			' WHERE ';
-		if (is_int($id) || is_string($id))
-			$sql .= '`' . $this->_idField . "` = " . $this->_db->quote($id);
-		else
-			$sql .= $id->generate();
+			' WHERE ' . $where;
 		$data = $this->_db->queryOne($sql);
 		// write result in cache
 		$this->_setCache($cacheVarName, $data);
