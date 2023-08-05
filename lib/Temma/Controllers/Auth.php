@@ -45,7 +45,8 @@ use \Temma\Utils\Email as TµEmail;
  *     token         CHAR(40) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
  *     expiration    DATETIME NOT NULL,
  *     user_id       INT UNSIGNED NOT NULL,
- *     PRIMARY KEY token (token(40)),
+ *     PRIMARY KEY (token),
+ *     INDEX expiration (expiration),
  *     FOREIGN KEY (user_id) REFERENCES User (id) ON DELETE CASCADE
  * ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
  * ```
