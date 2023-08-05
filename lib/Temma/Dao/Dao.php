@@ -147,11 +147,11 @@ class Dao {
 		return ($data['nb']);
 	}
 	/**
-	 * Fetch a record from its primary key.
-	 * @param	int|string	$id	Primary key of the record.
+	 * Fetch a record from its primary key, or the first record matching a criteria.
+	 * @param	int|string|\Temma\Dao\Criteria	$id	Primary key or criteria.
 	 * @return	array	Associative array.
 	 */
-	public function get(int|string $id) : array {
+	public function get(int|string|\Temma\Dao\Criteria $id) : array {
 		// search data in cache
 		$cacheVarName = '__dao:' . $this->_dbName . ':' . $this->_tableName . ":get:$id";
 		if (($data = $this->_getCache($cacheVarName)) !== null)
@@ -159,7 +159,11 @@ class Dao {
 		// query execution
 		$sql = 'SELECT ' . $this->_getFieldsString() . ' FROM ' .
 			(!$this->_dbName ? '' : ('`' . $this->_dbName . '`.')) . '`' . $this->_tableName . '`' .
-			' WHERE `' . $this->_idField . "` = " . $this->_db->quote($id);
+			' WHERE ';
+		if (is_int($id) || is_string($id))
+			$sql .= '`' . $this->_idField . "` = " . $this->_db->quote($id);
+		else
+			$sql .= $id->generate();
 		$data = $this->_db->queryOne($sql);
 		// write result in cache
 		$this->_setCache($cacheVarName, $data);

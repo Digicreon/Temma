@@ -42,10 +42,10 @@ use \Temma\Utils\Email as TµEmail;
  * ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
  *
  * CREATE TABLE AuthToken (
- *     token         CHAR(12) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
+ *     token         CHAR(40) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
  *     expiration    DATETIME NOT NULL,
  *     user_id       INT UNSIGNED NOT NULL,
- *     PRIMARY KEY token (token(12)),
+ *     PRIMARY KEY token (token(40)),
  *     FOREIGN KEY (user_id) REFERENCES User (id) ON DELETE CASCADE
  * ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
  * ```
@@ -201,8 +201,7 @@ class Auth extends \Temma\Web\Plugin {
 		$this->_createDao();
 		// search the user
 		$criteria = $this->_userDao->criteria()->equal('email', $email);
-		$data = $this->_userDao->search($criteria);
-		$user = $data[0] ?? null;
+		$user = $this->_userDao->get($criteria);
 		if (!isset($user['id'])) {
 			// user not registered
 			TµLog::log('Temma/App', 'DEBUG', "Unknown email address '$email'.");
@@ -218,8 +217,7 @@ class Auth extends \Temma\Web\Plugin {
 			$this->_userDao->create([
 				'email' => $email,
 			]);
-			$data = $this->_userDao->search($criteria);
-			$user = $data[0] ?? null;
+			$user = $this->_userDao->get($criteria);
 			if (!isset($user['id'])) {
 				// unable to register the user
 				TµLog::log('Temma/App', 'DEBUG', "Unable to register user '$email'.");
@@ -231,8 +229,9 @@ class Auth extends \Temma\Web\Plugin {
 		$token = bin2hex(random_bytes(8));
 		$token = \Temma\Utils\BaseConvert::convertToSpecialBase($token, 16, 31);
 		$token = substr($token, 0, 12);
+		// store the token in database
 		$this->_tokenDao->create([
-			$this->_tokenFieldName      => $token,
+			$this->_tokenFieldName      => \Temma\Utils\BaseConvert::convert(hash('sha256', $token), 16, 85),
 			$this->_expirationFieldName => date('Y-m-d H:i:s', strtotime('+1 hour')),
 			$this->_userIdFieldName     => $user['id'],
 		]);
@@ -251,18 +250,18 @@ class Auth extends \Temma\Web\Plugin {
 		$this->_createDao();
 		// remove expired tokens
 		$this->_tokenDao->remove(
-			$this->_tokenDao->criteria()
-			     ->lessThan($this->_expirationFieldName, date('Y-m-d H:i:s'))
+			$this->_tokenDao->criteria()->lessThan($this->_expirationFieldName, date('Y-m-d H:i:s'))
 		);
 		// get user ID from the token
+		$token = \Temma\Utils\BaseConvert::convert(hash('sha256', $token), 16, 85);
 		$criteria = $this->_tokenDao->criteria()->equal($this->_tokenFieldName, $token);
-		$tokenData = $this->_tokenDao->search($criteria);
+		$tokenData = $this->_tokenDao->get($criteria);
 		// remove the token from database
 		$this->_tokenDao->remove($criteria);
 		// get the user
 		$currentUser = null;
-		if (($tokenData[0]['user_id'] ?? null))
-			$currentUser = $this->_userDao->get($tokenData[0]['user_id']);
+		if (($tokenData['user_id'] ?? null))
+			$currentUser = $this->_userDao->get($tokenData['user_id']);
 		// check the user (hence the token)
 		if (!$currentUser) {
 			$this->_session['authStatus'] = 'badToken';
