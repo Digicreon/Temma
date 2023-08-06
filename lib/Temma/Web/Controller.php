@@ -127,7 +127,7 @@ class Controller implements \ArrayAccess {
 		if (isset($daoConf['source']) && isset($this->_dataSources[$daoConf['source']]))
 			$dataSource = $this->_loader->dataSources[$daoConf['source']];
 		else
-			$dataSource = reset($this->_loader->dataSources);
+			$dataSource = $this->_loader->dataSources[\Temma\Web\Framework::DEFAULT_DATASOURCE] ?? reset($this->_loader->dataSources);
 		$dao = new $daoConf['object']($dataSource, ($daoConf['cache'] ? $this->_loader->cache : null), $daoConf['table'], $daoConf['id'],
 		                              $daoConf['base'], $daoConf['fields'], $daoConf['criteria']);
 		return ($dao);

@@ -70,15 +70,17 @@ class Dao {
 	/** Cache connection. */
 	protected ?\Temma\Base\Datasource $_cache;
 	/** Tell if the cache must be disabled. */
-	protected bool $_disableCache = false;
+	protected $_disableCache = false;
 	/** Name of the database. */
-	protected ?string $_dbName = null;
+	protected $_dbName = null;
 	/** Name of the table. */
-	protected ?string $_tableName = null;
+	protected $_tableName = null;
 	/** Name of the table's primary key. */
-	protected ?string $_idField = null;
+	protected $_idField = null;
 	/** List of the table's fields (with rename mapping if needed) */
-	protected ?array $_fields = null;
+	protected $_fields = null;
+	/** List of the table's fields, indexed by their alias names. */
+	private ?array $_fieldAliases = null;
 	/** String with the list of fields (after generation from the list of fields). */
 	private ?string $_fieldsString = null;
 
@@ -103,10 +105,13 @@ class Dao {
 			$this->_idField = $idField;
 		if (empty($this->_dbName))
 			$this->_dbName = $dbName;
-		if (is_array($fields))
-			$this->_fields = $fields;
-		if (is_null($this->_fields))
-			$this->_fields = [];
+		$this->_fields = $fields ?? $this->_fields ?? [];
+		foreach ($this->_fields as $name => $alias) {
+			if (is_int($name))
+				continue;
+			$this->_fieldAliases ??= [];
+			$this->_fieldAliases[$alias] = $name;
+		}
 		if (!empty($criteriaObject)) {
 			if (!is_subclass_of($criteriaObject, '\Temma\Dao\Criteria'))
 				throw new TµDaoException("Bad object type.", TµDaoException::CRITERIA);
@@ -349,15 +354,12 @@ class Dao {
 	 * @return	string	The aliased field name.
 	 */
 	public function getFieldName(string $field) : string {
-		if (empty($this->_fields))
-			return ($field);
-		$realName = array_search($field, $this->_fields);
-		return ($realName ?: $field);
+		return ($this->_fieldAliases[$field] ?? $field);
 	}
 
 	/* ***************** CACHE MANAGEMENT ************* */
 	/**
-	 * Disabled cache.
+	 * Disable cache.
 	 * @param	mixed	$p	(optional) Value to return. (default: null)
 	 * @return	mixed	The value given as parameter, or the instance of the current object (if the parameter was null).
 	 */

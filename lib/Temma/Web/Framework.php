@@ -43,6 +43,8 @@ class Framework {
 	const ROUTE_MAX_DEPTH = 4;
 	/** Name of the template variable that will contain data automatically imported from configuration. */
 	const AUTOIMPORT_VARIABLE = 'conf';
+	/** Name of the default data source. */
+	const DEFAULT_DATASOURCE = 'db';
 	/** Loader object. */
 	private ?\Temma\Base\Loader $_loader = null;
 	/** Configuration object. */
