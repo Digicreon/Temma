@@ -42,7 +42,7 @@ use \Temma\Utils\Email as TµEmail;
  * ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
  *
  * CREATE TABLE AuthToken (
- *     token         CHAR(40) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
+ *     token         CHAR(64) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
  *     expiration    DATETIME NOT NULL,
  *     user_id       INT UNSIGNED NOT NULL,
  *     PRIMARY KEY (token),
@@ -232,7 +232,7 @@ class Auth extends \Temma\Web\Plugin {
 		$token = substr($token, 0, 12);
 		// store the token in database
 		$this->_tokenDao->create([
-			$this->_tokenFieldName      => \Temma\Utils\BaseConvert::convert(hash('sha256', $token), 16, 85),
+			$this->_tokenFieldName      => hash('sha256', $token),
 			$this->_expirationFieldName => date('Y-m-d H:i:s', strtotime('+1 hour')),
 			$this->_userIdFieldName     => $user['id'],
 		]);
@@ -254,7 +254,7 @@ class Auth extends \Temma\Web\Plugin {
 			$this->_tokenDao->criteria()->lessThan($this->_expirationFieldName, date('Y-m-d H:i:s'))
 		);
 		// get user ID from the token
-		$token = \Temma\Utils\BaseConvert::convert(hash('sha256', $token), 16, 85);
+		$token = hash('sha256', $token);
 		$criteria = $this->_tokenDao->criteria()->equal($this->_tokenFieldName, $token);
 		$tokenData = $this->_tokenDao->get($criteria);
 		// remove the token from database
