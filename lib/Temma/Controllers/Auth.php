@@ -309,65 +309,73 @@ Best regards";
 			return;
 		$conf = $this->_config->xtra('security', 'auth');
 		// User DAO
-		$params = [
-			'cache' => false,
-			'table' => 'User',
-		];
-		if (isset($conf['userData'])) {
-			$fields = [];
-			foreach ($conf['userData'] as $name => $datum) {
-				if ($name == 'base')
-					$params['base'] = $datum;
-				else if ($name == 'table')
-					$params['table'] = $datum;
-				else if ($name == 'id') {
-					$params['id'] = $datum;
-					$fields[$datum] = 'id';
-				} else if ($name == $datum)
-					$fields[] = $name;
-				else
-					$fields[$datum] = $name;
-			}
-			if ($fields) {
-				foreach (['id', 'email', 'isAdmin', 'roles', 'services'] as $key) {
-					if (!isset($conf['userData'][$key]))
-						$fields[] = $key;
+		if (($conf['userDao'] ?? null)) {
+			$this->_userDao = $this->_loadDao($conf['userDao']);
+		} else {
+			$params = [
+				'cache' => false,
+				'table' => 'User',
+			];
+			if (isset($conf['userData'])) {
+				$fields = [];
+				foreach ($conf['userData'] as $name => $datum) {
+					if ($name == 'base')
+						$params['base'] = $datum;
+					else if ($name == 'table')
+						$params['table'] = $datum;
+					else if ($name == 'id') {
+						$params['id'] = $datum;
+						$fields[$datum] = 'id';
+					} else if ($name == $datum)
+						$fields[] = $name;
+					else
+						$fields[$datum] = $name;
 				}
-				$params['fields'] = $fields;
+				if ($fields) {
+					foreach (['id', 'email', 'isAdmin', 'roles', 'services'] as $key) {
+						if (!isset($conf['userData'][$key]))
+							$fields[] = $key;
+					}
+					$params['fields'] = $fields;
+				}
 			}
+			$this->_userDao = $this->_loadDao($params);
 		}
-		$this->_userDao = $this->_loadDao($params);
 		// Token DAO
-		$params = [
-			'cache' => false,
-			'table' => 'AuthToken',
-		];
-		if (isset($conf['tokenData'])) {
-			if (isset($conf['tokenData']['base']))
-				$params['base'] = $conf['tokenData']['base'];
-			if (isset($conf['tokenData']['table']))
-				$params['table'] = $conf['tokenData']['table'];
-			$params['fields'] = [];
-			if (isset($conf['tokenData']['token'])) {
-				$params['id'] = $conf['tokenData']['token'];
-				$params['fields'][$conf['tokenData']['token']] = 'token';
-				$this->_tokenFieldName = $conf['tokenData']['token'];
-			} else {
-				$params['id'] = 'token';
-				$params['fields'][] = 'token';
+		if (($conf['tokenDao'] ?? null)) {
+			$this->_tokenDao = $this->_loadDao($conf['tokenDao']);
+		} else {
+			$params = [
+				'cache' => false,
+				'table' => 'AuthToken',
+			];
+			if (isset($conf['tokenData'])) {
+				if (isset($conf['tokenData']['base']))
+					$params['base'] = $conf['tokenData']['base'];
+				if (isset($conf['tokenData']['table']))
+					$params['table'] = $conf['tokenData']['table'];
+				$params['fields'] = [];
+				if (isset($conf['tokenData']['token'])) {
+					$params['id'] = $conf['tokenData']['token'];
+					$params['fields'][$conf['tokenData']['token']] = 'token';
+					$this->_tokenFieldName = $conf['tokenData']['token'];
+				} else {
+					$params['id'] = 'token';
+					$params['fields'][] = 'token';
+				}
+				if (isset($conf['tokenData']['expiration'])) {
+					$params['fields'][$conf['tokenData']['expiration']] = 'expiration';
+					$this->_expirationFieldName = $conf['tokenData']['expiration'];
+				} else
+					$params['fields'][] = 'expiration';
+				if (isset($conf['tokenData']['user_id'])) {
+					$params['fields'][$conf['tokenData']['user_id']] = 'user_id';
+					$this->_userIdFieldName = $conf['tokenData']['user_id'];
+				} else
+					$params['fields'][] = 'user_id';
 			}
-			if (isset($conf['tokenData']['expiration'])) {
-				$params['fields'][$conf['tokenData']['expiration']] = 'expiration';
-				$this->_expirationFieldName = $conf['tokenData']['expiration'];
-			} else
-				$params['fields'][] = 'expiration';
-			if (isset($conf['tokenData']['user_id'])) {
-				$params['fields'][$conf['tokenData']['user_id']] = 'user_id';
-				$this->_userIdFieldName = $conf['tokenData']['user_id'];
-			} else
-				$params['fields'][] = 'user_id';
+			$this->_tokenDao = $this->_loadDao($params);
 		}
-		$this->_tokenDao = $this->_loadDao($params);
 	}
 }
 
