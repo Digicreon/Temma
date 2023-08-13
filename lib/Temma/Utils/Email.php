@@ -185,7 +185,7 @@ class Email implements \Temma\Base\Loadable {
 		if ($envelopeSender)
 			$params = "-f$envelopeSender";
 		// send the message
-		mail($to, $title, $message, implode("\r\n", $headers), $params);
+		mail($to, $title, $message, $headers, $params);
 	}
 	/**
 	 * Send an HTML mail, with or without a raw text version, with or without attached files.
@@ -300,7 +300,7 @@ class Email implements \Temma\Base\Loadable {
 		if ($envelopeSender)
 			$params = "-f$envelopeSender";
 		// send the message
-		mail($to, $title, $message, implode("\r\n", $headers), $params);
+		mail($to, $title, $message, $headers, $params);
 	}
 }
 
