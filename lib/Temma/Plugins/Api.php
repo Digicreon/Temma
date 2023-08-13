@@ -123,11 +123,41 @@ class Api extends \Temma\Web\Plugin {
 		}
 		// special headers
 		header('Access-Control-Allow-Origin: *');
+		// JSON view
+		$this->_view('\Temma\Views\Json');
 		// manage namespace using the requested API version number
 		$this->_manageUrl();
 		// check authentication
 		$this->_authenticateUser();
         }
+	/**
+	 * Static method used to generate a public/private couple of keys.
+	 * @return	array	Associative array with a 'public' and a 'private' keys.
+	 */
+	static public function generateKeys() : array {
+		// public key
+		$public = '';
+		while (mb_strlen($public, 'ascii') < 32) {
+			$key = bin2hex(random_bytes(64));
+			$key = hash('sha256', $key);
+			$key = \Temma\Utils\BaseConvert::convertToSpecialBase($key, 16, 71);
+			$public .= $key;
+		}
+		$public = mb_substr($public, 0, 32);
+		// private key
+		$private = '';
+		while (mb_strlen($private, 'ascii') < 64) {
+			$key = bin2hex(random_bytes(64));
+			$key = hash('sha256', $key);
+			$key = \Temma\Utils\BaseConvert::convertToSpecialBase($key, 16, 71);
+			$private .= $key;
+		}
+		$private = mb_substr($private, 0, 64);
+		return ([
+			'public'  => $public,
+			'private' => $private,
+		]);
+	}
 
 	/* ********** PRIVATE METHODS ********** */
 	/**
