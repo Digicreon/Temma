@@ -24,7 +24,7 @@ use \Temma\Utils\Email as TµEmail;
  * * roles:    (set) Assigned roles of the user.
  * * services: (set) Services accessible by the user.
  * And another table named "AuthToken" with these fields:
- * * token:      (string) A 12 characters-long connection token.
+ * * token:      (string) A 64 characters-long SHA-256 hash of the connection token.
  * * expiration: (datetime) Expiration date of the token.
  * * user_id:    (int) Foreign key to the user.
  *
@@ -77,6 +77,17 @@ use \Temma\Utils\Email as TµEmail;
  *     }
  * }
  * ```
+ * It is also possible to define DAOs to access the tables:
+ * ```json
+ * {
+ *     "x-security": {
+ *         "auth": {
+ *             "userDao":  "\\MyApp\\UserDao",
+ *             "tokenDao": "\\MyApp\\TokenDao"
+ *         }
+ *     }
+ * }
+ * ```
  *
  * It is also possible to configure the email sent to users with the connection token:
  * ```json
@@ -115,8 +126,8 @@ class Auth extends \Temma\Web\Plugin {
 
 	/** Preplugin: check if the user is authenticated. */
 	public function preplugin() {
-		// fetch user ID from session
-		$currentUserId = $this->_session['currentUserId'];
+		// fetch user ID from session (or from template variable)
+		$currentUserId = $this['currentUserId'] ?? $this->_session['currentUserId'];
 		if (!$currentUserId)
 			return;
 		// create DAO objects
@@ -128,8 +139,9 @@ class Auth extends \Temma\Web\Plugin {
 		$user['roles'] = str_getcsv($user['roles']);
 		$user['services'] = str_getcsv($user['services']);
 		$user['isAdmin'] = ($user['isAdmin'] ?? null) ? true : false;
-		// create template variable
+		// create template variables
 		$this['currentUser'] = $user;
+		$this['currentUserId'] = $currentUserId;
 	}
 	/** Redirection of the root action. */
 	public function __invoke() {
