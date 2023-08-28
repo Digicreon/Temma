@@ -14,9 +14,12 @@ if (!isset($_SERVER['SCRIPT_FILENAME']) && isset($_SERVER['ORIG_SCRIPT_FILENAME'
 // include path configuration
 set_include_path(__DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'lib' . PATH_SEPARATOR . get_include_path());
 
-// autoloader init
+// Temma autoloader init
 require_once('Temma/Base/Autoload.php');
 \Temma\Base\Autoload::autoload();
+
+// Composer autoloader
+@include_once(__DIR__ . '/../vendor/autoload.php');
 
 use \Temma\Base\Log as TµLog;
 

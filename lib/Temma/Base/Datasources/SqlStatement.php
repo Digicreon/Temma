@@ -1,12 +1,12 @@
 <?php
 
 /**
- * DatabaseStatement
+ * SqlStatement
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2020-2023, Amaury Bouchard
  */
 
-namespace Temma\Base;
+namespace Temma\Base\Datasources;
 
 use \Temma\Base\Log as TµLog;
 use \Temma\Exceptions\Database as TµDatabaseException;
@@ -17,19 +17,19 @@ use \Temma\Exceptions\Database as TµDatabaseException;
  * Object used to manage prepared queries.
  * It is a wrapper on PDOStatement object.
  */
-class DatabaseStatement {
+class SqlStatement {
 	/** \Temma\Base\Database object. */
-	protected ?\Temma\Base\Database $_db = null;
+	protected \Temma\Base\Datasources\Sql $_db;
 	/** PDOStatement object. */
-	protected ?\PDOStatement $_statement = null;
+	protected \PDOStatement $_statement;
 
 	/* ********** CONSTRUCTION ********** */
 	/**
 	 * Constructor. Should be used only by \Temma\Base\Database object.
-	 * @param	\Temma\Base\Database	$db		The datbase object.
-	 * @param	\PDOStatement 		$statement	The PDOStatement object.
+	 * @param	\Temma\Base\Datasources\Sql	$db		The datbase object.
+	 * @param	\PDOStatement 			$statement	The PDOStatement object.
 	 */
-	public function __construct(\Temma\Base\Database $db, \PDOStatement $statement) {
+	public function __construct(\Temma\Base\Datasources\Sql $db, \PDOStatement $statement) {
 		$this->_db = $db;
 		$this->_statement = $statement;
 	}

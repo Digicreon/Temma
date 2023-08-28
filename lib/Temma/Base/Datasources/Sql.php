@@ -1,12 +1,12 @@
 <?php
 
 /**
- * Database
+ * Sql
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2007-2023, Amaury Bouchard
  */
 
-namespace Temma\Base;
+namespace Temma\Base\Datasources;
 
 use \Temma\Base\Log as TµLog;
 use \Temma\Exceptions\Database as TµDatabaseException;
@@ -31,7 +31,7 @@ use \Temma\Exceptions\Database as TµDatabaseException;
  * <code>
  * try {
  *     // object creation, database connection
- *     $db = new \Temma\Base\Database("mysql://user:pwd@localhost/database");
+ *     $db = new \Temma\Base\Datasource("mysql://user:pwd@localhost/database");
  *     // simple request
  *     $db->exec("DELETE FROM Bar");
  *     // request which fetch one line of data
@@ -66,7 +66,7 @@ use \Temma\Exceptions\Database as TµDatabaseException;
  * Transactional example:
  * <code>
  * // object creation, database connection
- * try { $db = new \Temma\Base\Database::factory("mysql://user:pwd@localhost/database"); }
+ * try { $db = new \Temma\Base\Datasource::factory("mysql://user:pwd@localhost/database"); }
  * catch (Exception $e) { }
  * // transactional requests, automatically committed or rolled-back
  * $db->transaction(function($db) use ($userId) {
@@ -90,8 +90,17 @@ use \Temma\Exceptions\Database as TµDatabaseException;
  *     $db->rollback();
  * }
  * </code>
+ *
+ * For use as a regular datasource, you must create a table named 'TemmaData':
+ * <code>
+ * CREATE TABLE TemmaBase (
+ *     key    CHAR(255) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
+ *     data   LONGTEXT,
+ *     PRIMARY KEY (key)
+ * ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+ * </code>
  */
-class Database extends \Temma\Base\Datasource {
+class Sql extends \Temma\Base\Datasource {
 	/** Database connection objet. */
 	protected ?\PDO $_db = null;
 	/** Database connection parameters. */
@@ -105,10 +114,10 @@ class Database extends \Temma\Base\Datasource {
 	/**
 	 * Factory. Creates an instance of the object, using the given parameters.
 	 * @param	string	$dsn		Database connection string.
-	 * @return	\Temma\Base\Database	The created object.
+	 * @return	\Temma\Base\Datasources\Sql	The created object.
 	 * @throws	\Exception	If something went wrong.
 	 */
-	static public function factory(string $dsn) : \Temma\Base\Database {
+	static public function factory(string $dsn) : \Temma\Base\Datasources\Sql {
 		// instance creation
 		$instance = new self($dsn);
 		return ($instance);
@@ -142,11 +151,6 @@ class Database extends \Temma\Base\Datasource {
 		}
 		$this->_login = $login;
 		$this->_password = $password;
-	}
-	/** Destructor. */
-	public function __destruct() {
-		//if (isset($this->_db))
-		//	$this->_db->close();
 	}
 
 	/* ********** CONNECTION / DISCONNECTION ********** */
@@ -198,16 +202,6 @@ class Database extends \Temma\Base\Datasource {
 	public function close() : void {
 		$this->_db = null;
 	}
-	/**
-	 * Definition of the character set.
-	 * @param	string	$charset	(optional) Character set to use. "utf8" by default.
-	 */
-	/*
-	public function charset(string $charset='utf8') {
-		$this->_connect();
-		$this->_db->set_charset($charset);
-	}
-	*/
 
 	/* ********** TRANSACTIONS ********** */
 	/**
@@ -262,7 +256,7 @@ class Database extends \Temma\Base\Datasource {
 		}
 	}
 
-	/* ********** REQUESTS ********** */
+	/* ********** SPECIAL REQUESTS ********** */
 	/**
 	 * Return the last SQL error.
 	 * @return	string	The last error.
@@ -312,10 +306,10 @@ class Database extends \Temma\Base\Datasource {
 	/**
 	 * Creates a prepared query.
 	 * @param	string	$sql	The SQL request.
-	 * @return	\Temma\Base\DatabaseStatement	The statement object.
+	 * @return	\Temma\Base\Datasources\SqlStatement	The statement object.
 	 * @throws	\Temma\Exceptions\Database	If an error occurs.
 	 */
-	public function prepare(string $sql) : \Temma\Base\DatabaseStatement {
+	public function prepare(string $sql) : \Temma\Base\Datasources\SqlStatement {
 		TµLog::log('Temma/Base', 'DEBUG', "SQL prepare: $sql");
 		$this->_connect();
 		try {
@@ -329,7 +323,7 @@ class Database extends \Temma\Base\Datasource {
 			TµLog::log('Temma/Base', 'ERROR', $errStr);
 			throw new TµDatabaseException($errStr, TµDatabaseException::QUERY);
 		}
-		return (new \Temma\Base\DatabaseStatement($this, $dbStatement));
+		return (new \Temma\Base\Datasources\SqlStatement($this, $dbStatement));
 	}
 	/**
 	 * Executes a SQL request without fetching data.
@@ -401,6 +395,195 @@ class Database extends \Temma\Base\Datasource {
 	public function lastInsertId() : int {
 		$this->_connect();
 		return ((int)$this->_db->lastInsertId());
+	}
+
+	/* ********** STANDARD REQUESTS ********** */
+	/**
+	 * Tell if a key exists in database.
+	 * @param	string $key	Key to check.
+	 * @return	bool	True if the key exists.
+	 */
+	public function isSet(string $key) : bool {
+		if (!$this->_enabled)
+			return (false);
+		$sql = "SELECT COUNT(*) AS nbr
+		        FROM TemmaData
+		        WHERE key = " . $this->quote($key);
+		$res = $this->queryOne($sql);
+		return ($res['nbr'] != 0);
+	}
+	/**
+	 * Remove a key.
+	 * @param	string	$key	The key to remove.
+	 * @return	\Temma\Base\Datasources\Sql	The current object.
+	 */
+	public function remove(string $key) : \Temma\Base\Datasources\Sql {
+		if (!$this->_enabled)
+			return ($this);
+		$sql = "DELETE FROM TemmaData
+		        WHERE key = " . $this->quote($key);
+		$this->exec($sql);
+		return ($this);
+	}
+	/**
+	 * Multiple remove.
+	 * @param	array	$keys	List of keys to remove.
+	 * @return	\Temma\Base\Datasources\Sql	The current object.
+	 */
+	public function mRemove(array $keys) : \Temma\Base\Datasources\Sql {
+		if (!$this->_enabled)
+			return ($this);
+		array_walk($keys, function(&$value, $key) {
+			$value = $this->quote($value);
+		});
+		$sql = "DELETE FROM TemmaData
+		        WHERE key IN (" . implode(', ', $keys) . ")";
+		$this->exec($sql);
+		return ($this);
+	}
+	/**
+	 * Remove all keys matching a given pattern.
+	 * @param	string	$prefix	The key prefix.
+	 * @return	\Temma\Base\Datasources\Sql	The current object.
+	 */
+	public function clear(string $prefix) : \Temma\Base\Datasources\Sql {
+		if (!$this->_enabled)
+			return ($this);
+		$sql = "DELETE FROM TemmaData
+		        WHERE key LIKE " . $this->quote("$prefix%");
+		$this->exec($sql);
+		return ($this);
+	}
+	/**
+	 * Remove all data.
+	 * @return	\Temma\Base\Datasources\Sql	The current object.
+	 */
+	public function flush() : \Temma\Base\Datasources\Sql {
+		if (!$this->_enabled)
+			return ($this);
+		$sql = "TRUNCATE TABLE TemmaData";
+		$this->exec($sql);
+		return ($this);
+	}
+
+	/* ********** RAW REQUESTS ********** */
+	/**
+	 * Return a list of keys that match a pattern.
+	 * @param	string	$prefix		The prefix to match.
+	 * @param	bool	$getValues	(optional) True to fetch the associated values. False by default.
+	 * @return	array	List of keys, or associative array of key-value pairs.
+	 */
+	public function find(string $prefix, bool $getValues=false) : array {
+		if (!$this->_enabled)
+			return ([]);
+		$sql = "SELECT key";
+		if ($getValues)
+			$sql .= ", data";
+		$sql .= " FROM TemmaData
+		         WHERE key LIKE " . $this->quote("$prefix%");
+		$data = $this->queryAll($sql);
+		$result = [];
+		foreach ($data as $line) {
+			if ($getValues)
+				$result[$line['key']] = $line['data'];
+			else
+				$result[] = $line['key'];
+		}
+		return ($result);
+	}
+	/**
+	 * Get the value associated to a key in database.
+	 * @param	string	$key			Key to fetch.
+	 * @param	mixed	$defaultOrCallback	(optional) Default scalar value or function called if the data is not found.
+	 *						If scalar: the value is returned.
+	 *						If callback: the value returned by the function is stored in the database, and returned.
+	 * @param	mixed	$options		(optional) Options used if the key is added in databse.
+	 *						If a string: mime type.
+	 *						If a boolean: true for public access, false for private access.
+	 *						If an array: 'public' (bool) and/or 'mimetype' (string) keys.
+	 * @return	?string	The data fetched from the S3 file, or null.
+	 * @throws	\Exception	If an error occured.
+	 */
+	public function read(string $key, mixed $defaultOrCallback=null, mixed $options=null) : ?string {
+		// fetch the data
+		if ($this->_enabled) {
+			$sql = "SELECT data
+				FROM TemmaData
+				WHERE key = " . $this->quote($key);
+			$res = $this->queryOne($sql);
+			if (($res['data'] ?? null))
+				return ($res['data']);
+		}
+		// manage default value
+		if (!$defaultOrCallback)
+			return (null);
+		$value = $defaultOrCallback;
+		if (is_callable($defaultOrCallback)) {
+			$value = $defaultOrCallback();
+			$this->set($key, $value, $options);
+		}
+		return ($value);
+	}
+	/**
+	 * Multiple read.
+	 * @param	array	$keys	List of keys.
+	 * @return	array	Associative array with the keys and their associated values.
+	 */
+	public function mRead(array $keys) : array {
+		if (!$this->_enabled)
+			return ([]);
+		array_walk($keys, function(&$value, $key) {
+			$value = $this->quote($value);
+		});
+		$sql = "SELECT key, data
+			FROM TemmaData
+			WHERE key IN (" . implode(', ', $keys) . ")";
+		$data = $this->queryAll($sql);
+		$result = [];
+		foreach ($data as $line)
+			$result[$line['key']] = $line['data'];
+		return ($result);
+	}
+	/**
+	 * Add or update a key in database.
+	 * @param	string	$key		Key to add or update.
+	 * @param	mixed	$data		(optional) Data value. The data is deleted if the value is not given or if it is null.
+	 * @param	mixed	$options	Not used.
+	 * @return	\Temma\Base\Datasources\Sql	The current object.
+	 * @throws	\Exception	If an error occured.
+	 */
+	public function write(string $key, mixed $data=null, mixed $options=null) : \Temma\Base\Datasources\Sql {
+		if (!$this->_enabled)
+			return ($this);
+		// remove file
+		if ($data === null) {
+			$this->remove($key);
+			return ($this);
+		}
+		// create or update key
+		$sql = "INSERT INTO TemmaData
+			SET data = " . $this->quote($data) . "
+			WHERE key = " . $this->quote($key) . "
+			ON DUPLICATE KEY UPDATE data = " . $this->quote($data);
+		$this->exec($sql);
+		return ($this);
+	}
+	/**
+	 * Multiple write.
+	 * @param	array	$data		Associative array with keys and their associated values.
+	 * @param	mixed	$options	(optional) Options (like expiration duration).
+	 * @return	int	The number of set data.
+	 */
+	public function mWrite(array $data, mixed $options=null) : int {
+		if (!$this->_enabled)
+			return (0);
+		$values = [];
+		foreach ($data as $key => $value)
+			$values[] = '(' . $this->quote($key) . ', ' . $this->quote($data) . ')';
+		$sql = "INSERT INTO TemmaData (key, data)
+		        VALUES " . implode(', ', $values) . "
+		        ON DUPLICATE KEY UPDATE data = VALUES(data)";
+		return ($this->exec($sql));
 	}
 }
 

@@ -16,10 +16,10 @@ use \Temma\Exceptions\Dao as TµDaoException;
  * @see	\Temma\Dao\Dao
  */
 class Criteria {
-	/** DAO object initiating the criteria. */
-	private ?\Temma\Dao\Dao $_dao = null;
 	/** Database connection. */
-	protected ?\Temma\Base\Database $_db = null;
+	protected \Temma\Base\Datasources\Sql $_db;
+	/** DAO object initiating the criteria. */
+	private \Temma\Dao\Dao $_dao;
 	/** Type of criteria boolean combination. */
 	protected string $_type = 'and';
 	/** List of request elements. */
@@ -27,12 +27,12 @@ class Criteria {
 
 	/**
 	 * Constructor.
-	 * @param	\Temma\Base\Database	$db	Connection to the database.
-	 * @param	\Temma\Dao\Dao		$dao	DAO object.
-	 * @param	string			$type	(optional) 'and', 'or'. (default: 'and')
+	 * @param	\Temma\Base\Datasources\Sql	$db	Connection to the database.
+	 * @param	\Temma\Dao\Dao			$dao	DAO object.
+	 * @param	string				$type	(optional) 'and', 'or'. (default: 'and')
 	 * @throws	\Temma\Exceptions\Dao	If there is a bad criteria combination.
 	 */
-	final public function __construct(\Temma\Base\Database $db, \Temma\Dao\Dao $dao, string $type='and') {
+	final public function __construct(\Temma\Base\Datasources\Sql $db, \Temma\Dao\Dao $dao, string $type='and') {
 		$this->_db = $db;
 		$this->_dao = $dao;
 		if (strcasecmp($type, 'and') && strcasecmp($type, 'or'))

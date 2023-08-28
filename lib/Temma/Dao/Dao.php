@@ -66,7 +66,7 @@ class Dao {
 	/** Name of the criteria object. */
 	protected string $_criteriaObject = '\Temma\Dao\Criteria';
 	/** Database connection. */
-	protected \Temma\Base\Database $_db;
+	protected \Temma\Base\Datasources\Sql $_db;
 	/** Cache connection. */
 	protected ?\Temma\Base\Datasource $_cache;
 	/** Tell if the cache must be disabled. */
@@ -86,16 +86,16 @@ class Dao {
 
 	/**
 	 * Constructor.
-	 * @param	\Temma\Base\Database	$db		Connection to the database.
-	 * @param	?\Temma\Base\Datasource	$cache		(optional) Connection to the cache server.
-	 * @param	?string			$tableName	(optional) Name of the table.
-	 * @param	?string			$idField	(optional) Name of the primary key. (default: 'id')
-	 * @param	?string			$dbName		(optional) Name of the database.
-	 * @param	?array			$fields		(optional) List of table's fields (may be remapped 'table_field' => 'aliased_name').
-	 * @param	?string			$criteriaObject	(optional) Name of the criteria object. (default: \Temma\Dao\Criteria)
+	 * @param	\Temma\Base\Datasources\Sql	$db		Connection to the database.
+	 * @param	?\Temma\Base\Datasource		$cache		(optional) Connection to the cache server.
+	 * @param	?string				$tableName	(optional) Name of the table.
+	 * @param	?string				$idField	(optional) Name of the primary key. (default: 'id')
+	 * @param	?string				$dbName		(optional) Name of the database.
+	 * @param	?array				$fields		(optional) List of table's fields (may be remapped 'table_field' => 'aliased_name').
+	 * @param	?string				$criteriaObject	(optional) Name of the criteria object. (default: \Temma\Dao\Criteria)
 	 * @throws	\Temma\Exceptions\Dao	If the criteria object is not of the right type.
 	 */
-	public function __construct(\Temma\Base\Database $db, ?\Temma\Base\Datasource $cache=null, ?string $tableName=null,
+	public function __construct(\Temma\Base\Datasources\Sql $db, ?\Temma\Base\Datasource $cache=null, ?string $tableName=null,
 	                            ?string $idField='id', ?string $dbName=null, ?array $fields=null, ?string $criteriaObject=null) {
 		$this->_db = $db;
 		$this->_cache = $cache;

@@ -18,5 +18,7 @@ class Database extends \Exception {
 	const CONNECTION = 1;
 	/** Query error. */
 	const QUERY = 2;
+	/** Type error. */
+	const TYPE = 3;
 }
 
