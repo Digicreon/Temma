@@ -107,8 +107,6 @@ class Api extends \Temma\Web\Plugin {
 	private string $_publicKeyFieldName = 'public_key';
 	/** Name of the "private_key" field in the "ApiKey" table. */
 	private string $_privateKeyFieldName = 'private_key';
-	/** Name of the "user_id" field in the "ApiKey" table. */
-	private string $_userIdFieldName = 'user_id';
 
         /**
 	 * Preplugin method.
@@ -282,10 +280,9 @@ class Api extends \Temma\Web\Plugin {
 					$this->_privateKeyFieldName = $conf['apiKeyData']['private_key'];
 				} else
 					$params['fields'][] = 'private_key';
-				if (isset($conf['apiKeyData']['user_id'])) {
+				if (isset($conf['apiKeyData']['user_id']))
 					$params['fields'][$conf['apiKeyData']['user_id']] = 'user_id';
-					$this->_userIdFieldName = $conf['apiKeyData']['user_id'];
-				} else
+				else
 					$params['fields'][] = 'user_id';
 			}
 			$this->_apiKeyDao = $this->_loadDao($params);
