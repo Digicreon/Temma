@@ -61,9 +61,9 @@ use \Temma\Exceptions\IO as TµIOException;
  * unset($registry['foo']);
  * </code>
  */
-class Registry implements \ArrayAccess {
+class Registry implements \Iterator, \ArrayAccess {
 	/** Associative array that contains the stored data. */
-	protected ?array $_data = null;
+	protected array $_data;
 
 	/* ************************ CONSTRUCTION ********************** */
 	/**
@@ -73,18 +73,49 @@ class Registry implements \ArrayAccess {
 	public function __construct(?array $data=null) {
 		$this->_data = $data ?? [];
 	}
-	/** Destructor. */
-	public function __destruct() {
-		$this->_data = null;
-	}
 	/**
 	 * Remove all stored data. Replace with the given data.
 	 * @param	array	$data	(optional) Data to use to replace the currently stored data.
 	 * @return	\Temma\Utils\Registry	The current object.
 	 */
-	public function reset(?array $data=null) : \Temma\Utils\Registry {
+	public function reset(array $data=[]) : \Temma\Utils\Registry {
 		$this->_data = $data;
 		return ($this);
+	}
+
+	/* ********** ITERATOR MANAGEMENT ********** */
+	/**
+	 * Returns the current element.
+	 * @return	mixed	The current element.
+	 */
+	public function current() : mixed {
+		return (current($this->_data));
+	}
+	/**
+	 * Returns the current key.
+	 * @return	mixed	The current key.
+	 */
+	public function key() : mixed {
+		return (key($this->_data));
+	}
+	/**
+	 * Move the cursor to the next element.
+	 */
+	public function next() : void {
+		next($this->_data);
+	}
+	/**
+	 * Rewind the cursor to the first element.
+	 */
+	public function rewind() : void {
+		reset($this->_data);
+	}
+	/**
+	 * Tell if the cursor has reached the end of the list.
+	 * @return	bool	True while the cursor hasn't reach the end of the list.
+	 */
+	public function valid() : bool {
+		return (key($this->_data) !== null);
 	}
 
 	/* ****************** DATA WRITING **************** */
