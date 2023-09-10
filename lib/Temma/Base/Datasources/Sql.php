@@ -93,7 +93,7 @@ use \Temma\Exceptions\Database as TµDatabaseException;
  *
  * For use as a regular datasource, you must create a table named 'TemmaData':
  * <code>
- * CREATE TABLE TemmaBase (
+ * CREATE TABLE TemmaData (
  *     key    CHAR(255) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
  *     data   LONGTEXT,
  *     PRIMARY KEY (key)

@@ -485,5 +485,83 @@ class S3 extends \Temma\Base\Datasource {
 		}
 		return ($this);
 	}
+
+	/* ********** KEY-VALUE REQUESTS ********** */
+	/**
+	 * Read serialized data in a S3 file.
+	 * @param	string	$s3Path			File path on S3.
+	 * @param	mixed	$defaultOrCallback	(optional) Default scalar value or function called if the data is not found.
+	 *						If scalar: the value is returned.
+	 *						If callback: the value returned by the function is stored in the data source, and returned.
+	 * @param	mixed	$options	(optional) If a string: mime type.
+	 *					If a boolean: true for public access, false for private access.
+	 *					If an array: 'public' (bool).
+	 * @return	mixed	The fetched data.
+	 */
+	public function get(string $key, mixed $defaultOrCallback=null, mixed $options=null) : mixed {
+		if (!$this->_enabled)
+			return (null);
+		// manage options
+		$public = false;
+		if ($options === true || ($options['public'] ?? null) === true)
+			$public = true;
+		$options = [
+			'public'   => $public,
+			'mimetype' => 'application/json',
+		];
+		// read the data
+		$data = $this->read($key, $defaultOrCallback, $options);
+		if (!$data)
+			return ($data);
+		return (json_decode($data, true));
+	}
+	/**
+	 * Store serialized data in a S3 file.
+	 * @param	string	$s3Path		File path on S3.
+	 * @param	mixed	$value		Value of the data. Remove the file if null.
+	 * @param	mixed	$options	(optional) If a string: mime type.
+	 *					If a boolean: true for public access, false for private access.
+	 *					If an array: 'public' (bool).
+	 * @return	\Temma\Base\Datasources\S3	The current object.
+	 * @throws	\Exception	If an error occured.
+	 */
+	public function set(string $s3Path, mixed $value, mixed $options) : \Temma\Base\Datasources\S3 {
+		if (!$this->_enabled)
+			return ($this);
+		if (is_null($value)) {
+			$this->remove($s3Path);
+			return ($this);
+		}
+		$public = false;
+		if ($options === true || ($options['public'] ?? null) === true)
+			$public = true;
+		$options = [
+			'public'   => $public,
+			'mimetype' => 'application/json',
+		];
+		$this->write($s3Path, json_encode($value), $options);
+		return ($this);
+	}
+	/**
+	 * Multiple set.
+	 * @param	array	$data		Associative array with file names and their associated contents.
+	 * @param	mixed	$options	(optional) Options (see set() method).
+	 * @return	int	The number of written files.
+	 */
+	public function mSet(array $data, mixed $options=null) : int {
+		if (!$this->_enabled)
+			return (0);
+		$public = false;
+		if ($options === true || ($options['public'] ?? null) === true)
+			$public = true;
+		$options = [
+			'public'   => $public,
+			'mimetype' => 'application/json',
+		];
+		array_walk($data, function(&$value, $key) {
+			$value = json_encode($value);
+		});
+		return ($this->mWrite($data, $options));
+	}
 }
 
