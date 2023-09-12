@@ -498,7 +498,7 @@ class S3 extends \Temma\Base\Datasource {
 	 *					If an array: 'public' (bool).
 	 * @return	mixed	The fetched data.
 	 */
-	public function get(string $key, mixed $defaultOrCallback=null, mixed $options=null) : mixed {
+	public function get(string $s3Path, mixed $defaultOrCallback=null, mixed $options=null) : mixed {
 		if (!$this->_enabled)
 			return (null);
 		// manage options
@@ -510,7 +510,7 @@ class S3 extends \Temma\Base\Datasource {
 			'mimetype' => 'application/json',
 		];
 		// read the data
-		$data = $this->read($key, $defaultOrCallback, $options);
+		$data = $this->read($s3Path, $defaultOrCallback, $options);
 		if (!$data)
 			return ($data);
 		return (json_decode($data, true));
@@ -525,7 +525,7 @@ class S3 extends \Temma\Base\Datasource {
 	 * @return	\Temma\Base\Datasources\S3	The current object.
 	 * @throws	\Exception	If an error occured.
 	 */
-	public function set(string $s3Path, mixed $value, mixed $options) : \Temma\Base\Datasources\S3 {
+	public function set(string $s3Path, mixed $value=null, mixed $options=null) : \Temma\Base\Datasources\S3 {
 		if (!$this->_enabled)
 			return ($this);
 		if (is_null($value)) {
