@@ -47,6 +47,8 @@ class Controller implements \ArrayAccess {
 	protected ?\Temma\Web\Response $_response = null;
 	/** DAO object. */
 	protected ?\Temma\Dao\Dao $_dao = null;
+	/** Configuration of auto DAO. */
+	protected $_temmaAutoDao = null;
 
 	/**
 	 * Constructor.
@@ -99,7 +101,7 @@ class Controller implements \ArrayAccess {
 	 * @param	string|array	$param	Name of the DAO object, or an associative array with parameters.
 	 * @return	\Temma\Dao\Dao	The loaded DAO.
 	 */
-	public function _loadDao(string|array $param) : \Temma\Dao\Dao {
+	public function _loadDao(null|bool|string|array $param) : \Temma\Dao\Dao {
 		$daoConf = [
 			'object'   => '\Temma\Dao\Dao',
 			'criteria' => null,
