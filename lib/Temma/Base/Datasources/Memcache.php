@@ -64,7 +64,7 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 	 * @throws	\Exception	If the given DSN is wrong or if the 'memcached' extension is not loaded.
 	 */
 	private function __construct(string $dsn) {
-		if (str_starts_with($dsn, 'memcache://')) {
+		if (!str_starts_with($dsn, 'memcache://')) {
 			throw new \Exception("Invalid cache DSN '$dsn'.");
 		}
 		$dsn = substr($dsn, 11);
