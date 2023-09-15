@@ -67,7 +67,7 @@ class Controller implements \ArrayAccess {
 			$this['SESSIONID'] = $loader->session->getSessionId();
 		}
 		// creation of the DAO if needed
-		if (isset($executor) && isset($this->_temmaAutoDao) && $this->_temmaAutoDao !== false) {
+		if (isset($this->_temmaAutoDao) && $this->_temmaAutoDao !== false) {
 			$this->_dao = $this->_loadDao($this->_temmaAutoDao);
 		}
 	}
