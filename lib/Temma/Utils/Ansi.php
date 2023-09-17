@@ -242,43 +242,38 @@ class Ansi {
 	/**
 	 * Generate a first level title.
 	 * @param	string	$s	The title text.
-	 * @param	string	$index	(optional) Text written before the title.
 	 * @return	string	The formatted text.
 	 */
-	static public function title1(string $s, string $index='') : string {
-		return self::title($s, $index, self::$_border1, self::$_margin1, self::$_bold1, self::$_underline1, self::$_backColor1, self::$_frontColor1, self::$_borderColor1);
+	static public function title1(string $s) : string {
+		return self::title($s, self::$_border1, self::$_margin1, self::$_bold1, self::$_underline1, self::$_backColor1, self::$_frontColor1, self::$_borderColor1);
 	}
 	/**
 	 * Display a second level title.
 	 * @param	string	$s	The title text.
-	 * @param	string	$index	(optional) Text written before the title.
 	 * @return	string	The formatted text.
 	 */
-	static public function title2(string $s, string $index='') : string {
-		return self::title($s, $index, self::$_border2, self::$_margin2, self::$_bold2, self::$_underline2, self::$_backColor2, self::$_frontColor2, self::$_borderColor2);
+	static public function title2(string $s) : string {
+		return self::title($s, self::$_border2, self::$_margin2, self::$_bold2, self::$_underline2, self::$_backColor2, self::$_frontColor2, self::$_borderColor2);
 	}
 	/**
 	 * Display a third level title.
 	 * @param	string	$s	The title text.
-	 * @param	string	$index	(optional) Text written before the title.
 	 * @return	string	The formatted text.
 	 */
-	static public function title3(string $s, string $index='') : string {
-		return self::title($s, $index, self::$_border3, self::$_margin3, self::$_bold3, self::$_underline3, self::$_backColor3, self::$_frontColor3, self::$_borderColor3);
+	static public function title3(string $s) : string {
+		return self::title($s, self::$_border3, self::$_margin3, self::$_bold3, self::$_underline3, self::$_backColor3, self::$_frontColor3, self::$_borderColor3);
 	}
 	/**
 	 * Display a fourth level title.
 	 * @param	string	$s	The title text.
-	 * @param	string	$index	(optional) Text written before the title.
 	 * @return	string	The formatted text.
 	 */
-	static public function title4(string $s, string $index='') : string {
-		return self::title($s, $index, self::$_border4, self::$_margin4, self::$_bold4, self::$_underline4, self::$_backColor4, self::$_frontColor4, self::$_borderColor4);
+	static public function title4(string $s) : string {
+		return self::title($s, self::$_border4, self::$_margin4, self::$_bold4, self::$_underline4, self::$_backColor4, self::$_frontColor4, self::$_borderColor4);
 	}
 	/**
 	 * Generate a title box.
 	 * @param	string	$s		The text of the title.
-	 * @param	string	$index		(optional) Number added at the beginning of the text.
 	 * @param	string	$border		(optional) Characters used to draw the box (vertical bar, horizontal bar, upperl left corner,
 	 *					upper right corner, lower right corner, lower left corner). Empty string to have no border.
 	 * @param	int	$margin		(optional) Margin size. 0 for no margin, 1 for thin margin (1 character), 2 for large margin (2 characters),
@@ -290,7 +285,7 @@ class Ansi {
 	 * @param	string	$borderColor	(optional) Border color.
 	 * @return	string	The formatted string.
 	 */
-	static public function title(string $s, string $index='', string $border='│─╭╮╯╰', int $margin=1, bool $bold=false, bool $underline=false,
+	static public function title(string $s, string $border='│─╭╮╯╰', int $margin=1, bool $bold=false, bool $underline=false,
 	                             string $backColor='magenta', string $frontColor='white', string $borderColor='white') : string {
 		[$screenWidth, $screenHeight] = TµTerm::getScreenSize();
 		$res = '';
@@ -300,23 +295,20 @@ class Ansi {
 		$upperRight = $border ? mb_substr($border, 3, 1) : ' ';
 		$lowerRight = $border ? mb_substr($border, 4, 1) : ' ';
 		$lowerLeft = $border ? mb_substr($border, 5, 1) : ' ';
-		$index = $index ? "$index " : '';
-		$indexLen = mb_strlen($index);
 		if ($margin)
 			$res .= self::backColor($backColor, $borderColor, $upperLeft . str_repeat($horizontal, ($screenWidth - 2)) . $upperRight) . "\n";
 		for ($i = 1; $i < $margin; $i++)
 			$res .= self::backColor($backColor, $borderColor, $vertical . str_repeat(' ', ($screenWidth - 2)) . $vertical . ($vertical ? '' : '  ')) . "\n";
-		$s = wordwrap($s, ($screenWidth - (($margin > 1) ? 8 : 4) - $indexLen));
+		$s = wordwrap($s, ($screenWidth - (($margin > 1) ? 8 : 4)));
 		$lines = explode("\n", $s);
 		foreach ($lines as $line) {
-			$pad = str_repeat(' ', ($screenWidth - mb_strlen($line) - (($margin > 1) ? 8 : 4) - $indexLen));
+			$pad = str_repeat(' ', ($screenWidth - mb_strlen($line) - (($margin > 1) ? 8 : 4)));
 			$res .= self::backColor($backColor, $borderColor, $vertical);
-			$res .= self::backColor($backColor, $frontColor, (($margin > 1) ? '   ' : ' ') . "$index", $bold);
+			$res .= self::backColor($backColor, $frontColor, (($margin > 1) ? '   ' : ' '), $bold);
 			$res .= self::backColor($backColor, $frontColor, $line, $bold, $underline);
 			$res .= self::backColor($backColor, $frontColor, $pad . (($margin > 1) ? '   ' : ' ') . ($vertical ? '' : '  '));
 			$res .= self::backColor($backColor, $borderColor, $vertical);
 			$res .= "\n";
-			$index = str_repeat(' ', $indexLen);
 		}
 		for ($i = 1; $i < $margin; $i++)
 			$res .= self::backColor($backColor, $borderColor, $vertical . str_repeat(' ', ($screenWidth - 2)) . $vertical . ($vertical ? '' : '  ')) . "\n";
@@ -373,13 +365,20 @@ class Ansi {
 	 * Defines the styling of progress bars.
 	 * @param	?string	$backColor	(optional) Color of the background.
 	 * @param	?string	$frontColor	(optional) Color of the foreground.
+	 * @param	bool	$percentage	(optional) True to display a percentage of progress.
+	 *					False to display the exact value of progress. Defaults to true.
+	 * @param	int	$width		(optional) Division of the screen to use for display. Defaults to 1 (full width).
 	 * @param	?bool	$bold		(optional) True for bold text. Defaults to true.
 	 */
-	static public function setProgressStyle(?string $backColor=null, ?string $frontColor=null, ?bool $bold=null) {
+	static public function setProgressStyle(?string $backColor=null, ?string $frontColor=null, ?bool $percentage=null, ?int $width=null, ?bool $bold=null) {
 		if ($backColor !== null)
 			self::$_progressBackColor = $backColor;
 		if ($frontColor !== null)
 			self::$_progressFrontColor = $frontColor;
+		if ($percentage !== null)
+			self::$_progressPercentage = $percentage;
+		if ($width !== null)
+			self::$_progressWidth = $width;
 		if ($bold !== null)
 			self::$_progressBold = $bold;
 	}
@@ -387,16 +386,11 @@ class Ansi {
 	 * Starts a progress bar.
 	 * @param	string	$text		(optional) Default title of the progress bar. Defaults to empty string.
 	 * @param	int	$units		(optional) Number of total units. Defaults to 100.
-	 * @param	bool	$percentage	(optional) True to display a percentage of progress.
-	 *					False to display the exact value of progress. Defaults to true.
-	 * @param	int	$width		(optional) Division of the screen to use for display. Defaults to 1 (full width).
 	 */
-	static public function progressStart(string $text='', int $units=100, bool $percentage=true, int $width=1) {
+	static public function progressStart(string $text='', int $units=100) {
 		self::$_progressText = $text;
 		self::$_progressTotal = $units;
 		self::$_progressCurrent = 0;
-		self::$_progressPercentage = $percentage;
-		self::$_progressWidth = $width ?: 1;
 		TµTerm::hideCursor();
 		print("\n");
 		self::_progressDraw(0, self::$_progressTotal, $text, self::$_progressWidth);

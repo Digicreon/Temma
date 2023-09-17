@@ -48,7 +48,7 @@ class Term {
 	static public function reset() : void {
 		print("\ec");
 	}
-	/** Clear the current line. */
+	/** Clear the current line and move the cursor at the beginning of the line. */
 	static public function clearLine() : void {
 		print("\e[2K\r");
 	}
@@ -63,6 +63,10 @@ class Term {
 	/** Move cursor home (0,0 position). */
 	static public function moveCursorHome() : void {
 		print("\e[H");
+	}
+	/** Move cursor to the beginning of the current line. */
+	static public function moveCursorLineStart() : void {
+		print("\r");
 	}
 	/**
 	 * Move the cursor up.
