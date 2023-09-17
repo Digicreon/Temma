@@ -30,12 +30,15 @@ class Request {
 
 	/**
 	 * Constructor.
-	 * @param	string	$setUri	(optional) Path to use to extract the execution elements (controller, action, parameters),
-	 *				without going through the analysis of the current URL.
+	 * @param	null|bool|string	$setUri	(optional) Path to use to extract the execution elements (controller, action, parameters),
+	 *						without going through the analysis of the current URL.
+	 *						Set to false to avoid any processing.
 	 * @throws	\Temma\Exceptions\Framework	If no PATH_INFO nor REQUEST_URI data found in the environment.
 	 */
-	public function __construct(?string $setUri=null) {
+	public function __construct(null|bool|string $setUri=null) {
 		TµLog::log('Temma/Web', 'DEBUG', "Request creation.");
+		if ($setUri === false)
+			return;
 		if (isset($setUri)) {
 			// use the path given as parameter
 			$requestUri = '/' . trim($setUri, '/') . '/';

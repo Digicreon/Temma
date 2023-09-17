@@ -5,21 +5,25 @@
  * COMMA: COMmand-line MAnager
  * Bootstrap script for Temma command-line execution manager.
  *
- * Usage: bin/comma.php object method [--name1=param1] [--name2=param2]...
+ * Usage: bin/comma object [method [--name1=param1] [--name2=param2]...]
  */
 
 $objectName = null;
 $methodName = null;
 $params = [];
 
-// options management
-if ($_SERVER['argc'] < 3) {
-	fprintf(STDERR, "Usage: bin/comma.php object method [--name1=param1] [--name2=param2]...\n");
+/* *** Options management. *** */
+if ($_SERVER['argc'] < 2) {
+	fprintf(STDERR, "Usage: bin/comma object [method [--name1=param1] [--name2=param2]...]\n");
 	exit(1);
 }
 array_shift($_SERVER['argv']);
 $objectName = array_shift($_SERVER['argv']);
 $methodName = array_shift($_SERVER['argv']);
+if (str_starts_with($methodName, '--')) {
+	fprintf(STDERR, "No parameter allowed for the root action.\n");
+	exit(1);
+}
 foreach ($_SERVER['argv'] as $param) {
 	if (!preg_match('/^--([^=]+)=(.*)$/', $param, $matches)) {
 		fprintf(STDERR, "Bad parameter '$param'\n");
@@ -28,27 +32,28 @@ foreach ($_SERVER['argv'] as $param) {
 	$params[$matches[1]] = $matches[2];
 }
 
-// add inclusion path
+/* *** Add inclusion path. *** */
 set_include_path(__DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'lib' . PATH_SEPARATOR . get_include_path());
 
-// load libraries
+/* *** Load libraries. *** */
 require_once('Temma/Base/Autoload.php');
 require_once('Temma/Base/Log.php');
 
-// log configuration
+/* *** Log configuration. *** */
 use \Temma\Base\Log as TµLog;
 TµLog::logToStdErr();
 
+/* *** Autloaders. *** */
 // Temma autoloader
 \Temma\Base\Autoload::autoload(__DIR__ . '/../cli');
 // Composer autoloader
 @include_once(__DIR__ . '/../vendor/autoload.php');
 
-// read configuration file
+/* *** Read configuration file. *** */
 $config = new \Temma\Web\Config(__DIR__ . '/..');
 $config->readConfigurationFile();
 
-// manage log thresholds
+/* *** Manage log thresholds. *** */
 $logLevels = $config->logLevels;
 $usedLogLevels = TµLog::checkLogLevel($logLevels);
 if (!$usedLogLevels && is_array($logLevels)) {
@@ -62,25 +67,30 @@ if (!$usedLogLevels)
 	$usedLogLevels = \Temma\Web\Config::LOG_LEVEL;
 TµLog::setThreshold($usedLogLevels);
 
+/* *** Create Loader object ((dependency injection container). *** */
+// create request
+$request = new \Temma\Web\Request(false);
+$request->setParams($params);
 // create response
 $response = new \Temma\Web\Response();
 $response['CONTROLLER'] = $objectName;
 $response['ACTION'] = $methodName;
-// create the loader object (dependency injection container)
+// create the loader
 $loaderName = $config->loader;
 $loader = new $loaderName([
 	'config'   => $config,
+	'request'  => $request,
 	'response' => $response,
 ]);
 
-// connect to data sources
+/* *** Connect to data sources. *** */
 $datasources = [];
 foreach ($config->dataSources as $name => $dsn) {
 	$dataSources[$name] = \Temma\Base\Datasource::factory($dsn);
 }
 $loader->set('dataSources', $dataSources);
 
-// check object
+/* *** Check controller object. *** */
 if (!class_exists($objectName)) {
 	fprintf(STDERR, "Object '$objectName' doesn't exists.\n");
 	exit(3);
@@ -90,32 +100,11 @@ if (!is_subclass_of($objectName, '\Temma\Web\Controller')) {
 	exit(3);
 }
 
-// command instanciation
-$object = new $objectName($loader);
-// command init
-$method = \Temma\Web\Framework::CONTROLLERS_INIT_METHOD;
-try {
-	$status = $object->$method();
-} catch (\Error $e) {
-	fprintf(STDERR, "Unable to initialize the command '$objectName' [" . $e->getFile() . ':' . $e->getLine() . ']: ' . $e->getMessage() . "\n");
-	exit(3);
-}
-if ($status)
-	exit($status);
-// method execution
-if (!method_exists($object, $methodName)) {
-	fprintf(STDERR, "Object '$objectName' doesn't have a '$methodName' method.\n");
-	exit(3);
-}
-$status = $object->$methodName(...$params);
-if ($status)
-	exit($status);
-// command finalization
-$method = \Temma\Web\Framework::CONTROLLERS_FINALIZE_METHOD;
-try {
-	$status = $object->$method();
-} catch (\Error $e) {
-	fprintf(STDERR, "Unable to finalize the command '$objectName' [" . $e->getFile() . ':' . $e->getLine() . ']: ' . $e->getMessage() . "\n");
-}
+/* *** Command execution. *** */
+// check root action
+$methodName = $methodName ?: \Temma\Web\Framework::CONTROLLERS_ROOT_ACTION;
+// execution
+$executorController = new \Temma\Web\Controller($loader);
+$status = $executorController->_subProcess($objectName, $methodName);
 exit((int)$status);
 

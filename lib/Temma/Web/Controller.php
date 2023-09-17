@@ -310,9 +310,13 @@ class Controller implements \ArrayAccess {
 		$isProxyAction = false;
 		$isDefaultAction = false;
 		// check if this sub-controller has a proxy action
-		$method = \Temma\Web\Framework::CONTROLLERS_PROXY_ACTION;
-		if (method_exists($controller, $method)) {
+		if (method_exists($controller, \Temma\Web\Framework::CONTROLLERS_PROXY_ACTION)) {
 			// proxy action found
+			$method = \Temma\Web\Framework::CONTROLLERS_PROXY_ACTION;
+			$isProxyAction = true;
+		} else if (method_exists($controller, \Temma\Web\Framework::CONTROLLERS_OLD_PROXY_ACTION)) {
+			// old proxy action found
+			$method = \Temma\Web\Framework::CONTROLLERS_OLD_PROXY_ACTION;
 			$isProxyAction = true;
 		} else {
 			// no proxy action defined on this controller
