@@ -20,7 +20,6 @@ use \Temma\Utils\Email as TµEmail;
  * First, a table named "User" with the following fields:
  * * id:       (int) Primary key of the table.
  * * email:    (string) Email address of the user.
- * * isAdmin:  (boolean) True if the user is a super-administrator (optional).
  * * roles:    (set) Assigned roles of the user.
  * * services: (set) Services accessible by the user.
  * And another table named "AuthToken" with these fields:
@@ -34,7 +33,6 @@ use \Temma\Utils\Email as TµEmail;
  *     id              INT UNSIGNED NOT NULL AUTO_INCREMENT,
  *     date_creation   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
  *     email           TINYTEXT CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
- *     isAdmin         BOOLEAN NOT NULL DEFAULT FALSE,
  *     roles           SET('writer', 'reviewer', 'validator'), -- define your own set values
  *     services        SET('articles', 'news', 'images'), -- define your own set values
  *     PRIMARY KEY (id),
@@ -62,7 +60,6 @@ use \Temma\Utils\Email as TµEmail;
  *                 "table":    "tUser",
  *                 "id":       "user_id",
  *                 "email":    "user_mail",
- *                 "isAdmin":  "user_admin",
  *                 "roles":    "user_roles",
  *                 "services": "user_services"
  *             },
@@ -136,9 +133,14 @@ class Auth extends \Temma\Web\Plugin {
 		$user = $this->_userDao->get($currentUserId);
 		if (!$user)
 			return;
-		$user['roles'] = str_getcsv($user['roles']);
-		$user['services'] = str_getcsv($user['services']);
-		$user['isAdmin'] = ($user['isAdmin'] ?? null) ? true : false;
+		// extract and index roles
+		$roles = str_getcsv($user['roles']);
+		$roles = (($roles[0] ?? null) === null) ? [] : $roles;
+		$user['roles'] = array_fill_keys($roles, true);
+		// extract and index services
+		$services = str_getcsv($user['services']);
+		$services = (($services[0] ?? null) === null) ? [] : $services;
+		$user['services'] = array_fill_keys($services, true);
 		// create template variables
 		$this['currentUser'] = $user;
 		$this['currentUserId'] = $currentUserId;
@@ -344,7 +346,7 @@ Best regards";
 						$fields[$datum] = $name;
 				}
 				if ($fields) {
-					foreach (['id', 'email', 'isAdmin', 'roles', 'services'] as $key) {
+					foreach (['id', 'email', 'roles', 'services'] as $key) {
 						if (!isset($conf['userData'][$key]))
 							$fields[] = $key;
 					}

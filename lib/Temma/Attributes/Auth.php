@@ -16,9 +16,8 @@ use \Temma\Exceptions\Application as TµApplicationException;
  *
  * It uses a 'currentUser' template variable, which is an associative array with the following keys:
  * - id:       User's identifier, set if the user is authenticated.
- * - isAdmin:  Boolean value, set to true if the user has super-administrator rights.
- * - roles:    List of strings, each string being a granted role of the user.
- * - services: List of strings, each string being the name of a services accessible by the user.
+ * - roles:    Associative array whose keys are the user's roles (associated with the value true).
+ * - services: Associative array whose keys are the services to which the user has access (associated with the value <tt>true</tt>).
  *
  * Examples:
  * - Access to authenticated users only, for all actions of a controller:
@@ -33,7 +32,7 @@ use \Temma\Exceptions\Application as TµApplicationException;
  * #[TµAuth(authenticated: false)]
  *
  * - Access to administrators only:
- * #[TµAuth(isAdmin: true)]
+ * #[TµAuth('admin')]
  *
  * - Access to managers only:
  * #[TµAuth('manager')
@@ -42,7 +41,7 @@ use \Temma\Exceptions\Application as TµApplicationException;
  * #[TµAuth(role: 'manager')
  *
  * - Access to managers and writers:
- * #[TµAuth(roles: ['manager', 'writer'])]
+ * #[TµAuth(role: ['manager', 'writer'])]
  *
  * - Access to users who have access rights on images:
  * #[TµAuth(service: 'image')]
@@ -58,7 +57,7 @@ use \Temma\Exceptions\Application as TµApplicationException;
  * #[TµAuth(redirect: '/login')]
  *
  * - Redirects non-administrators to the given URL:
- * #[TµAuth(isAdmin: true, redirect: '/unauthorized')]
+ * #[TµAuth('admin', redirect: '/unauthorized')]
  *
  * @see	\Temma\Web\Controller
  */
@@ -68,10 +67,6 @@ class Auth extends \Temma\Web\Attribute {
 	 * Constructor.
 	 * @param	null|string|array	$role		(optional) One or many user roles that must be matched (at least one).
 	 * @param	null|string|array	$service	(optional) One or many services that must be matched (at least one).
-	 * @param	?bool			$isAdmin	(optional) Tell if the user must be super-administrator or not. (default value: null).
-	 *							- true if the user must be an administrator.
-	 *							- false if the user must not be an administrator.
-	 *							- null if the user can be an administrator or not.
 	 * @param	?bool			$authenticated	(optional) Tell if the user must be authenticated or not. (default value: true)
 	 *							- true if the user must be authenticated.
 	 *							- false if the user must not be authenticated.
@@ -82,8 +77,7 @@ class Auth extends \Temma\Web\Attribute {
 	 * @throws	\Temma\Exceptions\FlowHalt	If the user is not authorized and a redirect URL has been given.
 	 */
 	public function __construct(null|string|array $role=null, null|string|array $service=null,
-	                            ?bool $isAdmin=null, ?bool $authenticated=true,
-	                            ?string $redirect=null, ?string $redirectVar=null) {
+	                            ?bool $authenticated=true, ?string $redirect=null, ?string $redirectVar=null) {
 		try {
 			// check authentication
 			if ($authenticated === true && !($this['currentUser']['id'] ?? false)) {
@@ -94,19 +88,10 @@ class Auth extends \Temma\Web\Attribute {
 				TµLog::log('Temma/Web', 'WARN', "User is authenticated (while a unauthenticated user is expected).");
 				throw new TµApplicationException("User is authenticated.", TµApplicationException::AUTHENTICATION);
 			}
-			// check admin rights
-			if ($isAdmin === true && !($this['currentUSer']['isAdmin'] ?? false)) {
-				TµLog::log('Temma/Web', 'WARN', "User is not administrator (while an administrator is expected).");
-				throw new TµApplicationException("User is not administrator.", TµApplicationException::UNAUTHORIZED);
-			}
-			if ($isAdmin === false && ($this['currentUSer']['isAdmin'] ?? false)) {
-				TµLog::log('Temma/Web', 'WARN', "User is administrator (while a non-administrator is expected).");
-				throw new TµApplicationException("User is administrator.", TµApplicationException::UNAUTHORIZED);
-			}
 			// check roles
 			if ($role) {
 				$authRoles = is_array($role) ? $role : [$role];
-				$userRoles = array_fill_keys(($this['currentUser']['roles'] ?? []), true);
+				$userRoles = $this['currentUser']['roles'];
 				$found = false;
 				foreach ($authRoles as $role) {
 					if (isset($userRoles[$role])) {
@@ -122,7 +107,7 @@ class Auth extends \Temma\Web\Attribute {
 			// check services
 			if ($service) {
 				$authServices = is_array($service) ? $service : [$service];
-				$userServices = array_fill_keys(($this['currentUser']['services'] ?? []), true);
+				$userServices = $this['currentUser']['services'] ?? [];
 				$found = false;
 				foreach ($authServices as $service) {
 					if (isset($userServices[$service])) {
