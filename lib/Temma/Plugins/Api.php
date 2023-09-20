@@ -26,11 +26,14 @@ use \Temma\Base\Log as TµLog;
  *
  * The authentication process needs two tables in the database.
  * First, a table named "User" with the following fields:
- * - id:       (int) Primary key of the table.
- * - email:    (string) Email address of the user.
- * - isAdmin:  (boolean) True if the user is a super-administrator (optional).
- * - roles:    (set) Assigned roles of the user.
- * - services: (set) Services accessible by the user.
+ * - id:               (int) Primary key of the table.
+ * - date_creation:    (datetime) User creation date.
+ * - date_last_login:  (datetime) Date of user's last authentication.
+ * - date_last_access: (datetime) Date of user's last access.
+ * - email:            (string) Email address of the user.
+ * - name:             (string) User name.
+ * - roles:            (set) Assigned roles of the user.
+ * - services:         (set) Services accessible by the user.
  * And another table named "ApiKey" with these fields:
  * - public_key:  (string) A 32 characters-long public key.
  * - private_key: (string) A 64 characters-long SHA-256 hash of the private key.
@@ -39,12 +42,14 @@ use \Temma\Base\Log as TµLog;
  * Example of tables creation request:
  * ```sql
  * CREATE TABLE User (
- *     id              INT UNSIGNED NOT NULL AUTO_INCREMENT,
- *     date_creation   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
- *     email           TINYTEXT CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
- *     isAdmin         BOOLEAN NOT NULL DEFAULT FALSE,
- *     roles           SET('writer', 'reviewer', 'validator'), -- define your own set values
- *     services        SET('articles', 'news', 'images'), -- define your own set values
+ *     id               INT UNSIGNED NOT NULL AUTO_INCREMENT,
+ *     date_creation    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ *     date_last_login  DATETIME,
+ *     date_last_access DATETIME,
+ *     email            TINYTEXT CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
+ *     name             TINYTEXT,
+ *     roles            SET('admin', 'writer', 'reviewer'), -- define your own set values
+ *     services         SET('articles', 'news', 'images'), -- define your own set values
  *     PRIMARY KEY (id),
  *     UNIQUE INDEX email (email(255))
  * ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
@@ -52,6 +57,7 @@ use \Temma\Base\Log as TµLog;
  * CREATE TABLE ApiKey (
  *     public_key    CHAR(32) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
  *     private_key   CHAR(64) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
+ *     name          TINYTEXT NOT NULL DEFAULT ('Default'),
  *     user_id       INT UNSIGNED NOT NULL,
  *     PRIMARY KEY (public_key),
  *     FOREIGN KEY (user_id) REFERENCES User (id) ON DELETE CASCADE
@@ -69,7 +75,6 @@ use \Temma\Base\Log as TµLog;
  *                 "table":    "tUser",
  *                 "id":       "user_id",
  *                 "email":    "user_mail",
- *                 "isAdmin":  "user_admin",
  *                 "roles":    "user_roles",
  *                 "services": "user_services"
  *             },
@@ -208,9 +213,16 @@ class Api extends \Temma\Web\Plugin {
 		$user = $this->_userDao->get($apiKeyData['user_id']);
 		if (!$user)
 			return;
-		$user['roles'] = str_getcsv($user['roles']);
-		$user['services'] = str_getcsv($user['services']);
-		$user['isAdmin'] = ($user['isAdmin'] ?? null) ? true : false;
+		// update user last access
+		$this->_userDao->update($user['id'], ['date_last_access' => date('c')]);
+		// extract and index roles
+		$roles = str_getcsv($user['roles']);
+		$roles = (($roles[0] ?? null) === null) ? [] : $roles;
+		$user['roles'] = array_fill_keys($roles, true);
+		// extract and index services
+		$services = str_getcsv($user['services']);
+		$services = (($services[0] ?? null) === null) ? [] : $services;
+		$user['services'] = array_fill_keys($services, true);
 		// create template variables
 		$this['currentUser'] = $user;
 		$this['currentUserId'] = $apiKeyData['user_id'];
@@ -244,7 +256,7 @@ class Api extends \Temma\Web\Plugin {
 						$fields[$datum] = $name;
 				}
 				if ($fields) {
-					foreach (['id', 'email', 'isAdmin', 'roles', 'services'] as $key) {
+					foreach (['id', 'date_creation', 'date_last_login', 'date_last_access', 'email', 'name', 'roles', 'services'] as $key) {
 						if (!isset($conf['userData'][$key]))
 							$fields[] = $key;
 					}
@@ -280,6 +292,10 @@ class Api extends \Temma\Web\Plugin {
 					$this->_privateKeyFieldName = $conf['apiKeyData']['private_key'];
 				} else
 					$params['fields'][] = 'private_key';
+				if (isset($conf['apiKeyData']['name']))
+					$params['fields'][$conf['apiKeyData']['name']] = 'name';
+				else
+					$params['fields'][] = 'name';
 				if (isset($conf['apiKeyData']['user_id']))
 					$params['fields'][$conf['apiKeyData']['user_id']] = 'user_id';
 				else

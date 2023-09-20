@@ -30,11 +30,14 @@ use \Temma\Utils\Email as TµEmail;
  * Example of tables creation request:
  * ```sql
  * CREATE TABLE User (
- *     id              INT UNSIGNED NOT NULL AUTO_INCREMENT,
- *     date_creation   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
- *     email           TINYTEXT CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
- *     roles           SET('writer', 'reviewer', 'validator'), -- define your own set values
- *     services        SET('articles', 'news', 'images'), -- define your own set values
+ *     id               INT UNSIGNED NOT NULL AUTO_INCREMENT,
+ *     date_creation    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ *     date_last_login  DATETIME,
+ *     date_last_access DATETIME,
+ *     email            TINYTEXT CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
+ *     name             TINYTEXT,
+ *     roles            SET('writer', 'reviewer', 'validator'), -- define your own set values
+ *     services         SET('articles', 'news', 'images'), -- define your own set values
  *     PRIMARY KEY (id),
  *     UNIQUE INDEX email (email(255))
  * ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
@@ -61,7 +64,8 @@ use \Temma\Utils\Email as TµEmail;
  *                 "id":       "user_id",
  *                 "email":    "user_mail",
  *                 "roles":    "user_roles",
- *                 "services": "user_services"
+ *                 "services": "user_services",
+ *                 "org":      "org"
  *             },
  *             "tokenData": {
  *                 "base":       "auth_app",
@@ -133,6 +137,8 @@ class Auth extends \Temma\Web\Plugin {
 		$user = $this->_userDao->get($currentUserId);
 		if (!$user)
 			return;
+		// update user last access
+		$this->_userDao->update($user['id'], ['date_last_access' => date('c')]);
 		// extract and index roles
 		$roles = str_getcsv($user['roles']);
 		$roles = (($roles[0] ?? null) === null) ? [] : $roles;
@@ -230,7 +236,9 @@ class Auth extends \Temma\Web\Plugin {
 			// register the user
 			TµLog::log('Temma/App', 'DEBUG', "Register user '$email'.");
 			$this->_userDao->create([
-				'email' => $email,
+				'email'           => $email,
+				'date_creation'   => date('c'),
+				'date_last_login' => date('c'),
 			]);
 			$user = $this->_userDao->get($criteria);
 			if (!isset($user['id'])) {
@@ -346,7 +354,7 @@ Best regards";
 						$fields[$datum] = $name;
 				}
 				if ($fields) {
-					foreach (['id', 'email', 'roles', 'services'] as $key) {
+					foreach (['id', 'date_creation', 'date_last_login', 'date_last_access', 'email', 'name', 'roles', 'services'] as $key) {
 						if (!isset($conf['userData'][$key]))
 							$fields[] = $key;
 					}
