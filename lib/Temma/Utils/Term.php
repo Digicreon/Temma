@@ -44,6 +44,10 @@ class Term {
 	static public function clear() : void {
 		print("\e[H\e[J");
 	}
+	/** Clear the terminal from the position of the cursor. */
+	static public function clearFromCursor() : void {
+		print("\e[0J");
+	}
 	/** Reset the terminal. */
 	static public function reset() : void {
 		print("\ec");
@@ -52,17 +56,29 @@ class Term {
 	static public function clearLine() : void {
 		print("\e[2K\r");
 	}
+	/** Clear the current line after the cursor. */
+	static public function clearLineFromCursor() : void {
+		print("\e[K");
+	}
 	/** Hide the cursor. */
 	static public function hideCursor() : void {
-		print("\e?25l");
+		print("\e[?25l");
 	}
 	/** Show the cursor. */
 	static public function showCursor() : void {
-		print("\e?25h");
+		print("\e[?25h");
 	}
-	/** Move cursor home (0,0 position). */
+	/** Move cursor home (1,1 position). */
 	static public function moveCursorHome() : void {
 		print("\e[H");
+	}
+	/**
+	 * Move cursor to the given coordinates.
+	 * @param	int	$x	Column position.
+	 * @param	int	$y	Line position.
+	 */
+	static public function moveCursorTo(int $x, int $y) : void {
+		print("\e[" . ($y + 1) . ";{$x}H");
 	}
 	/** Move cursor to the beginning of the current line. */
 	static public function moveCursorLineStart() : void {
@@ -95,6 +111,28 @@ class Term {
 	 */
 	static public function moveCursorLeft(int $nbrColumns=1) : void {
 		print("\e[{$nbrColumns}D");
+	}
+	/** Save cursor position, in order to restore it later (with restoreCursor() method). */
+	static public function saveCursor() : void {
+		print("\eb7");
+	}
+	/** Restore cursor position (previously saved with the saveCursor() method). */
+	static public function restoreCursor() : void {
+		print("\eb8");
+	}
+	/**
+	 * Returns cursor position.
+	 * @return	array	Array with x and y coordinates (column, line).
+	 */
+	static public function getCursorPosition() : array {
+		$tty = shell_exec('stty -g');
+		shell_exec('stty -icanon -echo');
+		fwrite(STDIN, "\e[6n");
+		$result = fread(STDIN, 256);
+		if (!preg_match('/(\d*);(\d*)/', $result, $matches))
+			return [1, 1];
+		shell_exec("stty $tty");
+		return [$matches[2], $matches[1]];
 	}
 	/**
 	 * Fetch screen size.
