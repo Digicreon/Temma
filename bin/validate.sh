@@ -16,6 +16,7 @@ else
 fi
 
 VALIDATION_PATHS="$CURRENT_DIR/../controllers
+                  $CURRENT_DIR/../cli
                   $CURRENT_DIR/../lib"
 
 pushd "$CURRENT_DIR" > /dev/null

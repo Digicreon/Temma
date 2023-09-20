@@ -5,32 +5,12 @@
  * COMMA: COMmand-line MAnager
  * Bootstrap script for Temma command-line execution manager.
  *
- * Usage: bin/comma object [method [--name1=param1] [--name2=param2]...]
+ * Usage: bin/comma controller [action [--name1=param1] [--name2=param2]...]
  */
 
 $objectName = null;
 $methodName = null;
 $params = [];
-
-/* *** Options management. *** */
-if ($_SERVER['argc'] < 2) {
-	fprintf(STDERR, "Usage: bin/comma object [method [--name1=param1] [--name2=param2]...]\n");
-	exit(1);
-}
-array_shift($_SERVER['argv']);
-$objectName = array_shift($_SERVER['argv']);
-$methodName = array_shift($_SERVER['argv']);
-if (str_starts_with($methodName, '--')) {
-	fprintf(STDERR, "No parameter allowed for the root action.\n");
-	exit(1);
-}
-foreach ($_SERVER['argv'] as $param) {
-	if (!preg_match('/^--([^=]+)=(.*)$/', $param, $matches)) {
-		fprintf(STDERR, "Bad parameter '$param'\n");
-		exit(2);
-	}
-	$params[$matches[1]] = $matches[2];
-}
 
 /* *** Add inclusion path. *** */
 set_include_path(__DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'lib' . PATH_SEPARATOR . get_include_path());
@@ -48,6 +28,34 @@ TµLog::logToStdErr();
 \Temma\Base\Autoload::autoload(__DIR__ . '/../cli');
 // Composer autoloader
 @include_once(__DIR__ . '/../vendor/autoload.php');
+
+use \Temma\Utils\Ansi as TµAnsi;
+
+/* *** Options management. *** */
+if ($_SERVER['argc'] < 2) {
+	showHelp(true);
+	exit(1);
+}
+array_shift($_SERVER['argv']);
+// help management
+if ($_SERVER['argv'][0] == 'help') {
+	showHelp();
+	exit(0);
+}
+// extract object, method and parameters
+$objectName = array_shift($_SERVER['argv']);
+$methodName = array_shift($_SERVER['argv']);
+if (str_starts_with($methodName, '--')) {
+	fprintf(STDERR, "No parameter allowed for the root action.\n");
+	exit(1);
+}
+foreach ($_SERVER['argv'] as $param) {
+	if (!preg_match('/^--([^=]+)=(.*)$/', $param, $matches)) {
+		fprintf(STDERR, "Bad parameter '$param'\n");
+		exit(2);
+	}
+	$params[$matches[1]] = $matches[2];
+}
 
 /* *** Read configuration file. *** */
 $config = new \Temma\Web\Config(__DIR__ . '/..');
@@ -108,3 +116,73 @@ $executorController = new \Temma\Web\Controller($loader);
 $status = $executorController->_subProcess($objectName, $methodName);
 exit((int)$status);
 
+/* ********** FUNCTIONS ********** */
+/**
+ * Function called when the first parameter on the command line is 'help'.
+ * It extracts the name of the controller (and the action if given) and shows
+ * the related information.
+ * @param	bool	$showUsage	(optional) True to force usage display.
+ */
+function showHelp(bool $showUsage=false) {
+	array_shift($_SERVER['argv']);
+	if (!$_SERVER['argv'] || $showUsage) {
+		fprintf(STDERR, TµAnsi::title1("COMMA USAGE"));
+		fprintf(STDERR, TµAnsi::title3('Common usage'));
+		fprintf(STDERR, '    ' . TµAnsi::bold('bin/comma ') . TµAnsi::color('blue', 'controller ') .
+				TµAnsi::faint('[') . TµAnsi::color('green', 'method ') . TµAnsi::faint('[') .
+				'--' . TµAnsi::color('yellow', 'param1') . '=' . TµAnsi::color('cyan', 'value1') . TµAnsi::faint('] [') .
+				'--' . TµAnsi::color('yellow', 'param2') . '=' . TµAnsi::color('cyan', 'value2') . TµAnsi::faint(']') .
+				'...' . TµAnsi::faint("]\n\n\n"));
+		fprintf(STDERR, TµAnsi::title3('Help'));
+		fprintf(STDERR, '    ' . TµAnsi::bold("bin/comma\n"));
+		fprintf(STDERR, '    ' . TµAnsi::bold('bin/comma ') . TµAnsi::underline("help\n"));
+		fprintf(STDERR, '        ' . TµAnsi::faint("Shows this help.\n\n"));
+		fprintf(STDERR, '    ' . TµAnsi::bold('bin/comma ') . TµAnsi::underline('help') . ' ' . TµAnsi::color('blue', "object \n"));
+		fprintf(STDERR, '        ' . TµAnsi::faint("Shows the list of actions offered by the requested controller.\n\n"));
+		fprintf(STDERR, '    ' . TµAnsi::bold('bin/comma ') . TµAnsi::underline('help') . ' ' . TµAnsi::color('blue', 'controller ') .
+				TµAnsi::color('red', "action\n"));
+		fprintf(STDERR, '        ' . TµAnsi::faint("Show the documentation of the requested action.\n\n"));
+		exit(0);
+	}
+	$objectName = array_shift($_SERVER['argv']);
+	if (!class_exists($objectName)) {
+		print(TµAnsi::color('red', "There is no avaiable controller named '$objectName'.\n"));
+		exit(1);
+	}
+	// get controller info
+	$reflect = new ReflectionClass($objectName);
+	print(TµAnsi::title1('COMMA HELP'));
+	print(TµAnsi::title3("Controller: $objectName"));
+	$notMethods = get_class_methods('\Temma\Web\Controller');
+	$methods = $reflect->getMethods(ReflectionMethod::IS_PUBLIC);
+	$realMethods = [];
+	foreach ($methods as $method) {
+		if (in_array($method->name, $notMethods))
+			continue;
+		$realMethod = [
+			'name'    => $method->getName(),
+			'params'  => [],
+			'comment' => $method->getDocComment(),
+		];
+		foreach ($method->getParameters() as $param) {
+			//$realMethod['params'][] = '--' . TµAnsi::color('blue', $param->getName()) . TµAnsi::faint(' (') . TµAnsi::color('green', (string)$param->getType()) . TµAnsi::faint(')');
+			$realMethod['params'][] = '--' . TµAnsi::color('blue', $param->getName()) . TµAnsi::faint('=') . TµAnsi::color('green', (string)$param->getType());
+		}
+		$realMethods[] = $realMethod;
+	}
+	// shows object info
+	TµAnsi::setTitleStyle(4, bold: true, frontColor: 'black');
+	foreach ($realMethods as $method) {
+		if ($_SERVER['argv'] && $method['name'] != $_SERVER['argv'][0])
+			continue;
+		print(TµAnsi::title4('Action: ' . $method['name']));
+		print(' ' . TµAnsi::bold($method['name']) . ' ' . implode(' ', $method['params']) . "\n");
+		if ($method['comment']) {
+			$comment = preg_replace('/^\/[\*\s]*/', '', $method['comment']);
+			$comment = preg_replace('/\n[\*\s]*/', "\n  ", $comment);
+			$comment = preg_replace('/[\s\*\/]*$/', '', $comment);
+			print(TµAnsi::faint(preg_replace('/\n\s*/', "\n  ", ' ' . $comment)) . "\n");
+		}
+		print("\n");
+	}
+}
