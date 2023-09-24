@@ -523,11 +523,9 @@ class Ansi {
 		$textColor = (is_string($textColor) && ctype_digit($textColor)) ? intval($textColor) : $textColor;
 		if ($textColor === "default" || (is_string($textColor) && !isset(self::COLORS[$textColor])))
 			return ("\e[39m$text");
-		if (is_int($textColor))
-			return ("\e[38;5;{$color}m$text\e[39m");
 		if (is_string($textColor))
 			return ("\e[38;5;" . self::COLORS[$textColor] . "m$text\e[39m");
-		return ('');
+		return ("\e[38;5;{$textColor}m$text\e[39m");
 	}
 	/**
 	 * Background colored text.
@@ -637,7 +635,7 @@ class Ansi {
 	                                ?bool $reverse=null, ?string $label=null, ?string $line=null, ?int $padding=null, ?int $margin=null) {
 		self::$_styles[$tag] ??= [];
 		if ($display !== null)
-			$self::$_styles[$tag]['display'] = $display;
+			self::$_styles[$tag]['display'] = $display;
 		if ($backColor !== null)
 			self::$_styles[$tag]['backColor'] = $backColor;
 		if ($textColor !== null)

@@ -23,20 +23,27 @@ pushd "$CURRENT_DIR" > /dev/null
 
 # check if the "phpstan.phar" file exists
 if [ ! -e phpstan.phar ]; then
-	wget https://github.com/phpstan/phpstan/releases/download/1.10.25/phpstan.phar
+	wget https://github.com/phpstan/phpstan/releases/download/1.10.35/phpstan.phar
 	chmod +x phpstan.phar
 fi
 # check if the "autoloader.php" file exists
 if [ ! -e autoloader.php ]; then
 	echo "<?php
 
+// Temma autoloader
 require_once('/opt/Temma/lib/Temma/Base/Autoload.php');
-
 \Temma\Base\Autoload::autoload([
 	'/opt/Temma/lib/',
 ]);
+
+// Composer autorloader
 if (file_exists('/opt/Temma/vendor/autoload.php'))
 	require_once('/opt/Temma/vendor/autoload.php');
+
+// load Smarty library
+include_once('smarty4/Autoloader.php');
+include_once('smarty4/bootstrap.php');
+require_once('smarty4/Smarty.class.php');
 " > autoloader.php
 fi
 
