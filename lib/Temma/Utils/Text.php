@@ -40,6 +40,17 @@ class Text {
 		return (true);
 	}
 	/**
+	 * Checks if an UTF-8 string contains only characters compatible with a given encoding.
+	 * @param	string	$text		Text to check.
+	 * @param	string	$encoding	The target encoding (i.e. 'iso-8859-15').
+	 * @return	bool	True if the input string is compatible with the given encoding.
+	 */
+	static public function encodingCompatible(string $text, string $encoding) : bool {
+		$s = mb_convert_encoding($text, 'iso-8859-15', 'utf-8');
+		$s = mb_convert_encoding($s, 'utf-8', 'iso-8859-15');
+		return ($s == $text);
+	}
+	/**
 	 * Transform an HTML stream into a plain text.
 	 * @param	string	$html		The input HTML stream.
 	 * @param	bool	$cleanup	(optional) True to remove <blockquote>, <pre> and <code> content. False by default.
