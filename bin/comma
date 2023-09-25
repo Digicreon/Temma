@@ -168,13 +168,12 @@ function showHelp(bool $showUsage=false) {
 			'comment' => $method->getDocComment(),
 		];
 		foreach ($method->getParameters() as $param) {
-			//$realMethod['params'][] = '--' . TµAnsi::color('blue', $param->getName()) . TµAnsi::faint(' (') . TµAnsi::color('green', (string)$param->getType()) . TµAnsi::faint(')');
-			$realMethod['params'][] = '--' . TµAnsi::color('blue', $param->getName()) . TµAnsi::faint('=') . TµAnsi::color('green', (string)$param->getType());
+			$realMethod['params'][] = '--' . TµAnsi::color('green', $param->getName()) . TµAnsi::faint('=') . TµAnsi::color('blue', (string)$param->getType());
 		}
 		$realMethods[] = $realMethod;
 	}
 	// shows object info
-	TµAnsi::setTitleStyle(4, bold: true, frontColor: 'black');
+	TµAnsi::setStyle('h4', bold: true, textColor: 'black');
 	foreach ($realMethods as $method) {
 		if ($_SERVER['argv'] && $method['name'] != $_SERVER['argv'][0])
 			continue;
