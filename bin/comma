@@ -126,22 +126,25 @@ exit((int)$status);
 function showHelp(bool $showUsage=false) {
 	array_shift($_SERVER['argv']);
 	if (!$_SERVER['argv'] || $showUsage) {
-		fprintf(STDERR, TµAnsi::title1("COMMA USAGE"));
-		fprintf(STDERR, TµAnsi::title3('Common usage'));
-		fprintf(STDERR, '    ' . TµAnsi::bold('bin/comma ') . TµAnsi::color('blue', 'controller ') .
-				TµAnsi::faint('[') . TµAnsi::color('green', 'method ') . TµAnsi::faint('[') .
-				'--' . TµAnsi::color('yellow', 'param1') . '=' . TµAnsi::color('cyan', 'value1') . TµAnsi::faint('] [') .
-				'--' . TµAnsi::color('yellow', 'param2') . '=' . TµAnsi::color('cyan', 'value2') . TµAnsi::faint(']') .
-				'...' . TµAnsi::faint("]\n\n\n"));
-		fprintf(STDERR, TµAnsi::title3('Help'));
-		fprintf(STDERR, '    ' . TµAnsi::bold("bin/comma\n"));
-		fprintf(STDERR, '    ' . TµAnsi::bold('bin/comma ') . TµAnsi::underline("help\n"));
-		fprintf(STDERR, '        ' . TµAnsi::faint("Shows this help.\n\n"));
-		fprintf(STDERR, '    ' . TµAnsi::bold('bin/comma ') . TµAnsi::underline('help') . ' ' . TµAnsi::color('blue', "object \n"));
-		fprintf(STDERR, '        ' . TµAnsi::faint("Shows the list of actions offered by the requested controller.\n\n"));
-		fprintf(STDERR, '    ' . TµAnsi::bold('bin/comma ') . TµAnsi::underline('help') . ' ' . TµAnsi::color('blue', 'controller ') .
-				TµAnsi::color('red', "action\n"));
-		fprintf(STDERR, '        ' . TµAnsi::faint("Show the documentation of the requested action.\n\n"));
+		$s = "<h1 padding='2'>COMMA USAGE</h1>
+<h2 line=''>Common usage</h2>
+    <b>bin/comma</b> <color t='blue'>controller</color> <faint>[</faint><color t='green'>action</color> <faint>[</faint>--<color t='yellow'>param1</color>=<color t='cyan'>value1</color><faint>] [</faint>--<color t='yellow'>param2</color>=<color t='cyan'>value2</color><faint>]</faint>...<faint>]</faint><br />
+        <faint>If no action is given, the <span textColor='green'>__invoke()</span> method is executed.</faint><br />
+        <faint>If the controller has a <span textColor='green'>__proxy()</span> method, it is executed systematically.</faint><br />
+        <faint>If the requested action doesn't exist, but the controller has a <span textColor='green'>__call()</span> method, this method is executed.</faint><br />
+
+
+<h2 line='' marginTop='2'>Help</h2>
+    <b>bin/comma</b><br />
+    <b>bin/comma</b> <u>help</u><br />
+        <faint>Shows this help.</faint><br /><br />
+
+    <b>bin/comma</b> <u>help</u> <color t='blue'>controller</color><br />
+        <faint>Shows the list of actions offered by the requested controller.</faint><br /><br />
+
+    <b>bin.comma</b> <u>help</u> <color t='blue'>controller</color> <color t='red'>action</color><br />
+        <faint>Shows the documentation of the requested action.</faint><br />";
+		fprintf(STDERR, TµAnsi::style($s));
 		exit(0);
 	}
 	$objectName = array_shift($_SERVER['argv']);
