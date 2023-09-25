@@ -157,7 +157,7 @@ class Ansi {
 			'line'         => '',
 			'padding'      => 0,
 			'marginTop'    => 0,
-			'marginBottom' => 0,
+			'marginBottom' => 1,
 		],
 		// code
 		'code' => [
@@ -175,7 +175,7 @@ class Ansi {
 			'line'         => '       ▌',
 			'padding'      => 1,
 			'marginTop'    => 0,
-			'marginBottom' => 0,
+			'marginBottom' => 1,
 		],
 		// pre
 		'pre' => [
@@ -193,7 +193,26 @@ class Ansi {
 			'line'         => '       ▌',
 			'padding'      => 1,
 			'marginTop'    => 0,
-			'marginBottom' => 0,
+			'marginBottom' => 1,
+		],
+		// comment
+		'comment' => [
+			'display'      => 'block',
+			'label'        => '',
+			'backColor'    => 189,
+			'textColor'    => 'black',
+			'borderColor'  => 'blue',
+			'bold'         => false,
+			'italic'       => true,
+			'underline'    => false,
+			'faint'        => false,
+			'strikeout'    => false,
+			'blink'        => false,
+			'reverse'      => false,
+			'line'         => '       ▌',
+			'padding'      => 1,
+			'marginTop'    => 0,
+			'marginBottom' => 1,
 		],
 		// success
 		'success' => [
@@ -250,24 +269,9 @@ class Ansi {
 			'marginTop'    => 0,
 			'marginBottom' => 1,
 		],
-		// comment
-		'comment' => [
-			'display'      => 'block',
-			'label'        => 'Comment',
-			'backColor'    => 189,
-			'textColor'    => 'black',
-			'borderColor'  => 'gray',
-			'bold'         => false,
-			'italic'       => true,
-			'underline'    => false,
-			'faint'        => false,
-			'strikeout'    => false,
-			'blink'        => false,
-			'reverse'      => false,
-			'line'         => '       ▌',
-			'padding'      => 1,
-			'marginTop'    => 0,
-			'marginBottom' => 1,
+		// span
+		'span' => [
+			'display' => 'inline',
 		],
 		// inline styles
 		'b' => [
@@ -567,6 +571,10 @@ class Ansi {
 	 * @return	string	The formatted text.
 	 */
 	static public function link(string $url, ?string $title=null) : string {
+		if (!$url && !$title)
+			return ('');
+		if (!$url)
+			return ($title);
 		if (!$title) {
 			$title = mb_substr($url, 0, 40);
 			$title .= (mb_strlen($url) > 40) ? '...' : '';
@@ -605,6 +613,15 @@ class Ansi {
 	static public function title4(string $s) : string {
 		return (self::style('<h4>' . htmlspecialchars($s, ENT_QUOTES | ENT_SUBSTITUTE | ENT_XML1) . '</h4>'));
 	}
+	/**
+	 * Display a block content.
+	 * @param	string	$block	Block name.
+	 * @param	string	$s	Block text.
+	 * @return	string	The formatted text.
+	 */
+	static public function block(string $block, string $s) : string {
+		return (self::style("<$block>" . htmlspecialchars($s, ENT_QUOTES | ENT_SUBSTITUTE | ENT_XML1) . "</$block>"));
+	}
 
 	/* ********** STYLES MANAGEMENT ********** */
 	/**
@@ -627,13 +644,16 @@ class Ansi {
 	 *						upper right corner, lower right corner, lower left corner). Empty string to have no border.
 	 * @param	?int		$padding	(optional) Padding size. 0 for no padding, 1 for thin padding (1 character), 2 for large padding (2 characters),
 	 *						3 for extra-large padding (3 characters).
-	 * @param	?int		$margin		(optional) Margin size.
+	 * @param	?int		$marginTop	(optional) Top margin size.
+	 * @param	?int		$marginBottom	(optional) Bottom margin size.
+	 * @return	array		The old style definition. Empty array if the style didn't exist.
 	 */
 	static public function setStyle(string $tag, ?string $display=null, null|int|string $backColor=null, null|int|string $textColor=null,
-	                                null|int|string $borderColor=null, ?string $labelColor=null,
-	                                ?bool $bold=null, ?bool $italic=null, ?bool $underline=null, ?bool $faint=null, ?bool $strikeout=null, ?bool $blink=null,
-	                                ?bool $reverse=null, ?string $label=null, ?string $line=null, ?int $padding=null, ?int $margin=null) {
+	                                null|int|string $borderColor=null, ?string $labelColor=null, ?bool $bold=null, ?bool $italic=null,
+	                                ?bool $underline=null, ?bool $faint=null, ?bool $strikeout=null, ?bool $blink=null, ?bool $reverse=null,
+	                                ?string $label=null, ?string $line=null, ?int $padding=null, ?int $marginTop=null, ?int $marginBottom=null) : array {
 		self::$_styles[$tag] ??= [];
+		$oldStyle = self::$_styles[$tag];
 		if ($display !== null)
 			self::$_styles[$tag]['display'] = $display;
 		if ($backColor !== null)
@@ -664,8 +684,11 @@ class Ansi {
 			self::$_styles[$tag]['line'] = $line;
 		if ($padding !== null)
 			self::$_styles[$tag]['padding'] = $padding;
-		if ($margin !== null)
-			self::$_styles[$tag]['margin'] = $margin;
+		if ($marginTop !== null)
+			self::$_styles[$tag]['marginTop'] = $marginTop;
+		if ($marginBottom !== null)
+			self::$_styles[$tag]['marginBottom'] = $marginBottom;
+		return ($oldStyle);
 	}
 
 	/* ********** XML FUNCTIONS ********** */
@@ -716,8 +739,8 @@ class Ansi {
 			if ($subnode instanceof \DOMText) {
 				// text
 				$s = $subnode->nodeValue;
+				$s = trim($s, "\n");
 				$result .= self::_styleBlockContent($s, $blockStyle);
-				//$result .= $s;
 			} else if ($subnode instanceof \DOMElement) {
 				// subnode
 				$tag = $subnode->nodeName;
@@ -727,14 +750,36 @@ class Ansi {
 				$inBlock = (($style['display'] ?? null) == 'block');
 				// node attributes
 				foreach ($subnode->attributes as $attr) {
+					$attrName = $attr->name;
 					$value = null;
+					if ($tag == 'color') {
+						if ($attrName == 't')
+							$attrName = 'textColor';
+						else if ($attrName == 'b')
+							$attrName = 'backColor';
+					}
 					if ($attr->value == 'true')
 						$value = true;
 					else if ($attr->value == 'false')
 						$value = false;
 					else if ($attr->value != 'null')
 						$value = $attr->value;
-					$style[$attr->name] = $value;
+					$style[$attrName] = $value;
+				}
+				// specific tags
+				if ($tag == 'br') {
+					// <br /> tag
+					$result .= "\n";
+					continue;
+				} else if ($tag == 'a') {
+					// <a> tag
+					$href = $style['href'] ?? null;
+					$title = $subnode->nodeValue;
+					if (!$href)
+						$result .= $title;
+					else
+						$result .= self::link($style['href'], $title);
+					continue;
 				}
 				// apply the node's style
 				if ($inBlock)
@@ -818,7 +863,9 @@ class Ansi {
 		if (($style['label'] ?? null)) {
 			$label = self::wordwrap($style['label'], ($screenWidth - 2));
 			$label = str_replace("\n", " \n ", $label);
-			$labelColor = ($style['labelColor'] ?? null) ?: $borderColor;
+			$labelColor = ($style['labelColor'] ?? null) ?:
+			              (($borderColor != 'white') ? $borderColor :
+			               (($backColor != 'white') ? $backColor : 'black'));
 			$res .= self::backColor($labelColor, 'white', ' ' . $style['label'] . ' ') . "\n";
 		}
 		// line
