@@ -56,7 +56,7 @@ class Beanstalk extends \Temma\Base\Datasource {
 	 * Create a new instance of this class.
 	 * @param	string	$dsn	Connection string.
 	 * @return	\Temma\Base\Datasources\Beanstalk	The created instance.
-	 * @throws	\Temma\Exceptions\Database	If the DNS is invalid.
+	 * @throws	\Temma\Exceptions\Database	If the DSN is invalid.
 	 */
 	static public function factory(string $dsn) : \Temma\Base\Datasources\Beanstalk {
 		TµLog::log('Temma/Base', 'DEBUG', "\Temma\Base\Datasources\Beanstalk object creation with DSN: '$dsn'.");
@@ -81,6 +81,7 @@ class Beanstalk extends \Temma\Base\Datasource {
 		$this->_host = $host;
 		$this->_port = $port;
 		$this->_tube = $tube;
+		$this->_enabled = true;
 	}
 
 	/* ********** CONNECTION ********** */

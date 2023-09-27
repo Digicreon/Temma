@@ -61,7 +61,7 @@ class Sqs extends \Temma\Base\Datasource {
 	 * Create a new instance of this class.
 	 * @param	string	$dsn	Connection string.
 	 * @return	\Temma\Base\Datasources\Sqs	The created instance.
-	 * @throws	\Temma\Exceptions\Database	If the DNS is invalid.
+	 * @throws	\Temma\Exceptions\Database	If the DSN is invalid.
 	 */
 	static public function factory(string $dsn) : \Temma\Base\Datasources\Sqs {
 		TµLog::log('Temma/Base', 'DEBUG', "\Temma\Base\Datasources\SQS object creation with DSN: '$dsn'.");
@@ -92,6 +92,7 @@ class Sqs extends \Temma\Base\Datasource {
 		$this->_privateKey = $privateKey;
 		$this->_region = $region;
 		$this->_url = $url;
+		$this->_enabled = true;
 	}
 
 	/* ********** CONNECTION ********** */

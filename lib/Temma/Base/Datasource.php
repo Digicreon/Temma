@@ -47,10 +47,21 @@ abstract class Datasource implements \ArrayAccess {
 	 */
 	static public function factory(string $dsn) : \Temma\Base\Datasource {
 		TµLog::log('Temma/Base', 'DEBUG', "Datasource object creation with DSN: '$dsn'.");
+		// manage specified data source objects
+		if (preg_match('/\[([^\]]+)\](.*)$/', $dsn, $matches)) {
+			$object = $matches[1];
+			$dsn = $matches[2];
+			if (is_a($object, '\Temma\Base\Datasource', true)) {
+				TµLog::log('Temma/Web', 'DEBUG', "Load data source '$object'.");
+				return ($object::factory($dsn));
+			}
+		}
+		// SQL databases
 		foreach (self::DATABASE_PREFIXES as $prefix) {
 			if (str_starts_with($dsn, $prefix))
 				return (\Temma\Base\Datasources\Sql::factory($dsn));
 		}
+		// other data sources managed by Temma
 		if (str_starts_with($dsn, 'memcache://'))
 			return (\Temma\Base\Datasources\Memcache::factory($dsn));
 		if (str_starts_with($dsn, 'redis://') ||
@@ -68,6 +79,8 @@ abstract class Datasource implements \ArrayAccess {
 			return (\Temma\Base\Datasources\Sqs::factory($dsn));
 		if (str_starts_with($dsn, 'smsmode://'))
 			return (\Temma\Base\Datasources\Smsmode::factory($dsn));
+		if (str_starts_with($dsn, 'pushover://'))
+			return (\Temma\Base\Datasources\Pushover::factory($dsn));
 		if (str_starts_with($dsn, 'env://')) {
 			$dsn = getenv(substr($dsn, 6));
 			return (self::factory($dsn));

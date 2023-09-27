@@ -67,7 +67,7 @@ class File extends \Temma\Base\Datasource {
 	 * Create a new instance of this class.
 	 * @param	string	$dsn	Connection string.
 	 * @return	\Temma\Base\Datasources\File	The created instance.
-	 * @throws	\Temma\Exceptions\Database	If the DNS is invalid.
+	 * @throws	\Temma\Exceptions\Database	If the DSN is invalid.
 	 */
 	static public function factory(string $dsn) : \Temma\Base\Datasources\File {
 		TµLog::log('Temma/Base', 'DEBUG', "\Temma\Base\Datasources\File object creation with DSN: '$dsn'.");
@@ -95,6 +95,7 @@ class File extends \Temma\Base\Datasource {
 		else
 			$umask = base_convert($umask, 8, 10);
 		$this->_umask = $umask;
+		$this->_enabled = true;
 	}
 
 	/* ********** STANDARD REQUESTS ********** */

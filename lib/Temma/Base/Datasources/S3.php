@@ -103,7 +103,7 @@ class S3 extends \Temma\Base\Datasource {
 	 * Create a new instance of this class.
 	 * @param	string	$dsn	Connection string.
 	 * @return	\Temma\Base\Datasources\S3	The created instance.
-	 * @throws	\Temma\Exceptions\Database	If the DNS is invalid.
+	 * @throws	\Temma\Exceptions\Database	If the DSN is invalid.
 	 */
 	static public function factory(string $dsn) : \Temma\Base\Datasources\S3 {
 		TµLog::log('Temma/Base', 'DEBUG', "\Temma\Base\Datasources\S3 object creation with DSN: '$dsn'.");
@@ -142,6 +142,7 @@ class S3 extends \Temma\Base\Datasource {
 		$this->_publicAccess = $publicAccess;
 		if (!$this->_accessKey || !$this->_privateKey || !$this->_region || !$this->_bucket)
 			throw new \Temma\Exceptions\Database("Bad S3 connection parameters.", \Temma\Exceptions\Database::FUNDAMENTAL);
+		$this->_enabled = true;
 	}
 
 	/* ********** CONNECTION ********** */

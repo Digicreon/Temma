@@ -71,7 +71,7 @@ class Redis extends \Temma\Base\Datasource {
 	 * Factory
 	 * @param	string	$dsn	Connection string.
 	 * @return	\Temma\Base\Datasources\Redis	The created object.
-	 * @throws	\Exception	If the DNS is not correct.
+	 * @throws	\Exception	If the DSN is not correct.
 	 */
 	static public function factory(string $dsn) : \Temma\Base\Datasources\Redis {
 		TµLog::log('Temma/Base', 'DEBUG', "\Temma\Base\Datasources\Redis object creation with DSN: '$dsn'.");
@@ -107,6 +107,7 @@ class Redis extends \Temma\Base\Datasource {
 			'base'	=> $base,
 			'port'	=> $port,
 		];
+		$this->_enabled = true;
 	}
 	/** Destructor. Close the connection. */
 	public function __destruct() {

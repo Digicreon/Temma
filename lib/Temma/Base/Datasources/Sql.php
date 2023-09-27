@@ -151,6 +151,7 @@ class Sql extends \Temma\Base\Datasource {
 		}
 		$this->_login = $login;
 		$this->_password = $password;
+		$this->_enabled = true;
 	}
 
 	/* ********** CONNECTION / DISCONNECTION ********** */

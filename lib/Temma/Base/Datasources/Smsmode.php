@@ -110,7 +110,7 @@ class Smsmode extends \Temma\Base\Datasource {
 	 * Create a new instance of this class.
 	 * @param	string	$dsn	Connection string.
 	 * @return	\Temma\Base\Datasources\Smsmode	The created instance.
-	 * @throws	\Temma\Exceptions\Database	If the DNS is invalid.
+	 * @throws	\Temma\Exceptions\Database	If the DSN is invalid.
 	 */
 	static public function factory(string $dsn) : \Temma\Base\Datasources\Smsmode {
 		TµLog::log('Temma/Base', 'DEBUG', "\Temma\Base\Datasources\Smsmode object creation with DSN: '$dsn'.");
@@ -133,11 +133,12 @@ class Smsmode extends \Temma\Base\Datasource {
 	private function __construct(string $apiKey, ?string $sender=null) {
 		$this->_apiKey = $apiKey;
 		$this->_sender = $sender ?: null;
+		$this->_enabled = true;
 	}
 
 	/* ********** SPECIAL REQUESTS ********** */
 	/**
-	 * Send a test message.
+	 * Send a text message.
 	 * @param	string|array	$recipient	Phone number or list of phone numbers.
 	 * @param	string		$text		Text message.
 	 * @param	?string		$sendDate	(optional) Sending date (format 'DDMMYYYY-HH:mm').
@@ -316,10 +317,10 @@ class Smsmode extends \Temma\Base\Datasource {
 	 */
 	private function _request(string $endpoint, array $parameters=[], bool $unicode=false) : string {
 		$url = $unicode ? self::API_URL_UNICODE : self::API_URL;
-		$url = $endpoint . '?accessToken=' . $this->_apiKey;
+		$url .= $endpoint . '?accessToken=' . $this->_apiKey;
 		foreach ($parameters as $param => $value)
-			$url .= "&$param=$value";
-		TµLog::log('temma/base', 'DEBUG', "Smsmode request: '$url'.");
+			$url .= "&$param=" . urlencode($value);
+		TµLog::log('Temma/Base', 'DEBUG', "Smsmode request: '$url'.");
 		$result = file_get_contents($url);
 		return ($result);
 	}
