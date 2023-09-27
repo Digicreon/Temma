@@ -127,9 +127,9 @@ class Pushover extends \Temma\Base\Datasource {
 		$monospace = (($options['monospace'] ?? null) === true) ? true : false;
 		$html = ($monospace || ($options['html'] ?? null) === false) ? false : true;
 		if ($monospace)
-			$post['monospace'] = true;
+			$post['monospace'] = '1';
 		if ($html)
-			$post['html'] = true;
+			$post['html'] = '1';
 		if (($options['device'] ?? null))
 			$post['device'] = $options['device'];
 		if (($options['image'] ?? null) && ($options['mimetype'] ?? null)) {
