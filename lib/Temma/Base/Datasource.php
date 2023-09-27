@@ -66,6 +66,8 @@ abstract class Datasource implements \ArrayAccess {
 			return (\Temma\Base\Datasources\Beanstalk::factory($dsn));
 		if (str_starts_with($dsn, 'sqs://'))
 			return (\Temma\Base\Datasources\Sqs::factory($dsn));
+		if (str_starts_with($dsn, 'smsmode://'))
+			return (\Temma\Base\Datasources\Smsmode::factory($dsn));
 		if (str_starts_with($dsn, 'env://')) {
 			$dsn = getenv(substr($dsn, 6));
 			return (self::factory($dsn));

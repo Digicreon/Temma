@@ -27,8 +27,8 @@ use \Temma\Base\Log as TµLog;
  * $sms = \Temma\Base\Datasource::factory('smsmode://API_KEY');
  *
  * // initialization with a sender name (11 characters-long maximum, no space, no accent)
- * $sms = \Temma\Base\Datasources\Smsmode::factory('smsmode://SENDER_NAME@API_KEY');
- * $sms = \Temma\Base\Datasource::factory('smsmode://SENDER_NAME@API_KEY');
+ * $sms = \Temma\Base\Datasources\Smsmode::factory('smsmode://SENDER_NAME:API_KEY');
+ * $sms = \Temma\Base\Datasource::factory('smsmode://SENDER_NAME:API_KEY');
  *
  * // send a text message to the given phone number
  * $sms['33611223344'] = 'Text message';
@@ -76,7 +76,6 @@ use \Temma\Base\Log as TµLog;
  *
  * // delete a scheduled message (from its message ID)
  * unset($sms[$msgId]);
- * $sms[$msgId] = null;
  * $sqs->remove($msgId);
  * </code>
  */
@@ -87,16 +86,20 @@ class Smsmode extends \Temma\Base\Datasource {
 	const API_URL_UNICODE = 'https://api.smsmode.com/http:1.6/';
 	/** Request statuses. */
 	const STATUS_SUCCESS = 0;
-	const STATUS_RECEIVED = 11;
-	const STATUS_GATEWAY_RECEIVED = 13;
 	const STATUS_INTERNAL_ERROR = 31;
 	const STATUS_AUTHENTICATION_ERROR = 32;
 	const STATUS_INSUFFICIENTE_BALANCE = 33;
-	const STATUS_GATEWAY_DELIVERED = 34;
 	const STATUS_INVALID_PARAMETERS = 35;
 	const STATUS_TEMPORARY_UNAVAILABLE = 50;
 	const STATUS_SMS_NOT_FOUND = 61;
 	const STATUS_MESSAGE_NOT_FOUND = 65;
+	/** Message statuses. */
+	const STATUS_SENT = 100;
+	const STATUS_MSG_INTERNAL_ERROR = 102;
+	const STATUS_MSG_RECEIVED = 111;
+	const STATUS_GATEWAY_RECEIVED = 113;
+	const STATUS_GATEWAY_DELIVERED = 134;
+	const STATUS_DELIVERY_ERROR = 135;
 	/** API key. */
 	private ?string $_apiKey = null;
 	/** Sender name. */
@@ -222,12 +225,14 @@ class Smsmode extends \Temma\Base\Datasource {
 		if (!$this->_enabled)
 			return (null);
 		$response = $this->_request('compteRendu.do', ['smsID' => $msgId]);
+		if (ctype_digit($response))
+			return ($response);
 		if (!preg_match('/^[^ ]+ (\d+)/', $response, $matches))
 			return (null);
 		$status = $matches[1] ?? null;
 		if (!mb_strlen($status))
 			return (null);
-		return ($status);
+		return ($status + 100);
 	}
 	/**
 	 * Send a text message. Alias to send() method.
