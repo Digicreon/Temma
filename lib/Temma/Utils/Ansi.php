@@ -334,10 +334,10 @@ class Ansi {
 	/**
 	 * Returns the length of a string, counting only printable UTF-8 characters.
 	 * Tabs are couted for 8 characters.
-	 * @param	string	$string	Input string.
+	 * @param	?string	$string	Input string.
 	 * @return	int	The string length.
 	 */
-	static public function strlen(string $string) : int {
+	static public function strlen(?string $string) : int {
 		$res = 0;
 		while ($string) {
 			// search for ANSI control sequence
@@ -361,11 +361,11 @@ class Ansi {
 	}
 	/**
 	 * Wordwrap function that uses only printable characters.
-	 * @param	string	$string	Text to wrap.
+	 * @param	?string	$string	Text to wrap.
 	 * @param	int	$width	Maximum number of characters per line.
 	 * @return	string	The wrapped text.
 	 */
-	static public function wordwrap(string $string, int $width) : string {
+	static public function wordwrap(?string $string, int $width) : string {
 		$res = '';
 		$line = '';
 		$lineLen = 0;
@@ -456,59 +456,59 @@ class Ansi {
 	/* ********** BASIC STYLING FUNCTIONS ********** */
 	/**
 	 * Bold text.
-	 * @param	string	$text	Input text.
+	 * @param	?string	$text	Input text.
 	 * @return	string	The formatted text.
 	 */
-	static public function bold(string $text) : string {
-		return ("\e[1m$text\e[22m");
+	static public function bold(?string $text) : string {
+		return ($text ? "\e[1m$text\e[22m" : '');
 	}
 	/**
 	 * "Thin" text.
-	 * @param	string	$text	Input text.
+	 * @param	?string	$text	Input text.
 	 * @return	string	The formatted text.
 	 */
-	static public function faint(string $text) : string {
-		return ("\e[2m$text\e[22m");
+	static public function faint(?string $text) : string {
+		return ($text ? "\e[2m$text\e[22m" : '');
 	}
 	/**
 	 * Italic text.
-	 * @param	string	$text	Input text.
+	 * @param	?string	$text	Input text.
 	 * @return	string	The formatted text.
 	 */
-	static public function italic(string $text) : string {
-		return ("\e[3m;$text\e[23m");
+	static public function italic(?string $text) : string {
+		return ($text ? "\e[3m;$text\e[23m" : '');
 	}
 	/**
 	 * Underlined text.
-	 * @param	string	$text	Input text.
+	 * @param	?string	$text	Input text.
 	 * @return	string	The formatted text.
 	 */
-	static public function underline(string $text) : string {
-		return ("\e[4m$text\e[24m");
+	static public function underline(?string $text) : string {
+		return ($text ? "\e[4m$text\e[24m" : '');
 	}
 	/**
 	 * Blinking text.
-	 * @param	string	$text	Input text.
+	 * @param	?string	$text	Input text.
 	 * @return	string	The formatted text.
 	 */
-	static public function blink(string $text) : string {
-		return ("\e[5m$text\e[25m");
+	static public function blink(?string $text) : string {
+		return ($text ? "\e[5m$text\e[25m" : '');
 	}
 	/**
 	 * Reverse video text.
-	 * @param	string	$text	Input text.
+	 * @param	?string	$text	Input text.
 	 * @return	string	The formatted text.
 	 */
-	static public function negative(string $text) : string {
-		return ("\e[7m$text\e[27m");
+	static public function negative(?string $text) : string {
+		return ($text ? "\e[7m$text\e[27m" : '');
 	}
 	/**
 	 * Striked out text.
-	 * @param	string	$text	Input text.
+	 * @param	?string	$text	Input text.
 	 * @return	string	The formatted text.
 	 */
-	static public function strikeout(string $text) : string {
-		return ("\e[9m$text\e[29m");
+	static public function strikeout(?string $text) : string {
+		return ($text ? "\e[9m$text\e[29m" : '');
 	}
 	/**
 	 * Returns the escape sequence that resets all color and formatting.
@@ -520,10 +520,12 @@ class Ansi {
 	/**
 	 * Colored text.
 	 * @param	int|string	$textColor	Text color name (16 colors palette) or color number (256 colors palette) or "default".
-	 * @param	string	$text	Input text.
+	 * @param	?string	$text	Input text.
 	 * @return	string	The formatted text.
 	 */
-	static public function color(int|string $textColor, string $text) : string {
+	static public function color(int|string $textColor, ?string $text) : string {
+		if (!$text)
+			return ('');
 		$textColor = (is_string($textColor) && ctype_digit($textColor)) ? intval($textColor) : $textColor;
 		if ($textColor === "default" || (is_string($textColor) && !isset(self::COLORS[$textColor])))
 			return ("\e[39m$text");
@@ -535,10 +537,12 @@ class Ansi {
 	 * Background colored text.
 	 * @param	int|string	$backColor	Background color name (16 colors palette) or color number (256 colors palette) or "default".
 	 * @param	int|string	$textColor	Text color name (16 colors palette) or color number (256 colors palette) or "default".
-	 * @param	string		$text		Input text.
+	 * @param	?string		$text		Input text.
 	 * @return	string	The formatted text.
 	 */
-	static public function backColor(int|string $backColor, int|string $textColor, string $text) : string {
+	static public function backColor(int|string $backColor, int|string $textColor, ?string $text) : string {
+		if (!$text)
+			return ('');
 		$prefix1 = $prefix2 = $suffix1 = $suffix2 = '';
 		// background color
 		$backColor = (is_string($backColor) && ctype_digit($backColor)) ? intval($backColor) : $backColor;
@@ -566,15 +570,15 @@ class Ansi {
 	}
 	/**
 	 * Hyperlink.
-	 * @param	string	$url	Link URL.
+	 * @param	?string	$url	Link URL.
 	 * @param	?string	$title	(optional) Link title.
 	 * @return	string	The formatted text.
 	 */
-	static public function link(string $url, ?string $title=null) : string {
+	static public function link(?string $url, ?string $title=null) : string {
 		if (!$url && !$title)
 			return ('');
 		if (!$url)
-			return ($title);
+			return ($title ?? '');
 		if (!$title) {
 			$title = mb_substr($url, 0, 40);
 			$title .= (mb_strlen($url) > 40) ? '...' : '';
@@ -583,43 +587,53 @@ class Ansi {
 	}
 	/**
 	 * Generate a first level title.
-	 * @param	string	$s	The title text.
+	 * @param	?string	$s	The title text.
 	 * @return	string	The formatted text.
 	 */
-	static public function title1(string $s) : string {
+	static public function title1(?string $s) : string {
+		if (!$s)
+			return ('');
 		return (self::style('<h1>' . htmlspecialchars($s, ENT_QUOTES | ENT_SUBSTITUTE | ENT_XML1) . '</h1>'));
 	}
 	/**
 	 * Display a second level title.
-	 * @param	string	$s	The title text.
+	 * @param	?string	$s	The title text.
 	 * @return	string	The formatted text.
 	 */
-	static public function title2(string $s) : string {
+	static public function title2(?string $s) : string {
+		if (!$s)
+			return ('');
 		return (self::style('<h2>' . htmlspecialchars($s, ENT_QUOTES | ENT_SUBSTITUTE | ENT_XML1) . '</h2>'));
 	}
 	/**
 	 * Display a third level title.
-	 * @param	string	$s	The title text.
+	 * @param	?string	$s	The title text.
 	 * @return	string	The formatted text.
 	 */
-	static public function title3(string $s) : string {
+	static public function title3(?string $s) : string {
+		if (!$s)
+			return ('');
 		return (self::style('<h3>' . htmlspecialchars($s, ENT_QUOTES | ENT_SUBSTITUTE | ENT_XML1) . '</h3>'));
 	}
 	/**
 	 * Display a fourth level title.
-	 * @param	string	$s	The title text.
+	 * @param	?string	$s	The title text.
 	 * @return	string	The formatted text.
 	 */
-	static public function title4(string $s) : string {
+	static public function title4(?string $s) : string {
+		if (!$s)
+			return ('');
 		return (self::style('<h4>' . htmlspecialchars($s, ENT_QUOTES | ENT_SUBSTITUTE | ENT_XML1) . '</h4>'));
 	}
 	/**
 	 * Display a block content.
 	 * @param	string	$block	Block name.
-	 * @param	string	$s	Block text.
+	 * @param	?string	$s	Block text.
 	 * @return	string	The formatted text.
 	 */
-	static public function block(string $block, string $s) : string {
+	static public function block(string $block, ?string $s) : string {
+		if (!$s)
+			return ('');
 		return (self::style("<$block>" . htmlspecialchars($s, ENT_QUOTES | ENT_SUBSTITUTE | ENT_XML1) . "</$block>"));
 	}
 
@@ -717,10 +731,12 @@ class Ansi {
 	 * <tt>reverse video text</tt>
 	 * <a href="https://www.temma.net">Temma website</a>
 	 *
-	 * @param	string	$str	XML string.
+	 * @param	?string	$str	XML string.
 	 * @return	string	ANSI-formatted string.
 	 */
-	static public function style(string $str) : string {
+	static public function style(?string $str) : string {
+		if (!$str)
+			return ('');
 		$rootTag = 'root-' . uniqid();
 		$xml = new \DOMDocument();
 		$xml->loadXML("<$rootTag>$str</$rootTag>");
