@@ -6,7 +6,7 @@
  * @copyright	© 2023, Amaury Bouchard
  */
 
-namespace Temma\Base\Datasources;
+namespace Temma\Datasources;
 
 use \Temma\Base\Log as TµLog;
 
@@ -22,7 +22,7 @@ use \Temma\Base\Log as TµLog;
  * <b>Usage</b>
  * <code>
  * // initialization
- * $push = \Temma\Base\Datasources\Pushover::factory('pushover://APP_TOKEN');
+ * $push = \Temma\Datasources\Pushover::factory('pushover://APP_TOKEN');
  * $push = \Temma\Base\Datasource::factory('pushover://APP_TOKEN');
  *
  * // send an HTML push message to the given user/group
@@ -55,11 +55,11 @@ class Pushover extends \Temma\Base\Datasource {
 	/**
 	 * Create a new instance of this class.
 	 * @param	string	$dsn	Connection string.
-	 * @return	\Temma\Base\Datasources\Pushover	The created instance.
+	 * @return	\Temma\Datasources\Pushover	The created instance.
 	 * @throws	\Temma\Exceptions\Database	If the DSN is invalid.
 	 */
-	static public function factory(string $dsn) : \Temma\Base\Datasources\Pushover {
-		TµLog::log('Temma/Base', 'DEBUG', "\Temma\Base\Datasources\Pushover object creation with DSN: '$dsn'.");
+	static public function factory(string $dsn) : \Temma\Datasources\Pushover {
+		TµLog::log('Temma/Base', 'DEBUG', "\\Temma\\Datasources\\Pushover object creation with DSN: '$dsn'.");
 		if (!str_starts_with($dsn, 'pushover://')) {
 			TµLog::log('Temma/Base', 'WARN', "Invalid Pushover DSN '$dsn'.");
 			throw new \Temma\Exceptions\Database("Invalid Pushover DSN '$dsn'.", \Temma\Exceptions\Database::FUNDAMENTAL);
@@ -82,10 +82,10 @@ class Pushover extends \Temma\Base\Datasource {
 	/**
 	 * Disabled clear.
 	 * @param	string	$pattern	Not used.
-	 * @return	\Temma\Base\Datasources\Pushover	Never returned.
+	 * @return	\Temma\Datasources\Pushover	Never returned.
 	 * @throws	\Temma\Exceptions\Database	Always throws an exception.
 	 */
-	public function clear(string $pattern) : \Temma\Base\Datasources\Pushover {
+	public function clear(string $pattern) : \Temma\Datasources\Pushover {
 		throw new \Temma\Exceptions\Database("No clear() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);
 	}
 
@@ -112,10 +112,10 @@ class Pushover extends \Temma\Base\Datasource {
 	 *					- ttl: Number of seconds before the message disappear.
 	 *					- url: URL added under the text message.
 	 *					- urlTitle: Title of the URL (otherwise, the URL will appear as-is).
-	 * @return	\Temma\Base\Datasources\Pushover	The current object.
+	 * @return	\Temma\Datasources\Pushover	The current object.
 	 * @throws	\Exception	If an error occured.
 	 */
-	public function write(string $userKey, string $text=null, mixed $options=null) : \Temma\Base\Datasources\Pushover {
+	public function write(string $userKey, string $text=null, mixed $options=null) : \Temma\Datasources\Pushover {
 		$curl = curl_init();
 		$post = [
 			'token'   => $this->_appToken,
@@ -179,10 +179,10 @@ class Pushover extends \Temma\Base\Datasource {
 	 *					- ttl: Number of seconds before the message disappear.
 	 *					- url: URL added under the text message.
 	 *					- urlTitle: Title of the URL (otherwise, the URL will appear as-is).
-	 * @return	\Temma\Base\Datasources\Pushover	The current object.
+	 * @return	\Temma\Datasources\Pushover	The current object.
 	 * @throws	\Exception	If an error occured.
 	 */
-	public function set(string $userKey, mixed $text=null, mixed $options=null) : \Temma\Base\Datasources\Pushover {
+	public function set(string $userKey, mixed $text=null, mixed $options=null) : \Temma\Datasources\Pushover {
 		return ($this->write($userKey, $text, $options));
 	}
 	/**

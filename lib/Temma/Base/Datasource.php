@@ -59,28 +59,28 @@ abstract class Datasource implements \ArrayAccess {
 		// SQL databases
 		foreach (self::DATABASE_PREFIXES as $prefix) {
 			if (str_starts_with($dsn, $prefix))
-				return (\Temma\Base\Datasources\Sql::factory($dsn));
+				return (\Temma\Datasources\Sql::factory($dsn));
 		}
 		// other data sources managed by Temma
 		if (str_starts_with($dsn, 'memcache://'))
-			return (\Temma\Base\Datasources\Memcache::factory($dsn));
+			return (\Temma\Datasources\Memcache::factory($dsn));
 		if (str_starts_with($dsn, 'redis://') ||
 		    str_starts_with($dsn, 'redis-sock://'))
-			return (\Temma\Base\Datasources\Redis::factory($dsn));
+			return (\Temma\Datasources\Redis::factory($dsn));
 		if (str_starts_with($dsn, 's3://'))
-			return (\Temma\Base\Datasources\S3::factory($dsn));
+			return (\Temma\Datasources\S3::factory($dsn));
 		if (str_starts_with($dsn, 'dummy://'))
-			return (\Temma\Base\Datasources\Dummy::factory(''));
+			return (\Temma\Datasources\Dummy::factory(''));
 		if (str_starts_with($dsn, 'file://'))
-			return (\Temma\Base\Datasources\File::factory($dsn));
+			return (\Temma\Datasources\File::factory($dsn));
 		if (str_starts_with($dsn, 'beanstalk://'))
-			return (\Temma\Base\Datasources\Beanstalk::factory($dsn));
+			return (\Temma\Datasources\Beanstalk::factory($dsn));
 		if (str_starts_with($dsn, 'sqs://'))
-			return (\Temma\Base\Datasources\Sqs::factory($dsn));
+			return (\Temma\Datasources\Sqs::factory($dsn));
 		if (str_starts_with($dsn, 'smsmode://'))
-			return (\Temma\Base\Datasources\Smsmode::factory($dsn));
+			return (\Temma\Datasources\Smsmode::factory($dsn));
 		if (str_starts_with($dsn, 'pushover://'))
-			return (\Temma\Base\Datasources\Pushover::factory($dsn));
+			return (\Temma\Datasources\Pushover::factory($dsn));
 		if (str_starts_with($dsn, 'env://')) {
 			$dsn = getenv(substr($dsn, 6));
 			return (self::factory($dsn));

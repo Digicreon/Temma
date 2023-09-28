@@ -17,7 +17,7 @@ use \Temma\Exceptions\Dao as TµDaoException;
  */
 class Criteria {
 	/** Database connection. */
-	protected \Temma\Base\Datasources\Sql $_db;
+	protected \Temma\Datasources\Sql $_db;
 	/** DAO object initiating the criteria. */
 	private \Temma\Dao\Dao $_dao;
 	/** Type of criteria boolean combination. */
@@ -27,12 +27,12 @@ class Criteria {
 
 	/**
 	 * Constructor.
-	 * @param	\Temma\Base\Datasources\Sql	$db	Connection to the database.
-	 * @param	\Temma\Dao\Dao			$dao	DAO object.
-	 * @param	string				$type	(optional) 'and', 'or'. (default: 'and')
+	 * @param	\Temma\Datasources\Sql	$db	Connection to the database.
+	 * @param	\Temma\Dao\Dao		$dao	DAO object.
+	 * @param	string			$type	(optional) 'and', 'or'. (default: 'and')
 	 * @throws	\Temma\Exceptions\Dao	If there is a bad criteria combination.
 	 */
-	final public function __construct(\Temma\Base\Datasources\Sql $db, \Temma\Dao\Dao $dao, string $type='and') {
+	final public function __construct(\Temma\Datasources\Sql $db, \Temma\Dao\Dao $dao, string $type='and') {
 		$this->_db = $db;
 		$this->_dao = $dao;
 		if (strcasecmp($type, 'and') && strcasecmp($type, 'or'))

@@ -6,7 +6,7 @@
  * @copyright	© 2023, Amaury Bouchard
  */
 
-namespace Temma\Base\Datasources;
+namespace Temma\Datasources;
 
 use \Temma\Base\Log as TµLog;
 
@@ -18,10 +18,10 @@ use \Temma\Base\Log as TµLog;
  * <b>Usage</b>
  * <code>
  * // initialization, with default umask
- * $file = \Temma\Base\Datasources\File::factory('file:///opt/temma_files');
+ * $file = \Temma\Datasources\File::factory('file:///opt/temma_files');
  * $file = \Temma\Base\Datasource::factory('file:///opt/temma_files');
  * // init with a custom umask
- * $file = \Temma\Base\Datasources\File::factory('file://0007/opt/temma_files');
+ * $file = \Temma\Datasources\File::factory('file://0007/opt/temma_files');
  * $file = \Temma\Base\Datasource::factory('file://0007/opt/temma_files');
  *
  * // add or update a file
@@ -66,11 +66,11 @@ class File extends \Temma\Base\Datasource {
 	/**
 	 * Create a new instance of this class.
 	 * @param	string	$dsn	Connection string.
-	 * @return	\Temma\Base\Datasources\File	The created instance.
+	 * @return	\Temma\Datasources\File	The created instance.
 	 * @throws	\Temma\Exceptions\Database	If the DSN is invalid.
 	 */
-	static public function factory(string $dsn) : \Temma\Base\Datasources\File {
-		TµLog::log('Temma/Base', 'DEBUG', "\Temma\Base\Datasources\File object creation with DSN: '$dsn'.");
+	static public function factory(string $dsn) : \Temma\Datasources\File {
+		TµLog::log('Temma/Base', 'DEBUG', "\\Temma\\Datasources\\File object creation with DSN: '$dsn'.");
 		if (!preg_match("/^([^:]+):\/\/([^\/]+)\/(.*)$/", $dsn, $matches)) {
 			TµLog::log('Temma/Base', 'WARN', "Invalid File DSN '$dsn'.");
 			throw new \Temma\Exceptions\Database("Invalid File DSN '$dsn'.", \Temma\Exceptions\Database::FUNDAMENTAL);
@@ -114,9 +114,9 @@ class File extends \Temma\Base\Datasource {
 	/**
 	 * Remove a file.
 	 * @param	string	$path	Path of the file.
-	 * @return	\Temma\Base\Datasources\File	The current object.
+	 * @return	\Temma\Datasources\File	The current object.
 	 */
-	public function remove(string $path) : \Temma\Base\Datasources\File {
+	public function remove(string $path) : \Temma\Datasources\File {
 		if (!$this->_enabled)
 			return ($this);
 		$path = $this->_cleanPath($path);
@@ -126,9 +126,9 @@ class File extends \Temma\Base\Datasource {
 	/**
 	 * Remove all files matching a given pattern.
 	 * @param	string	$pattern	Pattern string.
-	 * @return	\Temma\Base\Datasources\File	The current object.
+	 * @return	\Temma\Datasources\File	The current object.
 	 */
-	public function clear(string $pattern) : \Temma\Base\Datasources\File {
+	public function clear(string $pattern) : \Temma\Datasources\File {
 		$files = $this->find($pattern);
 		if ($files)
 			array_map('unlink', $files);
@@ -136,9 +136,9 @@ class File extends \Temma\Base\Datasource {
 	}
 	/**
 	 * Remove all files.
-	 * @return	\Temma\Base\Datasources\File	The current object.
+	 * @return	\Temma\Datasources\File	The current object.
 	 */
-	public function flush() : \Temma\Base\Datasources\File {
+	public function flush() : \Temma\Datasources\File {
 		if (!$this->_enabled)
 			return ($this);
 		$files = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($this->_rootPath, \RecursiveDirectoryIterator::SKIP_DOTS),
@@ -241,11 +241,11 @@ class File extends \Temma\Base\Datasource {
 	 * @param	string	$path		File path.
 	 * @param	string	$data		Data value.
 	 * @param	mixed	$options	(optional) File permissions.
-	 * @return	\Temma\Base\Datasources\File	The current object.
+	 * @return	\Temma\Datasources\File	The current object.
 	 * @throws	\Temma\Exceptions\IO	If the destination path is not writable.
 	 * @throws	\Exception		If an error occurs.
 	 */
-	public function write(string $path, string $data, mixed $options=0) : \Temma\Base\Datasources\File {
+	public function write(string $path, string $data, mixed $options=0) : \Temma\Datasources\File {
 		if (!$this->_enabled)
 			return ($this);
 		// check if the destination file is writeable
@@ -279,11 +279,11 @@ class File extends \Temma\Base\Datasource {
 	 * @param	string	$path		File path.
 	 * @param	string	$localPath	Path to the local file.
 	 * @param	mixed	$options	(optional) File permissions.
-	 * @return	\Temma\Base\Datasources\File	The current object.
+	 * @return	\Temma\Datasources\File	The current object.
 	 * @throws	\Temma\Exceptions\IO	If the destination path is not writable.
 	 * @throws	\Exception		If an error occured.
 	 */
-	public function copyTo(string $path, string $localPath, mixed $options=0) : \Temma\Base\Datasources\File {
+	public function copyTo(string $path, string $localPath, mixed $options=0) : \Temma\Datasources\File {
 		if (!$this->_enabled)
 			return ($this);
 		$path = $this->_cleanPath($path);

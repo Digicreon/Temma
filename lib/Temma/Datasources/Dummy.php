@@ -6,7 +6,7 @@
  * @copyright	© 2012-2023, Amaury Bouchard
  */
 
-namespace Temma\Base\Datasources;
+namespace Temma\Datasources;
 
 use \Temma\Base\Log as TµLog;
 
@@ -17,9 +17,9 @@ class Dummy extends \Temma\Base\Datasource {
 	/**
 	 * Factory.
 	 * @param	string	$dsn	Parameter string (not used).
-	 * @return	\Temma\Base\Datasources\Dummy	The created object.
+	 * @return	\Temma\Datasources\Dummy	The created object.
 	 */
-	static public function factory(string $dsn) : \Temma\Base\Datasources\Dummy {
+	static public function factory(string $dsn) : \Temma\Datasources\Dummy {
 		TµLog::log('Temma/Base', 'DEBUG', "Creation of a dummy datasource.");
 		return (new self());
 	}
@@ -46,32 +46,32 @@ class Dummy extends \Temma\Base\Datasource {
 	/**
          * remove
          * @param	string	$key	Not used.
-         * @return	\Temma\Base\Datasources\Dummy	The current object.
+         * @return	\Temma\Datasources\Dummy	The current object.
          */
-        public function remove(string $key) : \Temma\Base\Datasources\Dummy {
+        public function remove(string $key) : \Temma\Datasources\Dummy {
 		return( $this);
 	}
 	/**
 	 * mremove
 	 * @param	array	$keys	Not used.
-	 * @return	\Temma\Base\Datasources\Dummy	The current object.
+	 * @return	\Temma\Datasources\Dummy	The current object.
 	 */
-	public function mRemove(array $keys) : \Temma\Base\Datasources\Dummy {
+	public function mRemove(array $keys) : \Temma\Datasources\Dummy {
 		return ($this);
 	}
 	/**
 	 * clear
 	 * @param	string	$pattern	Not used.
-	 * @return	\Temma\Base\Datasources\Dummy	The current object.
+	 * @return	\Temma\Datasources\Dummy	The current object.
 	 */
-	public function clear(string $pattern) : \Temma\Base\Datasources\Dummy {
+	public function clear(string $pattern) : \Temma\Datasources\Dummy {
 		return ($this);
 	}
 	/**
 	 * flush
-	 * @return	\Temma\Base\Datasources\Dummy	The current object.
+	 * @return	\Temma\Datasources\Dummy	The current object.
 	 */
-	public function flush() : \Temma\Base\Datasources\Dummy {
+	public function flush() : \Temma\Datasources\Dummy {
 		return ($this);
 	}
 
@@ -130,9 +130,9 @@ class Dummy extends \Temma\Base\Datasource {
 	 * @param	string	$key		Not used.
 	 * @param	mixed	$value		(optional) Not used.
 	 * @param	mixed	$options	(optional) Not used.
-	 * @return	\Temma\Base\Datasources\Dummy	The current object.
+	 * @return	\Temma\Datasources\Dummy	The current object.
 	 */
-	public function write(string $key, mixed $value=null, mixed $options=null) : \Temma\Base\Datasources\Dummy {
+	public function write(string $key, mixed $value=null, mixed $options=null) : \Temma\Datasources\Dummy {
 		return ($this);
 	}
 	/**
@@ -149,9 +149,9 @@ class Dummy extends \Temma\Base\Datasource {
 	 * @param	string	$key		Not used.
 	 * @param	string	$localPath	Not used.
 	 * @param	mixed	$options	(optional) Not used.
-	 * @return	\Temma\Base\Datasources\Dummy	The current object.
+	 * @return	\Temma\Datasources\Dummy	The current object.
 	 */
-	public function copyTo(string $key, string $localPath, mixed $options=null) : \Temma\Base\Datasources\Dummy {
+	public function copyTo(string $key, string $localPath, mixed $options=null) : \Temma\Datasources\Dummy {
 		return ($this);
 	}
 	/**
@@ -200,9 +200,9 @@ class Dummy extends \Temma\Base\Datasource {
 	 * @param	string	$key		Not used.
 	 * @param	mixed	$value		Not used.
 	 * @param	mixed	$options	(optional) Not used.
-	 * @return	\Temma\Base\Datasources\Dummy	The current object.
+	 * @return	\Temma\Datasources\Dummy	The current object.
 	 */
-	public function set(string $key, mixed $value=null, mixed $options=null) : \Temma\Base\Datasources\Dummy {
+	public function set(string $key, mixed $value=null, mixed $options=null) : \Temma\Datasources\Dummy {
 		return ($this);
 	}
 	/**

@@ -6,7 +6,7 @@
  * @copyright	© 2023, Amaury Bouchard
  */
 
-namespace Temma\Base\Datasources;
+namespace Temma\Datasources;
 
 use \Temma\Base\Log as TµLog;
 
@@ -23,11 +23,11 @@ use \Temma\Base\Log as TµLog;
  * <b>Usage</b>
  * <code>
  * // initialization
- * $sms = \Temma\Base\Datasources\Smsmode::factory('smsmode://API_KEY');
+ * $sms = \Temma\Datasources\Smsmode::factory('smsmode://API_KEY');
  * $sms = \Temma\Base\Datasource::factory('smsmode://API_KEY');
  *
  * // initialization with a sender name (11 characters-long maximum, no space, no accent)
- * $sms = \Temma\Base\Datasources\Smsmode::factory('smsmode://SENDER_NAME:API_KEY');
+ * $sms = \Temma\Datasources\Smsmode::factory('smsmode://SENDER_NAME:API_KEY');
  * $sms = \Temma\Base\Datasource::factory('smsmode://SENDER_NAME:API_KEY');
  *
  * // send a text message to the given phone number
@@ -57,17 +57,17 @@ use \Temma\Base\Log as TµLog;
  * $status = $sms[$msgId];
  * $status = $sms->read($msgId);
  * $status = $sms->get($msgId);
- * if ($status == \Temma\Base\Datasources\Smsmode::STATUS_SUCCESS) {
+ * if ($status == \Temma\Datasources\Smsmode::STATUS_SUCCESS) {
  *     // ...
- * } else if ($status == \Temma\Base\Datasources\Smsmode::STATUS_RECEIVED) {
+ * } else if ($status == \Temma\Datasources\Smsmode::STATUS_RECEIVED) {
  *     // ...
- * } else if ($status == \Temma\Base\Datasources\Smsmode::STATUS_RECEIVED) {
+ * } else if ($status == \Temma\Datasources\Smsmode::STATUS_RECEIVED) {
  *     // ...
- * } else if ($status == \Temma\Base\Datasources\Smsmode::STATUS_GATEWAY_RECEIVED ||
- *            $status == \Temma\Base\Datasources\Smsmode::STATUS_GATEWAY_DELIVERED) {
+ * } else if ($status == \Temma\Datasources\Smsmode::STATUS_GATEWAY_RECEIVED ||
+ *            $status == \Temma\Datasources\Smsmode::STATUS_GATEWAY_DELIVERED) {
  *     // ...
- * } else if ($status == \Temma\Base\Datasources\Smsmode::STATUS_INTERNAL_ERROR ||
- *            $status == \Temma\Base\Datasources\Smsmode::STATUS_DELIVERY_ERROR) {
+ * } else if ($status == \Temma\Datasources\Smsmode::STATUS_INTERNAL_ERROR ||
+ *            $status == \Temma\Datasources\Smsmode::STATUS_DELIVERY_ERROR) {
  *     // ...
  * }
  *
@@ -109,11 +109,11 @@ class Smsmode extends \Temma\Base\Datasource {
 	/**
 	 * Create a new instance of this class.
 	 * @param	string	$dsn	Connection string.
-	 * @return	\Temma\Base\Datasources\Smsmode	The created instance.
+	 * @return	\Temma\Datasources\Smsmode	The created instance.
 	 * @throws	\Temma\Exceptions\Database	If the DSN is invalid.
 	 */
-	static public function factory(string $dsn) : \Temma\Base\Datasources\Smsmode {
-		TµLog::log('Temma/Base', 'DEBUG', "\Temma\Base\Datasources\Smsmode object creation with DSN: '$dsn'.");
+	static public function factory(string $dsn) : \Temma\Datasources\Smsmode {
+		TµLog::log('Temma/Base', 'DEBUG', "\\Temma\\Datasources\\Smsmode object creation with DSN: '$dsn'.");
 		if (!preg_match('/^smsmode:\/\/(([^:]*):)?(.+)$/', $dsn, $matches)) {
 			TµLog::log('Temma/Base', 'WARN', "Invalid Smsmode DSN '$dsn'.");
 			throw new \Temma\Exceptions\Database("Invalid Smsmode DSN '$dsn'.", \Temma\Exceptions\Database::FUNDAMENTAL);
@@ -193,10 +193,10 @@ class Smsmode extends \Temma\Base\Datasource {
 	/**
 	 * Delete a scheduled message.
 	 * @param	string	$msgId	Message identifier.
-	 * @return	\Temma\Base\Datasources\Smsmode	The current object.
+	 * @return	\Temma\Datasources\Smsmode	The current object.
 	 * @throws	\Exception	If an error occurred.
 	 */
-	public function remove(string $msgId) : \Temma\Base\Datasources\Smsmode {
+	public function remove(string $msgId) : \Temma\Datasources\Smsmode {
 		if (!$this->_enabled)
 			return ($this);
 		$response = $this->_request('deleteSMS.do', ['smsID' => $msgId]);
@@ -207,10 +207,10 @@ class Smsmode extends \Temma\Base\Datasource {
 	/**
 	 * Disabled clear.
 	 * @param	string	$pattern	Not used.
-	 * @return	\Temma\Base\Datasources\Smsmode	Never returned.
+	 * @return	\Temma\Datasources\Smsmode	Never returned.
 	 * @throws	\Temma\Exceptions\Database	Always throws an exception.
 	 */
-	public function clear(string $pattern) : \Temma\Base\Datasources\Smsmode {
+	public function clear(string $pattern) : \Temma\Datasources\Smsmode {
 		throw new \Temma\Exceptions\Database("No clear() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);
 	}
 
@@ -240,10 +240,10 @@ class Smsmode extends \Temma\Base\Datasource {
 	 * @param	string	$msisdn		Phone number.
 	 * @param	string	$text		Text message.
 	 * @param	mixed	$options	(optional) Associative array with the 'sendDate' and 'reference' keys.
-	 * @return	\Temma\Base\Datasources\Smsmode	The current object.
+	 * @return	\Temma\Datasources\Smsmode	The current object.
 	 * @throws	\Exception	If an error occured.
 	 */
-	public function write(string $msisdn, string $text=null, mixed $options=null) : \Temma\Base\Datasources\Smsmode {
+	public function write(string $msisdn, string $text=null, mixed $options=null) : \Temma\Datasources\Smsmode {
 		$sendDate = $options['sendDate'] ?? null;
 		$reference = $options['reference'] ?? null;
 		$msgId = $this->send($msisdn, $text, $sendDate, $reference);
@@ -286,10 +286,10 @@ class Smsmode extends \Temma\Base\Datasource {
 	 * @param	string	$msisdn		The recipient phone number.
 	 * @param	mixed	$text		The text message.
 	 * @param	mixed	$options	(optional) Associative array with 'sendDate' and/or 'reference' keys.
-	 * @return	\Temma\Base\Datasources\Smsmode	The current object.
+	 * @return	\Temma\Datasources\Smsmode	The current object.
 	 * @throws	\Exception	If an error occured.
 	 */
-	public function set(string $msisdn, mixed $text=null, mixed $options=null) : \Temma\Base\Datasources\Smsmode {
+	public function set(string $msisdn, mixed $text=null, mixed $options=null) : \Temma\Datasources\Smsmode {
 		$sendDate = $options['sendDate'] ?? null;
 		$reference = $options['reference'] ?? null;
 		$msgId = $this->send($msisdn, $text, $sendDate, $reference);

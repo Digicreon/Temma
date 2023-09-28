@@ -6,7 +6,7 @@
  * @copyright	© 2023, Amaury Bouchard
  */
 
-namespace Temma\Base\Datasources;
+namespace Temma\Datasources;
 
 use \Temma\Base\Log as TµLog;
 
@@ -23,7 +23,7 @@ require_once('aws.phar');
  * <b>Usage</b>
  * <code>
  * // initialization
- * $sqs = \Temma\Base\Datasources\Sqs::factory('sqs://ACCESS_KEY:SECRET_KEY@QUEUE_URL');
+ * $sqs = \Temma\Datasources\Sqs::factory('sqs://ACCESS_KEY:SECRET_KEY@QUEUE_URL');
  * $sqs = \Temma\Base\Datasource::factory('sqs://ACCESS_KEY:SECRET_KEY@QUEUE_URL');
  * // QUEUE_URL is everything after the 'https://'. For example: "sqs.eu-west-3.amazonaws.com/123456789012/queue_name"
  *
@@ -60,14 +60,14 @@ class Sqs extends \Temma\Base\Datasource {
 	/**
 	 * Create a new instance of this class.
 	 * @param	string	$dsn	Connection string.
-	 * @return	\Temma\Base\Datasources\Sqs	The created instance.
+	 * @return	\Temma\Datasources\Sqs	The created instance.
 	 * @throws	\Temma\Exceptions\Database	If the DSN is invalid.
 	 */
-	static public function factory(string $dsn) : \Temma\Base\Datasources\Sqs {
-		TµLog::log('Temma/Base', 'DEBUG', "\Temma\Base\Datasources\SQS object creation with DSN: '$dsn'.");
+	static public function factory(string $dsn) : \Temma\Datasources\Sqs {
+		TµLog::log('Temma/Base', 'DEBUG', "\\Temma\\Datasources\\Sqs object creation with DSN: '$dsn'.");
 		if (!preg_match('/^([^:]+):\/\/([^:]+):([^@]+)@(sqs\.)?([^\.]+)\.amazonaws\.com\/(.*)$/', $dsn, $matches)) {
-			TµLog::log('Temma/Base', 'WARN', "Invalid SQS DSN '$dsn'.");
-			throw new \Temma\Exceptions\Database("Invalid SQS DSN '$dsn'.", \Temma\Exceptions\Database::FUNDAMENTAL);
+			TµLog::log('Temma/Base', 'WARN', "Invalid Sqs DSN '$dsn'.");
+			throw new \Temma\Exceptions\Database("Invalid Sqs DSN '$dsn'.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		}
 		$type = $matches[1] ?? null;
 		$accessKey = $matches[2] ?? '';
@@ -75,7 +75,7 @@ class Sqs extends \Temma\Base\Datasource {
 		$region = $matches[5] ?? '';
 		$path = $matches[6] ?? '';
 		if ($type != 'sqs' || !$accessKey || !$privateKey || !$region || !$path)
-			throw new \Temma\Exceptions\Database("Invalid SQS DSN '$dsn'.", \Temma\Exceptions\Database::FUNDAMENTAL);
+			throw new \Temma\Exceptions\Database("Invalid Sqs DSN '$dsn'.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		$url = "https://sqs.$region.amazonaws.com/$path";
 		return (new self($accessKey, $privateKey, $region, $url));
 	}
@@ -117,9 +117,9 @@ class Sqs extends \Temma\Base\Datasource {
 	/**
 	 * Remove a message from SQS.
 	 * @param	string	$id	Message identifier.
-	 * @return	\Temma\Base\Datasources\Sqs	The current object.
+	 * @return	\Temma\Datasources\Sqs	The current object.
 	 */
-	public function remove(string $id) : \Temma\Base\Datasources\Sqs {
+	public function remove(string $id) : \Temma\Datasources\Sqs {
 		if (!$this->_enabled)
 			return ($this);
 		$this->_connect();
@@ -140,9 +140,9 @@ class Sqs extends \Temma\Base\Datasource {
 	}
 	/**
 	 * Remove all messages from an SQS queue.
-	 * @return	\Temma\Base\Datasources\Sqs	The current object.
+	 * @return	\Temma\Datasources\Sqs	The current object.
 	 */
-	public function flush() : \Temma\Base\Datasources\Sqs {
+	public function flush() : \Temma\Datasources\Sqs {
 		if (!$this->_enabled)
 			return ($this);
 		$this->_connect();
@@ -213,10 +213,10 @@ class Sqs extends \Temma\Base\Datasource {
 	 * @param	string	$id		Not used.
 	 * @param	string	$data		(optional) Message data.
 	 * @param	mixed	$options	(optional) Not used.
-	 * @return	\Temma\Base\Datasources\Sqs	The current object.
+	 * @return	\Temma\Datasources\Sqs	The current object.
 	 * @throws	\Exception	If an error occured.
 	 */
-	public function write(string $id, string $data=null, mixed $options=null) : \Temma\Base\Datasources\Sqs {
+	public function write(string $id, string $data=null, mixed $options=null) : \Temma\Datasources\Sqs {
 		if (!$this->_enabled)
 			return ($this);
 		$this->_connect();
@@ -305,10 +305,10 @@ class Sqs extends \Temma\Base\Datasource {
 	 * @param	string	$id		Message identifier, only used if the second parameter is null (remove the message).
 	 * @param	mixed	$data		(optional) Message data. The data is deleted if the value is not given or if it is null.
 	 * @param	mixed	$options	(optional) Not used.
-	 * @return	\Temma\Base\Datasources\Sqs	The current object.
+	 * @return	\Temma\Datasources\Sqs	The current object.
 	 * @throws	\Exception	If an error occured.
 	 */
-	public function set(string $id, mixed $data=null, mixed $options=null) : \Temma\Base\Datasources\Sqs {
+	public function set(string $id, mixed $data=null, mixed $options=null) : \Temma\Datasources\Sqs {
 		if (!$this->_enabled)
 			return ($this);
 		if (is_null($data)) {

@@ -6,7 +6,7 @@
  * @copyright	© 2020-2023, Amaury Bouchard
  */
 
-namespace Temma\Base\Datasources;
+namespace Temma\Datasources;
 
 use \Temma\Base\Log as TµLog;
 use \Temma\Exceptions\Database as TµDatabaseException;
@@ -19,17 +19,17 @@ use \Temma\Exceptions\Database as TµDatabaseException;
  */
 class SqlStatement {
 	/** \Temma\Base\Database object. */
-	protected \Temma\Base\Datasources\Sql $_db;
+	protected \Temma\Datasources\Sql $_db;
 	/** PDOStatement object. */
 	protected \PDOStatement $_statement;
 
 	/* ********** CONSTRUCTION ********** */
 	/**
 	 * Constructor. Should be used only by \Temma\Base\Database object.
-	 * @param	\Temma\Base\Datasources\Sql	$db		The datbase object.
+	 * @param	\Temma\Datasources\Sql	$db		The datbase object.
 	 * @param	\PDOStatement 			$statement	The PDOStatement object.
 	 */
-	public function __construct(\Temma\Base\Datasources\Sql $db, \PDOStatement $statement) {
+	public function __construct(\Temma\Datasources\Sql $db, \PDOStatement $statement) {
 		$this->_db = $db;
 		$this->_statement = $statement;
 	}

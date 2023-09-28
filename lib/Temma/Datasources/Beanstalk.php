@@ -6,7 +6,7 @@
  * @copyright	© 2023, Amaury Bouchard
  */
 
-namespace Temma\Base\Datasources;
+namespace Temma\Datasources;
 
 use \Temma\Base\Log as TµLog;
 
@@ -21,7 +21,7 @@ use \Temma\Base\Log as TµLog;
  * <b>Usage</b>
  * <code>
  * // initialization
- * $bean = \Temma\Base\Datasources\Beanstalk::factory('beanstalk://HOST:PORT/TUBE_NAME');
+ * $bean = \Temma\Datasources\Beanstalk::factory('beanstalk://HOST:PORT/TUBE_NAME');
  * $bean = \Temma\Base\Datasource::factory('beanstalk://HOST:PORT/TUBE_NAME');
  *
  * // send message to the queue
@@ -55,11 +55,11 @@ class Beanstalk extends \Temma\Base\Datasource {
 	/**
 	 * Create a new instance of this class.
 	 * @param	string	$dsn	Connection string.
-	 * @return	\Temma\Base\Datasources\Beanstalk	The created instance.
+	 * @return	\Temma\Datasources\Beanstalk	The created instance.
 	 * @throws	\Temma\Exceptions\Database	If the DSN is invalid.
 	 */
-	static public function factory(string $dsn) : \Temma\Base\Datasources\Beanstalk {
-		TµLog::log('Temma/Base', 'DEBUG', "\Temma\Base\Datasources\Beanstalk object creation with DSN: '$dsn'.");
+	static public function factory(string $dsn) : \Temma\Datasources\Beanstalk {
+		TµLog::log('Temma/Base', 'DEBUG', "\\Temma\\Datasources\\Beanstalk object creation with DSN: '$dsn'.");
 		if (!preg_match('/^beanstalk:\/\/([^\/:]+):?([^\/]+)?\/(.*)$/', $dsn, $matches)) {
 			TµLog::log('Temma/Base', 'WARN', "Invalid Beanstalk DSN '$dsn'.");
 			throw new \Temma\Exceptions\Database("Invalid Beanstalk DSN '$dsn'.", \Temma\Exceptions\Database::FUNDAMENTAL);
@@ -100,9 +100,9 @@ class Beanstalk extends \Temma\Base\Datasource {
 	 * Tell Beanstalkd that the given job is still processing,
 	 * avoiding to reschedule it.
 	 * @param	string	$id	Job identifier.
-	 * @return	\Temma\Base\Datasources\Beanstalk	The current object.
+	 * @return	\Temma\Datasources\Beanstalk	The current object.
 	 */
-	public function touch(string $id) : \Temma\Base\Datasources\Beanstalk {
+	public function touch(string $id) : \Temma\Datasources\Beanstalk {
 		if (!$this->_enabled)
 			return ($this);
 		$this->_connect();
@@ -115,9 +115,9 @@ class Beanstalk extends \Temma\Base\Datasource {
 	/**
 	 * Remove a message from SQS.
 	 * @param	string	$id	Job identifier.
-	 * @return	\Temma\Base\Datasources\Beanstalk	The current object.
+	 * @return	\Temma\Datasources\Beanstalk	The current object.
 	 */
-	public function remove(string $id) : \Temma\Base\Datasources\Beanstalk {
+	public function remove(string $id) : \Temma\Datasources\Beanstalk {
 		if (!$this->_enabled)
 			return ($this);
 		$this->_connect();
@@ -128,10 +128,10 @@ class Beanstalk extends \Temma\Base\Datasource {
 	/**
 	 * Disable clear().
 	 * @param	string	$pattern	Not used.
-	 * @return	\Temma\Base\Datasources\Beanstalk	Never returned.
+	 * @return	\Temma\Datasources\Beanstalk	Never returned.
 	 * @throws	\Temma\Exceptions\Database	Always throws an exception.
 	 */
-	public function clear(string $pattern) : \Temma\Base\Datasources\Beanstalk {
+	public function clear(string $pattern) : \Temma\Datasources\Beanstalk {
 		throw new \Temma\Exceptions\Database("No clear() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);
 	}
 
@@ -177,10 +177,10 @@ class Beanstalk extends \Temma\Base\Datasource {
 	 * @param	string	$id		Message identifier, only used if the second parameter is null (remove the message).
 	 * @param	string	$data		(optional) Message data.
 	 * @param	mixed	$options	(optional) Not used.
-	 * @return	\Temma\Base\Datasources\Beanstalk	The current object.
+	 * @return	\Temma\Datasources\Beanstalk	The current object.
 	 * @throws	\Exception	If an error occured.
 	 */
-	public function write(string $id, string $data=null, mixed $options=null) : \Temma\Base\Datasources\Beanstalk {
+	public function write(string $id, string $data=null, mixed $options=null) : \Temma\Datasources\Beanstalk {
 		if (!$this->_enabled)
 			return ($this);
 		$this->_connect();
@@ -231,10 +231,10 @@ class Beanstalk extends \Temma\Base\Datasource {
 	 * @param	string	$id		Message identifier, only used if the second parameter is null (remove the message).
 	 * @param	mixed	$data		(optional) Message data. The data is deleted if the value is not given or if it is null.
 	 * @param	mixed	$options	(optional) Not used.
-	 * @return	\Temma\Base\Datasources\Beanstalk	The current object.
+	 * @return	\Temma\Datasources\Beanstalk	The current object.
 	 * @throws	\Exception	If an error occured.
 	 */
-	public function set(string $id, mixed $data=null, mixed $options=null) : \Temma\Base\Datasources\Beanstalk {
+	public function set(string $id, mixed $data=null, mixed $options=null) : \Temma\Datasources\Beanstalk {
 		if (!$this->_enabled)
 			return ($this);
 		$this->write($id, json_encode($data), $options);

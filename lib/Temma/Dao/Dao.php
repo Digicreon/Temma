@@ -66,7 +66,7 @@ class Dao {
 	/** Name of the criteria object. */
 	protected string $_criteriaObject = '\Temma\Dao\Criteria';
 	/** Database connection. */
-	protected \Temma\Base\Datasources\Sql $_db;
+	protected \Temma\Datasources\Sql $_db;
 	/** Cache connection. */
 	protected ?\Temma\Base\Datasource $_cache;
 	/** Tell if the cache must be disabled. */
@@ -86,16 +86,16 @@ class Dao {
 
 	/**
 	 * Constructor.
-	 * @param	\Temma\Base\Datasources\Sql	$db		Connection to the database.
-	 * @param	?\Temma\Base\Datasource		$cache		(optional) Connection to the cache server.
-	 * @param	?string				$tableName	(optional) Name of the table.
-	 * @param	?string				$idField	(optional) Name of the primary key. (default: 'id')
-	 * @param	?string				$dbName		(optional) Name of the database.
-	 * @param	?array				$fields		(optional) List of table's fields (may be remapped 'table_field' => 'aliased_name').
-	 * @param	?string				$criteriaObject	(optional) Name of the criteria object. (default: \Temma\Dao\Criteria)
+	 * @param	\Temma\Datasources\Sql	$db		Connection to the database.
+	 * @param	?\Temma\Base\Datasource	$cache		(optional) Connection to the cache server.
+	 * @param	?string			$tableName	(optional) Name of the table.
+	 * @param	?string			$idField	(optional) Name of the primary key. (default: 'id')
+	 * @param	?string			$dbName		(optional) Name of the database.
+	 * @param	?array			$fields		(optional) List of table's fields (may be remapped 'table_field' => 'aliased_name').
+	 * @param	?string			$criteriaObject	(optional) Name of the criteria object. (default: \Temma\Dao\Criteria)
 	 * @throws	\Temma\Exceptions\Dao	If the criteria object is not of the right type.
 	 */
-	public function __construct(\Temma\Base\Datasources\Sql $db, ?\Temma\Base\Datasource $cache=null, ?string $tableName=null,
+	public function __construct(\Temma\Datasources\Sql $db, ?\Temma\Base\Datasource $cache=null, ?string $tableName=null,
 	                            ?string $idField='id', ?string $dbName=null, ?array $fields=null, ?string $criteriaObject=null) {
 		$this->_db = $db;
 		$this->_cache = $cache;
@@ -118,6 +118,80 @@ class Dao {
 			$this->_criteriaObject = $criteriaObject;
 		}
 	}
+
+	/* ********** GETTERS ********** */
+	/**
+	 * Returns the database object.
+	 * @return	\Temma\Datasources\Sql	The database object.
+	 */
+	public function getDataBase() : \Temma\Datasources\Sql {
+		return ($this->_db);
+	}
+	/**
+	 * Returns the cache object.
+	 * @return	?\Temma\iBase\Datasource	The cache object.
+	 */
+	public function getCache() : ?\Temma\Base\Datasource {
+		return ($this->_cache);
+	}
+	/**
+	 * Returns the name of the database.
+	 * @return	string	The name of the database.
+	 */
+	public function getDatabaseName() : string {
+		$sql = "SELECT DATABASE() AS dbname";
+		$result = $this->_db->queryOne($sql);
+		return ($result['dbname']);
+	}
+	/**
+	 * Returns the name of the table.
+	 * @return	string	Table name.
+	 */
+	public function getTableName() : string {
+		return ($this->_tableName);
+	}
+	/**
+	 * Returns the name of the primary key field.
+	 * @return	string	The field name.
+	 */
+	public function getIdField() : string {
+		return ($this->_idField);
+	}
+	/**
+	 * Returns the list of fields.
+	 * @return	array	List of fields.
+	 */
+	public function getFields() : array {
+		return ($this->_fields);
+	}
+	/**
+	 * Return the name of a field of the table, using aliases if defined.
+	 * This method should be used only by \Temma\Dao\Criteria objects.
+	 * @param	string	$field	Field name.
+	 * @return	string	The aliased field name.
+	 */
+	public function getFieldName(string $field) : string {
+		return ($this->_fieldAliases[$field] ?? $field);
+	}
+	/**
+	 * Tell if the table exists.
+	 * @param	string	$tableName	(optional) Name of the table to check. If empty,
+	 *					check the DAO's table.
+	 * @return	bool	True if the table exists.
+	 */
+	public function tableExists(?string $tableName=null) : bool {
+		$dbName = $this->getDatabaseName();
+		$tableName = $tableName ?: $this->_tableName;
+		$sql = "SELECT COUNT(*) AS nbr
+		        FROM information_schema.TABLES
+		        WHERE TABLE_SCHEMA = " . $this->_db->quote($dbName) . "
+		          AND TABLE_TYPE = 'BASE TABLE'
+		          AND TABLE_NAME = " . $this->_db->quote($tableName);
+		$result = $this->_db->queryOne($sql);
+		return ((bool)$result['nbr']);
+	}
+
+	/* ********** CRITERIA ********** */
 	/**
 	 * Creates a criteria management object.
 	 * @param	string	$type	(optional) How criteria must be associated ('and', 'or'). (default: 'and')
@@ -126,6 +200,8 @@ class Dao {
 	public function criteria(string $type='and') : \Temma\Dao\Criteria {
 		return (new $this->_criteriaObject($this->_db, $this, $type));
 	}
+
+	/* ********** REQUESTS ********** */
 	/**
 	 * Returns the number of matching records.
 	 * @param	?\Temma\Dao\Criteria	$criteria	(optional) Search criteria. Null to count all records in the table. (default: null)
@@ -346,15 +422,6 @@ class Dao {
 				$sql .= $criteria->generate();
 		}
 		$this->_db->exec($sql);
-	}
-	/**
-	 * Return the name of a field of the table, using aliases if defined.
-	 * This method should be used only by \Temma\Dao\Criteria objects.
-	 * @param	string	$field	Field name.
-	 * @return	string	The aliased field name.
-	 */
-	public function getFieldName(string $field) : string {
-		return ($this->_fieldAliases[$field] ?? $field);
 	}
 
 	/* ***************** CACHE MANAGEMENT ************* */

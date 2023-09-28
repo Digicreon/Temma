@@ -6,7 +6,7 @@
  * @copyright	© 2007-2023, Amaury Bouchard
  */
 
-namespace Temma\Base\Datasources;
+namespace Temma\Datasources;
 
 use \Temma\Base\Log as TµLog;
 use \Temma\Exceptions\Database as TµDatabaseException;
@@ -114,10 +114,10 @@ class Sql extends \Temma\Base\Datasource {
 	/**
 	 * Factory. Creates an instance of the object, using the given parameters.
 	 * @param	string	$dsn		Database connection string.
-	 * @return	\Temma\Base\Datasources\Sql	The created object.
+	 * @return	\Temma\Datasources\Sql	The created object.
 	 * @throws	\Exception	If something went wrong.
 	 */
-	static public function factory(string $dsn) : \Temma\Base\Datasources\Sql {
+	static public function factory(string $dsn) : \Temma\Datasources\Sql {
 		// instance creation
 		$instance = new self($dsn);
 		return ($instance);
@@ -307,10 +307,10 @@ class Sql extends \Temma\Base\Datasource {
 	/**
 	 * Creates a prepared query.
 	 * @param	string	$sql	The SQL request.
-	 * @return	\Temma\Base\Datasources\SqlStatement	The statement object.
+	 * @return	\Temma\Datasources\SqlStatement	The statement object.
 	 * @throws	\Temma\Exceptions\Database	If an error occurs.
 	 */
-	public function prepare(string $sql) : \Temma\Base\Datasources\SqlStatement {
+	public function prepare(string $sql) : \Temma\Datasources\SqlStatement {
 		TµLog::log('Temma/Base', 'DEBUG', "SQL prepare: $sql");
 		$this->_connect();
 		try {
@@ -324,7 +324,7 @@ class Sql extends \Temma\Base\Datasource {
 			TµLog::log('Temma/Base', 'ERROR', $errStr);
 			throw new TµDatabaseException($errStr, TµDatabaseException::QUERY);
 		}
-		return (new \Temma\Base\Datasources\SqlStatement($this, $dbStatement));
+		return (new \Temma\Datasources\SqlStatement($this, $dbStatement));
 	}
 	/**
 	 * Executes a SQL request without fetching data.
@@ -416,9 +416,9 @@ class Sql extends \Temma\Base\Datasource {
 	/**
 	 * Remove a key.
 	 * @param	string	$key	The key to remove.
-	 * @return	\Temma\Base\Datasources\Sql	The current object.
+	 * @return	\Temma\Datasources\Sql	The current object.
 	 */
-	public function remove(string $key) : \Temma\Base\Datasources\Sql {
+	public function remove(string $key) : \Temma\Datasources\Sql {
 		if (!$this->_enabled)
 			return ($this);
 		$sql = "DELETE FROM TemmaData
@@ -429,9 +429,9 @@ class Sql extends \Temma\Base\Datasource {
 	/**
 	 * Multiple remove.
 	 * @param	array	$keys	List of keys to remove.
-	 * @return	\Temma\Base\Datasources\Sql	The current object.
+	 * @return	\Temma\Datasources\Sql	The current object.
 	 */
-	public function mRemove(array $keys) : \Temma\Base\Datasources\Sql {
+	public function mRemove(array $keys) : \Temma\Datasources\Sql {
 		if (!$this->_enabled)
 			return ($this);
 		array_walk($keys, function(&$value, $key) {
@@ -445,9 +445,9 @@ class Sql extends \Temma\Base\Datasource {
 	/**
 	 * Remove all keys matching a given pattern.
 	 * @param	string	$prefix	The key prefix.
-	 * @return	\Temma\Base\Datasources\Sql	The current object.
+	 * @return	\Temma\Datasources\Sql	The current object.
 	 */
-	public function clear(string $prefix) : \Temma\Base\Datasources\Sql {
+	public function clear(string $prefix) : \Temma\Datasources\Sql {
 		if (!$this->_enabled)
 			return ($this);
 		$sql = "DELETE FROM TemmaData
@@ -457,9 +457,9 @@ class Sql extends \Temma\Base\Datasource {
 	}
 	/**
 	 * Remove all data.
-	 * @return	\Temma\Base\Datasources\Sql	The current object.
+	 * @return	\Temma\Datasources\Sql	The current object.
 	 */
-	public function flush() : \Temma\Base\Datasources\Sql {
+	public function flush() : \Temma\Datasources\Sql {
 		if (!$this->_enabled)
 			return ($this);
 		$sql = "TRUNCATE TABLE TemmaData";
@@ -550,10 +550,10 @@ class Sql extends \Temma\Base\Datasource {
 	 * @param	string	$key		Key to add or update.
 	 * @param	mixed	$data		(optional) Data value. The data is deleted if the value is not given or if it is null.
 	 * @param	mixed	$options	Not used.
-	 * @return	\Temma\Base\Datasources\Sql	The current object.
+	 * @return	\Temma\Datasources\Sql	The current object.
 	 * @throws	\Exception	If an error occured.
 	 */
-	public function write(string $key, mixed $data=null, mixed $options=null) : \Temma\Base\Datasources\Sql {
+	public function write(string $key, mixed $data=null, mixed $options=null) : \Temma\Datasources\Sql {
 		if (!$this->_enabled)
 			return ($this);
 		// remove file

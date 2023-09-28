@@ -6,7 +6,7 @@
  * @copyright	© 2023, Amaury Bouchard
  */
 
-namespace Temma\Base\Datasources;
+namespace Temma\Datasources;
 
 use \Temma\Base\Log as TµLog;
 
@@ -23,14 +23,14 @@ require_once('aws.phar');
  * <b>Usage</b>
  * <code>
  * // initialization, with private access (default behaviour)
- * $s3 = \Temma\Base\Datasources\S3::factory('s3://ACCESS_KEY:SECRET_KEY@REGION/BUCKET');
+ * $s3 = \Temma\Datasources\S3::factory('s3://ACCESS_KEY:SECRET_KEY@REGION/BUCKET');
  * $s3 = \Temma\Base\Datasource::factory('s3://ACCESS_KEY:SECRET_KEY@REGION/BUCKET');
  * // alternative init
- * $s3 = \Temma\Base\Datasources\S3::factory('s3://ACCESS_KEY:SECRET_KEY@REGION/BUCKET:private');
+ * $s3 = \Temma\Datasources\S3::factory('s3://ACCESS_KEY:SECRET_KEY@REGION/BUCKET:private');
  * $s3 = \Temma\Base\Datasource::factory('s3://ACCESS_KEY:SECRET_KEY@REGION/BUCKET:private');
  *
  * // initialization, with public-read access for created files by default
- * $s3 = \Temma\Base\Datasources\S3::factory('s3://ACCESS_KEY:SECRET_KEY@REGION/BUCKET:public');
+ * $s3 = \Temma\Datasources\S3::factory('s3://ACCESS_KEY:SECRET_KEY@REGION/BUCKET:public');
  * $s3 = \Temma\Base\Datasource::factory('s3://ACCESS_KEY:SECRET_KEY@REGION/BUCKET:public');
  *
  * // add data with private access
@@ -102,11 +102,11 @@ class S3 extends \Temma\Base\Datasource {
 	/**
 	 * Create a new instance of this class.
 	 * @param	string	$dsn	Connection string.
-	 * @return	\Temma\Base\Datasources\S3	The created instance.
+	 * @return	\Temma\Datasources\S3	The created instance.
 	 * @throws	\Temma\Exceptions\Database	If the DSN is invalid.
 	 */
-	static public function factory(string $dsn) : \Temma\Base\Datasources\S3 {
-		TµLog::log('Temma/Base', 'DEBUG', "\Temma\Base\Datasources\S3 object creation with DSN: '$dsn'.");
+	static public function factory(string $dsn) : \Temma\Datasources\S3 {
+		TµLog::log('Temma/Base', 'DEBUG', "\\Temma\\Datasources\\S3 object creation with DSN: '$dsn'.");
 		if (!preg_match("/^([^:]+):\/\/([^:]+):([^@]+)@([^\/]+)\/([^:]+):?(.*)$/", $dsn, $matches)) {
 			TµLog::log('Temma/Base', 'WARN', "Invalid S3 DSN '$dsn'.");
 			throw new \Temma\Exceptions\Database("Invalid S3 DSN '$dsn'.", \Temma\Exceptions\Database::FUNDAMENTAL);
@@ -203,9 +203,9 @@ class S3 extends \Temma\Base\Datasource {
 	/**
 	 * Remove a file from S3.
 	 * @param	string	$s3Path	Path of the S3 file.
-	 * @return	\Temma\Base\Datasources\S3	The current object.
+	 * @return	\Temma\Datasources\S3	The current object.
 	 */
-	public function remove(string $s3Path) : \Temma\Base\Datasources\S3 {
+	public function remove(string $s3Path) : \Temma\Datasources\S3 {
 		if (!$this->_enabled)
 			return ($this);
 		$this->_connect();
@@ -223,9 +223,9 @@ class S3 extends \Temma\Base\Datasource {
 	/**
 	 * Multiple remove.
 	 * @param	array	$s3Paths	List of path to S3 files.
-	 * @return	\Temma\Base\Datasources\S3	The current object.
+	 * @return	\Temma\Datasources\S3	The current object.
 	 */
-	public function mRemove(array $s3Paths) : \Temma\Base\Datasources\S3 {
+	public function mRemove(array $s3Paths) : \Temma\Datasources\S3 {
 		if (!$this->_enabled)
 			return ($this);
 		$this->_connect();
@@ -251,9 +251,9 @@ class S3 extends \Temma\Base\Datasource {
 	/**
 	 * Remove all S3 files matching a given prefix.
 	 * @param	string	$prefix	Prefix string. Nothing will be removed if this parameter is empty.
-	 * @return	\Temma\Base\Datasources\S3	The current object.
+	 * @return	\Temma\Datasources\S3	The current object.
 	 */
-	public function clear(string $prefix) : \Temma\Base\Datasources\S3 {
+	public function clear(string $prefix) : \Temma\Datasources\S3 {
 		if (!$this->_enabled)
 			return ($this);
 		$this->_connect();
@@ -267,9 +267,9 @@ class S3 extends \Temma\Base\Datasource {
 	}
 	/**
 	 * Remove all S3 files from a bucket.
-	 * @return	\Temma\Base\Datasources\S3	The current object.
+	 * @return	\Temma\Datasources\S3	The current object.
 	 */
-	public function flush() : \Temma\Base\Datasources\S3 {
+	public function flush() : \Temma\Datasources\S3 {
 		if (!$this->_enabled)
 			return ($this);
 		$this->_connect();
@@ -409,10 +409,10 @@ class S3 extends \Temma\Base\Datasource {
 	 * @param	mixed	$options	(optional) If a string: mime type.
 	 *					If a boolean: true for public access, false for private access.
 	 *					If an array: 'public' (bool) and/or 'mimetype' (string) keys.
-	 * @return	\Temma\Base\Datasources\S3	The current object.
+	 * @return	\Temma\Datasources\S3	The current object.
 	 * @throws	\Exception	If an error occured.
 	 */
-	public function write(string $s3Path, string $data, mixed $options=null) : \Temma\Base\Datasources\S3 {
+	public function write(string $s3Path, string $data, mixed $options=null) : \Temma\Datasources\S3 {
 		if (!$this->_enabled)
 			return ($this);
 		$this->_connect();
@@ -448,11 +448,11 @@ class S3 extends \Temma\Base\Datasource {
 	 * @param	mixed	$options	(optional) If a string: mime type.
 	 *					If a boolean: true for public access, false for private access.
 	 *					If an array: 'public' (bool) and/or 'mimetype' (string) keys.
-	 * @return	\Temma\Base\Datasources\S3	The current object.
+	 * @return	\Temma\Datasources\S3	The current object.
 	 * @throws	\Temma\Exceptions\IO		If the destination file is not writeable.
 	 * @throws	\Exception	If an error occured.
 	 */
-	public function copyTo(string $s3Path, string $localPath, mixed $options=null) : \Temma\Base\Datasources\S3 {
+	public function copyTo(string $s3Path, string $localPath, mixed $options=null) : \Temma\Datasources\S3 {
 		if (!$this->_enabled)
 			return ($this);
 		$this->_connect();
@@ -523,10 +523,10 @@ class S3 extends \Temma\Base\Datasource {
 	 * @param	mixed	$options	(optional) If a string: mime type.
 	 *					If a boolean: true for public access, false for private access.
 	 *					If an array: 'public' (bool).
-	 * @return	\Temma\Base\Datasources\S3	The current object.
+	 * @return	\Temma\Datasources\S3	The current object.
 	 * @throws	\Exception	If an error occured.
 	 */
-	public function set(string $s3Path, mixed $value=null, mixed $options=null) : \Temma\Base\Datasources\S3 {
+	public function set(string $s3Path, mixed $value=null, mixed $options=null) : \Temma\Datasources\S3 {
 		if (!$this->_enabled)
 			return ($this);
 		if (is_null($value)) {

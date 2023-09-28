@@ -6,7 +6,7 @@
  * @copyright	© 2012-2023, Amaury Bouchard
  */
 
-namespace Temma\Base\Datasources;
+namespace Temma\Datasources;
 
 use \Temma\Base\Log as TµLog;
 
@@ -30,7 +30,7 @@ use \Temma\Base\Log as TµLog;
  * <code>
  * try {
  *     // object creation
- *     $ndb = \Temma\Base\Datasources\Redis::factory('redis://localhost');
+ *     $ndb = \Temma\Datasources\Redis::factory('redis://localhost');
  *     $ndb = \Temma\Base\Datasource::factory('redis://localhost');
  *     // insertion of a key-value pair
  *     $ndb->set('key', 'value');
@@ -70,11 +70,11 @@ class Redis extends \Temma\Base\Datasource {
 	/**
 	 * Factory
 	 * @param	string	$dsn	Connection string.
-	 * @return	\Temma\Base\Datasources\Redis	The created object.
+	 * @return	\Temma\Datasources\Redis	The created object.
 	 * @throws	\Exception	If the DSN is not correct.
 	 */
-	static public function factory(string $dsn) : \Temma\Base\Datasources\Redis {
-		TµLog::log('Temma/Base', 'DEBUG', "\Temma\Base\Datasources\Redis object creation with DSN: '$dsn'.");
+	static public function factory(string $dsn) : \Temma\Datasources\Redis {
+		TµLog::log('Temma/Base', 'DEBUG', "\\Temma\\Datasources\\Redis object creation with DSN: '$dsn'.");
 		// extraction of connection parameters
 		$type = $host = $port = null;
 		if (preg_match("/^redis-sock:\/\/([^#]+)#?(.*)$/", $dsn, $matches)) {
@@ -148,9 +148,9 @@ class Redis extends \Temma\Base\Datasource {
 	/**
 	 * Remove one or many key-value pairs.
 	 * @param	string	$key	Key to remove.
-	 * @return	\Temma\Base\Datasources\Redis	The current object.
+	 * @return	\Temma\Datasources\Redis	The current object.
 	 */
-	public function remove(string $key) : \Temma\Base\Datasources\Redis {
+	public function remove(string $key) : \Temma\Datasources\Redis {
 		if (!$this->_enabled)
 			return ($this);
 		$this->_connect();
@@ -160,9 +160,9 @@ class Redis extends \Temma\Base\Datasource {
 	/**
 	 * Multiple remove.
 	 * @param	array	$keys	List of keys.
-	 * @return	\Temma\Base\Datasources\Redis	The current object.
+	 * @return	\Temma\Datasources\Redis	The current object.
 	 */
-	public function mRemove(array $keys) : \Temma\Base\Datasources\Redis {
+	public function mRemove(array $keys) : \Temma\Datasources\Redis {
 		if (!$this->_enabled)
 			return ($this);
 		$this->_connect();
@@ -172,9 +172,9 @@ class Redis extends \Temma\Base\Datasource {
 	/**
 	 * Remove keys from a pattern.
 	 * @param	string	$pattern	Search pattern.
-	 * @return	\Temma\Base\Datasources\Redis	The current object.
+	 * @return	\Temma\Datasources\Redis	The current object.
 	 */
-	public function clear(string $pattern) : \Temma\Base\Datasources\Redis {
+	public function clear(string $pattern) : \Temma\Datasources\Redis {
 		if (!$this->_enabled)
 			return ($this);
 		$this->_connect();
@@ -186,9 +186,9 @@ class Redis extends \Temma\Base\Datasource {
 	}
 	/**
 	 * Remove all data from Redis.
-	 * @return	\Temma\Base\Datasources\Redis	The current object.
+	 * @return	\Temma\Datasources\Redis	The current object.
 	 */
-	public function flush() : \Temma\Base\Datasources\Redis {
+	public function flush() : \Temma\Datasources\Redis {
 		if (!$this->_enabled)
 			return ($this);
 		$this->_connect();
@@ -258,10 +258,10 @@ class Redis extends \Temma\Base\Datasource {
 	 * @param	string	$key		Key.
 	 * @param	mixed	$value		(optional) Value associated to the key.
 	 * @param	mixed	$timeout	(optional) Key expiration timeout. 0 by default, to set no expiration.
-	 * @return	\Temma\Base\Datasources\Redis	The current object.
+	 * @return	\Temma\Datasources\Redis	The current object.
 	 * @throws	\Exception	If something went wrong.
 	 */
-	public function write(string|array $key, mixed $value=null, mixed $timeout=0) : \Temma\Base\Datasources\Redis {
+	public function write(string|array $key, mixed $value=null, mixed $timeout=0) : \Temma\Datasources\Redis {
 		if (!$this->_enabled)
 			return ($this);
 		$this->_connect();
@@ -367,10 +367,10 @@ class Redis extends \Temma\Base\Datasource {
 	 * @param	string	$key		Key.
 	 * @param	mixed	$value		(optional) Value associated to the key.
 	 * @param	mixed	$timeout	(optional) Key expiration timeout. 0 by default, to set no expiration.
-	 * @return	\Temma\Base\Datasources\Redis	The current object.
+	 * @return	\Temma\Datasources\Redis	The current object.
 	 * @throws	\Exception	If something went wrong.
 	 */
-	public function set(string|array $key, mixed $value=null, mixed $timeout=0) : \Temma\Base\Datasources\Redis {
+	public function set(string|array $key, mixed $value=null, mixed $timeout=0) : \Temma\Datasources\Redis {
 		if (!$this->_enabled)
 			return ($this);
 		$this->_connect();
