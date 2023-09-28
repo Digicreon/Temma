@@ -113,8 +113,19 @@ if (!is_subclass_of($objectName, '\Temma\Web\Controller')) {
 $methodName = $methodName ?: \Temma\Web\Framework::CONTROLLERS_ROOT_ACTION;
 // execution
 $executorController = new \Temma\Web\Controller($loader);
-$status = $executorController->_subProcess($objectName, $methodName);
-exit((int)$status);
+try {
+	$status = $executorController->_subProcess($objectName, $methodName);
+	exit((int)$status);
+} catch (\Exception $e) {
+	// display errors
+	$message = $e->getMessage() ?: 'Error';
+	print("\n");
+	print(TµAnsi::block('alert', $message));
+	// if the loglevel is DEBUG, shows the stacktrace
+	if (($usedLogLevels['Temma/Cli'] ?? null) == TµLog::DEBUG)
+		throw $e;
+	exit(1);
+}
 
 /* ********** FUNCTIONS ********** */
 /**
