@@ -130,6 +130,8 @@ class Controller implements \ArrayAccess {
 			$dataSource = $this->_loader->dataSources[$daoConf['source']];
 		else
 			$dataSource = $this->_loader->dataSources[\Temma\Web\Framework::DEFAULT_DATASOURCE] ?? reset($this->_loader->dataSources);
+		if (!is_a($dataSource, '\Temma\Datasources\Sql'))
+			throw new \Temma\Exceptions\Database("DAO creation: The used data source is not of type '\\Temma\Datasources\\Sql'.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		$dao = new $daoConf['object']($dataSource, ($daoConf['cache'] ? $this->_loader->cache : null), $daoConf['table'], $daoConf['id'],
 		                              $daoConf['base'], $daoConf['fields'], $daoConf['criteria']);
 		return ($dao);
