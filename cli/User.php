@@ -8,6 +8,7 @@
 
 use \Temma\Base\Log as TµLog;
 use \Temma\Utils\Ansi as TµAnsi;
+use \Temma\Utils\Term as TµTerm;
 
 /**
  * User management CLI controller.
@@ -59,6 +60,35 @@ class User extends \Temma\Web\Controller {
 				}
 			}
 			$this->_userDao = $this->_loadDao($params);
+		}
+		// check if the User table exists
+		if (!$this->_userDao->tableExists()) {
+			$tableName = $this->_userDao->getTableName();
+			print(TµAnsi::style("<info>The table '$tableName' doesn't exist.</info>"));
+			print(TµAnsi::style("Do you want to create it? [Y/n]\n"));
+			$res = TµTerm::input();
+			if ($res && $res != 'y' && $res != 'Y') {
+				print(TµAnsi::style("<alert marginTop='1'>This script needs the table '$tableName'. Abort.</alert>"));
+				exit(1);
+			}
+			$idField = $this->_userDao->getFieldName('id');
+			$emailField = $this->_userDao->getFieldName('email');
+			$sql = "CREATE TABLE $tableName (
+					$idField							INT UNSIGNED NOT NULL AUTO_INCREMENT,
+					" . $this->_userDao->getFieldName('date_creation') . "		DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+					" . $this->_userDao->getFieldName('date_last_login') . "	DATETIME,
+					" . $this->_userDao->getFieldName('date_last_access') . "	DATETIME,
+					$emailField							TINYTEXT CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
+					" . $this->_userDao->getFieldName('name') . "			TINYTEXT,
+					" . $this->_userDao->getFieldName('roles') . "			SET('admin'),
+					" . $this->_userDao->getFieldName('services') . "		SET('admin'),
+					PRIMARY KEY ($idField),
+					UNIQUE INDEX $emailField ($emailField(255))
+				) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci";
+			$this->_userDao->getDatabase()->exec($sql);
+			print("\n");
+			print(TµAnsi::style("<success>The table '$tableName' has been created.</success>"));
+			print(TµAnsi::style("<info>You should customize the 'roles' and 'services' fields.</info>"));
 		}
 	}
 	/**
@@ -113,13 +143,13 @@ class User extends \Temma\Web\Controller {
 				$roles = str_getcsv($user['roles']);
 				print("roles:\n");
 				foreach ($roles as $role)
-					print('          - ' . TµAnsi::color('blue', $role) . "\n");
+					print('           - ' . TµAnsi::color('blue', $role) . "\n");
 			}
 			if ($user['services']) {
 				$services = str_getcsv($user['services']);
 				print("services:\n");
 				foreach ($services as $service)
-					print('          - ' . TµAnsi::color('red', $service) . "\n");
+					print('           - ' . TµAnsi::color('red', $service) . "\n");
 			}
 			print("\n");
 		}
