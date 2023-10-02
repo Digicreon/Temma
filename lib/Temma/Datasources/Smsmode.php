@@ -193,24 +193,21 @@ class Smsmode extends \Temma\Base\Datasource {
 	/**
 	 * Delete a scheduled message.
 	 * @param	string	$msgId	Message identifier.
-	 * @return	\Temma\Datasources\Smsmode	The current object.
 	 * @throws	\Exception	If an error occurred.
 	 */
-	public function remove(string $msgId) : \Temma\Datasources\Smsmode {
+	public function remove(string $msgId) : void {
 		if (!$this->_enabled)
-			return ($this);
+			return;
 		$response = $this->_request('deleteSMS.do', ['smsID' => $msgId]);
 		if (!mb_strlen($response) || $response !== '0')
 			throw new \Exception("Unable to delete text message identified by '$msgId'.");
-		return ($this);
 	}
 	/**
 	 * Disabled clear.
 	 * @param	string	$pattern	Not used.
-	 * @return	\Temma\Datasources\Smsmode	Never returned.
 	 * @throws	\Temma\Exceptions\Database	Always throws an exception.
 	 */
-	public function clear(string $pattern) : \Temma\Datasources\Smsmode {
+	public function clear(string $pattern) : void {
 		throw new \Temma\Exceptions\Database("No clear() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);
 	}
 
@@ -233,23 +230,23 @@ class Smsmode extends \Temma\Base\Datasource {
 		$status = $matches[1] ?? null;
 		if (!mb_strlen($status))
 			return (null);
-		return ($status + 100);
+		return (intval($status) + 100);
 	}
 	/**
 	 * Send a text message. Alias to send() method.
 	 * @param	string	$msisdn		Phone number.
 	 * @param	string	$text		Text message.
 	 * @param	mixed	$options	(optional) Associative array with the 'sendDate' and 'reference' keys.
-	 * @return	\Temma\Datasources\Smsmode	The current object.
+	 * @return	string	Message identifier.
 	 * @throws	\Exception	If an error occured.
 	 */
-	public function write(string $msisdn, string $text=null, mixed $options=null) : \Temma\Datasources\Smsmode {
+	public function write(string $msisdn, string $text=null, mixed $options=null) : string {
 		$sendDate = $options['sendDate'] ?? null;
 		$reference = $options['reference'] ?? null;
 		$msgId = $this->send($msisdn, $text, $sendDate, $reference);
 		if (!$msgId)
 			throw new \Exception("Unable to send text message to '$msisdn'.");
-		return ($this);
+		return ($msgId);
 	}
 
 	/* ********** KEY-VALUE REQUESTS ********** */
@@ -286,16 +283,16 @@ class Smsmode extends \Temma\Base\Datasource {
 	 * @param	string	$msisdn		The recipient phone number.
 	 * @param	mixed	$text		The text message.
 	 * @param	mixed	$options	(optional) Associative array with 'sendDate' and/or 'reference' keys.
-	 * @return	\Temma\Datasources\Smsmode	The current object.
+	 * @return	string	Message identifier.
 	 * @throws	\Exception	If an error occured.
 	 */
-	public function set(string $msisdn, mixed $text=null, mixed $options=null) : \Temma\Datasources\Smsmode {
+	public function set(string $msisdn, mixed $text=null, mixed $options=null) : string {
 		$sendDate = $options['sendDate'] ?? null;
 		$reference = $options['reference'] ?? null;
 		$msgId = $this->send($msisdn, $text, $sendDate, $reference);
 		if (!$msgId)
 			throw new \Exception("Unable to send text message to '$msisdn'.");
-		return ($this);
+		return ($msgId);
 	}
 	/**
 	 * Multiple set. Alias to the mWrite() method.

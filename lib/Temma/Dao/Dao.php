@@ -129,7 +129,7 @@ class Dao {
 	}
 	/**
 	 * Returns the cache object.
-	 * @return	?\Temma\iBase\Datasource	The cache object.
+	 * @return	?\Temma\Base\Datasource	The cache object.
 	 */
 	public function getCache() : ?\Temma\Base\Datasource {
 		return ($this->_cache);

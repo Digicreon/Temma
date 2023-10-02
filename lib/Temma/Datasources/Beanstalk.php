@@ -115,23 +115,20 @@ class Beanstalk extends \Temma\Base\Datasource {
 	/**
 	 * Remove a message from SQS.
 	 * @param	string	$id	Job identifier.
-	 * @return	\Temma\Datasources\Beanstalk	The current object.
 	 */
-	public function remove(string $id) : \Temma\Datasources\Beanstalk {
+	public function remove(string $id) : void {
 		if (!$this->_enabled)
-			return ($this);
+			return;
 		$this->_connect();
 		$job = new \Pheanstalk\Values\Job(new \Pheanstalk\Values\JobId($id), '');
 		$this->_pheanstalk->delete($job);
-		return ($this);
 	}
 	/**
 	 * Disable clear().
 	 * @param	string	$pattern	Not used.
-	 * @return	\Temma\Datasources\Beanstalk	Never returned.
 	 * @throws	\Temma\Exceptions\Database	Always throws an exception.
 	 */
-	public function clear(string $pattern) : \Temma\Datasources\Beanstalk {
+	public function clear(string $pattern) : void {
 		throw new \Temma\Exceptions\Database("No clear() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);
 	}
 
@@ -161,7 +158,7 @@ class Beanstalk extends \Temma\Base\Datasource {
 	 * @throws	\Temma\Exceptions\Database	Always throws an exception.
 	 */
 	public function mRead(array $keys) : array {
-		throw new \Temma\Exceptions\Database("No mGet() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);
+		throw new \Temma\Exceptions\Database("No mRead() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);
 	}
 	/**
 	 * Disabled multiple copyFrom.
@@ -177,16 +174,16 @@ class Beanstalk extends \Temma\Base\Datasource {
 	 * @param	string	$id		Message identifier, only used if the second parameter is null (remove the message).
 	 * @param	string	$data		(optional) Message data.
 	 * @param	mixed	$options	(optional) Not used.
-	 * @return	\Temma\Datasources\Beanstalk	The current object.
+	 * @return	?string	Job identifier.
 	 * @throws	\Exception	If an error occured.
 	 */
-	public function write(string $id, string $data=null, mixed $options=null) : \Temma\Datasources\Beanstalk {
+	public function write(string $id, string $data=null, mixed $options=null) : ?string {
 		if (!$this->_enabled)
-			return ($this);
+			return (null);
 		$this->_connect();
 		// add message
-		$this->_pheanstalk->useTube($this->_tube)->put($data);
-		return ($this);
+		$job = $this->_pheanstalk->useTube($this->_tube)->put($data);
+		return ($job->getId());
 	}
 
 	/* ********** KEY-VALUE REQUESTS ********** */
@@ -231,14 +228,13 @@ class Beanstalk extends \Temma\Base\Datasource {
 	 * @param	string	$id		Message identifier, only used if the second parameter is null (remove the message).
 	 * @param	mixed	$data		(optional) Message data. The data is deleted if the value is not given or if it is null.
 	 * @param	mixed	$options	(optional) Not used.
-	 * @return	\Temma\Datasources\Beanstalk	The current object.
+	 * @return	?string	Job identifier.
 	 * @throws	\Exception	If an error occured.
 	 */
-	public function set(string $id, mixed $data=null, mixed $options=null) : \Temma\Datasources\Beanstalk {
+	public function set(string $id, mixed $data=null, mixed $options=null) : ?string {
 		if (!$this->_enabled)
-			return ($this);
-		$this->write($id, json_encode($data), $options);
-		return ($this);
+			return (null);
+		return ($this->write($id, json_encode($data), $options));
 	}
 }
 

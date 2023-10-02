@@ -82,10 +82,9 @@ class Pushover extends \Temma\Base\Datasource {
 	/**
 	 * Disabled clear.
 	 * @param	string	$pattern	Not used.
-	 * @return	\Temma\Datasources\Pushover	Never returned.
 	 * @throws	\Temma\Exceptions\Database	Always throws an exception.
 	 */
-	public function clear(string $pattern) : \Temma\Datasources\Pushover {
+	public function clear(string $pattern) : void {
 		throw new \Temma\Exceptions\Database("No clear() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);
 	}
 
@@ -112,10 +111,10 @@ class Pushover extends \Temma\Base\Datasource {
 	 *					- ttl: Number of seconds before the message disappear.
 	 *					- url: URL added under the text message.
 	 *					- urlTitle: Title of the URL (otherwise, the URL will appear as-is).
-	 * @return	\Temma\Datasources\Pushover	The current object.
+	 * @return	bool	Always true.
 	 * @throws	\Exception	If an error occured.
 	 */
-	public function write(string $userKey, string $text=null, mixed $options=null) : \Temma\Datasources\Pushover {
+	public function write(string $userKey, string $text=null, mixed $options=null) : bool {
 		$curl = curl_init();
 		$post = [
 			'token'   => $this->_appToken,
@@ -153,7 +152,7 @@ class Pushover extends \Temma\Base\Datasource {
 		]);
 		curl_exec($curl);
 		curl_close($curl);
-		return ($this);
+		return (true);
 	}
 
 	/* ********** KEY-VALUE REQUESTS ********** */
@@ -179,10 +178,10 @@ class Pushover extends \Temma\Base\Datasource {
 	 *					- ttl: Number of seconds before the message disappear.
 	 *					- url: URL added under the text message.
 	 *					- urlTitle: Title of the URL (otherwise, the URL will appear as-is).
-	 * @return	\Temma\Datasources\Pushover	The current object.
+	 * @return	bool	always true.
 	 * @throws	\Exception	If an error occured.
 	 */
-	public function set(string $userKey, mixed $text=null, mixed $options=null) : \Temma\Datasources\Pushover {
+	public function set(string $userKey, mixed $text=null, mixed $options=null) : bool {
 		return ($this->write($userKey, $text, $options));
 	}
 	/**

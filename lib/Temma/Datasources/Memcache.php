@@ -160,51 +160,43 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 	/**
 	 * Remove a cache variable.
 	 * @param	string	$key	Key to remove.
-	 * @return	\Temma\Datasources\Memcache	The current object.
 	 */
-	public function remove(string $key) : \Temma\Datasources\Memcache {
+	public function remove(string $key) : void {
 		if (!$this->_enabled)
-			return ($this);
+			return;
 		$key = $this->_getSaltedPrefix() . $key;
 		$this->_memcache?->delete($key, 0);
-		return ($this);
 	}
 	/**
 	 * Remove many cache variables at once.
 	 * @param	array	$keys	List of keys.
-	 * @return	\Temma\Datasources\Memcache	The current object.
 	 */
-	public function mRemove(array $keys) : \Temma\Datasources\Memcache {
+	public function mRemove(array $keys) : void {
 		if (!$this->_enabled || !$this->_memcache)
-			return ($this);
+			return;
 		array_walk($keys, function(&$value, $key) {
 			$value = $this->_getSaltedPrefix() . $key;
 		});
 		$this->_memcache->deleteMulti($keys);
-		return ($this);
 	}
 	/**
 	 * Remove all cache variables matching a given prefix.
 	 * @param	string	$prefix	Prefix string. Nothing will be removed if this parameter is empty.
-	 * @return	\Temma\Datasources\Memcache	The current object.
 	 */
-	public function clear(string $prefix) : \Temma\Datasources\Memcache {
+	public function clear(string $prefix) : void {
 		if (!$this->_enabled || empty($prefix) || !$this->_memcache)
-			return ($this);
+			return;
 		$saltKey = self::PREFIX_SALT_PREFIX . "|$prefix|";
 		$salt = substr(hash('md5', time() . mt_rand()), 0, 8);
 		$this->_memcache->set($saltKey, $salt, 0);
-		return ($this);
 	}
 	/**
 	 * Flush all cache variables.
-	 * @return	\Temma\Datasources\Memcache	The current object.
 	 */
-	public function flush() : \Temma\Datasources\Memcache {
+	public function flush() : void {
 		if (!$this->_enabled || !$this->_memcache)
-			return ($this);
+			return;
 		$this->_memcache->flush();
-		return ($this);
 	}
 
 	/* ********** RAW REQUESTS ********** */
@@ -241,9 +233,9 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 	 * @param	mixed	$options	(optional) Expiration duration, in seconds. If it is set to zero (or if it's not given),
 	 *					it will be set to 24 hours. If it is set to -1 or a value greater than 2592000 (30 days),
 	 *					it will be set to 30 days.
-	 * @return	\Temma\Datasources\Memcache	The current object.
+	 * @return	bool	Always true.
 	 */
-	public function write(string $key, string $value=null, mixed $options=0) : \Temma\Datasources\Memcache {
+	public function write(string $key, string $value=null, mixed $options=0) : bool {
 		return ($this->set($key, $value, $options));
 	}
 	/**
@@ -323,21 +315,22 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 	 * @param	mixed	$expire	(optional) Expiration duration, in seconds. If it is set to zero (or if it's not given),
 	 *				it will be set to 24 hours. If it is set to -1 or a value greater than 2592000 (30 days),
 	 *				it will be set to 30 days.
-	 * @return	\Temma\Datasources\Memcache	The current object.
+	 * @return	bool	Always true.
 	 */
-	public function set(string $key, mixed $data=null, mixed $expire=0) : \Temma\Datasources\Memcache {
+	public function set(string $key, mixed $data=null, mixed $expire=0) : bool {
 		if (!$this->_enabled || !$this->_memcache)
-			return ($this);
+			return (false);
 		$key = $this->_getSaltedPrefix() . $key;
 		if (is_null($data)) {
 			// deletion
-			return ($this->remove($key));
+			$this->remove($key);
+			return (true);
 		}
 		// add data to cache
 		$expire = (!is_numeric($expire) || !$expire) ? $this->_defaultExpiration : $expire;
 		$expire = ($expire == -1 || $expire > 2592000) ? 2592000 : $expire;
 		$this->_memcache->set($key, $data, $expire);
-		return ($this);
+		return (true);
 	}
 	/**
 	 * Multiple set.

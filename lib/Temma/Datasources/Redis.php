@@ -148,52 +148,44 @@ class Redis extends \Temma\Base\Datasource {
 	/**
 	 * Remove one or many key-value pairs.
 	 * @param	string	$key	Key to remove.
-	 * @return	\Temma\Datasources\Redis	The current object.
 	 */
-	public function remove(string $key) : \Temma\Datasources\Redis {
+	public function remove(string $key) : void {
 		if (!$this->_enabled)
-			return ($this);
+			return;
 		$this->_connect();
 		$this->_ndb->delete($key);
-		return ($this);
 	}
 	/**
 	 * Multiple remove.
 	 * @param	array	$keys	List of keys.
-	 * @return	\Temma\Datasources\Redis	The current object.
 	 */
-	public function mRemove(array $keys) : \Temma\Datasources\Redis {
+	public function mRemove(array $keys) : void {
 		if (!$this->_enabled)
-			return ($this);
+			return;
 		$this->_connect();
 		$this->_ndb->delete($keys);
-		return ($this);
 	}
 	/**
 	 * Remove keys from a pattern.
 	 * @param	string	$pattern	Search pattern.
-	 * @return	\Temma\Datasources\Redis	The current object.
 	 */
-	public function clear(string $pattern) : \Temma\Datasources\Redis {
+	public function clear(string $pattern) : void {
 		if (!$this->_enabled)
-			return ($this);
+			return;
 		$this->_connect();
 		$it = null;
 		while (($keys = $this->_ndb->scan($it, $pattern))) {
 			$this->mRemove($keys);
 		}
-		return ($this);
 	}
 	/**
 	 * Remove all data from Redis.
-	 * @return	\Temma\Datasources\Redis	The current object.
 	 */
-	public function flush() : \Temma\Datasources\Redis {
+	public function flush() : void {
 		if (!$this->_enabled)
-			return ($this);
+			return;
 		$this->_connect();
 		$this->_ndb->flushDb();
-		return ($this);
 	}
 
 	/* ********** RAW REQUESTS ********** */
@@ -258,12 +250,12 @@ class Redis extends \Temma\Base\Datasource {
 	 * @param	string	$key		Key.
 	 * @param	mixed	$value		(optional) Value associated to the key.
 	 * @param	mixed	$timeout	(optional) Key expiration timeout. 0 by default, to set no expiration.
-	 * @return	\Temma\Datasources\Redis	The current object.
+	 * @return	bool	Always true.
 	 * @throws	\Exception	If something went wrong.
 	 */
-	public function write(string|array $key, mixed $value=null, mixed $timeout=0) : \Temma\Datasources\Redis {
+	public function write(string|array $key, mixed $value=null, mixed $timeout=0) : bool {
 		if (!$this->_enabled)
-			return ($this);
+			return (false);
 		$this->_connect();
 		// manage options
 		$timeout = (int)$timeout;
@@ -271,7 +263,7 @@ class Redis extends \Temma\Base\Datasource {
 			$this->_ndb->setex($key, $timeout, $value);
 		else
 			$this->_ndb->set($key, $value);
-		return ($this);
+		return (true);
 	}
 	/**
 	 * Multiple write.
@@ -367,17 +359,17 @@ class Redis extends \Temma\Base\Datasource {
 	 * @param	string	$key		Key.
 	 * @param	mixed	$value		(optional) Value associated to the key.
 	 * @param	mixed	$timeout	(optional) Key expiration timeout. 0 by default, to set no expiration.
-	 * @return	\Temma\Datasources\Redis	The current object.
+	 * @return	bool	Always true.
 	 * @throws	\Exception	If something went wrong.
 	 */
-	public function set(string|array $key, mixed $value=null, mixed $timeout=0) : \Temma\Datasources\Redis {
+	public function set(string|array $key, mixed $value=null, mixed $timeout=0) : bool {
 		if (!$this->_enabled)
-			return ($this);
+			return (false);
 		$this->_connect();
 		// remove key
 		if (is_null($value)) {
 			$this->remove($key);
-			return ($this);
+			return (true);
 		}
 		// manage options
 		$timeout = (int)$timeout;
@@ -387,7 +379,7 @@ class Redis extends \Temma\Base\Datasource {
 			$this->_ndb->setex($key, $timeout, $value);
 		else
 			$this->_ndb->set($key, $value);
-		return ($this);
+		return (true);
 	}
 	/**
 	 * Multiple set.

@@ -114,33 +114,28 @@ class File extends \Temma\Base\Datasource {
 	/**
 	 * Remove a file.
 	 * @param	string	$path	Path of the file.
-	 * @return	\Temma\Datasources\File	The current object.
 	 */
-	public function remove(string $path) : \Temma\Datasources\File {
+	public function remove(string $path) : void {
 		if (!$this->_enabled)
-			return ($this);
+			return;
 		$path = $this->_cleanPath($path);
 		@unlink($this->_rootPath . '/' . $path);
-		return ($this);
 	}
 	/**
 	 * Remove all files matching a given pattern.
 	 * @param	string	$pattern	Pattern string.
-	 * @return	\Temma\Datasources\File	The current object.
 	 */
-	public function clear(string $pattern) : \Temma\Datasources\File {
+	public function clear(string $pattern) : void {
 		$files = $this->find($pattern);
 		if ($files)
 			array_map('unlink', $files);
-		return ($this);
 	}
 	/**
 	 * Remove all files.
-	 * @return	\Temma\Datasources\File	The current object.
 	 */
-	public function flush() : \Temma\Datasources\File {
+	public function flush() : void {
 		if (!$this->_enabled)
-			return ($this);
+			return;
 		$files = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($this->_rootPath, \RecursiveDirectoryIterator::SKIP_DOTS),
 		                                        \RecursiveIteratorIterator::CHILD_FIRST);
 		foreach ($files as $fileinfo) {
@@ -149,7 +144,6 @@ class File extends \Temma\Base\Datasource {
 			else
 				@unlink($fileinfo->getRealPath());
 		}
-		return ($this);
 	}
 
 	/* ********** RAW REQUESTS ********** */
@@ -241,13 +235,13 @@ class File extends \Temma\Base\Datasource {
 	 * @param	string	$path		File path.
 	 * @param	string	$data		Data value.
 	 * @param	mixed	$options	(optional) File permissions.
-	 * @return	\Temma\Datasources\File	The current object.
+	 * @return	bool	Always true.
 	 * @throws	\Temma\Exceptions\IO	If the destination path is not writable.
 	 * @throws	\Exception		If an error occurs.
 	 */
-	public function write(string $path, string $data, mixed $options=0) : \Temma\Datasources\File {
+	public function write(string $path, string $data, mixed $options=0) : bool {
 		if (!$this->_enabled)
-			return ($this);
+			return (false);
 		// check if the destination file is writeable
 		$path = $this->_cleanPath($path);
 		$fullPath = $this->_rootPath . '/' . $path;
@@ -272,20 +266,20 @@ class File extends \Temma\Base\Datasource {
 		}
 		if ($permissions)
 			chmod($fullPath, $permissions);
-		return ($this);
+		return (true);
 	}
 	/**
 	 * Create or update a file from a local file.
 	 * @param	string	$path		File path.
 	 * @param	string	$localPath	Path to the local file.
 	 * @param	mixed	$options	(optional) File permissions.
-	 * @return	\Temma\Datasources\File	The current object.
+	 * @return	bool	Always true.
 	 * @throws	\Temma\Exceptions\IO	If the destination path is not writable.
 	 * @throws	\Exception		If an error occured.
 	 */
-	public function copyTo(string $path, string $localPath, mixed $options=0) : \Temma\Datasources\File {
+	public function copyTo(string $path, string $localPath, mixed $options=0) : bool {
 		if (!$this->_enabled)
-			return ($this);
+			return (false);
 		$path = $this->_cleanPath($path);
 		$fullPath = $this->_rootPath . '/' . $path;
 		$permissions = null;
@@ -301,7 +295,7 @@ class File extends \Temma\Base\Datasource {
 			TµLog::log('Temma/Base', 'INFO', "Unable to copy file '$localPath' to '$fullPath'.");
 			throw new \Temma\Exceptions\IO("Unable to copy file '$localPath' to '$fullPath'.", \Temma\Exceptions\IO::UNWRITABLE);
 		}
-		return ($this);
+		return (true);
 	}
 
 	/* ********** PRIVATE METHODS ********** */

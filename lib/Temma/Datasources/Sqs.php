@@ -117,11 +117,10 @@ class Sqs extends \Temma\Base\Datasource {
 	/**
 	 * Remove a message from SQS.
 	 * @param	string	$id	Message identifier.
-	 * @return	\Temma\Datasources\Sqs	The current object.
 	 */
-	public function remove(string $id) : \Temma\Datasources\Sqs {
+	public function remove(string $id) : void {
 		if (!$this->_enabled)
-			return ($this);
+			return;
 		$this->_connect();
 		if (!([$identifier, $handle] = json_decode($id, true)) || !$identifier || !$handle) {
 			TµLog::log('Temma/Base', 'INFO', "Bad identifier for SQS message ('$id').");
@@ -136,15 +135,13 @@ class Sqs extends \Temma\Base\Datasource {
 			TµLog::log('Temma/Base', 'INFO', "Unable to remove an AWS SQS message. Queue='{$this->_url}'.");
 			throw $e;
 		}
-		return ($this);
 	}
 	/**
 	 * Remove all messages from an SQS queue.
-	 * @return	\Temma\Datasources\Sqs	The current object.
 	 */
-	public function flush() : \Temma\Datasources\Sqs {
+	public function flush() : void {
 		if (!$this->_enabled)
-			return ($this);
+			return;
 		$this->_connect();
 		try {
 			$this->_sqsClient->purgeQueue([
@@ -154,7 +151,6 @@ class Sqs extends \Temma\Base\Datasource {
 			TµLog::log('Temma/Base', 'INFO', "Unable to flush an AWS SQS queue. Queue='{$this->_url}'.");
 			throw $e;
 		}
-		return ($this);
 	}
 
 	/* ********** RAW REQUESTS ********** */
@@ -213,16 +209,16 @@ class Sqs extends \Temma\Base\Datasource {
 	 * @param	string	$id		Not used.
 	 * @param	string	$data		(optional) Message data.
 	 * @param	mixed	$options	(optional) Not used.
-	 * @return	\Temma\Datasources\Sqs	The current object.
+	 * @return	?string	Message identifier.
 	 * @throws	\Exception	If an error occured.
 	 */
-	public function write(string $id, string $data=null, mixed $options=null) : \Temma\Datasources\Sqs {
+	public function write(string $id, string $data=null, mixed $options=null) : ?string {
 		if (!$this->_enabled)
-			return ($this);
+			return (null);
 		$this->_connect();
 		// add message
 		try {
-			$this->_sqsClient->sendMessage([
+			$result = $this->_sqsClient->sendMessage([
 				'QueueUrl' => $this->_url,
 				'Body'     => $data,
 			]);
@@ -230,7 +226,7 @@ class Sqs extends \Temma\Base\Datasource {
 			TµLog::log('Temma/Base', 'INFO', "Can't send message to AWS SQS. Queue='{$this->_url}'.");
 			throw $e;
 		}
-		return ($this);
+		return ($result['MessageId']);
 	}
 	/**
 	 * Multiple write.
@@ -305,18 +301,17 @@ class Sqs extends \Temma\Base\Datasource {
 	 * @param	string	$id		Message identifier, only used if the second parameter is null (remove the message).
 	 * @param	mixed	$data		(optional) Message data. The data is deleted if the value is not given or if it is null.
 	 * @param	mixed	$options	(optional) Not used.
-	 * @return	\Temma\Datasources\Sqs	The current object.
+	 * @return	?string	Message identifier.
 	 * @throws	\Exception	If an error occured.
 	 */
-	public function set(string $id, mixed $data=null, mixed $options=null) : \Temma\Datasources\Sqs {
+	public function set(string $id, mixed $data=null, mixed $options=null) : ?string {
 		if (!$this->_enabled)
-			return ($this);
+			return (null);
 		if (is_null($data)) {
 			$this->remove($id);
-			return ($this);
+			return (null);
 		}
-		$this->write($id, json_encode($data), $options);
-		return ($this);
+		return ($this->write($id, json_encode($data), $options));
 	}
 }
 

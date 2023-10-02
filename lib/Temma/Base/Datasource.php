@@ -35,6 +35,8 @@ abstract class Datasource implements \ArrayAccess {
 		'sqlite2:',
 		'4D:',
 	];
+	/** Socket prefixes. */
+	const SOCKET_PREFIXES = ['tcp', 'udp', 'ssl', 'sslv2', 'sslv3', 'tls', 'unix'];
 	/** Defines if the datasource must be accessed or not. */
 	protected bool $_enabled = false;
 
@@ -60,6 +62,11 @@ abstract class Datasource implements \ArrayAccess {
 		foreach (self::DATABASE_PREFIXES as $prefix) {
 			if (str_starts_with($dsn, $prefix))
 				return (\Temma\Datasources\Sql::factory($dsn));
+		}
+		// socket connexion
+		foreach (self::SOCKET_PREFIXES as $prefix) {
+			if (str_starts_with($dsn, $prefix))
+				return (\Temma\Datasources\Socket::factory($dsn));
 		}
 		// other data sources managed by Temma
 		if (str_starts_with($dsn, 'memcache://'))
@@ -127,41 +134,35 @@ abstract class Datasource implements \ArrayAccess {
 	/**
 	 * Squeleton method for a deleter method implemented by derived classes.
 	 * @param	string	$key	The key to remove.
-	 * @return	\Temma\Base\Datasource	The current object.
 	 * @throws	\Temma\Exceptions\Database	Always throws an exception.
 	 */
-	public function remove(string $key) : \Temma\Base\Datasource {
+	public function remove(string $key) : void {
 		throw new \Temma\Exceptions\Database("No remove() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);
 	}
 	/**
 	 * Multiple remove.
 	 * @param	array	$keys	List of keys to remove.
-	 * @return	\Temma\Base\Datasource	The current object.
 	 */
-	public function mRemove(array $keys) : \Temma\Base\Datasource {
+	public function mRemove(array $keys) : void {
 		if (!$this->_enabled)
-			return ($this);
+			return;
 		foreach ($keys as $key)
 			$this->remove($key);
-		return ($this);
 	}
 	/**
 	 * Squeleton method for a remover method implemented by derived classes.
 	 * @param	string	$pattern	The pattern to match or the key prefix. The syntax depends on the datasource.
-	 * @return	\Temma\Base\Datasource	The current object.
 	 */
-	public function clear(string $pattern) : \Temma\Base\Datasource {
+	public function clear(string $pattern) : void {
 		if (!$this->_enabled)
-			return ($this);
+			return;
 		$keys = $this->search($pattern);
 		$this->mRemove($keys);
-		return ($this);
 	}
 	/**
 	 * Squeleton method for a flusher method implemented by derived classes.
-	 * @return	\Temma\Base\Datasource	The current object.
 	 */
-	public function flush() : \Temma\Base\Datasource {
+	public function flush() : void {
 		throw new \Temma\Exceptions\Database("No flush() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);
 	}
 
@@ -255,10 +256,10 @@ abstract class Datasource implements \ArrayAccess {
 	 * @param	string	$key		Key of the new data.
 	 * @param	string	$value		Value of the data.
 	 * @param	mixed	$options	(optional) Options (like expiration duration).
-	 * @return	\Temma\Base\Datasource	The current object.
+	 * @return	mixed	Implementation-dependent.
 	 * @throws 	\Temma\Exceptions\Database	Always throws an exception.
 	 */
-	public function write(string $key, string $value, mixed $options=null) : \Temma\Base\Datasource {
+	public function write(string $key, string $value, mixed $options=null) : mixed {
 		throw new \Temma\Exceptions\Database("No set() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);
 	}
 	/**
@@ -285,17 +286,16 @@ abstract class Datasource implements \ArrayAccess {
 	 * @param	string	$key		Key of the new data.
 	 * @param	string	$localPath	Path to the local file.
 	 * @param	mixed	$options	(optional) Options (like expiration duration).
-	 * @return	\Temma\Base\Datasource	The current object.
+	 * @return	mixed	Implementation-dependent.
 	 * @throws	\Temma\Exceptions\IO	If the local file is not readable.
 	 */
-	public function copyTo(string $key, string $localPath, mixed $options=null) : \Temma\Base\Datasource {
+	public function copyTo(string $key, string $localPath, mixed $options=null) : mixed {
 		if (!$this->_enabled)
 			return ($this);
 		if (!is_readable($localPath))
 			throw new \Temma\Exceptions\IO("Unable to read file '$localPath'.", \Temma\Exceptions\IO::UNREADABLE);
 		$data = file_get_contents($localPath);
-		$this->write($key, $data, $options);
-		return ($this);
+		return ($this->write($key, $data, $options));
 	}
 	/**
 	 * Multiple copyTo.
@@ -374,16 +374,16 @@ abstract class Datasource implements \ArrayAccess {
 	 * @param	string	$key		Key of the new data.
 	 * @param	mixed	$value		Value of the data. Remove the data if null.
 	 * @param	mixed	$options	(optional) Options (like expiration duration).
-	 * @return	\Temma\Base\Datasource	The current object.
+	 * @return	mixed	Implementation-dependent.
 	 */
-	public function set(string $key, mixed $value=null, mixed $options=null) : \Temma\Base\Datasource {
+	public function set(string $key, mixed $value=null, mixed $options=null) : mixed {
 		if (!$this->_enabled)
 			return ($this);
-		if (is_null($value))
+		if (is_null($value)) {
 			$this->remove($key);
-		else
-			$this->write($key, json_encode($value), $options);
-		return ($this);
+			return (null);
+		}
+		return ($this->write($key, json_encode($value), $options));
 	}
 	/**
 	 * Multiple set.

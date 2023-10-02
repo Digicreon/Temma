@@ -44,45 +44,37 @@ class Dummy extends \Temma\Base\Datasource {
 		return (false);
 	}
 	/**
-         * remove
-         * @param	string	$key	Not used.
-         * @return	\Temma\Datasources\Dummy	The current object.
-         */
-        public function remove(string $key) : \Temma\Datasources\Dummy {
-		return( $this);
+	 * remove
+	 * @param	string	$key	Not used.
+	 */
+	public function remove(string $key) : void {
 	}
 	/**
 	 * mremove
 	 * @param	array	$keys	Not used.
-	 * @return	\Temma\Datasources\Dummy	The current object.
 	 */
-	public function mRemove(array $keys) : \Temma\Datasources\Dummy {
-		return ($this);
+	public function mRemove(array $keys) : void {
 	}
 	/**
 	 * clear
 	 * @param	string	$pattern	Not used.
-	 * @return	\Temma\Datasources\Dummy	The current object.
 	 */
-	public function clear(string $pattern) : \Temma\Datasources\Dummy {
-		return ($this);
+	public function clear(string $pattern) : void {
 	}
 	/**
 	 * flush
-	 * @return	\Temma\Datasources\Dummy	The current object.
 	 */
-	public function flush() : \Temma\Datasources\Dummy {
-		return ($this);
+	public function flush() : void {
 	}
 
 	/* ********** RAW REQUESTS ********** */
 	/**
-         * find
-         * @param	string	$pattern	Not used.
-         * @param	bool	$getValues	(optional) Not used.
-         * @return	array	Empty array.
-         */
-        public function find(string $pattern, bool $getValues=false) : array {
+	 * find
+	 * @param	string	$pattern	Not used.
+	 * @param	bool	$getValues	(optional) Not used.
+	 * @return	array	Empty array.
+	 */
+	public function find(string $pattern, bool $getValues=false) : array {
 		return ([]);
 	}
 	/**
@@ -130,10 +122,10 @@ class Dummy extends \Temma\Base\Datasource {
 	 * @param	string	$key		Not used.
 	 * @param	mixed	$value		(optional) Not used.
 	 * @param	mixed	$options	(optional) Not used.
-	 * @return	\Temma\Datasources\Dummy	The current object.
+	 * @return	bool	Always false.
 	 */
-	public function write(string $key, mixed $value=null, mixed $options=null) : \Temma\Datasources\Dummy {
-		return ($this);
+	public function write(string $key, mixed $value=null, mixed $options=null) : bool {
+		return (false);
 	}
 	/**
 	 * Multiple write.
@@ -149,10 +141,10 @@ class Dummy extends \Temma\Base\Datasource {
 	 * @param	string	$key		Not used.
 	 * @param	string	$localPath	Not used.
 	 * @param	mixed	$options	(optional) Not used.
-	 * @return	\Temma\Datasources\Dummy	The current object.
+	 * @return	bool	Always false.
 	 */
-	public function copyTo(string $key, string $localPath, mixed $options=null) : \Temma\Datasources\Dummy {
-		return ($this);
+	public function copyTo(string $key, string $localPath, mixed $options=null) : bool {
+		return (false);
 	}
 	/**
 	 * mCopyTo
@@ -166,12 +158,12 @@ class Dummy extends \Temma\Base\Datasource {
 
 	/* ********** KEY-VALUE REQUESTS ********** */
 	/**
-         * Search
-         * @param	string	$pattern	Not used.
-         * @param	bool	$getValues	(optional) Not used.
-         * @return	array	Empty array.
-         */
-        public function search(string $pattern, bool $getValues=false) : array {
+	 * Search
+	 * @param	string	$pattern	Not used.
+	 * @param	bool	$getValues	(optional) Not used.
+	 * @return	array	Empty array.
+	 */
+	public function search(string $pattern, bool $getValues=false) : array {
 		return ([]);
 	}
 	/**
@@ -200,10 +192,10 @@ class Dummy extends \Temma\Base\Datasource {
 	 * @param	string	$key		Not used.
 	 * @param	mixed	$value		Not used.
 	 * @param	mixed	$options	(optional) Not used.
-	 * @return	\Temma\Datasources\Dummy	The current object.
+	 * @return	bool	Always false.
 	 */
-	public function set(string $key, mixed $value=null, mixed $options=null) : \Temma\Datasources\Dummy {
-		return ($this);
+	public function set(string $key, mixed $value=null, mixed $options=null) : bool {
+		return (false);
 	}
 	/**
 	 * Multiple set.

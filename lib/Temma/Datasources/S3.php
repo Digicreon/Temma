@@ -203,11 +203,10 @@ class S3 extends \Temma\Base\Datasource {
 	/**
 	 * Remove a file from S3.
 	 * @param	string	$s3Path	Path of the S3 file.
-	 * @return	\Temma\Datasources\S3	The current object.
 	 */
-	public function remove(string $s3Path) : \Temma\Datasources\S3 {
+	public function remove(string $s3Path) : void {
 		if (!$this->_enabled)
-			return ($this);
+			return;
 		$this->_connect();
 		try {
 			$this->_s3Client->deleteObject([
@@ -218,16 +217,14 @@ class S3 extends \Temma\Base\Datasource {
 			TµLog::log('Temma/Base', 'INFO', "Unable to remove AWS S3 file. Bucket='{$this->_bucket}'. key='$s3Path'.");
 			throw $e;
 		}
-		return ($this);
 	}
 	/**
 	 * Multiple remove.
 	 * @param	array	$s3Paths	List of path to S3 files.
-	 * @return	\Temma\Datasources\S3	The current object.
 	 */
-	public function mRemove(array $s3Paths) : \Temma\Datasources\S3 {
+	public function mRemove(array $s3Paths) : void {
 		if (!$this->_enabled)
-			return ($this);
+			return;
 		$this->_connect();
 		$objects = [];
 		foreach ($s3Paths as $path) {
@@ -246,16 +243,14 @@ class S3 extends \Temma\Base\Datasource {
 			TµLog::log('Temma/Base', 'INFO', "Unable to remove AWS S3 files. Bucket='{$this->_bucket}'.");
 			throw $e;
 		}
-		return ($this);
 	}
 	/**
 	 * Remove all S3 files matching a given prefix.
 	 * @param	string	$prefix	Prefix string. Nothing will be removed if this parameter is empty.
-	 * @return	\Temma\Datasources\S3	The current object.
 	 */
-	public function clear(string $prefix) : \Temma\Datasources\S3 {
+	public function clear(string $prefix) : void {
 		if (!$this->_enabled)
-			return ($this);
+			return;
 		$this->_connect();
 		try {
 			$this->_s3Client->deleteMatchingObjects($this->_bucket, $prefix);
@@ -263,15 +258,13 @@ class S3 extends \Temma\Base\Datasource {
 			TµLog::log('Temma/Base', 'INFO', "Unable to remove AWS S3 files. Bucket='{$this->_bucket}'. prefix='$prefix'.");
 			throw $e;
 		}
-		return ($this);
 	}
 	/**
 	 * Remove all S3 files from a bucket.
-	 * @return	\Temma\Datasources\S3	The current object.
 	 */
-	public function flush() : \Temma\Datasources\S3 {
+	public function flush() : void {
 		if (!$this->_enabled)
-			return ($this);
+			return;
 		$this->_connect();
 		try {
 			$objects = $this->_s3Client->getIterator('ListObjects', [
@@ -284,7 +277,7 @@ class S3 extends \Temma\Base\Datasource {
 			TµLog::log('Temma/Base', 'INFO', "Unable to list files on AWS S3. Bucket='{$this->_bucket}'.");
 			throw $e;
 		}
-		return ($this);
+		return;
 	}
 
 	/* ********** RAW REQUESTS ********** */
@@ -409,12 +402,12 @@ class S3 extends \Temma\Base\Datasource {
 	 * @param	mixed	$options	(optional) If a string: mime type.
 	 *					If a boolean: true for public access, false for private access.
 	 *					If an array: 'public' (bool) and/or 'mimetype' (string) keys.
-	 * @return	\Temma\Datasources\S3	The current object.
+	 * @return	bool	Always true.
 	 * @throws	\Exception	If an error occured.
 	 */
-	public function write(string $s3Path, string $data, mixed $options=null) : \Temma\Datasources\S3 {
+	public function write(string $s3Path, string $data, mixed $options=null) : bool {
 		if (!$this->_enabled)
-			return ($this);
+			return (false);
 		$this->_connect();
 		// create or update file
 		$public = $this->_publicAccess;
@@ -439,7 +432,7 @@ class S3 extends \Temma\Base\Datasource {
 			TµLog::log('Temma/Base', 'INFO', "Can't send data to AWS S3. Bucket='{$this->_bucket}'. key='$s3Path'.");
 			throw $e;
 		}
-		return ($this);
+		return (true);
 	}
 	/**
 	 * Create or update a file in S3 from a file.
@@ -448,13 +441,13 @@ class S3 extends \Temma\Base\Datasource {
 	 * @param	mixed	$options	(optional) If a string: mime type.
 	 *					If a boolean: true for public access, false for private access.
 	 *					If an array: 'public' (bool) and/or 'mimetype' (string) keys.
-	 * @return	\Temma\Datasources\S3	The current object.
+	 * @return	bool	Always true.
 	 * @throws	\Temma\Exceptions\IO		If the destination file is not writeable.
 	 * @throws	\Exception	If an error occured.
 	 */
-	public function copyTo(string $s3Path, string $localPath, mixed $options=null) : \Temma\Datasources\S3 {
+	public function copyTo(string $s3Path, string $localPath, mixed $options=null) : bool {
 		if (!$this->_enabled)
-			return ($this);
+			return (false);
 		$this->_connect();
 		// check destination file
 		if (!is_writeable($localPath)) {
@@ -484,7 +477,7 @@ class S3 extends \Temma\Base\Datasource {
 			TµLog::log('Temma/Base', 'INFO', "Unable to send file to AWS S3. Bucket='{$this->_bucket}'. key='$s3Path'.");
 			throw $e;
 		}
-		return ($this);
+		return (true);
 	}
 
 	/* ********** KEY-VALUE REQUESTS ********** */
@@ -523,15 +516,15 @@ class S3 extends \Temma\Base\Datasource {
 	 * @param	mixed	$options	(optional) If a string: mime type.
 	 *					If a boolean: true for public access, false for private access.
 	 *					If an array: 'public' (bool).
-	 * @return	\Temma\Datasources\S3	The current object.
+	 * @return	bool	Always true.
 	 * @throws	\Exception	If an error occured.
 	 */
-	public function set(string $s3Path, mixed $value=null, mixed $options=null) : \Temma\Datasources\S3 {
+	public function set(string $s3Path, mixed $value=null, mixed $options=null) : bool {
 		if (!$this->_enabled)
-			return ($this);
+			return (false);
 		if (is_null($value)) {
 			$this->remove($s3Path);
-			return ($this);
+			return (true);
 		}
 		$public = false;
 		if ($options === true || ($options['public'] ?? null) === true)
@@ -541,7 +534,7 @@ class S3 extends \Temma\Base\Datasource {
 			'mimetype' => 'application/json',
 		];
 		$this->write($s3Path, json_encode($value), $options);
-		return ($this);
+		return (true);
 	}
 	/**
 	 * Multiple set.

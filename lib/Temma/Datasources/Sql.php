@@ -416,55 +416,47 @@ class Sql extends \Temma\Base\Datasource {
 	/**
 	 * Remove a key.
 	 * @param	string	$key	The key to remove.
-	 * @return	\Temma\Datasources\Sql	The current object.
 	 */
-	public function remove(string $key) : \Temma\Datasources\Sql {
+	public function remove(string $key) : void {
 		if (!$this->_enabled)
-			return ($this);
+			return;
 		$sql = "DELETE FROM TemmaData
 		        WHERE key = " . $this->quote($key);
 		$this->exec($sql);
-		return ($this);
 	}
 	/**
 	 * Multiple remove.
 	 * @param	array	$keys	List of keys to remove.
-	 * @return	\Temma\Datasources\Sql	The current object.
 	 */
-	public function mRemove(array $keys) : \Temma\Datasources\Sql {
+	public function mRemove(array $keys) : void {
 		if (!$this->_enabled)
-			return ($this);
+			return;
 		array_walk($keys, function(&$value, $key) {
 			$value = $this->quote($value);
 		});
 		$sql = "DELETE FROM TemmaData
 		        WHERE key IN (" . implode(', ', $keys) . ")";
 		$this->exec($sql);
-		return ($this);
 	}
 	/**
 	 * Remove all keys matching a given pattern.
 	 * @param	string	$prefix	The key prefix.
-	 * @return	\Temma\Datasources\Sql	The current object.
 	 */
-	public function clear(string $prefix) : \Temma\Datasources\Sql {
+	public function clear(string $prefix) : void {
 		if (!$this->_enabled)
-			return ($this);
+			return;
 		$sql = "DELETE FROM TemmaData
 		        WHERE key LIKE " . $this->quote("$prefix%");
 		$this->exec($sql);
-		return ($this);
 	}
 	/**
 	 * Remove all data.
-	 * @return	\Temma\Datasources\Sql	The current object.
 	 */
-	public function flush() : \Temma\Datasources\Sql {
+	public function flush() : void {
 		if (!$this->_enabled)
-			return ($this);
+			return;
 		$sql = "TRUNCATE TABLE TemmaData";
 		$this->exec($sql);
-		return ($this);
 	}
 
 	/* ********** RAW REQUESTS ********** */
@@ -550,16 +542,16 @@ class Sql extends \Temma\Base\Datasource {
 	 * @param	string	$key		Key to add or update.
 	 * @param	mixed	$data		(optional) Data value. The data is deleted if the value is not given or if it is null.
 	 * @param	mixed	$options	Not used.
-	 * @return	\Temma\Datasources\Sql	The current object.
+	 * @return	bool	Always true.
 	 * @throws	\Exception	If an error occured.
 	 */
-	public function write(string $key, mixed $data=null, mixed $options=null) : \Temma\Datasources\Sql {
+	public function write(string $key, mixed $data=null, mixed $options=null) : bool {
 		if (!$this->_enabled)
-			return ($this);
+			return (false);
 		// remove file
 		if ($data === null) {
 			$this->remove($key);
-			return ($this);
+			return (true);
 		}
 		// create or update key
 		$sql = "INSERT INTO TemmaData
@@ -567,7 +559,7 @@ class Sql extends \Temma\Base\Datasource {
 			WHERE key = " . $this->quote($key) . "
 			ON DUPLICATE KEY UPDATE data = " . $this->quote($data);
 		$this->exec($sql);
-		return ($this);
+		return (true);
 	}
 	/**
 	 * Multiple write.
