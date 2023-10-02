@@ -578,7 +578,7 @@ class Ansi {
 		if (!$url && !$title)
 			return ('');
 		if (!$url)
-			return ($title ?? '');
+			return ($title);
 		if (!$title) {
 			$title = mb_substr($url, 0, 40);
 			$title .= (mb_strlen($url) > 40) ? '...' : '';

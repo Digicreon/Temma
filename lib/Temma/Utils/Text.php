@@ -193,5 +193,31 @@ class Text {
                 $txt = empty($txt) ? '-' : $txt;
                 return ($txt);
 	}
+	/**
+	 * Returns the end of a string after a given separator.
+	 * @param	string	$str		String.
+	 * @param	string	$separator	Substring separator.
+	 * @return	string	The last chunk of the string or an empty string if the separator wasn't found.
+	 */
+	static public function lastChunk(string $str, string $separator) : string {
+		$pos = mb_strrpos($str, $separator);
+		if ($pos === false)
+			return ('');
+		$chunk = mb_substr($str, $pos + mb_strlen($separator));
+		return ($chunk);
+	}
+	/**
+	 * Returns the beginning of a string before a given separator.
+	 * @param	string	$str		String.
+	 * @param	string	$separator	Substring separator.
+	 * @return	string	The first chunk of the string or an empty string if the separator wasn't found.
+	 */
+	static public function firstChunk(string $str, string $separator) : string {
+		$pos = mb_strpos($str, $separator);
+		if ($pos === false)
+			return ('');
+		$chunk = mb_substr($str, 0, $pos);
+		return ($chunk);
+	}
 }
 
