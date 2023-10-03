@@ -38,7 +38,9 @@ class Socket extends \Temma\Base\Datasource {
 	/** Host. */
 	private string $_host;
 	/** Port. */
-	private int $_port;
+	private ?int $_port;
+	/** Connection timeout. */
+	private ?int $_connectionTimeout;
 	/** Socket. */
 	private $_sock = null;
 
@@ -51,24 +53,25 @@ class Socket extends \Temma\Base\Datasource {
 	 */
 	static public function factory(string $dsn) : \Temma\Datasources\Socket {
 		TµLog::log('Temma/Base', 'DEBUG', "\\Temma\\Datasources\\Socket object creation with DSN: '$dsn'.");
-		if (!preg_match('/^socket:\/\/([^\/:]+):(.*)$/', $dsn, $matches)) {
+		if (!preg_match('/^([^:]+):\/\/([^\/:]+):?(\d*)#?(\d*)$/', $dsn, $matches)) {
 			TµLog::log('Temma/Base', 'WARN', "Invalid Socket DSN '$dsn'.");
 			throw new \Temma\Exceptions\Database("Invalid Socket DSN '$dsn'.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		}
-		$host = $matches[1] ?? null;
-		$port = $matches[2] ?? null;
-		if (!$host || !$port || !ctype_digit($port))
-			throw new \Temma\Exceptions\Database("Invalid Socket DSN '$dsn'.", \Temma\Exceptions\Database::FUNDAMENTAL);
-		return (new self($host, $port));
+		$host = $matches[1] . '://' . $matches[2];
+		$port = isset($matches[3]) ? intval($matches[3]) : null;
+		$timeout = isset($matches[4]) ? intval($matches[4]) : null;
+		return (new self($host, $port, $timeout));
 	}
 	/**
 	 * Constructor.
-	 * @param	string	$host	Host name or IP address.
-	 * @param	int	$port	Port number.
+	 * @param	string	$host		Host name or IP address.
+	 * @param	?int	$port		Port number.
+	 * @param	?int	$timeout	Connection timeout.
 	 */
-	private function __construct(string $host, int $port) {
+	private function __construct(string $host, ?int $port, ?int $timeout) {
 		$this->_host = $host;
-		$this->_port = $port;
+		$this->_port = $port ?? -1;
+		$this->_connectionTimeout = $timeout;
 		$this->_enabled = true;
 	}
 
@@ -80,10 +83,21 @@ class Socket extends \Temma\Base\Datasource {
 	private function _connect() : void {
 		if (!$this->_enabled)
 			return;
-		$this->_sock = fsockopen($this->_host, $this->_port);
+		if ($this->_sock)
+			return;
+		$this->reconnect();
+	}
+	/** Reconnect. */
+	public function reconnect() : void {
+		if (!$this->_enabled)
+			return;
+		$null = null;
+		$this->_sock = fsockopen($this->_host, $this->_port, $null, $null, $this->_connectionTimeout);
+		if (!$this->_sock)
+			throw new \Exception("Unable to open socket.");
 	}
 	/** Disconnection. */
-	private function _disconnect() : void {
+	public function disconnect() : void {
 		if (!$this->_sock)
 			return;
 		fclose($this->_sock);
@@ -98,7 +112,7 @@ class Socket extends \Temma\Base\Datasource {
 	public function remove(string $key) : void {
 		if (!$this->_enabled)
 			return;
-		$this->_disconnect();
+		$this->disconnect();
 	}
 	/**
 	 * Disabled multiple remove.
@@ -280,7 +294,7 @@ class Socket extends \Temma\Base\Datasource {
 	 * For each line, if the data is not a string, it is JSON-encoded.
 	 * If the data is a string ending with one or more CR ("\r") or LF ("\n"), they are removed.
 	 * In any case, a CRLF sequence ("\r\n") is added at the end of the data.
-	 * @param	array	$lines		Array of data.
+	 * @param	array	$data		Array of data.
 	 * @param	mixed	$options	(optional) Not used.
 	 * @return	int	The number of writtent data.
 	 */
