@@ -13,7 +13,7 @@ use \Temma\Exceptions\Dao as TµDaoException;
 /**
  * Basic object for database access.
  *
- * <b>Search creiteria</b>
+ * <b>Search criteria</b>
  * <code>
  * // search for lines where 'email' equals "tom@tom.com" and the 'free' boolean is true.
  * $critera = $dao->criteria()
@@ -44,7 +44,10 @@ use \Temma\Exceptions\Dao as TµDaoException;
  * <b>Sort criteria</b>
  * <code>
  * // sort on 'birthday', ascending
- * $sort = ['birthday'];
+ * $sort = 'birthday';
+ *
+ * // sort on 'birthday', descending
+ * $sort = '-birthday';
  *
  * // sort on 'birthday' (ascending) and 'points' (descending)
  * $sort = [
@@ -333,14 +336,21 @@ class Dao {
 			$sortList = [];
 			if ($sort === false)
 				$sortList[] = 'RAND()';
-			else if (is_string($sort))
-				$sortList[] = $sort;
-			else if (is_array($sort)) {
+			else if (is_string($sort)) {
+				if (str_starts_with($sort, '-'))
+					$sortList[] = mb_substr($sort, 1) . ' DESC';
+				else
+					$sortList[] = $sort;
+			} else if (is_array($sort)) {
 				foreach ($sort as $key => $value) {
 					$field = is_int($key) ? $value : $key;
+					if (str_starts_with($field, '-')) {
+						$field = mb_substr($field, 1);
+						$sortType = 'DESC';
+					} else
+						$sortType = (!is_int($key) && !strcasecmp($value, 'desc')) ? 'DESC' : 'ASC';
 					if (($field2 = array_search($field, $this->_fields)) !== false && !is_int($field2))
 						$field = $field2;
-					$sortType = (!is_int($key) && (!strcasecmp($value, 'asc') || !strcasecmp($value, 'desc'))) ? $value : 'ASC';
 					$sortList[] = "$field $sortType";
 				}
 			}
@@ -369,11 +379,12 @@ class Dao {
 	 *									Null to update all records. (default: null)
 	 * @param	array					$fields		Associative array where the keys are the fields to update, and their
 	 *									values are the new values to update. (default: empty array)
+	 * @return	int	The number of modified lines.
 	 * @throws	\Temma\Exceptions\Dao	If the criteria or the fields array are not well formed.
 	 */
-	public function update(null|int|string|\Temma\Dao\Criteria $criteria=null, array $fields=[]) : void {
+	public function update(null|int|string|\Temma\Dao\Criteria $criteria=null, array $fields=[]) : int {
 		if (!$fields)
-			return;
+			return (0);
 		// effacement du cache pour cette DAO
 		$this->_flushCache();
 		// constitution et exécution de la requête
@@ -402,14 +413,16 @@ class Dao {
 			else
 				$sql .= $criteria->generate();
 		}
-		$this->_db->exec($sql);
+		$modified = $this->_db->exec($sql);
+		return ($modified);
 	}
 	/**
 	 * Delete one or more records.
 	 * @param	null|int|string|\Temma\Dao\Criteria	$criteria	(optional) Primary key of the record that must be deleted, or a search criteria.
 	 *									Null to remove all entries. (default: null)
+	 * @return	int	The number of deleted lines.
 	 */
-	public function remove(null|int|string|\Temma\Dao\Criteria $criteria=null) : void {
+	public function remove(null|int|string|\Temma\Dao\Criteria $criteria=null) : int {
 		// effacement du cache pour cette DAO
 		$this->_flushCache();
 		// constitution et exécution de la requête
@@ -421,7 +434,8 @@ class Dao {
 			else
 				$sql .= $criteria->generate();
 		}
-		$this->_db->exec($sql);
+		$deleted = $this->_db->exec($sql);
+		return ($deleted);
 	}
 
 	/* ***************** CACHE MANAGEMENT ************* */
