@@ -53,13 +53,18 @@ class Socket extends \Temma\Base\Datasource {
 	 */
 	static public function factory(string $dsn) : \Temma\Datasources\Socket {
 		TµLog::log('Temma/Base', 'DEBUG', "\\Temma\\Datasources\\Socket object creation with DSN: '$dsn'.");
-		if (!preg_match('/^([^:]+):\/\/([^\/:]+):?(\d*)#?(\d*)$/', $dsn, $matches)) {
+		$port = null;
+		$timeout = null;
+		if (str_starts_with($dsn, 'unix://')) {
+			$host = $dsn;
+		} else if (preg_match('/^([^:]+):\/\/([^\/:]+):?(\d*)#?(\d*)$/', $dsn, $matches)) {
+			$host = $matches[1] . '://' . $matches[2];
+			$port = isset($matches[3]) ? intval($matches[3]) : null;
+			$timeout = isset($matches[4]) ? intval($matches[4]) : null;
+		} else {
 			TµLog::log('Temma/Base', 'WARN', "Invalid Socket DSN '$dsn'.");
 			throw new \Temma\Exceptions\Database("Invalid Socket DSN '$dsn'.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		}
-		$host = $matches[1] . '://' . $matches[2];
-		$port = isset($matches[3]) ? intval($matches[3]) : null;
-		$timeout = isset($matches[4]) ? intval($matches[4]) : null;
 		return (new self($host, $port, $timeout));
 	}
 	/**
