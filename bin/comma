@@ -75,7 +75,7 @@ if (!$usedLogLevels)
 	$usedLogLevels = \Temma\Web\Config::LOG_LEVEL;
 TµLog::setThreshold($usedLogLevels);
 
-/* *** Create Loader object ((dependency injection container). *** */
+/* *** Create Loader object (dependency injection container). *** */
 // create request
 $request = new \Temma\Web\Request(false);
 $request->setParams($params);
