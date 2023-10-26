@@ -842,8 +842,8 @@ class Ansi {
 			$lineLen = self::strlen($line);
 			$pad = str_repeat(' ', ($screenWidth - $lineLen - (($padding > 1) ? 8 : 4)));
 			$res .= self::backColor($backColor, $borderColor, $lineLeft);
-			$res .= self::backColor($backColor, $textColor, (($padding > 1) ? '   ' : ' '), $bold);
-			$res .= self::backColor($backColor, $textColor, $line, $bold, $underline);
+			$res .= self::backColor($backColor, $textColor, (($padding > 1) ? '   ' : ' '));
+			$res .= self::backColor($backColor, $textColor, $line);
 			$res .= self::backColor($backColor, $textColor, $pad . (($padding > 1) ? '   ' : ' ') .
 			                                                ($lineLeft ? '' : ' ') . ($lineRight ? '' : ' '));
 			$res .= self::backColor($backColor, $borderColor, $lineRight);
