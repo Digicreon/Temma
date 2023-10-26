@@ -70,27 +70,34 @@ class Framework {
 	/** Reflexion object over the controller (for checking purposes). */
 	private ?\ReflectionClass $_controllerReflection = null;
 
-	/** Constructor. */
-	public function __construct() {
-	}
-	/** Destructor. */
-	public function __destruct() {
-	}
-	/** Framework init: read the configuration, connect to data sources, create the session. */
-	public function init() : void {
+	/**
+	 * Constructor. Framework init: read the configuration, connect to data sources, create the session.
+	 * @param	?\Temma\Base\Loader	$loader	(optional) Loader object. (defaults to null)
+	 */
+	public function __construct(?\Temma\Base\Loader $loader=null) {
 		// extraction of request parameters
-		$this->_request = new \Temma\Web\Request();
+		$this->_request = $loader['request'] ?? new \Temma\Web\Request();
 		// create the response object
-		$this->_response = new \Temma\Web\Response();
+		$this->_response = $loader['response'] ?? new \Temma\Web\Response();
 		// load the configuration, log system init
-		$this->_loadConfig();
+		if (isset($loader['config']))
+			$this->_config = $loader['config'];
+		else
+			$this->_loadConfig();
 		// create the loader object (dependency injection container)
-		$loaderName = $this->_config->loader;
-		$this->_loader = new $loaderName([
-			'config'   => $this->_config,
-			'request'  => $this->_request,
-			'response' => $this->_response,
-		]);
+		if ($loader) {
+			$this->_loader = $loader;
+			$this->_loader['config'] ??= $this->_config;
+			$this->_loader['request'] ??= $this->_request;
+			$this->_loader['response'] ??= $this->_response;
+		} else {
+			$loaderName = $this->_config->loader;
+			$this->_loader = new $loaderName([
+				'config'   => $this->_config,
+				'request'  => $this->_request,
+				'response' => $this->_response,
+			]);
+		}
 		// initialization of the log system
 		$this->_configureLog();
 		// check the requested URL and log it
@@ -104,14 +111,14 @@ class Framework {
 		foreach ($this->_config->dataSources as $name => $dsn) {
 			$this->_dataSources[$name] = \Temma\Base\Datasource::factory($dsn);
 		}
-		$this->_loader->set('dataSources', $this->_dataSources);
+		$this->_loader['dataSources'] = $this->_dataSources;
 		// get the session if needed
-		if ($this->_config->enableSessions) {
+		if ($this->_config->enableSessions && !isset($this->_loader['session'])) {
 			$sessionSource = (isset($this->_config->sessionSource) && isset($this->_dataSources[$this->_config->sessionSource])) ?
 					 $this->_dataSources[$this->_config->sessionSource] : null;
 			$this->_session = \Temma\Base\Session::factory($sessionSource, $this->_config->sessionName, $this->_config->sessionDuration);
+			$this->_loader['session'] = $this->_session;
 		}
-		$this->_loader->set('session', $this->_session);
 	}
 	/**
 	 * In case of automatic configuration (using a generated configuration object), this method store the configuration object.
@@ -124,8 +131,15 @@ class Framework {
 	}
 	/**
 	 * Starts the execution flow: extract request parameters, initialize variables, pre-plugins/controller/post-plugins execution.
+	 * @param	?bool	$processView	(optional) Set to false or null to avoid processing of the view (or redirection). Defaults to true.
+	 *					- false: returns an associative array of data (the template variables) or a string if a redirection was defined.
+	 *					- null: returns null.
+	 *					- true: the view or the redirection is processed.
+	 * @param	bool	$sendHeaders	(optional) Set to false to avoid sending headers. Defaults to true.
+	 * @return	null|string|array	Null by default, or a string (for a redirection) or an associative array of data if the
+	 *					$returnData parameter is set to true.
 	 */
-	public function process() : void {
+	public function process(?bool $processView=true, bool $sendHeaders=true) : null|string|array {
 		/* ********** INIT ********** */
 		// create the executor controller if needed
 		$this->_executorController = $this->_executorController ?? new \Temma\Web\Controller($this->_loader);
@@ -159,7 +173,7 @@ class Framework {
 			// if asked for, stops all processing and quit immediately
 			if ($execStatus === \Temma\Web\Controller::EXEC_QUIT) {
 				TµLog::log('Temma/Web', 'DEBUG', "Premature but wanted end of processing.");
-				return;
+				return (null);
 			}
 			// re-compute controller/action names (is case of the plugin modified the controller, the action,
 			// the default namespace, or the include paths)
@@ -177,7 +191,7 @@ class Framework {
 			} else if ($execStatus === \Temma\Web\Controller::EXEC_REBOOT) {
 				// restarts the execution from the very beginning
 				$this->process();
-				return;
+				return (null);
 			}
 		}
 
@@ -197,12 +211,12 @@ class Framework {
 			// if asked, restarts the execution from the very beginning
 			if ($execStatus === \Temma\Web\Controller::EXEC_REBOOT) {
 				$this->process();
-				return;
+				return (null);
 			}
 			// if asked for, stops all processing and quit immediately
 			if ($execStatus === \Temma\Web\Controller::EXEC_QUIT) {
 				TµLog::log('Temma/Web', 'DEBUG', "Premature but wanted end of processing.");
-				return;
+				return (null);
 			}
 		}
 
@@ -225,12 +239,12 @@ class Framework {
 				// if asked for, stops all processing and quit immediately
 				if ($execStatus === \Temma\Web\Controller::EXEC_QUIT) {
 					TµLog::log('Temma/Web', 'DEBUG', "Premature but wanted end of processing.");
-					return;
+					return (null);
 				}
 				// if asked, restarts the execution from the very beginning
 				if ($execStatus === \Temma\Web\Controller::EXEC_REBOOT) {
 					$this->process();
-					return;
+					return (null);
 				}
 				// if asked, stops pre-plugins processing
 				if ($execStatus === \Temma\Web\Controller::EXEC_STOP ||
@@ -259,11 +273,18 @@ class Framework {
 		$url = $this->_response->getRedirection();
 		if (!empty($url)) {
 			TµLog::log('Temma/Web', 'DEBUG', "Redirecting to '$url'.");
+			if ($processView === false)
+				return ($url);
 			if ($this->_response->getRedirectionCode() == 301)
 				header('HTTP/1.1 301 Moved Permanently');
 			header("Location: $url");
 			exit();
 		}
+		// return data if asked
+		if ($processView === false)
+			return ($this->_response->getData());
+		if ($processView === null)
+			return (null);
 
 		/* ********** VIEW ********** */
 		// load the view object
@@ -271,11 +292,14 @@ class Framework {
 		// init the view
 		$this->_initView($view);
 		// send HTTP headers
-		TµLog::log('Temma/Web', 'DEBUG', "Writing of response headers.");
-		$view->sendHeaders();
+		if ($sendHeaders) {
+			TµLog::log('Temma/Web', 'DEBUG', "Writing of response headers.");
+			$view->sendHeaders();
+		}
 		// send data body
 		TµLog::log('Temma/Web', 'DEBUG', "Writing of response body.");
 		$view->sendBody();
+		return (null);
 	}
 	/**
 	 * Returns the path to the HTML page corresponding to an HTTP error code.

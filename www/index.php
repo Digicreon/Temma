@@ -26,7 +26,6 @@ use \Temma\Base\Log as TµLog;
 // framework startup
 try {
 	$temma = new \Temma\Web\Framework();
-	$temma->init();
 	$temma->process();
 } catch (\Throwable $e) {
 	// error management
