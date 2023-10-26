@@ -113,6 +113,26 @@ class Sqs extends \Temma\Base\Datasource {
 		]);
 	}
 
+	/* ********** ARRAY-LIKE REQUESTS ********** */
+	/**
+	 * Return the number of waiting tasks.
+	 * @return	int	The number of tasks.
+	 */
+	public function count() : int {
+		if (!$this->_enabled)
+			return (0);
+		$this->_connect();
+		try {
+			$res = $this->_sqsClient->getQueueAttributes([
+				'QueueUrl'       => $this->_url,
+				'AttributeNames' => ['ApproximateNumberOfMessages'],
+			]);
+		} catch (\Exception $e) {
+			throw new \Temma\Exceptions\Database("Unable to get SQS queue attributes.", \Temma\Exceptions\Database::QUERY);
+		}
+		return ($res['attributes']['ApproximateNumberOfMessages'] ?? 0);
+	}
+
 	/* ********** STANDARD REQUESTS ********** */
 	/**
 	 * Remove a message from SQS.

@@ -398,6 +398,20 @@ class Sql extends \Temma\Base\Datasource {
 		return ((int)$this->_db->lastInsertId());
 	}
 
+	/* ********** ARRAY-LIKE REQUESTS ********** */
+	/**
+	 * Return the number of elements.
+	 * @return	int	The number of elements.
+	 */
+	public function count() : int {
+		if (!$this->_enabled)
+			return (0);
+		$sql = "SELECT COUNT(*) AS nbr
+		        FROM TemmaData";
+		$res = $this->queryOne($sql);
+		return ($res['nbr']);
+	}
+
 	/* ********** STANDARD REQUESTS ********** */
 	/**
 	 * Tell if a key exists in database.

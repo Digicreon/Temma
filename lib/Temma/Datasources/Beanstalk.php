@@ -111,6 +111,19 @@ class Beanstalk extends \Temma\Base\Datasource {
 		return ($this);
 	}
 
+	/* ********** ARRAY-LIKE REQUESTS ********** */
+	/**
+	 * Return the queue size.
+	 * @return	int	The queue size.
+	 */
+	public function count() : int {
+		if (!$this->_enabled)
+			return (0);
+		$this->_connect();
+		$size = $this->_pheanstalk->statsTube($this->_tube)->current_jobs_ready;
+		return ($size);
+	}
+
 	/* ********** STANDARD REQUESTS ********** */
 	/**
 	 * Remove a message from SQS.

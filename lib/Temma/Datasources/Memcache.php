@@ -141,6 +141,21 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 		return ($res);
 	}
 
+	/* ********** ARRAY-LIKE REQUESTS ********** */
+	/**
+	 * Return the number of keys.
+	 * @return	int	The number of keys.
+	 */
+	public function count() : int {
+		if (!$this->_enabled || !$this->_memcache)
+			return (0);
+		$stats = $this->_memcache->getStats();
+		$nbr = 0;
+		foreach ($stats as $stat)
+			$nbr += $stat['curr_items'] ?? 0;
+		return ($nbr);
+	}
+
 	/* ********** STANDARD REQUESTS ********** */
 	/**
 	 * Tell if a variable is set in cache.

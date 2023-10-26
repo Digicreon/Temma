@@ -98,6 +98,18 @@ class File extends \Temma\Base\Datasource {
 		$this->_enabled = true;
 	}
 
+	/* ********** ARRAY-LIKE REQUESTS ********** */
+	/**
+	 * Return the number of files.
+	 * @return 	int	The number of files.
+	 */
+	public function count() : int {
+		if (!$this->_enabled)
+			return (0);
+		$fi = new \FilesystemIterator($this->_rootPath);
+		return (iterator_count($fi));
+	}
+
 	/* ********** STANDARD REQUESTS ********** */
 	/**
 	 * Tell if a file exists.

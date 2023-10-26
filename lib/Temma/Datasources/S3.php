@@ -163,6 +163,29 @@ class S3 extends \Temma\Base\Datasource {
 		]);
 	}
 
+	/* ********** ARRAY-LIKE REQUESTS ********** */
+	/**
+	 * Get the number of files.
+	 * @return	int	The number of files.
+	 */
+	public function count() : int {
+		if (!$this->_enabled)
+			return (0);
+		$this->_connect();
+		$count = 0;
+		try {
+			$objects = $this->_s3Client->getIterator('ListObjects', [
+				'Bucket' => $this->_bucket,
+			]);
+			foreach ($objects as $object) {
+				$count++;
+			}
+		} catch (\Exception $e) {
+			TµLog::log('Temma/Base', 'INFO', "Unable to list files on AWS S3. Bucket='{$this->_bucket}'.");
+		}
+		return ($count);
+	}
+
 	/* ********** SPECIAL REQUESTS ********** */
 	/**
 	 * Get a download URL of an S3 file.

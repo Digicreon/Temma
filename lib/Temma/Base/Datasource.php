@@ -15,7 +15,7 @@ use \Temma\Base\Log as TµLog;
  *
  * Must be used in an autoloader-enabled environment.
  */
-abstract class Datasource implements \ArrayAccess {
+abstract class Datasource implements \ArrayAccess, \Countable {
 	/** Database prefixes. */
 	const DATABASE_PREFIXES = [
 		'mysqli:',
@@ -401,6 +401,13 @@ abstract class Datasource implements \ArrayAccess {
 	}
 
 	/* ********** ARRAY SYNTAX ********** */
+	/**
+	 * Return the number of elements.
+	 * @return	int	The number of stored elements.
+	 */
+	public function count() : int {
+		throw new \Temma\Exceptions\Database("No count() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);
+	}
 	/** 
 	 * Add data in source, array-like syntax.
 	 * @param       mixed   $key    Index key.

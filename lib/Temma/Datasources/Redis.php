@@ -133,6 +133,91 @@ class Redis extends \Temma\Base\Datasource {
 		}
 	}
 
+	/* ********** SPECIAL REQUESTS ********** */
+	/**
+	 * Add an item at the beginning of a list.
+	 * @param	string	$list	Name of the list.
+	 * @param	mixed	$data	Data added to the queue.
+	 * @return	int	The size of the list.
+	 */
+	public function lPush(string $list, mixed $data) : int {
+		if (!$this->_enabled)
+			return (0);
+		$this->_connect();
+		$data = json_encode($data);
+		return ($this->_ndb->lPush($list, $data));
+	}
+	/**
+	 * Remove and return the last item of a list.
+	 * @param	string	$list	Name of the list.
+	 * @return	mixed	The fetched data, or null.
+	 */
+	public function rPop(string $list) : mixed {
+		if (!$this->_enabled)
+			return (null);
+		$this->_connect();
+		$data = $this->_ndb->rPop($list);
+		if ($data === false)
+			return (null);
+		return (json_decode($data, true));
+	}
+	/**
+	 * Remove and return elements at the beginning of a list.
+	 * @param	string	$list		Name of the list.
+	 * @param	int	$count		Number of elements to remove.
+	 * @param	mixed	$element	(optional) Element to remove.
+	 * @return	int	The number of removed elements.
+	 */
+	public function lRem(string $list, int $count, mixed $element=null) : int {
+		if (!$this->_enabled)
+			return (0);
+		$this->_connect();
+		$element = json_encode($element);
+		$result = $this->_ndb->lRem($list, $element, $count);
+		if ($result === false)
+			return (0);
+		return ($result);
+	}
+	/**
+	 * Remove the last element of a list, return it and move it to the beginning of another list.
+	 * @param	string	$inputList	Name of the source list.
+	 * @param	string	$outputList	Name of the destination list.
+	 * @return	mixed	The moved element.
+	 */
+	public function rPopLPush(string $inputList, string $outputList) : mixed {
+		if (!$this->_enabled)
+			return (null);
+		$this->_connect();
+		$result = $this->_ndb->rPopLPush($inputList, $outputList);
+		if ($result === false)
+			return (null);
+		return (json_decode($result, true));
+	}
+	/**
+	 * Return the size of a list.
+	 * @param	string	$list	Name of the list.
+	 * @return	int	The size of the list.
+	 */
+	public function lLen(string $list) : int {
+		if (!$this->_enabled)
+			return (0);
+		$this->_connect();
+		$result = $this->_ndb->lLen($list);
+		return (($result === false) ? 0 : $result);
+	}
+
+	/* ********** ARRAY-LIKE REQUESTS ********* */
+	/**
+	 * Return the number of keys.
+	 * @return	int	The number of stored keys.
+	 */
+	public function count() : int {
+		if (!$this->_enabled)
+			return (0);
+		$this->_connect();
+		return ($this->_ndb->dbSize());
+	}
+
 	/* ********** STANDARD REQUESTS ********** */
 	/**
 	 * Tell if a variable is set in Redis.
@@ -320,6 +405,8 @@ class Redis extends \Temma\Base\Datasource {
 	 * @return	mixed	The JSON-decoded value associated to the key.
 	 */
 	public function get(string $key, mixed $defaultOrCallback=null, mixed $options=null) : mixed {
+		if (!$this->_enabled)
+			return (null);
 		$this->_connect();
 		$value = false;
 		if ($this->_enabled)
@@ -390,6 +477,7 @@ class Redis extends \Temma\Base\Datasource {
 	public function mSet(array $data, mixed $timeout=0) : int {
 		if (!$this->_enabled)
 			return (0);
+		$this->_connect();
 		$data = array_map('json_encode', $data);
 		if (!$this->_ndb->mset($data))
 			return (0);
