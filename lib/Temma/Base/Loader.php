@@ -128,6 +128,11 @@ class Loader extends \Temma\Utils\Registry {
 	 * @return	mixed	The associated value, or null.
 	 */
 	public function get(string $key, mixed $default=null) : mixed {
+		// special processing for Asynk
+		if ($key == 'Asynk') {
+			return (new \Temma\Asynk\Client($this));
+		}
+		// other values
 		if (isset($this->_data[$key])) {
 			if ($this->_data[$key] instanceof \Closure)
 				$this->_data[$key] = $this->_data[$key]($this);
