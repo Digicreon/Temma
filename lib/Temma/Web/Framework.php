@@ -158,7 +158,7 @@ class Framework {
 		TµLog::log('Temma/Web', 'DEBUG', "Processing of pre-process plugins.");
 		$execStatus = \Temma\Web\Controller::EXEC_FORWARD;
 		// generate the list of pre-plugins
-		$prePlugins = $this->_generatePrePluginsList();
+		$prePlugins = $this->_generatePluginsList('pre');
 		// processing of pre-plugins
 		while (($pluginName = current($prePlugins)) !== false) {
 			next($prePlugins);
@@ -186,7 +186,7 @@ class Framework {
 				break;
 			} else if ($execStatus === \Temma\Web\Controller::EXEC_RESTART) {
 				// restarts all pre-plugins execution
-				$prePlugins = $this->_generatePrePluginsList();
+				$prePlugins = $this->_generatePluginsList('pre');
 				reset($prePlugins);
 			} else if ($execStatus === \Temma\Web\Controller::EXEC_REBOOT) {
 				// restarts the execution from the very beginning
@@ -224,7 +224,7 @@ class Framework {
 		if (!$execStatus) { // $execStatus === \Temma\Web\Controller::EXEC_FORWARD || $execStatus === \Temma\Web\Controller::EXEC_FORWARD_THROWABLE
 			TµLog::log('Temma/Web', 'DEBUG', "Processing of post-process plugins.");
 			// generate the list of post-plugins
-			$postPlugins = $this->_generatePostPluginsList();
+			$postPlugins = $this->_generatePluginsList('post');
 			// processing of post-plugins
 			while (($pluginName = current($postPlugins)) !== false) {
 				next($postPlugins);
@@ -256,8 +256,8 @@ class Framework {
 				if ($execStatus === \Temma\Web\Controller::EXEC_RESTART) {
 					$this->_setControllerName();
 					$this->_setActionName();
-					$prePlugins = $this->_generatePrePluginsList();
-					reset($prePlugins);
+					$postPlugins = $this->_generatePluginsList('post');
+					reset($postPlugins);
 				}
 			}
 		}
@@ -476,44 +476,52 @@ class Framework {
 			throw new TµHttpException("Bad name for controller '" . $this->_controllerName . "'.", 404);
 	}
 	/**
-	 * Generate the list of pre-plugins.
-	 * @return	array	List of pre-plugin names.
+	 * Generate the list of pre- or post-plugins.
+	 * @param	string	$type	'pre' or 'post'.
+	 * @return	array	List of plugin names.
 	 */
-	private function _generatePrePluginsList() : array {
-		$plugins = $this->_config->plugins;
-		$prePlugins = $plugins['_pre'] ?? [];
-		if (!is_array($prePlugins))
-			$prePlugins = [$prePlugins];
-		if (isset($plugins[$this->_objectControllerName]['_pre']))
-			$prePlugins = array_merge($prePlugins, $plugins[$this->_objectControllerName]['_pre']);
-		if (isset($plugins[$this->_objectControllerName][$this->_actionName]['_pre']))
-			$prePlugins = array_merge($prePlugins, $plugins[$this->_objectControllerName][$this->_actionName]['_pre']);
-		if (isset($plugins[$this->_controllerName]['_pre']))
-			$prePlugins = array_merge($prePlugins, $plugins[$this->_controllerName]['_pre']);
-		if (isset($plugins[$this->_controllerName][$this->_actionName]['_pre']))
-			$prePlugins = array_merge($prePlugins, $plugins[$this->_controllerName][$this->_actionName]['_pre']);
-		TµLog::log('Temma/Web', 'DEBUG', $prePlugins ? ("Pre plugins: " . print_r($prePlugins, true)) : 'No pre plugins.');
-		return ($prePlugins);
-	}
-	/**
-	 * Generate the list of post-plugins.
-	 * @return	array	List of post-plugin names.
-	 */
-	private function _generatePostPluginsList() : array {
-		$plugins = $this->_config->plugins;
-		$postPlugins = $plugins['_post'] ?? [];
-		if (!is_array($postPlugins))
-			$postPlugins = [$postPlugins];
-		if (isset($plugins[$this->_objectControllerName]['_post']))
-			$postPlugins = array_merge($postPlugins, $plugins[$this->_objectControllerName]['_post']);
-		if (isset($plugins[$this->_objectControllerName][$this->_actionName]['_post']))
-			$postPlugins = array_merge($postPlugins, $plugins[$this->_objectControllerName][$this->_actionName]['_post']);
-		if (isset($plugins[$this->_controllerName]['_post']))
-			$postPlugins = array_merge($postPlugins, $plugins[$this->_controllerName]['_post']);
-		if (isset($plugins[$this->_controllerName][$this->_actionName]['_post']))
-			$postPlugins = array_merge($postPlugins, $plugins[$this->_controllerName][$this->_actionName]['_post']);
-		TµLog::log('Temma/Web', 'DEBUG', $postPlugins ? ("Post plugins: " . print_r($postPlugins, true)) : 'No post plugins.');
-		return ($postPlugins);
+	private function _generatePluginsList(string $type) : array {
+		$plugins = $this->_config->plugins ?? [];
+		$result = [];
+		// loop on plugin configuration entries
+		foreach ($plugins as $pluginKey => $pluginData) {
+			if (!is_string($pluginKey))
+				continue;
+			$pluginData = is_array($pluginData) ? $pluginData : [$pluginData];
+			// global list of preplugins
+			if ($pluginKey == "_$type") {
+				$result = array_merge($result, $pluginData);
+				continue;
+			}
+			// controller-specific configuration, or inverse controller-specific configuration
+			$inverse = false;
+			if (str_starts_with($pluginKey, '-')) {
+				$inverse = true;
+				$pluginKey = mb_substr($pluginKey, 1);
+			}
+			if ((!$inverse && ($pluginKey == $this->_objectControllerName || $pluginKey == $this->_controllerName)) ||
+			    ($inverse && $pluginKey != $this->_objectControllerName && $pluginKey != $this->_controllerName)) {
+				// loop on controller configuration
+				foreach ($pluginData as $subKey => $subData) {
+					if (!is_string($subKey))
+						continue;
+					$subData = is_array($subData) ? $subData : [$subData];
+					if ($subKey == "_$type") {
+						// controller-specific preplugin list
+						$result = array_merge($result, $subData);
+					} else if (isset($subData["_$type"]) &&
+					           ($subKey == $this->_actionName ||
+					            (str_starts_with($subKey, '-') && mb_substr($subKey, 1) != $this->_actionName))) {
+						// action-specific plugin list, or inverse action-specific plugin list
+						$list = is_array($subData["_$type"]) ? $subData["_$type"] : [$subData["_$type"]];
+						$result = array_merge($result, $list);
+					}
+				}
+				continue;
+			}
+		}
+		TµLog::log('Temma/Web', 'DEBUG', $result ? ("List of $type plugins: " . print_r($result, true)) : 'No $type plugins.');
+		return ($result);
 	}
 	/**
 	 * Execute a plugin.

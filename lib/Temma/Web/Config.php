@@ -64,7 +64,7 @@ class Config {
 	/** List of routes. */
 	protected ?array $_routes = null;
 	/** List of plugins. */
-	protected ?array $_plugins = null;
+	protected ?array $_plugins = [];
 	/** Tell if sessions are enabled. */
 	protected bool $_enableSessions = true;
 	/** Name of the cookie which stores the session ID. */
