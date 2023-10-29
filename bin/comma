@@ -92,7 +92,7 @@ $loader = new $loaderName([
 ]);
 
 /* *** Connect to data sources. *** */
-$datasources = [];
+$dataSources = [];
 foreach ($config->dataSources as $name => $dsn) {
 	$dataSources[$name] = \Temma\Base\Datasource::factory($dsn);
 }
