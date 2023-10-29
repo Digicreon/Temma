@@ -58,10 +58,14 @@ class Controller implements \ArrayAccess {
 	 */
 	public function __construct(\Temma\Base\Loader $loader, ?\Temma\Web\Controller $executor=null) {
 		$this->_loader = $loader;
-		$this->_session = $loader->session;
-		$this->_config = $loader->config;
-		$this->_request = $loader->request;
-		$this->_response = $loader->response;
+		if (isset($loader->session))
+			$this->_session = $loader->session;
+		if (isset($loader->config))
+			$this->_config = $loader->config;
+		if (isset($loader->request))
+			$this->_request = $loader->request;
+		if (isset($loader->response))
+			$this->_response = $loader->response;
 		// top-level controller: definition of the template variable which contains the session ID
 		if (is_null($executor) && isset($loader->session) && $loader->config->enableSessions) {
 			$this['SESSIONID'] = $loader->session->getSessionId();
