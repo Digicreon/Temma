@@ -2,12 +2,14 @@
 
 /**
  * Smarty modifier that transforms any text into a string that could be used in an URL.
- * @param	string	$text	The text to process.
+ * @param	?string	$text	The text to process.
  * @return	string	The processed text.
  * @author	Amaury Bouchard <amaury@æmaury.net>
  * @copyright	© 2007, Amaury Bouchard
  */
-function smarty_modifier_urlize(string $text) : string {
+function smarty_modifier_urlize(?string $text) : string {
+	if (!$text)
+		return ('');
 	if (!class_exists('\Temma\Utils\Text'))
 		require_once('Temma/Utils/Text.php');
 	$url = \Temma\Utils\Text::urlize($text);
