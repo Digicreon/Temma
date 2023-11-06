@@ -335,13 +335,13 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 	public function set(string $key, mixed $data=null, mixed $expire=0) : bool {
 		if (!$this->_enabled || !$this->_memcache)
 			return (false);
-		$key = $this->_getSaltedPrefix() . $key;
 		if (is_null($data)) {
 			// deletion
 			$this->remove($key);
 			return (true);
 		}
 		// add data to cache
+		$key = $this->_getSaltedPrefix() . $key;
 		$expire = (!is_numeric($expire) || !$expire) ? $this->_defaultExpiration : $expire;
 		$expire = ($expire == -1 || $expire > 2592000) ? 2592000 : $expire;
 		$this->_memcache->set($key, $data, $expire);
