@@ -289,6 +289,8 @@ class Sql extends \Temma\Base\Datasource {
 		$this->_connect();
 		if ($str === false)
 			return ('\'0\'');
+		if ($str === null)
+			return ('\'\'');
 		$str = $this->_db->quote((string)$str);
 		return ($str ?: '');
 	}
