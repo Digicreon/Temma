@@ -520,7 +520,7 @@ class Framework {
 				continue;
 			}
 		}
-		TµLog::log('Temma/Web', 'DEBUG', $result ? ("List of $type plugins: " . print_r($result, true)) : 'No $type plugins.');
+		TµLog::log('Temma/Web', 'DEBUG', $result ? ("List of $type plugins: " . print_r($result, true)) : "No $type plugins.");
 		return ($result);
 	}
 	/**
