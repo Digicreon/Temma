@@ -14,7 +14,7 @@ use \Temma\Exceptions\Application as TµApplicationException;
 /**
  * Attribute used to define the user authorizations needed to access to an action.
  *
- * It uses a 'currentUser' template variable, which is an associative array with the following keys:
+ * It uses a 'currentUser' template variable, which is an associative array with at least the following keys:
  * - id:       User's identifier, set if the user is authenticated.
  * - roles:    Associative array whose keys are the user's roles (associated with the value true).
  * - services: Associative array whose keys are the services to which the user has access (associated with the value <tt>true</tt>).
@@ -59,6 +59,9 @@ use \Temma\Exceptions\Application as TµApplicationException;
  * - Redirects non-administrators to the given URL:
  * #[TµAuth('admin', redirect: '/unauthorized')]
  *
+ * - Redirects unauthenticated users, and store the requested URL in the 'authRequestedUrl' session variable:
+ * #[TµAuth(storeUrl: true)]
+ *
  * @see	\Temma\Web\Controller
  */
 #[\Attribute(\Attribute::TARGET_CLASS | \Attribute::TARGET_METHOD | \Attribute::IS_REPEATABLE)]
@@ -73,11 +76,12 @@ class Auth extends \Temma\Web\Attribute {
 	 *							- null if the user can be authenticated or not.
 	 * @param	?string			$redirect	(optional) Redirection URL used if there is an authentication problem (instead of throwing an exception).
 	 * @param	?string			$redirectVar	(optional) Name of the template variable which contains the redirection URL.
+	 * @param	bool			$storeUrl	(optional) Tell if the requested URL must be stored in the "authRequestedUrl" session variable. (default value: false)
 	 * @throws	\Temma\Exceptions\Application	If the user is not authorized.
 	 * @throws	\Temma\Exceptions\FlowHalt	If the user is not authorized and a redirect URL has been given.
 	 */
 	public function __construct(null|string|array $role=null, null|string|array $service=null,
-	                            ?bool $authenticated=true, ?string $redirect=null, ?string $redirectVar=null) {
+	                            ?bool $authenticated=true, ?string $redirect=null, ?string $redirectVar=null, bool $storeUrl=false) {
 		try {
 			// check authentication
 			if ($authenticated === true && !($this['currentUser']['id'] ?? false)) {
@@ -121,6 +125,9 @@ class Auth extends \Temma\Web\Attribute {
 				}
 			}
 		} catch (TµApplicationException $e) {
+			// store URL
+			if ($storeUrl)
+				$this->_session['authRequestedUrl'] = $this['URL'];
 			// manage redirection URL
 			$url = $redirect ?:                                             // direct URL
 			       $this[$redirectVar] ?:                                   // template variable

@@ -108,7 +108,9 @@ use \Temma\Utils\Email as TµEmail;
  * ```json
  * {
  *     "x-security": {
- *         "authRedirect": "/account"
+ *         "auth": {
+ *             "redirection": "/account"
+ *         }
  *     }
  * }
  * ```
@@ -183,7 +185,7 @@ class Auth extends \Temma\Web\Plugin {
 		// template
 		$this->_template('auth/login.tpl');
 	}
-	/** Authentication. */
+	/** Process the authentication form and send the magic link by email. */
 	#[TµPost]
 	#[TµAuth(authenticated: false, redirect: '/')]
 	public function authentication() {
@@ -294,8 +296,12 @@ class Auth extends \Temma\Web\Plugin {
 		$currentUserId = $currentUser['id'] ?? null;
 		$this->_session['currentUserId'] = $currentUserId;
 		// redirection
-		$conf = $this->_config->xtra('security', 'auth');
-		$url = ($conf['redirection'] ?? null) ?: '/';
+		$url = $this->session['authRequestedUrl'];
+		unset($this->session['authRequestedUrl']);
+		if (!$url) {
+			$conf = $this->_config->xtra('security', 'auth');
+			$url = ($conf['redirection'] ?? null) ?: '/';
+		}
 		return $this->_redirect($url);
 	}
 

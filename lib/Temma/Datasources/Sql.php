@@ -349,7 +349,7 @@ class Sql extends \Temma\Base\Datasource {
 	 * Execute an SQL request and fetch one line of data.
 	 * @param	string	$sql		The SQL request.
 	 * @param	?string	$valueField	(optional) Name of the field whose value will be returned.
-	 * @return	mixed	An associative array which contains the line of data, or the value which field's name has been given as paramete.
+	 * @return	mixed	An associative array which contains the line of data, or the value which field's name has been given as parameter.
 	 * @throws	\Exception	If something went wrong.
 	 */
 	public function queryOne(string $sql, ?string $valueField=null) : mixed {
