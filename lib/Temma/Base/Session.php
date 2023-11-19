@@ -323,6 +323,18 @@ class Session implements \ArrayAccess {
 		return ($this->get($key));
 	}
 	/**
+	 * Fetch a session data, and remove it from the session.
+	 * @param	string	$key		Data name.
+	 * @param	mixed	$defalut	(optional) Default value, used if the data doesn't exist in session.
+	 * @return	mixed	Value of the session data.
+	 */
+	public function extract(string $key, mixed $default=null) : mixed {
+		TµLog::log('Temma/Base', 'DEBUG', "Extracting value for key '$key'.");
+		$data = $this->get($key, $default);
+		$this->set($key, null);
+		return ($data);
+	}
+	/**
 	 * Return all session variables.
 	 * @return	array	Session data.
 	 */
