@@ -65,6 +65,8 @@ class HTMLCleaner {
 	 */
 	static public function clean(string $html, ?bool $targetBlank=null, ?bool $nofollow=null, bool $removeNbsp=true) : string {
 		$html = trim($html);
+		if (!$html)
+			return ('');
 		$html = str_replace(['<br />', '<br/>'], '<br>', $html);
 		$html = str_replace(['<p></p>', '<p><br></p>'], '', $html);
 		// basic tags transformation
