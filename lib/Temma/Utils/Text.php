@@ -42,12 +42,12 @@ class Text {
 	/**
 	 * Checks if an UTF-8 string contains only characters compatible with a given encoding.
 	 * @param	string	$text		Text to check.
-	 * @param	string	$encoding	The target encoding (i.e. 'iso-8859-15').
+	 * @param	string	$encoding	(optional) The target encoding (defaults to 'iso-8859-15').
 	 * @return	bool	True if the input string is compatible with the given encoding.
 	 */
-	static public function encodingCompatible(string $text, string $encoding) : bool {
-		$s = mb_convert_encoding($text, 'iso-8859-15', 'utf-8');
-		$s = mb_convert_encoding($s, 'utf-8', 'iso-8859-15');
+	static public function encodingCompatible(string $text, string $encoding='iso-8859-15') : bool {
+		$s = mb_convert_encoding($text, $encoding, 'utf-8');
+		$s = mb_convert_encoding($s, 'utf-8', $encoding);
 		return ($s == $text);
 	}
 	/**
