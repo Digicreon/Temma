@@ -325,7 +325,7 @@ class Session implements \ArrayAccess {
 	/**
 	 * Fetch a session data, and remove it from the session.
 	 * @param	string	$key		Data name.
-	 * @param	mixed	$defalut	(optional) Default value, used if the data doesn't exist in session.
+	 * @param	mixed	$default	(optional) Default value, used if the data doesn't exist in session.
 	 * @return	mixed	Value of the session data.
 	 */
 	public function extract(string $key, mixed $default=null) : mixed {
