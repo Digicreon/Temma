@@ -127,7 +127,7 @@ class Auth extends \Temma\Web\Attribute {
 		} catch (TµApplicationException $e) {
 			// store URL
 			if ($storeUrl)
-				$this->_session['authRequestedUrl'] = $this['URL'];
+				$temma->getSession()->set('authRequestedUrl', $this['URL']);
 			// manage redirection URL
 			$url = $redirect ?:                                             // direct URL
 			       $this[$redirectVar] ?:                                   // template variable
