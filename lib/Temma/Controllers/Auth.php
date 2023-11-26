@@ -296,8 +296,8 @@ class Auth extends \Temma\Web\Plugin {
 		$currentUserId = $currentUser['id'] ?? null;
 		$this->_session['currentUserId'] = $currentUserId;
 		// redirection
-		$url = $this->session['authRequestedUrl'];
-		unset($this->session['authRequestedUrl']);
+		$url = $this->_session['authRequestedUrl'];
+		unset($this->_session['authRequestedUrl']);
 		if (!$url) {
 			$conf = $this->_config->xtra('security', 'auth');
 			$url = ($conf['redirection'] ?? null) ?: '/';
