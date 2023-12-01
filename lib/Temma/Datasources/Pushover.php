@@ -31,7 +31,7 @@ use \Temma\Base\Log as TµLog;
  * $push->set('USER_KEY', 'Text <b>message</b>');
  *
  * // send a push message with parameters
- * $push->write('33611223344', 'Text message', [
+ * $push->write('USER_KEY', 'Text message', [
  *     'title'     => 'Message title',
  *     'html'      => false,
  *     'monospace' => true,
