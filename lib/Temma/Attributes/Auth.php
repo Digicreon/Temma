@@ -82,6 +82,8 @@ class Auth extends \Temma\Web\Attribute {
 	 */
 	public function __construct(null|string|array $role=null, null|string|array $service=null,
 	                            ?bool $authenticated=true, ?string $redirect=null, ?string $redirectVar=null, bool $storeUrl=false) {
+		global $temma;
+
 		try {
 			// check authentication
 			if ($authenticated === true && !($this['currentUser']['id'] ?? false)) {
@@ -126,7 +128,7 @@ class Auth extends \Temma\Web\Attribute {
 			}
 		} catch (TµApplicationException $e) {
 			// store URL
-			if ($storeUrl)
+			if ($storeUrl && $temma)
 				$temma->getSession()->set('authRequestedUrl', $this['URL']);
 			// manage redirection URL
 			$url = $redirect ?:                                             // direct URL
