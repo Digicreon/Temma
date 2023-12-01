@@ -20,12 +20,18 @@ use \Temma\Exceptions\Application as TµApplicationException;
  *
  * * Scalar types
  *	'null'
+ *	'false'
+ *	'true'
  *	'bool'
  *	'int'
  *	'float'
  *	'string'
+ *	'email'
+ *	'url'
  *
  * * Nullable types
+ *	'?false'
+ *	'?true'
  *	'?bool'
  *	'?int'
  *	'?float'
