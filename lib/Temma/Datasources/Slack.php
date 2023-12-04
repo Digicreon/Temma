@@ -191,6 +191,8 @@ class Slack extends \Temma\Base\Datasource {
 	 * @throws	\Exception	If an error occured.
 	 */
 	public function set(string $channel, mixed $message=null, mixed $options=null) : bool {
+		if (!$this->_enabled)
+			return (false);
 		$data = [];
 		if (is_string($message))
 			$data['text'] = $message;
