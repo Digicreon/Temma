@@ -100,7 +100,7 @@ class Config {
 	/** Name of the loader object. */
 	protected ?string $_loader = null;
 	/** Log manager(s). */
-	protected ?string $_logManager = null;
+	protected null|string|array $_logManager = null;
 	/** Definition of log levels. */
 	protected null|string|array $_logLevels = null;
 	/** Definition of buffering log levels. */
