@@ -151,25 +151,28 @@ class Config {
 	}
 	/**
 	 * Reads the "temma.json" configuration file.
-	 * @param	?array	$overConf	(optional) Associative array that contains data used to override the configuration file.
+	 * @param	?string	$forcedJsonConfigPath	(optional) Path to the 'temma.json' file to be used to get the configuration. Defaults to null, to get the default file 'etc/temma.json'.
+	 * @param	?array	$overConf		(optional) Associative array that contains data used to override the configuration file.
 	 * @throws	\Temma\Exceptions\Framework	If the configuration file is not correct.
 	 */
-	public function readConfigurationFile(?array $overConf=null) : void {
+	public function readConfigurationFile(?string $forcedJsonConfigPath=null, ?array $overConf=null) : void {
 		global $_globalTemmaConfig;
 
 		// try to include the PHP configuration file
-		$phpConfigPath = $this->_etcPath . '/' . self::PHP_CONFIG_FILE_NAME;
-		try {
-			@include($phpConfigPath);
-		} catch (\Exception $e) {
-		}
-		if (isset($_globalTemmaConfig) && $_globalTemmaConfig instanceof \Temma\Web\Config) {
-			$this->_executorConfig = $_globalTemmaConfig;
-			$this->_initIncludePaths();
-			return;
+		if (!$forcedJsonConfigPath) {
+			$phpConfigPath = $this->_etcPath . '/' . self::PHP_CONFIG_FILE_NAME;
+			try {
+				@include($phpConfigPath);
+			} catch (\Exception $e) {
+			}
+			if (isset($_globalTemmaConfig) && $_globalTemmaConfig instanceof \Temma\Web\Config) {
+				$this->_executorConfig = $_globalTemmaConfig;
+				$this->_initIncludePaths();
+				return;
+			}
 		}
 		// load the configuration file
-		$jsonConfigPath = $this->_etcPath . '/' . self::JSON_CONFIG_FILE_NAME;
+		$jsonConfigPath = $forcedJsonConfigPath ?: ($this->_etcPath . '/' . self::JSON_CONFIG_FILE_NAME);
 		$ini = json_decode(file_get_contents($jsonConfigPath), true);
 		if (is_null($ini))
 			throw new TµFrameworkException("Unable to read configuration file '$jsonConfigPath'.", TµFrameworkException::CONFIG);
