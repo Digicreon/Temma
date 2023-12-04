@@ -32,6 +32,7 @@ TµLog::logToStdErr();
 use \Temma\Utils\Ansi as TµAnsi;
 
 /* *** Options management. *** */
+$forcedJsonConfigPath = null;
 if ($_SERVER['argc'] < 2) {
 	showHelp(true);
 	exit(1);
@@ -45,11 +46,20 @@ if ($_SERVER['argv'][0] == 'help') {
 // extract object, method and parameters
 $objectName = array_shift($_SERVER['argv']);
 $methodName = array_shift($_SERVER['argv']);
-if (str_starts_with($methodName, '--')) {
+if (str_starts_with($methodName, 'conf=')) {
+	// get path to the 'temma.json' file
+	$forcedJsonConfigPath = mb_substr($methodName, mb_strlen('conf='));
+} else if (str_starts_with($methodName, '--')) {
 	fprintf(STDERR, "No parameter allowed for the root action.\n");
 	exit(1);
 }
 foreach ($_SERVER['argv'] as $param) {
+	if (str_starts_with($param, 'conf=')) {
+		// get path to the 'temma.json' file
+		$forcedJsonConfigPath = mb_substr($param, mb_strlen('conf='));
+		continue;
+	}
+	// check parameters
 	if (!preg_match('/^--([^=]+)=(.*)$/', $param, $matches)) {
 		fprintf(STDERR, "Bad parameter '$param'\n");
 		exit(2);
@@ -59,7 +69,7 @@ foreach ($_SERVER['argv'] as $param) {
 
 /* *** Read configuration file. *** */
 $config = new \Temma\Web\Config(__DIR__ . '/..');
-$config->readConfigurationFile();
+$config->readConfigurationFile($forcedJsonConfigPath);
 
 /* *** Manage log thresholds. *** */
 $logLevels = $config->logLevels;
