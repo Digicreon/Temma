@@ -49,6 +49,7 @@ $methodName = array_shift($_SERVER['argv']);
 if (str_starts_with($methodName, 'conf=')) {
 	// get path to the 'temma.json' file
 	$forcedJsonConfigPath = mb_substr($methodName, mb_strlen('conf='));
+	$methodName = null;
 } else if (str_starts_with($methodName, '--')) {
 	fprintf(STDERR, "No parameter allowed for the root action.\n");
 	exit(1);
@@ -93,6 +94,7 @@ $request->setParams($params);
 $response = new \Temma\Web\Response();
 $response['CONTROLLER'] = $objectName;
 $response['ACTION'] = $methodName;
+$response['conf'] = $config->autoimport;
 // create the loader
 $loaderName = $config->loader;
 $loader = new $loaderName([
