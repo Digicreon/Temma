@@ -137,7 +137,7 @@ class Framework {
 	 *					- true: the view or the redirection is processed.
 	 * @param	bool	$sendHeaders	(optional) Set to false to avoid sending headers. Defaults to true.
 	 * @return	null|string|array	Null by default, or a string (for a redirection) or an associative array of data if the
-	 *					$returnData parameter is set to true.
+	 *					$processView parameter is set to false.
 	 */
 	public function process(?bool $processView=true, bool $sendHeaders=true) : null|string|array {
 		/* ********** INIT ********** */
