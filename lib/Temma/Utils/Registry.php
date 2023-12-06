@@ -74,6 +74,14 @@ class Registry implements \Iterator, \ArrayAccess {
 		$this->_data = $data ?? [];
 	}
 	/**
+	 * Cloning.
+	 */
+	public function __clone() {
+		foreach ($this->_data as &$datum) {
+			$datum = clone($datum);
+		}
+	}
+	/**
 	 * Remove all stored data. Replace with the given data.
 	 * @param	array	$data	(optional) Data to use to replace the currently stored data.
 	 * @return	\Temma\Utils\Registry	The current object.
