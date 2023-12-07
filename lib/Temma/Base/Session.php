@@ -89,7 +89,7 @@ class Session implements \ArrayAccess {
 		if (isset($cache) && $cache->isEnabled())
 			$this->_cache = clone $cache;
 		// if the cache is not active, use the standard PHP session engine
-		if (!isset($this->_cache)) {
+		if (!isset($this->_cache) && session_status() == PHP_SESSION_NONE) {
 			session_start();
 			return;
 		}
