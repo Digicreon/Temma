@@ -77,9 +77,7 @@ class Registry implements \Iterator, \ArrayAccess {
 	 * Cloning.
 	 */
 	public function __clone() {
-		foreach ($this->_data as &$datum) {
-			$datum = clone($datum);
-		}
+		$this->_data = \Temma\Utils\Misc::clone($this->_data);
 	}
 	/**
 	 * Remove all stored data. Replace with the given data.
