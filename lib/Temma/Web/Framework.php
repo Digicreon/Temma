@@ -105,7 +105,7 @@ class Framework {
 			TµLog::log('Temma/Web', 'DEBUG', "Requested URL '/index.php', redirecting to '/'.");
 			header("Location: /");
 			exit();
-		} else
+		} else if (($_SERVER['REQUEST_URI'] ?? null))
 			TµLog::log('Temma/Web', 'DEBUG', "Processing URL '" . $_SERVER['REQUEST_URI'] . "'.");
 		// connect to data sources
 		foreach ($this->_config->dataSources as $name => $dsn) {
@@ -137,7 +137,7 @@ class Framework {
 	 *					- true: the view or the redirection is processed.
 	 * @param	bool	$sendHeaders	(optional) Set to false to avoid sending headers. Defaults to true.
 	 * @return	null|string|array	Null by default, or a string (for a redirection) or an associative array of data if the
-	 *					$processView parameter is set to false.
+	 *					$returnData parameter is set to true.
 	 */
 	public function process(?bool $processView=true, bool $sendHeaders=true) : null|string|array {
 		/* ********** INIT ********** */
@@ -173,7 +173,7 @@ class Framework {
 			// if asked for, stops all processing and quit immediately
 			if ($execStatus === \Temma\Web\Controller::EXEC_QUIT) {
 				TµLog::log('Temma/Web', 'DEBUG', "Premature but wanted end of processing.");
-				return (null);
+				return (($processView === false) ? $this->_response->getData() : null);
 			}
 			// re-compute controller/action names (is case of the plugin modified the controller, the action,
 			// the default namespace, or the include paths)
@@ -190,8 +190,8 @@ class Framework {
 				reset($prePlugins);
 			} else if ($execStatus === \Temma\Web\Controller::EXEC_REBOOT) {
 				// restarts the execution from the very beginning
-				$this->process();
-				return (null);
+				$this->process($processView, $sendHeaders);
+				return (($processView === false) ? $this->_response->getData() : null);
 			}
 		}
 
@@ -210,13 +210,13 @@ class Framework {
 			} while ($execStatus === \Temma\Web\Controller::EXEC_RESTART);
 			// if asked, restarts the execution from the very beginning
 			if ($execStatus === \Temma\Web\Controller::EXEC_REBOOT) {
-				$this->process();
-				return (null);
+				$this->process($processView, $sendHeaders);
+				return (($processView === false) ? $this->_response->getData() : null);
 			}
 			// if asked for, stops all processing and quit immediately
 			if ($execStatus === \Temma\Web\Controller::EXEC_QUIT) {
 				TµLog::log('Temma/Web', 'DEBUG', "Premature but wanted end of processing.");
-				return (null);
+				return (($processView === false) ? $this->_response->getData() : null);
 			}
 		}
 
@@ -239,12 +239,12 @@ class Framework {
 				// if asked for, stops all processing and quit immediately
 				if ($execStatus === \Temma\Web\Controller::EXEC_QUIT) {
 					TµLog::log('Temma/Web', 'DEBUG', "Premature but wanted end of processing.");
-					return (null);
+					return (($processView === false) ? $this->_response->getData() : null);
 				}
 				// if asked, restarts the execution from the very beginning
 				if ($execStatus === \Temma\Web\Controller::EXEC_REBOOT) {
-					$this->process();
-					return (null);
+					$this->process($processView, $sendHeaders);
+					return (($processView === false) ? $this->_response->getData() : null);
 				}
 				// if asked, stops pre-plugins processing
 				if ($execStatus === \Temma\Web\Controller::EXEC_STOP ||
