@@ -52,7 +52,7 @@ class Test {
 	 * @return	\Temma\Base\Loader	The dependency injection component.
 	 */
 	public function execLoader(string $url, string $httpMethod='GET', ?array $data=null, ?array $cookies=null) : \Temma\Base\Loader {
-		$temma = $this->_createEnvironment($url, $data, $httpMethod);
+		$temma = $this->_createEnvironment($url, $httpMethod, $data);
 		ob_start();
 		$temma->process(processView: null, sendHeaders: false);
 		ob_end_clean();
@@ -67,7 +67,7 @@ class Test {
 	 * @return	\Temma\Web\Response	The response object.
 	 */
 	public function execResponse(string $url, string $httpMethod='GET', ?array $data=null, ?array $cookies=null) : \Temma\Web\Response {
-		$temma = $this->_createEnvironment($url, $data, $httpMethod);
+		$temma = $this->_createEnvironment($url, $httpMethod, $data);
 		ob_start();
 		$temma->process(processView: null, sendHeaders: false);
 		ob_end_clean();
@@ -79,10 +79,10 @@ class Test {
 	 * @param	string	$httpMethod	(optional) HTTP method ("GET", "POST"...). Defaults to "GET".
 	 * @param	?array	$data		(optional) Associative array of parameters (GET or POST parameters, depending on the $httpMethod parameter). Defaults to null.
 	 * @param	?array	$cookies	(optional) Associative array of cookies. Defaults to null.
-	 * @return	?string|array	Redirection URL or associative array of template variables.
+	 * @return	null|string|array	Redirection URL or associative array of template variables.
 	 */
 	public function execData(string $url, string $httpMethod='GET', ?array $data=null, ?array $cookies=null) : null|string|array {
-		$temma = $this->_createEnvironment($url, $data, $httpMethod);
+		$temma = $this->_createEnvironment($url, $httpMethod, $data);
 		ob_start();
 		$result = $temma->process(processView: false, sendHeaders: false);
 		ob_end_clean();
@@ -97,7 +97,7 @@ class Test {
 	 * @return	string	The output (depending on the view, HTML by default).
 	 */
 	public function execOutput(string $url, string $httpMethod='GET', ?array $data=null, ?array $cookies=null) : string {
-		$temma = $this->_createEnvironment($url, $data, $httpMethod);
+		$temma = $this->_createEnvironment($url, $httpMethod, $data);
 		ob_start();
 		$temma->process(sendHeaders: false);
 		$result = ob_get_clean();
