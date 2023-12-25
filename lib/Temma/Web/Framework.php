@@ -596,16 +596,25 @@ class Framework {
 	 */
 	private function _loadView() : \Temma\Web\View {
 		$name = $this->_response->getView();
-		if ($name) {
-			TµLog::log('Temma/Web', 'INFO', "Loading view '$name'.");
-		} else {
+		// manage undefined view
+		if (!$name) {
 			// no defined view, use the default view
-			TµLog::log('Temma/Web', 'DEBUG', "Using default view '" . $this->_config->defaultView . "'.");
-			$name = $this->_config->defaultView;
+			$name = $this->_config->defaultView ?: \Temma\Web\Config::DEFAULT_VIEW;
+			TµLog::log('Temma/Web', 'DEBUG', "Using default view '$name'.");
 		}
+		// manage Temma's standard views
+		if (str_starts_with($name, '~')) {
+			$name = '\Temma\View\\' . mb_substr($name, 1);
+			TµLog::log('Temma/Web', 'DEBUG', "Using Temma standard view '$name'.");
+		}
+		// force namespace
+		if (!str_starts_with($name, '\\'))
+			$name = "\\$name";
 		// load the view
-		if (class_exists($name) && is_subclass_of($name, '\Temma\Web\View'))
+		if (class_exists($name) && is_subclass_of($name, '\Temma\Web\View')) {
+			TµLog::log('Temma/Web', 'INFO', "Loading view '$name'.");
 			return (new $name($this->_dataSources, $this->_config, $this->_response));
+		}
 		// the view doesn't exist
 		TµLog::log('Temma/Web', 'ERROR', "Unable to instantiate view '$name'.");
 		throw new TµFrameworkException("Unable to load any view.", TµFrameworkException::NO_VIEW);

@@ -66,9 +66,10 @@ class Response implements \ArrayAccess {
 	}
 	/**
 	 * Define the view name.
-	 * @param	string	$view	The view name.
+	 * @param	?string	$view	(optional) The view name.
+	 *				Set to null of leave empty to use the default view defined in the 'temma.json' configuration file.
 	 */
-	public function setView(string $view) : void {
+	public function setView(?string $view=null) : void {
 		$this->_view = $view;
 	}
 	/**
@@ -133,21 +134,21 @@ class Response implements \ArrayAccess {
 	}
 	/**
 	 * Returns the view name.
-	 * @return	string|null	The view name, or null if it was not set.
+	 * @return	?string	The view name, or null if it was not set.
 	 */
 	public function getView() : ?string {
 		return ($this->_view);
 	}
 	/**
 	 * Returns the template name prefix.
-	 * @return	string|null	The prefix, or null if it was not set.
+	 * @return	?string	The prefix, or null if it was not set.
 	 */
 	public function getTemplatePrefix() : ?string {
 		return ($this->_templatePrefix);
 	}
 	/**
 	 * Returns the template name.
-	 * @return	string|null	The template name, or null if it was not set.
+	 * @return	?string	The template name, or null if it was not set.
 	 */
 	public function getTemplate() : ?string {
 		return ($this->_template);
