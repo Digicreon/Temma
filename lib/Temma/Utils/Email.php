@@ -25,6 +25,8 @@ use \Temma\Base\Log as TµLog;
  * ```json
  * {
  *     "x-email": {
+ *         "disabled": true,
+ *         "allowedDomains": ["temma.net", "temma.org"],
  *         "cc": "leia@rebellion.org",
  *         "bcc": [
  *             "palpatine@empire.com",
@@ -37,21 +39,17 @@ use \Temma\Base\Log as TµLog;
  *
  * Then, the Email object must be initiated using the loader object:
  * ```php
- * use \Temma\Utils\Email as TµEmail;
- * // initilization at first use
- * $this->_loader->TµEmail->simpleMail( ... );
- * // subsequent calls can be static, the configuration has been set
- * TµEmail::simpleMail( ... );
- * ```
- *
- * Remember you can use the array-like syntax of the loader:
- * ```php
- * $this->_loader['\Temma\Utils\Email']->simpleMail( ... );
+ * // initialization at first use
+ * $this->_loader['\Temma\Utils\Email']->textMail( ... );
  * ```
  *
  * @link	https://www.php.net/manual/en/function.mail.php
  */
 class Email implements \Temma\Base\Loadable {
+	/** Tell if message sending is disabled. */
+	private bool $_disabled = false;
+	/** List of allowed domains. */
+	private ?array $_allowedDomains = null;
 	/** Recipients added to all messages. */
 	private ?array $_cc = [];
 	/** Blinded recipients added to all messages. */
@@ -64,6 +62,12 @@ class Email implements \Temma\Base\Loadable {
 	 * @param       \Temma\Base\Loader      $loader Composant d'injection de dépendances.
 	 */
 	public function __construct(\Temma\Base\Loader $loader) {
+		$disabled = $loader->config?->xtra('email', 'disabled');
+		if ($disabled)
+			$this->_disabled = true;
+		$allowedDomains = $loader->config?->xtra('email', 'allowedDomains');
+		if (is_array($allowedDomains))
+			$this->_allowedDomains = $allowedDomains;
 		$cc = $loader->config?->xtra('email', 'cc');
 		if (is_array($cc))
 			$this->_cc = array_filter($cc);
@@ -77,6 +81,20 @@ class Email implements \Temma\Base\Loadable {
 		$envelopeSender = $loader->config?->xtra('email', 'envelopeSender');
 		if (is_string($envelopeSender))
 			$this->_envelopeSender = trim($envelopeSender);
+	}
+	/**
+	 * Enable or disable message sending.
+	 * @param	bool	$enable	True to enable, false to disable.
+	 */
+	public function enable(bool $enable) : void {
+		$this->_disabled = !$enabled;
+	}
+	/**
+	 * Define the list of allowed domains.
+	 * @param	?array	$allowedDomains	The list of allowed domains.
+	 */
+	public function setAllowedDomains(?array $allowedDomains) : void {
+		$this->_allowedDomains = $allowedDomains;
 	}
 	/**
 	 * Define recipients for all messages.
@@ -111,6 +129,11 @@ class Email implements \Temma\Base\Loadable {
 	 */
 	public function textMail(string $from, string|array $to, string $title='', string $message='',
 	                         string|array $cc='', string|array $bcc='', ?string $envelopeSender=null) : void {
+		if ($this->_disabled)
+			return;
+		$to = $this->_filterRecipients($to);
+		if (!$to)
+			return;
 		$cc = is_array($cc) ? $cc : [$cc];
 		$cc = array_merge($cc, $this->_cc);
 		$bcc = is_array($bcc) ? $bcc : [$bcc];
@@ -138,6 +161,11 @@ class Email implements \Temma\Base\Loadable {
 	public function mimeMail(string $from, string|array $to, string $title='', string $html='', ?string $text=null,
 	                         ?array $attachments=null, string|array $cc='', string|array $bcc='',
 	                         ?string $unsubscribe=null, ?string $envelopeSender=null) : void {
+		if ($this->_disabled)
+			return;
+		$to = $this->_filterRecipients($to);
+		if (!$to)
+			return;
 		$cc = is_array($cc) ? $cc : [$cc];
 		$cc = array_merge($cc, $this->_cc);
 		$bcc = is_array($bcc) ? $bcc : [$bcc];
@@ -301,6 +329,27 @@ class Email implements \Temma\Base\Loadable {
 			$params = "-f$envelopeSender";
 		// send the message
 		mail($to, $title, $message, $headers, $params);
+	}
+
+	/* ********** PRIVATE METHODS ********** */
+	/**
+	 * Filter the list of recipients using the list of allowedDomains.
+	 * @param	string|array	$to	Recipient of the message, or list of recipients (each recipient in the form "Name <address@domain>" or "address@domain").
+	 * @return	array	The filtered list of recipients.
+	 */
+	private function _filterRecipients(string|array $to) : array {
+		$to = is_array($to) ? $to : [$to];
+		if (!$this->_allowedDomains)
+			return ($to);
+		$filtered = [];
+		foreach ($this->_allowedDomains as $domain) {
+			foreach ($to as $recipient) {
+				if (str_ends_with($recipient, "@$domain") || str_ends_with($recipient, "@$domain>")) {
+					$filtered[] = $recipient;
+				}
+			}
+		}
+		return ($filtered);
 	}
 }
 
