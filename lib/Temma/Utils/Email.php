@@ -87,7 +87,7 @@ class Email implements \Temma\Base\Loadable {
 	 * @param	bool	$enable	True to enable, false to disable.
 	 */
 	public function enable(bool $enable) : void {
-		$this->_disabled = !$enabled;
+		$this->_disabled = !$enable;
 	}
 	/**
 	 * Define the list of allowed domains.
