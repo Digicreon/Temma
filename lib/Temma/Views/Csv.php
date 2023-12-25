@@ -15,15 +15,20 @@ namespace Temma\Views;
  * The name of the downloaded file is fetched from the "filename" template variable.
  */
 class Csv extends \Temma\Web\View {
+	/** Constant: default separator character. */
+	const DEFAULT_SEPARATOR = ',';
 	/** Data that must be exported. */
 	private ?array $_csv = null;
 	/** Name of the downloadable file. */
 	private ?string $_filename = null;
+	/** Separator character. */
+	private string $_separator = ',';
 
 	/** Init. */
 	public function init() : void {
 		$this->_csv = $this->_response->getData('csv');
 		$this->_filename = $this->_response->getData('filename');
+		$this->_separator = $this->_response->getData('separator') ?? self::DEFAULT_SEPARATOR;
 	}
 	/** Write HTTP headers. */
 	public function sendHeaders(?array $headers=null) : void {
@@ -42,7 +47,7 @@ class Csv extends \Temma\Web\View {
 	public function sendBody() : void {
 		$stdout = fopen('php://output', 'w');
 		foreach ($this->_csv as $line) {
-			fputcsv($stdout, $line);
+			fputcsv($stdout, $line, $this->_separator);
 		}
 		fclose($stdout);
 	}
