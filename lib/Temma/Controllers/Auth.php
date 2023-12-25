@@ -190,6 +190,8 @@ class Auth extends \Temma\Web\Plugin {
 	#[TµAuth(authenticated: false, redirect: '/')]
 	public function authentication() {
 		$this->_redirect('/auth/login');
+		// get the configuration
+		$conf = $this->_config->xtra('security', 'auth');
 		// check email address
 		$email = trim($_POST['email'] ?? null);
 		if (!$email || filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
@@ -198,27 +200,29 @@ class Auth extends \Temma\Web\Plugin {
 			return (self::EXEC_HALT);
 		}
 		// check hash (anti-robot system)
-		$hash = $_POST['hash'] ?? '';
-		if (!$hash || !preg_match('/^([^#]*)#([^#]*)#([^#]*)$/', $hash, $matches)) {
-			// empty hash or without '#' character
-			$this->_session['authStatus'] = 'robot';
-			return (self::EXEC_HALT);
-		}
-		$timeDiff = intval($matches[1] ?? 0);
-		$loginTime = $matches[2] ?? 0;
-		$hash = $matches[3] ?? '';
-		$computedHash = md5($timeDiff . ':' . $loginTime . ':' . $email . ':' . $_SERVER['HTTP_USER_AGENT']);
-		if ($timeDiff < 2000 || $timeDiff > 3600000 || // [1]
-		    abs(time() - ($loginTime / 1000)) > 300 || // [2]
-		    $hash != $computedHash                     // [3]
-		) {
-			// [1] time difference between page loading and form submission
-			//     is less than 2 second or greater than 1 hour
-			// [2] time difference between form submission and now
-			//     is greater than 5 minutes
-			// [3] received hash is different from the one calculated
-			$this->_session['authStatus'] = 'robot';
-			return (self::EXEC_HALT);
+		if (!($conf['robotCheckDisabled'] ?? false)) {
+			$hash = $_POST['hash'] ?? '';
+			if (!$hash || !preg_match('/^([^#]*)#([^#]*)#([^#]*)$/', $hash, $matches)) {
+				// empty hash or without '#' character
+				$this->_session['authStatus'] = 'robot';
+				return (self::EXEC_HALT);
+			}
+			$timeDiff = intval($matches[1] ?? 0);
+			$loginTime = $matches[2] ?? 0;
+			$hash = $matches[3] ?? '';
+			$computedHash = md5($timeDiff . ':' . $loginTime . ':' . $email . ':' . $_SERVER['HTTP_USER_AGENT']);
+			if ($timeDiff < 2000 || $timeDiff > 3600000 || // [1]
+			    abs(time() - ($loginTime / 1000)) > 300 || // [2]
+			    $hash != $computedHash                     // [3]
+			) {
+				// [1] time difference between page loading and form submission
+				//     is less than 2 second or greater than 1 hour
+				// [2] time difference between form submission and now
+				//     is greater than 5 minutes
+				// [3] received hash is different from the one calculated
+				$this->_session['authStatus'] = 'robot';
+				return (self::EXEC_HALT);
+			}
 		}
 		// create DAO objects
 		$this->_createDao();
@@ -229,7 +233,6 @@ class Auth extends \Temma\Web\Plugin {
 			// user not registered
 			TµLog::log('Temma/App', 'DEBUG', "Unknown email address '$email'.");
 			// check if the user must be registered
-			$conf = $this->_config->xtra('security', 'auth');
 			if (!($conf['registration'] ?? false)) {
 				// no automatic registration
 				$this->_session['authStatus'] = 'tokenSent';
@@ -262,6 +265,8 @@ class Auth extends \Temma\Web\Plugin {
 		]);
 		// send the token by email
 		$this->_sendTokenEmail($email, $token);
+		// store the token as a template variable (for testing purpose)
+		$this['token'] = $token;
 		// redirect
 		$this->_session['authStatus'] = 'tokenSent';
 		return (self::EXEC_HALT);
