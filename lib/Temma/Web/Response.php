@@ -74,9 +74,9 @@ class Response implements \ArrayAccess {
 	}
 	/**
 	 * Define the template name prefix.
-	 * @param	string	$prefix	The prefix.
+	 * @param	?string	$prefix	The prefix.
 	 */
-	public function setTemplatePrefix(string $prefix) : void {
+	public function setTemplatePrefix(?string $prefix) : void {
 		$this->_templatePrefix = $prefix;
 	}
 	/**
