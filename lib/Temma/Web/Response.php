@@ -80,10 +80,10 @@ class Response implements \ArrayAccess {
 		$this->_templatePrefix = $prefix;
 	}
 	/**
-	 * Define the template name.
-	 * @param	string	$template	The name.
+	 * Define the template path.
+	 * @param	?string	$template	The template path. Set to null to use the default path.
 	 */
-	public function setTemplate(string $template) : void {
+	public function setTemplate(?string $template) : void {
 		$this->_template = $template;
 	}
 	/**
