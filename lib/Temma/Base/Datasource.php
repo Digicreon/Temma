@@ -88,6 +88,9 @@ abstract class Datasource implements \ArrayAccess, \Countable {
 			return (\Temma\Datasources\Smsmode::factory($dsn));
 		if (str_starts_with($dsn, 'pushover://'))
 			return (\Temma\Datasources\Pushover::factory($dsn));
+		if (str_starts_with($dsn, 'zmq://') ||
+		    str_starts_with($dsn, 'zmq-bind://'))
+			return (\Temma\Datasources\ZeroMQ::factory($dsn));
 		if (str_starts_with($dsn, 'env://')) {
 			$dsn = getenv(substr($dsn, 6));
 			return (self::factory($dsn));

@@ -227,12 +227,12 @@ class Sqs extends \Temma\Base\Datasource {
 	/**
 	 * Add a message in SQS.
 	 * @param	string	$id		Not used.
-	 * @param	string	$data		(optional) Message data.
+	 * @param	string	$data		Message data.
 	 * @param	mixed	$options	(optional) Not used.
 	 * @return	?string	Message identifier.
 	 * @throws	\Exception	If an error occured.
 	 */
-	public function write(string $id, string $data=null, mixed $options=null) : ?string {
+	public function write(string $id, string $data, mixed $options=null) : ?string {
 		if (!$this->_enabled)
 			return (null);
 		$this->_connect();
