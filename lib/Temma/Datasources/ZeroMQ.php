@@ -101,6 +101,7 @@ class ZeroMQ extends \Temma\Base\Datasource {
 		$this->_socket = new \ZMQSocket(new \ZMQContext(), $type);
 		// connection or binding
 		foreach ($this->_hosts as $host) {
+			$host = trim($host);
 			if ($this->_connectionType == 'connect')
 				$this->_socket->connect($host);
 			else
