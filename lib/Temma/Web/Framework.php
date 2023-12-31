@@ -593,9 +593,15 @@ class Framework {
 	 * Load the view.
 	 * @return	\Temma\Web\View	Instance of the requested view.
 	 * @throws	\Temma\Exceptions\Framework	If no view can be loaded.
+	 * @throws	\Temma\Exceptions\FlowQuit	If the view was explicitely deactivated in the response.
 	 */
 	private function _loadView() : \Temma\Web\View {
 		$name = $this->_response->getView();
+		// manage view disabling
+		if ($name === false) {
+			TµLog::log('Temma/Web', 'DEBUG', "View is disabled.");
+			throw new \Temma\Exceptions\FlowQuit();
+		}
 		// manage undefined view
 		if (!$name) {
 			// no defined view, use the default view

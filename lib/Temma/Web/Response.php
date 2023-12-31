@@ -23,7 +23,7 @@ class Response implements \ArrayAccess {
 	/** HTTP return code. */
 	private int $_httpCode = 200;
 	/** Name of the view. */
-	private ?string $_view = null;
+	private null|false|string $_view = null;
 	/** Prefix to add at the beginning of the template path. */
 	private ?string $_templatePrefix = null;
 	/** Name of the template. */
@@ -66,10 +66,11 @@ class Response implements \ArrayAccess {
 	}
 	/**
 	 * Define the view name.
-	 * @param	?string	$view	(optional) The view name.
-	 *				Set to null of leave empty to use the default view defined in the 'temma.json' configuration file.
+	 * @param	null|false|string	$view	(optional) The view name.
+	 *					Set to null of leave empty to use the default view defined in the 'temma.json' configuration file.
+	 *					Set to false to disable the processing of the view.
 	 */
-	public function setView(?string $view=null) : void {
+	public function setView(null|false|string $view=null) : void {
 		$this->_view = $view;
 	}
 	/**

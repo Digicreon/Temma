@@ -46,10 +46,11 @@ use \Temma\Base\Log as TµLog;
 class View extends \Temma\Web\Attribute {
 	/**
 	 * Constructor.
-	 * @param	?string	$view	(optional) The fully-namespaced name of the view object to use.
-	 *				If left empty (or set to null), use the default view as configured in the 'temma.json' configuration file.
+	 * @param	null|false|string	$view	(optional) The fully-namespaced name of the view object to use.
+	 *						If left empty (or set to null), use the default view as configured in the 'temma.json' configuration file.
+	 *						If set to false, disable the processing of the view.
 	 */
-	public function __construct(?string $view=null) {
+	public function __construct(null|false|string $view=null) {
 		$this->_getResponse()->setView($view);
 	}
 }

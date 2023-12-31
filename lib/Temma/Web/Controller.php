@@ -244,7 +244,7 @@ class Controller implements \ArrayAccess {
 	 * @param	mixed	$name	Name of the variable.
 	 * @param	mixed	$value	Associated value.
 	 */
-	final public function offsetSet(mixed $name, mixed $value) : void {
+	public function offsetSet(mixed $name, mixed $value) : void {
 		$this->_response[$name] = $value;
 	}
 	/**
