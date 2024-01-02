@@ -62,7 +62,7 @@ class EventsController extends Controller {
 	 * @param	mixed	$value	Sent value.
 	 * @throws	\Temma\Exceptions\FlowQuit	If the client connection was aborted.
 	 */
-	final public function offsetSet(mixed $name, mixed $value) : void {
+	public function offsetSet(mixed $name, mixed $value) : void {
 		// check the connection
 		$this->_checkConnection();
 		// if this is the first event, send specific headers first
@@ -76,6 +76,8 @@ class EventsController extends Controller {
 		print("event: $name\r\n");
 		print("data: " . json_encode($value, JSON_THROW_ON_ERROR) . "\r\n");
 		print("\r\n");
+		ob_flush();
+		flush();
 		// increment the number ofevents sent for the channel
 		if (!isset($this->_channels[$name]))
 			$this->_channels[$name] = 1;
