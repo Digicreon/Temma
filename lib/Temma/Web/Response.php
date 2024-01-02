@@ -135,9 +135,9 @@ class Response implements \ArrayAccess {
 	}
 	/**
 	 * Returns the view name.
-	 * @return	?string	The view name, or null if it was not set.
+	 * @return	null|false|string	The view name, or null if it was not set.
 	 */
-	public function getView() : ?string {
+	public function getView() : null|false|string {
 		return ($this->_view);
 	}
 	/**

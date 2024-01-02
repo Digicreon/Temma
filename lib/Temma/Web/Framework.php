@@ -610,7 +610,7 @@ class Framework {
 		}
 		// manage Temma's standard views
 		if (str_starts_with($name, '~')) {
-			$name = '\Temma\View\\' . mb_substr($name, 1);
+			$name = '\Temma\Views\\' . mb_substr($name, 1);
 			TµLog::log('Temma/Web', 'DEBUG', "Using Temma standard view '$name'.");
 		}
 		// force namespace
