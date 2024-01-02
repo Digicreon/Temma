@@ -103,9 +103,9 @@ class ZeroMQ extends \Temma\Base\Datasource {
 		foreach ($this->_hosts as $host) {
 			$host = trim($host);
 			if ($this->_connectionType == 'connect')
-				$this->_socket->connect($host);
+				$this->_socket->connect("tcp://$host");
 			else
-				$this->_socket->bind($host);
+				$this->_socket->bind("tcp://$host");
 		}
 	}
 
