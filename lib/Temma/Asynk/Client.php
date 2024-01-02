@@ -2,7 +2,7 @@
 
 /**
  * Client
- * @authror	Amaury Bouchard <amaury@amaury.net>
+ * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2023, Amaury Bouchard
  */
 
