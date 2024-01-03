@@ -289,6 +289,8 @@ class Framework {
 		/* ********** VIEW ********** */
 		// load the view object
 		$view = $this->_loadView();
+		if ($view === false)
+			return (null);
 		// init the view
 		$this->_initView($view);
 		// send HTTP headers
@@ -591,16 +593,16 @@ class Framework {
 	/* ********** VIEW ********** */
 	/**
 	 * Load the view.
-	 * @return	\Temma\Web\View	Instance of the requested view.
+	 * @return	false|\Temma\Web\View	Instance of the requested view, or false if the view has been disabled.
 	 * @throws	\Temma\Exceptions\Framework	If no view can be loaded.
 	 * @throws	\Temma\Exceptions\FlowQuit	If the view was explicitely deactivated in the response.
 	 */
-	private function _loadView() : \Temma\Web\View {
+	private function _loadView() : false|\Temma\Web\View {
 		$name = $this->_response->getView();
 		// manage view disabling
 		if ($name === false) {
 			TµLog::log('Temma/Web', 'DEBUG', "View is disabled.");
-			throw new \Temma\Exceptions\FlowQuit();
+			return (false);
 		}
 		// manage undefined view
 		if (!$name) {
