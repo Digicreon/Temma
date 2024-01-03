@@ -99,6 +99,14 @@ class ZeroMQ extends \Temma\Base\Datasource {
 			$type = \ZMQ::SOCKET_SUB;
 		// socket creation
 		$this->_socket = new \ZMQSocket(new \ZMQContext(), $type);
+		// options for PUB/SUB sockets
+		if ($this->_socketType == 'PUB') {
+			$this->_socket->setSockOpt(\ZMQ::SOCKOPT_LINGER, 0);
+			$this->_socket->setSockOpt(\ZMQ::SOCKOPT_SNDHWM, 1);
+		} else if ($this->_socketType == 'SUB') {
+			$this->_socket->setSockOpt(\ZMQ::SOCKOPT_SUBSCRIBE, '');
+			$this->_socket->setSockOpt(\ZMQ::SOCKOPT_LINGER, 0);
+		}
 		// connection or binding
 		foreach ($this->_hosts as $host) {
 			$host = trim($host);
