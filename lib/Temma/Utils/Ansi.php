@@ -840,7 +840,7 @@ class Ansi {
 		$lines = explode("\n", $s);
 		foreach ($lines as $line) {
 			$lineLen = self::strlen($line);
-			$pad = str_repeat(' ', ($screenWidth - $lineLen - (($padding > 1) ? 8 : 4)));
+			$pad = str_repeat(' ', max(0, $screenWidth - $lineLen - (($padding > 1) ? 8 : 4)));
 			$res .= self::backColor($backColor, $borderColor, $lineLeft);
 			$res .= self::backColor($backColor, $textColor, (($padding > 1) ? '   ' : ' '));
 			$res .= self::backColor($backColor, $textColor, $line);
@@ -873,7 +873,7 @@ class Ansi {
 		$borderColor = $style['borderColor'] ?? 'default';
 		// margin
 		if (($style['marginTop'] ?? null)) {
-			$res .= str_repeat("\n", $style['marginTop']);
+			$res .= str_repeat("\n", max(0, ($style['marginTop'] ?? 0)));
 		}
 		// label
 		if (($style['label'] ?? null)) {
@@ -886,12 +886,12 @@ class Ansi {
 		}
 		// line
 		if (($style['borderColor'] ?? null) && ($lineTopLeft || $lineTop || $lineTopRight)) {
-			$res .= self::backColor($backColor, $borderColor, $lineTopLeft . str_repeat($lineTop, ($screenWidth - 2)) . $lineTopRight) . "\n";
+			$res .= self::backColor($backColor, $borderColor, $lineTopLeft . str_repeat($lineTop, max(0, $screenWidth - 2)) . $lineTopRight) . "\n";
 		}
 		// padding
 		if (($style['padding'] ?? null)) {
 			for ($i = 0; $i < $style['padding']; $i++) {
-				$padding = $lineLeft . str_repeat(' ', ($screenWidth - 2)) .
+				$padding = $lineLeft . str_repeat(' ', max(0, $screenWidth - 2)) .
 				           ($lineLeft ? '' : ' ') . $lineRight . ($lineRight ? '' : ' ');
 				$res .= self::backColor($backColor, $borderColor, $padding) . "\n";
 			}
@@ -921,17 +921,17 @@ class Ansi {
 		// padding
 		if (($style['padding'] ?? null)) {
 			for ($i = 0; $i < $style['padding']; $i++) {
-				$res .= self::backColor($backColor, $borderColor, $lineLeft . str_repeat(' ', ($screenWidth - 2)) .
+				$res .= self::backColor($backColor, $borderColor, $lineLeft . str_repeat(' ', max(0, $screenWidth - 2)) .
 				                                                  ($lineLeft ? '' : ' ') . $lineRight . ($lineRight ? '' : ' ')) . "\n";
 			}
 		}
 		// line
 		if (($style['borderColor'] ?? null) && ($lineBottomLeft || $lineBottom || $lineBottomRight)) {
-			$res .= self::backColor($backColor, $borderColor, $lineBottomLeft . str_repeat($lineBottom, ($screenWidth - 2)) . $lineBottomRight) . "\n";
+			$res .= self::backColor($backColor, $borderColor, $lineBottomLeft . str_repeat($lineBottom, max(0, $screenWidth - 2)) . $lineBottomRight) . "\n";
 		}
 		// margin
 		if (($style['marginBottom'] ?? null)) {
-			$res .= str_repeat("\n", $style['marginBottom']);
+			$res .= str_repeat("\n", max(0, ($style['marginBottom'] ?? 0)));
 		}
 		return ($res);
 	}
@@ -1172,8 +1172,8 @@ class Ansi {
 		else
 			print(" $text\n");
 		TµTerm::clearLine();
-		print(' ' . self::backColor(self::$_progressBackColor, self::$_progressTextColor, str_repeat('█', $progress) . str_repeat(' ', $rest)) .
-		      ' ' . str_repeat(' ', $labelOffset) . $label);
+		print(' ' . self::backColor(self::$_progressBackColor, self::$_progressTextColor, str_repeat('█', $progress) . str_repeat(' ', max(0, $rest))) .
+		      ' ' . str_repeat(' ', max(0, $labelOffset)) . $label);
 	}
 }
 
