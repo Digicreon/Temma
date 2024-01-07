@@ -43,6 +43,11 @@ if ($_SERVER['argv'][0] == 'help') {
 	showHelp();
 	exit(0);
 }
+// stderr management
+if ($_SERVER['argv'][0] == 'nostderr') {
+	TµLog::logToStdErr(false);
+	array_shift($_SERVER['argv']);
+}
 // extract object, method and parameters
 $objectName = array_shift($_SERVER['argv']);
 $methodName = array_shift($_SERVER['argv']);
