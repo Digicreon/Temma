@@ -96,7 +96,7 @@ class Log {
 	/** Flag for STDOUT writing. */
 	static private bool $_logToStdOut = false;
 	/** Flag for STDERR writing. */
-	static private bool $_logToStdErr = false;
+	static private ?bool $_logToStdErr = null;
 	/** Log writing flag. */
 	static private bool $_enable = true;
 	/** Current threshold. */
@@ -325,7 +325,7 @@ class Log {
 			$text .= "-$class- ";
 		$text .= $message . "\n";
 		// check if there is a configured output
-		if (!self::$_logPath && !self::$_logToStdOut && !self::$_logToStdErr && !self::$_logCallbacks) {
+		if (!self::$_logPath && !self::$_logToStdOut && is_null(self::$_logToStdErr) && !self::$_logCallbacks) {
 			// no configured output: write to stderr
 			file_put_contents('php://stderr', $text);
 			return;
