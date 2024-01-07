@@ -89,10 +89,21 @@ class Beanstalk extends \Temma\Base\Datasource {
 	 * Creation of the Pheanstalk client object.
 	 * @throws      \Exception      If an error occured.
 	 */
-	private function _connect() {
+	public function connect() {
 		if (!$this->_enabled || $this->_pheanstalk)
 			return;
+		$this->reconnect();
+	}
+	/** Reopen the connection. */
+	public function reconnect() {
+		if (!$this->_enabled)
+			return;
+		unset($this->_pheanstalk);
 		$this->_pheanstalk = \Pheanstalk\Pheanstalk::create($this->_host, $this->_port);
+	}
+	/** Close the connection. */
+	public function disconnect() {
+		unset($this->_pheanstalk);
 	}
 
 	/* ********** SPECIAL REQUESTS ********** */
@@ -105,7 +116,7 @@ class Beanstalk extends \Temma\Base\Datasource {
 	public function touch(string $id) : \Temma\Datasources\Beanstalk {
 		if (!$this->_enabled)
 			return ($this);
-		$this->_connect();
+		$this->connect();
 		$job = new \Pheanstalk\Values\Job(new \Pheanstalk\Values\JobId($id), '');
 		$this->_pheanstalk->touch($job);
 		return ($this);
@@ -119,7 +130,7 @@ class Beanstalk extends \Temma\Base\Datasource {
 	public function count() : int {
 		if (!$this->_enabled)
 			return (0);
-		$this->_connect();
+		$this->connect();
 		$size = $this->_pheanstalk->statsTube($this->_tube)->current_jobs_ready;
 		return ($size);
 	}
@@ -132,7 +143,7 @@ class Beanstalk extends \Temma\Base\Datasource {
 	public function remove(string $id) : void {
 		if (!$this->_enabled)
 			return;
-		$this->_connect();
+		$this->connect();
 		$job = new \Pheanstalk\Values\Job(new \Pheanstalk\Values\JobId($id), '');
 		$this->_pheanstalk->delete($job);
 	}
@@ -155,7 +166,7 @@ class Beanstalk extends \Temma\Base\Datasource {
 	 * @throws	\Exception	If an error occured.
 	 */
 	public function read(string $key, mixed $defaultOrCallback=null, mixed $options=null) : ?array {
-		$this->_connect();
+		$this->connect();
 		if (!$this->_enabled)
 			return (null);
 		// fetch the message
@@ -193,7 +204,7 @@ class Beanstalk extends \Temma\Base\Datasource {
 	public function write(string $id, string $data=null, mixed $options=null) : ?string {
 		if (!$this->_enabled)
 			return (null);
-		$this->_connect();
+		$this->connect();
 		// add message
 		$job = $this->_pheanstalk->useTube($this->_tube)->put($data);
 		return ($job->getId());

@@ -98,6 +98,17 @@ abstract class Datasource implements \ArrayAccess, \Countable {
 		throw new \Exception("No valid DSN provided '$dsn'.");
 	}
 
+	/* ********** CONNECTION ********** */
+	/** Open the connection. */
+	public function connect() {
+	}
+	/** Re-open the connection. */
+	public function reconnect() {
+	}
+	/** Close the connection. */
+	public function disconnect() {
+	}
+
 	/* ********** DATA ACCESS MANAGEMENT ********** */
 	/**
 	 * For compatibility: Tell if the datasource is enabled or not.

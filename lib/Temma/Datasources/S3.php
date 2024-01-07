@@ -150,9 +150,19 @@ class S3 extends \Temma\Base\Datasource {
 	 * Creation of the S3 client object.
 	 * @throws      \Exception      If an error occured.
 	 */
-	private function _connect() {
+	public function connect() {
 		if (!$this->_enabled || $this->_s3Client)
 			return;
+		$this->reconnect();
+	}
+	/**
+	 * Reconnection.
+	 * @throws	\Temma\Exceptions\Database	If the connection failed.
+	 */
+	public function reconnect() {
+		if (!$this->_enabled)
+			return;
+		$this->disconnect();
 		$this->_s3Client = new \Aws\S3\S3Client([
 			'version'     => 'latest',
 			'region'      => $this->_region,
@@ -161,6 +171,11 @@ class S3 extends \Temma\Base\Datasource {
 				'secret' => $this->_privateKey,
 			],
 		]);
+	}
+	/** Disconnection. */
+	public function disconnect() {
+		unset($this->_s3Client);
+		$this->_s3Client = null;
 	}
 
 	/* ********** ARRAY-LIKE REQUESTS ********** */
@@ -171,7 +186,7 @@ class S3 extends \Temma\Base\Datasource {
 	public function count() : int {
 		if (!$this->_enabled)
 			return (0);
-		$this->_connect();
+		$this->connect();
 		$count = 0;
 		try {
 			$objects = $this->_s3Client->getIterator('ListObjects', [
@@ -196,7 +211,7 @@ class S3 extends \Temma\Base\Datasource {
 	public function getUrl(string $s3Path) : string {
 		if (!$this->_enabled)
 			return ('');
-		$this->_connect();
+		$this->connect();
 		try {
 			$cmd = $this->_s3Client->getCommand('GetObject', [
 				'Bucket' => $this->_bucket,
@@ -220,7 +235,7 @@ class S3 extends \Temma\Base\Datasource {
 	public function isSet(string $s3Path) : bool {
 		if (!$this->_enabled)
 			return (false);
-		$this->_connect();
+		$this->connect();
 		return ($this->_s3Client->doesObjectExistV2($this->_bucket, $s3Path));
 	}
 	/**
@@ -230,7 +245,7 @@ class S3 extends \Temma\Base\Datasource {
 	public function remove(string $s3Path) : void {
 		if (!$this->_enabled)
 			return;
-		$this->_connect();
+		$this->connect();
 		try {
 			$this->_s3Client->deleteObject([
 				'Bucket' => $this->_bucket,
@@ -248,7 +263,7 @@ class S3 extends \Temma\Base\Datasource {
 	public function mRemove(array $s3Paths) : void {
 		if (!$this->_enabled)
 			return;
-		$this->_connect();
+		$this->connect();
 		$objects = [];
 		foreach ($s3Paths as $path) {
 			$objects[] = [
@@ -274,7 +289,7 @@ class S3 extends \Temma\Base\Datasource {
 	public function clear(string $prefix) : void {
 		if (!$this->_enabled)
 			return;
-		$this->_connect();
+		$this->connect();
 		try {
 			$this->_s3Client->deleteMatchingObjects($this->_bucket, $prefix);
 		} catch (\Exception $e) {
@@ -288,7 +303,7 @@ class S3 extends \Temma\Base\Datasource {
 	public function flush() : void {
 		if (!$this->_enabled)
 			return;
-		$this->_connect();
+		$this->connect();
 		try {
 			$objects = $this->_s3Client->getIterator('ListObjects', [
 				'Bucket' => $this->_bucket,
@@ -314,7 +329,7 @@ class S3 extends \Temma\Base\Datasource {
 	public function find(string $prefix, bool $getValues=false) : array {
 		if (!$this->_enabled)
 			return ([]);
-		$this->_connect();
+		$this->connect();
 		$list = [];
 		try {
 			$objects = $this->_s3Client->getIterator('ListObjects', [
@@ -347,7 +362,7 @@ class S3 extends \Temma\Base\Datasource {
 	 * @throws	\Exception	If an error occured.
 	 */
 	public function read(string $s3Path, mixed $defaultOrCallback=null, mixed $options=null) : ?string {
-		$this->_connect();
+		$this->connect();
 		// fetch the file content
 		if ($this->_enabled) {
 			try {
@@ -393,7 +408,7 @@ class S3 extends \Temma\Base\Datasource {
 			TµLog::log('Temma/Base', 'INFO', "Unable to write file '$localPath'.");
 			throw new \Temma\Exceptions\IO("Unable to write file '$localPath'.", \Temma\Exceptions\IO::UNWRITABLE);
 		}
-		$this->_connect();
+		$this->connect();
 		// fetch the file content
 		if ($this->_enabled) {
 			try {
@@ -431,7 +446,7 @@ class S3 extends \Temma\Base\Datasource {
 	public function write(string $s3Path, string $data, mixed $options=null) : bool {
 		if (!$this->_enabled)
 			return (false);
-		$this->_connect();
+		$this->connect();
 		// create or update file
 		$public = $this->_publicAccess;
 		$mimetype = 'application/octet-stream';
@@ -471,7 +486,7 @@ class S3 extends \Temma\Base\Datasource {
 	public function copyTo(string $s3Path, string $localPath, mixed $options=null) : bool {
 		if (!$this->_enabled)
 			return (false);
-		$this->_connect();
+		$this->connect();
 		// check destination file
 		if (!is_writeable($localPath)) {
 			TµLog::log('Temma/Base', 'INFO', "Unable to write in file '$localPath'.");

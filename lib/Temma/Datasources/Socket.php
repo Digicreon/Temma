@@ -85,10 +85,8 @@ class Socket extends \Temma\Base\Datasource {
 	 * Creation of the client socket.
 	 * @throws      \Exception      If an error occured.
 	 */
-	private function _connect() : void {
-		if (!$this->_enabled)
-			return;
-		if ($this->_sock)
+	public function connect() : void {
+		if (!$this->_enabled || $this->_sock)
 			return;
 		$this->reconnect();
 	}
@@ -96,6 +94,7 @@ class Socket extends \Temma\Base\Datasource {
 	public function reconnect() : void {
 		if (!$this->_enabled)
 			return;
+		$this->disconnect();
 		$null = null;
 		$this->_sock = fsockopen($this->_host, $this->_port, $null, $null, $this->_connectionTimeout);
 		if (!$this->_sock)
@@ -149,9 +148,9 @@ class Socket extends \Temma\Base\Datasource {
 	 * @throws	\Exception	If an error occured.
 	 */
 	public function read(string $key, mixed $defaultOrCallback=null, mixed $options=null) : ?string {
-		$this->_connect();
 		if (!$this->_enabled)
 			return (null);
+		$this->connect();
 		if (feof($this->_sock))
 			return (null);
 		// options
@@ -211,7 +210,7 @@ class Socket extends \Temma\Base\Datasource {
 	public function write(string $id, string $data, mixed $options=null) : mixed {
 		if (!$this->_enabled)
 			return (false);
-		$this->_connect();
+		$this->connect();
 		fwrite($this->_sock, $data);
 		return (true);
 	}
@@ -242,7 +241,7 @@ class Socket extends \Temma\Base\Datasource {
 	public function get(string $key, mixed $defaultOrCallback=null, mixed $options=null) : ?string {
 		if (!$this->_enabled)
 			return (null);
-		$this->_connect();
+		$this->connect();
 		if (feof($this->_sock))
 			return (null);
 		// options
@@ -306,7 +305,7 @@ class Socket extends \Temma\Base\Datasource {
 	public function mSet(array $data, mixed $options=null) : int {
 		if (!$this->_enabled)
 			return (0);
-		$this->_connect();
+		$this->connect();
 		$written = 0;
 		foreach ($data as $line) {
 			$this->set('', $line, $options);

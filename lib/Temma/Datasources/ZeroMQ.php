@@ -81,7 +81,7 @@ class ZeroMQ extends \Temma\Base\Datasource {
 	 * Open the connection.
 	 * @throws	\Exception	If something went wrong.
 	 */
-	protected function _connect() : void {
+	public function connect() : void {
 		if (!$this->_enabled || $this->_socket)
 			return;
 		$type = 0;
@@ -116,6 +116,15 @@ class ZeroMQ extends \Temma\Base\Datasource {
 				$this->_socket->bind("tcp://$host");
 		}
 	}
+	/** Reconnection. */
+	public function reconnect() {
+		$this->disconnect();
+	}
+	/** Disconnection. */
+	public function disconnect() {
+		unset($this->_socket);
+		$this->_socket = null;
+	}
 
 	/* ********** STANDARD REQUESTS ********** */
 	/**
@@ -138,7 +147,7 @@ class ZeroMQ extends \Temma\Base\Datasource {
 	public function read(string $key, mixed $defaultOrCallback=null, mixed $options=null) : string {
 		if (!$this->_enabled)
 			return ('');
-		$this->_connect();
+		$this->connect();
 		$msg = $this->_socket->recv();
 		return ($msg);
 	}
@@ -152,7 +161,7 @@ class ZeroMQ extends \Temma\Base\Datasource {
 	public function write(string $id, string $data, mixed $options=null) : mixed {
 		if (!$this->_enabled)
 			return (null);
-		$this->_connect();
+		$this->connect();
 		$this->_socket->send($data);
 		return (null);
 	}
@@ -165,7 +174,7 @@ class ZeroMQ extends \Temma\Base\Datasource {
 	public function mWrite(array $data, mixed $options=null) : int {
 		if (!$this->_enabled)
 			return (0);
-		$this->_connect();
+		$this->connect();
 		$output = [];
 		foreach ($data as $datum) {
 			if (is_string($datum))
@@ -196,7 +205,7 @@ class ZeroMQ extends \Temma\Base\Datasource {
 	public function get(string $key, mixed $defaultOrCallback=null, mixed $options=null) : mixed {
 		if (!$this->_enabled)
 			return (null);
-		$this->_connect();
+		$this->connect();
 		$message = $this->read('');
 		$message = json_decode($message, true, JSON_THROW_ON_ERROR);
 		return ($message);
@@ -211,7 +220,7 @@ class ZeroMQ extends \Temma\Base\Datasource {
 	public function set(string $key, mixed $data=null, mixed $options=0) : bool {
 		if (!$this->_enabled)
 			return (false);
-		$this->_connect();
+		$this->connect();
 		$json = json_encode($data);
 		$this->write('', $json);
 		return (true);
@@ -225,7 +234,7 @@ class ZeroMQ extends \Temma\Base\Datasource {
 	public function mSet(array $data, mixed $timeout=0) : int {
 		if (!$this->_enabled)
 			return (0);
-		$this->_connect();
+		$this->connect();
 		$data = array_map('json_encode', $data);
 		return ($this->mwrite($data));
 	}

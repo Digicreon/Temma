@@ -157,11 +157,21 @@ class Sql extends \Temma\Base\Datasource {
 	/* ********** CONNECTION / DISCONNECTION ********** */
 	/**
 	 * Connection.
-	 * @throws	\Exception	If the connection failed.
+	 * @throws	\Temma\Exceptions\Database	If the connection failed.
 	 */
-	protected function _connect() : void {
+	public function connect() : void {
 		if ($this->_db)
 			return;
+		$this->reconnect();
+	}
+	/**
+	 * Reconnection.
+	 * @throws	\Temma\Exceptions\Database	If the connection failed.
+	 */
+	public function reconnect() {
+		if (!$this->_enabled)
+			return;
+		$this->disconnect();
 		try {
 			$pdoDsn = null;
 			$pdoLogin = $this->_login;
@@ -196,11 +206,12 @@ class Sql extends \Temma\Base\Datasource {
 			}
 		} catch (\Exception $e) {
 			TµLog::log('Temma/Base', 'WARN', "Database connection error: " . $e->getMessage());
-			throw $e;
+			throw new \Temma\Exceptions\Database("Database connection error: " . $e->getMessage(), \Temma\Exceptions\Database::CONNECTION);
 		}
 	}
 	/** Disconnection. */
-	public function close() : void {
+	public function disconnect() : void {
+		unset($this->_db);
 		$this->_db = null;
 	}
 
@@ -226,7 +237,9 @@ class Sql extends \Temma\Base\Datasource {
 	 */
 	public function startTransaction() : void {
 		TµLog::log('Temma/Base', 'DEBUG', "Beginning transaction.");
-		$this->_connect();
+		if (!$this->_enabled)
+			return;
+		$this->connect();
 		if ($this->_db->beginTransaction() === false) {
 			TµLog::log('Temma/Base', 'ERROR', "Unable to start a new transaction.");
 			throw new \Exception("Unable to start a new transaction.");
@@ -238,7 +251,9 @@ class Sql extends \Temma\Base\Datasource {
 	 */
 	public function commit() : void {
 		TµLog::log('Temma/Base', 'DEBUG', "Committing transaction.");
-		$this->_connect();
+		if (!$this->_enabled)
+			return;
+		$this->connect();
 		if ($this->_db->commit() === false) {
 			TµLog::log('Temma/Base', 'ERROR', "Error during transaction commit.");
 			throw new \Exception("Error during transaction commit.");
@@ -250,7 +265,9 @@ class Sql extends \Temma\Base\Datasource {
 	 */
 	public function rollback() : void {
 		TµLog::log('Temma/Base', 'DEBUG', "Rollbacking transaction.");
-		$this->_connect();
+		if (!$this->_enabled)
+			return;
+		$this->connect();
 		if ($this->_db->rollback() === false) {
 			TµLog::log('Temma/Base', 'ERROR', "Error during transaction rollback.");
 			throw new \Exception("Error during transaction rollback.");
@@ -263,7 +280,9 @@ class Sql extends \Temma\Base\Datasource {
 	 * @return	string	The last error.
 	 */
 	public function getError() : string {
-		$this->_connect();
+		if (!$this->_enabled)
+			return ('');
+		$this->connect();
 		$errInfo = $this->_db->errorInfo();
 		return ($errInfo[2] ?? '');
 	}
@@ -272,7 +291,9 @@ class Sql extends \Temma\Base\Datasource {
 	 * @return	bool	True if the connection is working.
 	 */
 	public function ping() : bool {
-		$this->_connect();
+		if (!$this->_enabled)
+			return (true);
+		$this->connect();
 		try {
 			$this->_db->query('DO 1');
 		} catch (\PDOException $e) {
@@ -286,7 +307,9 @@ class Sql extends \Temma\Base\Datasource {
 	 * @return	string	The escaped string.
 	 */
 	public function quote(mixed $str) : string {
-		$this->_connect();
+		if (!$this->_enabled)
+			return ("'" . str_replace("'", "\\'", $str) . "'");
+		$this->connect();
 		if ($str === false)
 			return ('\'0\'');
 		if ($str === null)
@@ -302,7 +325,9 @@ class Sql extends \Temma\Base\Datasource {
 	public function quoteNull(mixed $str) : string {
 		if (!$str)
 			return ('NULL');
-		$this->_connect();
+		if (!$this->_enabled)
+			return ($this->quote($str));
+		$this->connect();
 		$str = $this->_db->quote((string)$str);
 		return ($str ?: '');
 	}
@@ -314,7 +339,9 @@ class Sql extends \Temma\Base\Datasource {
 	 */
 	public function prepare(string $sql) : \Temma\Datasources\SqlStatement {
 		TµLog::log('Temma/Base', 'DEBUG', "SQL prepare: $sql");
-		$this->_connect();
+		if (!$this->_enabled)
+			throw new TµDatabaseException("Unable to prepare a query while the connection is disabled.", TµDatabaseException::QUERY);
+		$this->connect();
 		try {
 			$dbStatement = $this->_db->prepare($sql);
 		} catch (\PDOException $pe) {
@@ -332,16 +359,18 @@ class Sql extends \Temma\Base\Datasource {
 	 * Executes a SQL request without fetching data.
 	 * @param	string	$sql	The SQL request.
 	 * @return	int	The number of modified lines.
-	 * @throws	\Exception	If something went wrong.
+	 * @throws	\Temma\Exceptions\Database	If something went wrong.
 	 */
 	public function exec(string $sql) : int {
 		TµLog::log('Temma/Base', 'DEBUG', "SQL query: $sql");
-		$this->_connect();
+		if (!$this->_enabled)
+			return (0);
+		$this->connect();
 		$nbLines = $this->_db->exec($sql);
 		if ($nbLines === false) {
 			$errStr = 'Database request error: ' . $this->getError();
 			TµLog::log('Temma/Base', 'ERROR', $errStr);
-			throw new \Exception($errStr);
+			throw new TµDatabaseException($errStr, TµDatabaseException::QUERY);
 		}
 		return ($nbLines);
 	}
@@ -350,16 +379,18 @@ class Sql extends \Temma\Base\Datasource {
 	 * @param	string	$sql		The SQL request.
 	 * @param	?string	$valueField	(optional) Name of the field whose value will be returned.
 	 * @return	mixed	An associative array which contains the line of data, or the value which field's name has been given as parameter.
-	 * @throws	\Exception	If something went wrong.
+	 * @throws	\Temma\Exceptions\Database	If something went wrong.
 	 */
 	public function queryOne(string $sql, ?string $valueField=null) : mixed {
 		TµLog::log('Temma/Base', 'DEBUG', "SQL query: $sql");
-		$this->_connect();
+		if (!$this->_enabled)
+			return ([]);
+		$this->connect();
 		$result = $this->_db->query($sql);
 		if ($result === false) {
 			$errStr = 'Database request error: ' . $this->getError();
 			TµLog::log('Temma/Base', 'ERROR', $errStr);
-			throw new \Exception($errStr);
+			throw new TµDatabaseException($errStr, TµDatabaseException::QUERY);
 		}
 		$line = $result->fetch(\PDO::FETCH_ASSOC);
 		$result = null;
@@ -374,16 +405,18 @@ class Sql extends \Temma\Base\Datasource {
 	 * @param	?string	$keyField	(optional) Name of the field that must be used as the key for each record.
 	 * @param	?string	$valueField	(optional) Name of the field that will be used as value for each record.
 	 * @return	array	An array of associative arrays, or an array of values.
-	 * @throws	\Exception	If something went wrong.
+	 * @throws	\Temma\Exceptions\Database	If something went wrong.
 	 */
 	public function queryAll(string $sql, ?string $keyField=null, ?string $valueField=null) : array {
 		TµLog::log('Temma/Base', 'DEBUG', "SQL query: $sql");
-		$this->_connect();
+		if (!$this->_enabled)
+			return ([]);
+		$this->connect();
 		$result = $this->_db->query($sql);
 		if ($result === false) {
 			$errStr = 'Database request error: ' . $this->getError();
 			TµLog::log('Temma/Base', 'ERROR', $errStr);
-			throw new \Exception($errStr);
+			throw new TµDatabaseException($errStr, TµDatabaseException::QUERY);
 		}
 		$lines = $result->fetchAll(\PDO::FETCH_ASSOC);
 		if ($keyField || $valueField)
@@ -393,10 +426,12 @@ class Sql extends \Temma\Base\Datasource {
 	/**
 	 * Returns the primary key of the last inserted element.
 	 * @return	int	The primary key.
-	 * @throws	\Exception	If something went wrong.
+	 * @throws	\Temma\Exceptions\Database	If something went wrong.
 	 */
 	public function lastInsertId() : int {
-		$this->_connect();
+		if (!$this->_enabled)
+			return (0);
+		$this->connect();
 		return ((int)$this->_db->lastInsertId());
 	}
 

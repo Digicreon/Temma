@@ -98,11 +98,19 @@ class Sqs extends \Temma\Base\Datasource {
 	/* ********** CONNECTION ********** */
 	/**
 	 * Creation of the SQS client object.
-	 * @throws      \Exception      If an error occured.
+	 * @throws	\Temma\Exceptions\Database	If the connection failed.
 	 */
-	private function _connect() {
+	public function connect() {
 		if (!$this->_enabled || $this->_sqsClient)
 			return;
+		$this->reconnect();
+	}
+	/**
+	 * Reconnection.
+	 * @throws	\Temma\Exceptions\Database	If the connection failed.
+	 */
+	public function reconnect() {
+		$this->disconnect();
 		$this->_sqsClient = new \Aws\Sqs\SqsClient([
 			'version'     => 'latest',
 			'region'      => $this->_region,
@@ -111,6 +119,11 @@ class Sqs extends \Temma\Base\Datasource {
 				'secret' => $this->_privateKey,
 			],
 		]);
+	}
+	/** Disconnection. */
+	public function disconnect() {
+		unset($this->_sqsClient);
+		$this->_sqsClient = null;
 	}
 
 	/* ********** ARRAY-LIKE REQUESTS ********** */
@@ -121,7 +134,7 @@ class Sqs extends \Temma\Base\Datasource {
 	public function count() : int {
 		if (!$this->_enabled)
 			return (0);
-		$this->_connect();
+		$this->connect();
 		try {
 			$res = $this->_sqsClient->getQueueAttributes([
 				'QueueUrl'       => $this->_url,
@@ -141,7 +154,7 @@ class Sqs extends \Temma\Base\Datasource {
 	public function remove(string $id) : void {
 		if (!$this->_enabled)
 			return;
-		$this->_connect();
+		$this->connect();
 		if (!([$identifier, $handle] = json_decode($id, true)) || !$identifier || !$handle) {
 			TµLog::log('Temma/Base', 'INFO', "Bad identifier for SQS message ('$id').");
 			throw new \Temma\Exceptions\Database("Bad identifier for SQS message ('$id').", \Temma\Exceptions\Database::QUERY);
@@ -162,7 +175,7 @@ class Sqs extends \Temma\Base\Datasource {
 	public function flush() : void {
 		if (!$this->_enabled)
 			return;
-		$this->_connect();
+		$this->connect();
 		try {
 			$this->_sqsClient->purgeQueue([
 				'QueueUrl' => $this->_url,
@@ -184,9 +197,9 @@ class Sqs extends \Temma\Base\Datasource {
 	 * @throws	\Exception	If an error occured.
 	 */
 	public function read(string $key, mixed $defaultOrCallback=null, mixed $options=null) : ?array {
-		$this->_connect();
 		if (!$this->_enabled)
 			return (null);
+		$this->connect();
 		// fetch the message
 		try {
 			$result = $this->_sqsClient->receiveMessage([
@@ -235,7 +248,7 @@ class Sqs extends \Temma\Base\Datasource {
 	public function write(string $id, string $data, mixed $options=null) : ?string {
 		if (!$this->_enabled)
 			return (null);
-		$this->_connect();
+		$this->connect();
 		// add message
 		try {
 			$result = $this->_sqsClient->sendMessage([
@@ -257,7 +270,7 @@ class Sqs extends \Temma\Base\Datasource {
 	public function mWrite(array $data, mixed $options=null) : int {
 		if (!$this->_enabled)
 			return (0);
-		$this->_connect();
+		$this->connect();
 		$params = [
 			'QueueUrl' => $this->_url,
 			'Entries'  => [],

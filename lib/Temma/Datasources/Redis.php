@@ -118,19 +118,34 @@ class Redis extends \Temma\Base\Datasource {
 	/* ********** CONNECTION ********** */
 	/**
 	 * Open the connection.
-	 * @throws	\Exception	If something went wrong.
+	 * @throws	\Temma\Exceptions\Database	If the connection failed.
 	 */
-	protected function _connect() : void {
+	public function connect() : void {
 		if (!$this->_enabled || $this->_ndb)
 			return;
+		$this->reconnect();
+	}
+	/**
+	 * Reconnection.
+	 * @throws	\Temma\Exceptions\Database	If the connection failed.
+	 */
+	public function reconnect() {
+		if (!$this->_enabled)
+			return;
+		unset($this->_ndb);
 		try {
 			$this->_ndb = new \Redis();
 			$this->_ndb->connect($this->_params['host'], (isset($this->_params['port']) ? $this->_params['port'] : null));
 			if ($this->_params['base'] != self::DEFAULT_REDIS_BASE && !$this->_ndb->select($this->_params['base']))
 				throw new \Exception("Unable to select dabase '" . $this->_params['base'] . "'.");
 		} catch (\Exception $e) {
-			throw new \Exception('Redis database connexion error: ' . $e->getMessage());
+			throw new \Temma\Exceptions\Database('Redis database connexion error: ' . $e->getMessage(), \Temma\Exceptions\Database::CONNECTION);
 		}
+	}
+	/** Disconnection. */
+	public function disconnect() {
+		unset($this->_ndb);
+		$this->_ndb = null;
 	}
 
 	/* ********** SPECIAL REQUESTS ********** */
@@ -143,7 +158,7 @@ class Redis extends \Temma\Base\Datasource {
 	public function lPush(string $list, mixed $data) : int {
 		if (!$this->_enabled)
 			return (0);
-		$this->_connect();
+		$this->connect();
 		$data = json_encode($data);
 		return ($this->_ndb->lPush($list, $data));
 	}
@@ -155,7 +170,7 @@ class Redis extends \Temma\Base\Datasource {
 	public function rPop(string $list) : mixed {
 		if (!$this->_enabled)
 			return (null);
-		$this->_connect();
+		$this->connect();
 		$data = $this->_ndb->rPop($list);
 		if ($data === false)
 			return (null);
@@ -171,7 +186,7 @@ class Redis extends \Temma\Base\Datasource {
 	public function lRem(string $list, int $count, mixed $element=null) : int {
 		if (!$this->_enabled)
 			return (0);
-		$this->_connect();
+		$this->connect();
 		$element = json_encode($element);
 		$result = $this->_ndb->lRem($list, $element, $count);
 		if ($result === false)
@@ -187,7 +202,7 @@ class Redis extends \Temma\Base\Datasource {
 	public function rPopLPush(string $inputList, string $outputList) : mixed {
 		if (!$this->_enabled)
 			return (null);
-		$this->_connect();
+		$this->connect();
 		$result = $this->_ndb->rPopLPush($inputList, $outputList);
 		if ($result === false)
 			return (null);
@@ -201,7 +216,7 @@ class Redis extends \Temma\Base\Datasource {
 	public function lLen(string $list) : int {
 		if (!$this->_enabled)
 			return (0);
-		$this->_connect();
+		$this->connect();
 		$result = $this->_ndb->lLen($list);
 		return (($result === false) ? 0 : $result);
 	}
@@ -214,7 +229,7 @@ class Redis extends \Temma\Base\Datasource {
 	public function count() : int {
 		if (!$this->_enabled)
 			return (0);
-		$this->_connect();
+		$this->connect();
 		return ($this->_ndb->dbSize());
 	}
 
@@ -227,7 +242,7 @@ class Redis extends \Temma\Base\Datasource {
 	public function isSet(string $key) : bool {
 		if (!$this->_enabled)
 			return (false);
-		$this->_connect();
+		$this->connect();
 		return ($this->_ndb->exists($key) ? true : false);
 	}
 	/**
@@ -237,7 +252,7 @@ class Redis extends \Temma\Base\Datasource {
 	public function remove(string $key) : void {
 		if (!$this->_enabled)
 			return;
-		$this->_connect();
+		$this->connect();
 		$this->_ndb->delete($key);
 	}
 	/**
@@ -247,7 +262,7 @@ class Redis extends \Temma\Base\Datasource {
 	public function mRemove(array $keys) : void {
 		if (!$this->_enabled)
 			return;
-		$this->_connect();
+		$this->connect();
 		$this->_ndb->delete($keys);
 	}
 	/**
@@ -257,7 +272,7 @@ class Redis extends \Temma\Base\Datasource {
 	public function clear(string $pattern) : void {
 		if (!$this->_enabled)
 			return;
-		$this->_connect();
+		$this->connect();
 		$it = null;
 		while (($keys = $this->_ndb->scan($it, $pattern))) {
 			$this->mRemove($keys);
@@ -269,7 +284,7 @@ class Redis extends \Temma\Base\Datasource {
 	public function flush() : void {
 		if (!$this->_enabled)
 			return;
-		$this->_connect();
+		$this->connect();
 		$this->_ndb->flushDb();
 	}
 
@@ -283,6 +298,7 @@ class Redis extends \Temma\Base\Datasource {
 	public function find(string $pattern, bool $getValues=false) : array {
 		if (!$this->_enabled)
 			return ([]);
+		$this->connect();
 		$result = [];
 		$it = null;
 		while (($keys = $this->_ndb->scan($it, $pattern))) {
@@ -302,7 +318,9 @@ class Redis extends \Temma\Base\Datasource {
 	 * @return	?string	The value associated to the key.
 	 */
 	public function read(string $key, mixed $defaultOrCallback=null, mixed $options=null) : ?string {
-		$this->_connect();
+		if (!$this->_enabled)
+			return (null);
+		$this->connect();
 		$value = false;
 		if ($this->_enabled)
 			$value = $this->_ndb->get($key);
@@ -325,7 +343,7 @@ class Redis extends \Temma\Base\Datasource {
 	public function mRead(array $keys) : array {
 		if (!$this->_enabled)
 			return ([]);
-		$this->_connect();
+		$this->connect();
 		$values = $this->_ndb->mget($keys);
 		$result = array_combine($keys, $values);
 		return ($result);
@@ -341,7 +359,7 @@ class Redis extends \Temma\Base\Datasource {
 	public function write(string|array $key, mixed $value=null, mixed $timeout=0) : bool {
 		if (!$this->_enabled)
 			return (false);
-		$this->_connect();
+		$this->connect();
 		// manage options
 		$timeout = (int)$timeout;
 		if ($timeout > 0)
@@ -359,6 +377,7 @@ class Redis extends \Temma\Base\Datasource {
 	public function mWrite(array $data, mixed $timeout=0) : int {
 		if (!$this->_enabled)
 			return (0);
+		$this->connect();
 		if (!$this->_ndb->mset($data))
 			return (0);
 		// manage timeouts
@@ -380,6 +399,7 @@ class Redis extends \Temma\Base\Datasource {
 	public function search(string $pattern, bool $getValues=false) : array {
 		if (!$this->_enabled)
 			return ([]);
+		$this->connect();
 		$result = [];
 		$it = null;
 		while (($keys = $this->_ndb->scan($it, $pattern))) {
@@ -407,7 +427,7 @@ class Redis extends \Temma\Base\Datasource {
 	public function get(string $key, mixed $defaultOrCallback=null, mixed $options=null) : mixed {
 		if (!$this->_enabled)
 			return (null);
-		$this->_connect();
+		$this->connect();
 		$value = false;
 		if ($this->_enabled)
 			$value = $this->_ndb->get($key);
@@ -430,7 +450,7 @@ class Redis extends \Temma\Base\Datasource {
 	public function mGet(array $keys) : array {
 		if (!$this->_enabled)
 			return ([]);
-		$this->_connect();
+		$this->connect();
 		$values = $this->_ndb->mget($keys);
 		$result = array_combine($keys, $values);
 		array_walk($result, function(&$value, $key) {
@@ -452,7 +472,7 @@ class Redis extends \Temma\Base\Datasource {
 	public function set(string|array $key, mixed $value=null, mixed $timeout=0) : bool {
 		if (!$this->_enabled)
 			return (false);
-		$this->_connect();
+		$this->connect();
 		// remove key
 		if (is_null($value)) {
 			$this->remove($key);
@@ -477,7 +497,7 @@ class Redis extends \Temma\Base\Datasource {
 	public function mSet(array $data, mixed $timeout=0) : int {
 		if (!$this->_enabled)
 			return (0);
-		$this->_connect();
+		$this->connect();
 		$data = array_map('json_encode', $data);
 		if (!$this->_ndb->mset($data))
 			return (0);

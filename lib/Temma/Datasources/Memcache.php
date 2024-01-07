@@ -41,6 +41,8 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 	const PREFIX_SALT_PREFIX = '|_cache_salt';
 	/** Constant : Default Memcache port number. */
 	const DEFAULT_MEMCACHE_PORT = 11211;
+	/** Server connection configuration list. */
+	protected array $_servers;
 	/** Connection object to the Memcache server. */
 	protected ?\Memcached $_memcache = null;
 	/** Default cache duration (24 hours). */
@@ -53,27 +55,20 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 	 * Create a new instance of this class.
 	 * @param	string	$dsn	Server connection string.
 	 * @return	\Temma\Datasources\Memcache	The created instance.
+	 * @throws	\Temma\Exceptions\Database	If the DSN is not valid or if the 'memcached' extension is not loaded.
 	 */
 	static public function factory(string $dsn) : \Temma\Datasources\Memcache {
-		$instance = new self($dsn);
-		return ($instance);
-	}
-	/**
-	 * Constructor. Connect to a Memcache server.
-	 * @param	string	$dsn	Server connection string.
-	 * @throws	\Exception	If the given DSN is wrong or if the 'memcached' extension is not loaded.
-	 */
-	private function __construct(string $dsn) {
-		if (!str_starts_with($dsn, 'memcache://')) {
-			throw new \Exception("Invalid cache DSN '$dsn'.");
+		if (!extension_loaded('memcached')) {
+			throw new \Temma\Exceptions\Database("The 'memcached' PHP extension is not loaded.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		}
-		$dsn = substr($dsn, 11);
-		if (!extension_loaded('memcached') || empty($dsn)) {
-			throw new \Exception("The 'memcached' PHP extension is not loaded.");
+		if (!str_starts_with($dsn, 'memcache://') ||
+		    !($servers = mb_substr($dsn, mb_strlen('memcache://')))) {
+			throw new \Temma\Exceptions\Database("The DSN '$dsn' is not valid.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		}
-		$memcache = new \Memcached();
-		$memcache->setOption(\Memcached::OPT_COMPRESSION, true);
-		$servers = explode(';', $dsn);
+		$servers = explode(';', $servers);
+		if (!$servers) {
+			throw new \Temma\Exceptions\Database("The DSN '$dsn' is not valid.", \Temma\Exceptions\Database::FUNDAMENTAL);
+		}
 		foreach ($servers as &$server) {
 			if (empty($server))
 				continue;
@@ -89,17 +84,50 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 				];
 			}
 		}
-		if (count($servers) == 1) {
-			if ($memcache->addServer($servers[0][0], $servers[0][1])) {
-				$this->_memcache = $memcache;
-				$this->_enabled = true;
-			}
-		} else {
-			if ($memcache->addServers($servers)) {
-				$this->_memcache = $memcache;
-				$this->_enabled = true;
-			}
+		$instance = new self($servers);
+		return ($instance);
+	}
+	/**
+	 * Constructor. Connect to a Memcache server.
+	 * @param	array	$servers	List of server connection configuration data.
+	 * @throws	\Exception	If the given DSN is wrong or if the 'memcached' extension is not loaded.
+	 */
+	private function __construct(array $servers) {
+		$this->_servers = $servers;
+	}
+
+	/* ********** CONNECTION ********** */
+	/**
+	 * Connection.
+	 * @throws	\Temma\Exceptions\Database	If the connection failed.
+	 */
+	public function connect() {
+		if (!$this->_enabled || $this->_memcache)
+			return;
+		$this->reconnect();
+	}
+	/**
+	 * Re-connection.
+	 * @throws	\Temma\Exceptions\Database	If the connection failed.
+	 */
+	public function reconnect() {
+		if (!$this->_enabled)
+			return;
+		unset($this->_memcache);
+		$this->_memcache = new \Memcached();
+		$this->_memcache->setOption(\Memcached::OPT_COMPRESSION, true);
+		$this->_enabled = true;
+		if ((count($this->_servers) == 1 && !$this->_memcache->addServer($this->_servers[0][0], $this->_servers[0][1])) ||
+		    (count($this->_servers) > 1 && !$this->_memcache->addServers($this->_servers))) {
+			$this->_memcache = null;
+			$this->_enabled = false;
+			throw new \Temma\Exceptions\Database("Unable to connect to Memcache server.", \Temma\Exceptions\Database::CONNECTION);
 		}
+	}
+	/** Disconnection. */
+	public function disconnect() {
+		unset($this->_memcache);
+		$this->_memcache = null;
 	}
 
 	/* ********** CACHE MANAGEMENT ********** */
@@ -147,8 +175,9 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 	 * @return	int	The number of keys.
 	 */
 	public function count() : int {
-		if (!$this->_enabled || !$this->_memcache)
+		if (!$this->_enabled)
 			return (0);
+		$this->connect();
 		$stats = $this->_memcache->getStats();
 		$nbr = 0;
 		foreach ($stats as $stat)
@@ -163,8 +192,9 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 	 * @return	bool	True if the variable is set, false otherwise.
 	 */
 	public function isSet(string $key) : bool {
-		if (empty($key) || !$this->_enabled || !$this->_memcache)
+		if (empty($key) || !$this->_enabled)
 			return (false);
+		$this->connect();
 		$origPrefix = $this->_prefix;
 		$origKey = $key;
 		$key = $this->_getSaltedPrefix() . $key;
@@ -179,6 +209,7 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 	public function remove(string $key) : void {
 		if (!$this->_enabled)
 			return;
+		$this->connect();
 		$key = $this->_getSaltedPrefix() . $key;
 		$this->_memcache?->delete($key, 0);
 	}
@@ -187,8 +218,9 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 	 * @param	array	$keys	List of keys.
 	 */
 	public function mRemove(array $keys) : void {
-		if (!$this->_enabled || !$this->_memcache)
+		if (!$this->_enabled)
 			return;
+		$this->connect();
 		array_walk($keys, function(&$value, $key) {
 			$value = $this->_getSaltedPrefix() . $key;
 		});
@@ -199,8 +231,9 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 	 * @param	string	$prefix	Prefix string. Nothing will be removed if this parameter is empty.
 	 */
 	public function clear(string $prefix) : void {
-		if (!$this->_enabled || empty($prefix) || !$this->_memcache)
+		if (!$this->_enabled || empty($prefix))
 			return;
+		$this->connect();
 		$saltKey = self::PREFIX_SALT_PREFIX . "|$prefix|";
 		$salt = substr(hash('md5', time() . mt_rand()), 0, 8);
 		$this->_memcache->set($saltKey, $salt, 0);
@@ -209,8 +242,9 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 	 * Flush all cache variables.
 	 */
 	public function flush() : void {
-		if (!$this->_enabled || !$this->_memcache)
+		if (!$this->_enabled)
 			return;
+		$this->connect();
 		$this->_memcache->flush();
 	}
 
@@ -288,6 +322,8 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 	 * @return	mixed	The data fetched from the cache (and returned by the callback if needed), or null.
 	 */
 	public function get(string $key, mixed $defaultOrCallback=null, mixed $expire=0) : mixed {
+		if ($this->_enabled)
+			$this->connect();
 		$origPrefix = $this->_prefix;
 		$origKey = $key;
 		$key = $this->_getSaltedPrefix() . $key;
@@ -313,8 +349,9 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 	 * @return	array	Associative array with the keys and their associated values.
 	 */
 	public function mGet(array $keys) : array {
-		if (!$this->_enabled || !$this->_memcache)
+		if (!$this->_enabled)
 			return ([]);
+		$this->connect();
 		array_walk($keys, function(&$value, $key) {
 			$value = $this->_getSaltedPrefix() . $value;
 		});
@@ -333,8 +370,9 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 	 * @return	bool	Always true.
 	 */
 	public function set(string $key, mixed $data=null, mixed $expire=0) : bool {
-		if (!$this->_enabled || !$this->_memcache)
+		if (!$this->_enabled)
 			return (false);
+		$this->connect();
 		if (is_null($data)) {
 			// deletion
 			$this->remove($key);
@@ -354,8 +392,9 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 	 * @return	int	The number of set data.
 	 */
 	public function mSet(array $data, mixed $expire=0) : int {
-		if (!$this->_enabled || !$this->_memcache)
+		if (!$this->_enabled)
 			return (0);
+		$this->connect();
 		$values = [];
 		foreach ($data as $key => $value) {
 			$key = $this->_getSaltedPrefix() . $key;
