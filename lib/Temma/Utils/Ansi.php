@@ -873,7 +873,7 @@ class Ansi {
 		$borderColor = $style['borderColor'] ?? 'default';
 		// margin
 		if (($style['marginTop'] ?? null)) {
-			$res .= str_repeat("\n", max(0, ($style['marginTop'] ?? 0)));
+			$res .= str_repeat("\n", max(0, $style['marginTop']));
 		}
 		// label
 		if (($style['label'] ?? null)) {
@@ -931,7 +931,7 @@ class Ansi {
 		}
 		// margin
 		if (($style['marginBottom'] ?? null)) {
-			$res .= str_repeat("\n", max(0, ($style['marginBottom'] ?? 0)));
+			$res .= str_repeat("\n", max(0, $style['marginBottom']));
 		}
 		return ($res);
 	}
