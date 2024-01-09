@@ -237,6 +237,15 @@ class Controller implements \ArrayAccess {
 		$this->_response->setTemplatePrefix($prefix);
 		return ($this);
 	}
+	/**
+	 * Define a view header.
+	 * @param	string	$header	The header string.
+	 * @return	\Temma\Web\Controller	The current object.
+	 */
+	protected function _header(string $header) : \Temma\Web\Controller {
+		$this->_response->header($header);
+		return ($this);
+	}
 
 	/* ********** MANAGEMENT OF "TEMPLATE VARIABLES" ********** */
 	/**

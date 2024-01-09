@@ -50,7 +50,7 @@ try {
 		$errorPage = $temma->getErrorPage($errorCode);
 	$errorString = errorCodeToErrorString($errorCode);
 	header("Status: $errorCode $errorString");
-	header("HTTP/1.1 $errorCode $errorString", true, $errorCode);
+	header(($_SERVER['SERVER_PROTOCOL'] ?? 'HTTP/1.1') . " $errorCode $errorString", true, $errorCode);
 	if (isset($errorPage) && is_file($errorPage))
 		readfile($errorPage);
 }

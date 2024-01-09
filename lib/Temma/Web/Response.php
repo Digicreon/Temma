@@ -28,6 +28,8 @@ class Response implements \ArrayAccess {
 	private ?string $_templatePrefix = null;
 	/** Name of the template. */
 	private ?string $_template = null;
+	/** Array of header strings. */
+	private array $_headers = [];
 	/** Template variables. */
 	private array $_data = [];
 
@@ -86,6 +88,13 @@ class Response implements \ArrayAccess {
 	 */
 	public function setTemplate(?string $template) : void {
 		$this->_template = $template;
+	}
+	/**
+	 * Add a view header.
+	 * @param	string	$header	The header string.
+	 */
+	public function header(string $header) : void {
+		$this->_headers[] = $header;
 	}
 	/**
 	 * Add a template variable, object-oriented syntax.
@@ -153,6 +162,13 @@ class Response implements \ArrayAccess {
 	 */
 	public function getTemplate() : ?string {
 		return ($this->_template);
+	}
+	/**
+	 * Returns the array of header strings.
+	 * @return	array	The array of headers.
+	 */
+	public function getHeaders() : array {
+		return ($this->_headers);
 	}
 	/**
 	 * Returns template variable(s), object-oriented syntax.

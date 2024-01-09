@@ -296,7 +296,7 @@ class Framework {
 		// send HTTP headers
 		if ($sendHeaders) {
 			TµLog::log('Temma/Web', 'DEBUG', "Writing of response headers.");
-			$view->sendHeaders();
+			$view->sendHeaders($this->_response->getHeaders());
 		}
 		// send data body
 		TµLog::log('Temma/Web', 'DEBUG', "Writing of response body.");

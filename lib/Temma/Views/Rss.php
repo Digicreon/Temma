@@ -37,6 +37,15 @@ use \Temma\Base\Log as TµLog;
  * </ul>
  */
 class Rss extends \Temma\Web\View {
+	/** Constant: list of generic headers. */
+	const GENERIC_HEADERS = [
+		'Content-Type: application/rss+xml; charset=UTF-8',
+		'Cache-Control: no-cache, no-store, must-revalidate, max-age=0, post-check=0, pre-check=0',
+		'Pragma: no-cache',
+		'Expires: 0',
+	];
+	/** Name of the downloadable file. */
+	private ?string $_filename = null;
 	/** Site domain. */
 	private ?string $_domain = null;
 	/** Site title. */
@@ -56,6 +65,7 @@ class Rss extends \Temma\Web\View {
 
 	/** Init. */
 	public function init() : void {
+		$this->_filename = $this->_response->getData('filename');
 		$this->_domain = $this->_response->getData('domain');
 		$this->_title = $this->_response->getData('title');
 		$this->_description = $this->_response->getData('description');
@@ -67,12 +77,11 @@ class Rss extends \Temma\Web\View {
 	}
 	/** Write HTTP headers. */
 	public function sendHeaders($headers=null) :void {
-		parent::sendHeaders([
-			'Content-Type'  => 'application/rss+xml; charset=UTF-8',
-			'Cache-Control'	=> 'no-cache, no-store, must-revalidate, max-age=0, post-check=0, pre-check=0',
-			'Pragma'        => 'no-cache',
-			'Expires'       => '0',
-		]);
+		if ($this->_filename) {
+			$headers ??= [];
+			$headers[] = 'Content-Disposition: attachment; filename="' . \Temma\Utils\Text::filenamize($this->_filename) . '"';
+		}
+		parent::sendHeaders($headers);
 	}
 	/** Write body. */
 	public function sendBody() : void {
