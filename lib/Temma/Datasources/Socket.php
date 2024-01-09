@@ -77,7 +77,6 @@ class Socket extends \Temma\Base\Datasource {
 		$this->_host = $host;
 		$this->_port = $port ?? -1;
 		$this->_connectionTimeout = $timeout;
-		$this->_enabled = true;
 	}
 
 	/* ********** CONNECTION ********** */

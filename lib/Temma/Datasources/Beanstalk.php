@@ -81,7 +81,6 @@ class Beanstalk extends \Temma\Base\Datasource {
 		$this->_host = $host;
 		$this->_port = $port;
 		$this->_tube = $tube;
-		$this->_enabled = true;
 	}
 
 	/* ********** CONNECTION ********** */

@@ -66,7 +66,6 @@ class ZeroMQ extends \Temma\Base\Datasource {
 		$this->_connectionType = $connectionType;
 		$this->_socketType = $socketType;
 		$this->_hosts = $hosts;
-		$this->_enabled = true;
 	}
 	/** Destructor. Close the connection. */
 	public function __destruct() {

@@ -8,6 +8,8 @@
 
 namespace Temma\Datasources;
 
+use \Temma\Base\Log as TµLog;
+
 /**
  * Cache management object.
  *
@@ -116,7 +118,6 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 		unset($this->_memcache);
 		$this->_memcache = new \Memcached();
 		$this->_memcache->setOption(\Memcached::OPT_COMPRESSION, true);
-		$this->_enabled = true;
 		if ((count($this->_servers) == 1 && !$this->_memcache->addServer($this->_servers[0][0], $this->_servers[0][1])) ||
 		    (count($this->_servers) > 1 && !$this->_memcache->addServers($this->_servers))) {
 			$this->_memcache = null;

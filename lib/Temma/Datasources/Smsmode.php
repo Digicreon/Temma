@@ -133,7 +133,6 @@ class Smsmode extends \Temma\Base\Datasource {
 	private function __construct(string $apiKey, ?string $sender=null) {
 		$this->_apiKey = $apiKey;
 		$this->_sender = $sender ?: null;
-		$this->_enabled = true;
 	}
 
 	/* ********** SPECIAL REQUESTS ********** */

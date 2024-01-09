@@ -107,7 +107,6 @@ class Redis extends \Temma\Base\Datasource {
 			'base'	=> $base,
 			'port'	=> $port,
 		];
-		$this->_enabled = true;
 	}
 	/** Destructor. Close the connection. */
 	public function __destruct() {

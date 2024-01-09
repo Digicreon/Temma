@@ -95,7 +95,6 @@ class File extends \Temma\Base\Datasource {
 		else
 			$umask = base_convert($umask, 8, 10);
 		$this->_umask = $umask;
-		$this->_enabled = true;
 	}
 
 	/* ********** ARRAY-LIKE REQUESTS ********** */

@@ -92,7 +92,6 @@ class Sqs extends \Temma\Base\Datasource {
 		$this->_privateKey = $privateKey;
 		$this->_region = $region;
 		$this->_url = $url;
-		$this->_enabled = true;
 	}
 
 	/* ********** CONNECTION ********** */

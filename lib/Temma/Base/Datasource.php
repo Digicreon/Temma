@@ -37,8 +37,8 @@ abstract class Datasource implements \ArrayAccess, \Countable {
 	];
 	/** Socket prefixes. */
 	const SOCKET_PREFIXES = ['tcp', 'udp', 'ssl', 'sslv2', 'sslv3', 'tls', 'unix'];
-	/** Defines if the datasource must be accessed or not. */
-	protected bool $_enabled = false;
+	/** Defines if the datasource could be accessed or not. */
+	protected bool $_enabled = true;
 
 	/**
 	 * Factory.

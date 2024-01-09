@@ -142,7 +142,6 @@ class S3 extends \Temma\Base\Datasource {
 		$this->_publicAccess = $publicAccess;
 		if (!$this->_accessKey || !$this->_privateKey || !$this->_region || !$this->_bucket)
 			throw new \Temma\Exceptions\Database("Bad S3 connection parameters.", \Temma\Exceptions\Database::FUNDAMENTAL);
-		$this->_enabled = true;
 	}
 
 	/* ********** CONNECTION ********** */
