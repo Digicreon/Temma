@@ -43,7 +43,7 @@ class Ini extends \Temma\Web\View {
 	}
 	/** Write body. */
 	public function sendBody() : void {
-		print(\Temma\Utils\IniExport::generate($this->_data));
+		print(\Temma\Utils\Serializer::encodeIni($this->_data));
 	}
 }
 
