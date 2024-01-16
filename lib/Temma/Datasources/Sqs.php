@@ -87,7 +87,7 @@ class Sqs extends \Temma\Base\Datasource {
 	 * @param	string	$url		SQS queue URL.
 	 * @throws	\Temma\Exceptions\Database	If a parameter is invalid.
 	 */
-	private function __construct(string $accessKey, string $privateKey, string $region, string $url) {
+	public function __construct(string $accessKey, string $privateKey, string $region, string $url) {
 		$this->_accessKey = $accessKey;
 		$this->_privateKey = $privateKey;
 		$this->_region = $region;

@@ -16,30 +16,37 @@ use \Temma\Base\Log as TµLog;
  * Must be used in an autoloader-enabled environment.
  */
 abstract class Datasource implements \ArrayAccess, \Countable {
-	/** Database prefixes. */
-	const DATABASE_PREFIXES = [
-		'mysqli:',
-		'mysql:',
-		'pgsql:',
-		'cubrid:',
-		'sybase:',
-		'mssql:',
-		'dblib:',
-		'firebird:',
-		'ibm:',
-		'informix:',
-		'sqlsrv:',
-		'oci:',
-		'odbc:',
-		'sqlite:',
-		'sqlite2:',
-		'4D:',
-	];
-	/** Socket prefixes. */
-	const SOCKET_PREFIXES = ['tcp', 'udp', 'ssl', 'sslv2', 'sslv3', 'tls', 'unix'];
 	/** Defines if the datasource could be accessed or not. */
 	protected bool $_enabled = true;
 
+	/**
+	 * Meta-factory.
+	 * Create a concrete instance of the object, from a DSN string or an array of parameters.
+	 * @param	string|array	$param	Parameter string or associative array of parameters.
+	 * @return	\Temma\Base\Datasource	The created object.
+	 * @throws	\Temma\Exceptions\Database	If the given parameters are not correct.
+	 */
+	static public function metaFactory(string|array $param) : \Temma\Base\Datasource {
+		// check this method is not called on subclasses
+		if (get_called_class() != __CLASS__) {
+			TµLog::log('Temma/Base', 'ERROR', "Method metaFactory() must not be called on subclasses.");
+			throw new \Temma\Exceptions\Database("Method metaFactory() must not be called on subclasses.", \Temma\Exceptions\Database::FUNDAMENTAL);
+		}
+		// manage DSN string
+		if (is_string($param))
+			return (self::factory($param));
+		// search for object name
+		if (!($object = $param['object'])) {
+			TµLog::log('Temma/Base', 'ERROR', "Unable to find 'object' key on data source parameter array.");
+			throw new \Temma\Exceptions\Database("Unable to find 'object' key on data source parameter array.", \Temma\Exceptions\Database::FUNDAMENTAL);
+		}
+		if (!is_a($object, '\Temma\Base\Datasource', true)) {
+			TµLog::log('Temma/Base', 'ERROR', "Object '$object' is not a valid data source object.");
+			throw new \Temma\Exceptions\Database("Object '$object' is not a valid data source object.", \Temma\Exceptions\Database::FUNDAMENTAL);
+		}
+		unset($param['object']);
+		return (new $object(...$param));
+	}
 	/**
 	 * Factory.
 	 * Create a concrete instance of the object, depending of the given parameters.
@@ -59,13 +66,13 @@ abstract class Datasource implements \ArrayAccess, \Countable {
 			}
 		}
 		// SQL databases
-		foreach (self::DATABASE_PREFIXES as $prefix) {
-			if (str_starts_with($dsn, $prefix))
+		foreach (\Temma\Datasources\Sql::DATABASE_TYPES as $prefix) {
+			if (str_starts_with($dsn, "$prefix:"))
 				return (\Temma\Datasources\Sql::factory($dsn));
 		}
 		// socket connexion
-		foreach (self::SOCKET_PREFIXES as $prefix) {
-			if (str_starts_with($dsn, $prefix))
+		foreach (\Temma\Datasources\Socket::SOCKET_TYPES as $prefix) {
+			if (str_starts_with($dsn, "$prefix:"))
 				return (\Temma\Datasources\Socket::factory($dsn));
 		}
 		// other data sources managed by Temma

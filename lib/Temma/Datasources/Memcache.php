@@ -60,9 +60,6 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 	 * @throws	\Temma\Exceptions\Database	If the DSN is not valid or if the 'memcached' extension is not loaded.
 	 */
 	static public function factory(string $dsn) : \Temma\Datasources\Memcache {
-		if (!extension_loaded('memcached')) {
-			throw new \Temma\Exceptions\Database("The 'memcached' PHP extension is not loaded.", \Temma\Exceptions\Database::FUNDAMENTAL);
-		}
 		if (!str_starts_with($dsn, 'memcache://') ||
 		    !($servers = mb_substr($dsn, mb_strlen('memcache://')))) {
 			throw new \Temma\Exceptions\Database("The DSN '$dsn' is not valid.", \Temma\Exceptions\Database::FUNDAMENTAL);
@@ -71,30 +68,30 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 		if (!$servers) {
 			throw new \Temma\Exceptions\Database("The DSN '$dsn' is not valid.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		}
-		foreach ($servers as &$server) {
-			if (empty($server))
-				continue;
-			if (strpos($server, ':') === false)
-				$server = [$server, self::DEFAULT_MEMCACHE_PORT];
-			else {
-				list($host, $port) = explode(':', $server);
-				if (str_contains($host, DIRECTORY_SEPARATOR))
-					$host = 'unix:' . $host;
-				$server = [
-					$host,
-					($port ? $port : self::DEFAULT_MEMCACHE_PORT)
-				];
-			}
-		}
 		$instance = new self($servers);
 		return ($instance);
 	}
 	/**
 	 * Constructor. Connect to a Memcache server.
-	 * @param	array	$servers	List of server connection configuration data.
-	 * @throws	\Exception	If the given DSN is wrong or if the 'memcached' extension is not loaded.
+	 * @param	array	$servers	List of server configuration data.
+	 * @throws	\Temma\Exceptions\Database	If the given server configuration is wrong or if the 'memcached' extension is not loaded.
 	 */
-	private function __construct(array $servers) {
+	public function __construct(array $servers) {
+		if (!extension_loaded('memcached')) {
+			throw new \Temma\Exceptions\Database("The 'memcached' PHP extension is not loaded.", \Temma\Exceptions\Database::FUNDAMENTAL);
+		}
+		foreach ($servers as &$server) {
+			if (!$server || is_array($server))
+				continue;
+			// check port number
+			if (str_contains($server, ':'))
+				$server = explode(':', $server);
+			else
+				$server = [$server, self::DEFAULT_MEMCACHE_PORT];
+			// check Unix socket
+			if (str_contains($server[0], DIRECTORY_SEPARATOR))
+				$server[1] = 0;
+		}
 		$this->_servers = $servers;
 	}
 

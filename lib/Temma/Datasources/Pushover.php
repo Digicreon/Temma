@@ -73,7 +73,7 @@ class Pushover extends \Temma\Base\Datasource {
 	 * Constructor.
 	 * @param	string	$appToken	Application token.
 	 */
-	private function __construct(string $appToken) {
+	public function __construct(string $appToken) {
 		$this->_appToken = $appToken;
 	}
 

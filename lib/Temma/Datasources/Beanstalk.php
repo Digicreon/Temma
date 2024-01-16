@@ -77,7 +77,7 @@ class Beanstalk extends \Temma\Base\Datasource {
 	 * @param	int	$port	Port number.
 	 * @param	string	$tube	Tube name.
 	 */
-	private function __construct(string $host, int $port, string $tube) {
+	public function __construct(string $host, int $port, string $tube) {
 		$this->_host = $host;
 		$this->_port = $port;
 		$this->_tube = $tube;

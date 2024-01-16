@@ -101,56 +101,90 @@ use \Temma\Exceptions\Database as TµDatabaseException;
  * </code>
  */
 class Sql extends \Temma\Base\Datasource {
+	/** Constant: Database prefixes. */
+	const DATABASE_TYPES = [
+		'mysqli',
+		'mysql',
+		'pgsql',
+		'cubrid',
+		'sybase',
+		'mssql',
+		'dblib',
+		'firebird',
+		'ibm',
+		'informix',
+		'sqlsrv',
+		'oci',
+		'odbc',
+		'sqlite',
+		'sqlite2',
+		'4D',
+	];
 	/** Database connection objet. */
 	protected ?\PDO $_db = null;
-	/** Database connection parameters. */
-	protected null|string|array $_params = null;
-	/** Connection user (PDO compatibility). */
+	/** Database type. */
+	protected ?string $_type = null;
+	/** Connection user. */
 	protected ?string $_login = null;
-	/** Connection password (PDO compatibility). */
+	/** Connection password. */
 	protected ?string $_password = null;
+	/** Database host. */
+	protected ?string $_host = null;
+	/** Database port. */
+	protected ?string $_port = null;
+	/** Database name. */
+	protected ?string $_base = null;
+	/** Database Unix socket. */
+	protected ?string $_socket = null;
 
 	/* ********** CONSTRUCTION ********** */
 	/**
 	 * Factory. Creates an instance of the object, using the given parameters.
 	 * @param	string	$dsn		Database connection string.
 	 * @return	\Temma\Datasources\Sql	The created object.
-	 * @throws	\Exception	If something went wrong.
+	 * @throws	\Temma\Exceptions\Database	If something went wrong.
 	 */
 	static public function factory(string $dsn) : \Temma\Datasources\Sql {
+		// parameters extraction
+		$params = null;
+		if (!preg_match("/^([^:]+):\/\/([^:@]+):?([^@]+)?@([^\/:]+):?(\d+)?\/([^#]*)#?(.*)$/", $dsn, $matches)) {
+			throw new \Temma\Exceptions\Database("Invalid SQL DSN '$dsn'.", \Temma\Exceptions\Database::FUNDAMENTAL);
+		}
+		$type = $matches[1];
+		$login = $matches[2];
+		$password = $matches[3];
+		$host = $matches[4];
+		$port = $matches[5];
+		$base = $matches[6];
+		$socket = $matches[7];
 		// instance creation
-		$instance = new self($dsn);
+		$instance = new self($type, $login, $password, $host, $port, $base, $socket);
 		return ($instance);
 	}
 	/**
 	 * Constructor. Opens a connection to the database server.
-	 * @param	string	$dsn		Database connection string.
-	 * @param	string	$login		(optional) User login (for PDO compatibility).
-	 * @param	string	$password	(optional) User password (for PDO compatibility).
+	 * @param	string	$type		Database type.
+	 * @param	?string	$login		User login.
+	 * @param	?string	$password	User password.
+	 * @param	?string	$host		Database host.
+	 * @param	?string	$port		Database port number.
+	 * @param	?string	$base		Database name.
+	 * @param	?string	$socket		Path to Unix socket.
 	 */
-	protected function __construct(string $dsn, ?string $login=null, ?string $password=null) {
-		TµLog::log('Temma/Base', 'DEBUG', "Database object creation with DSN: '$dsn'.");
-		// parameters extraction
-		$params = null;
-		if (preg_match("/^([^:]+):\/\/([^:@]+):?([^@]+)?@([^\/:]+):?(\d+)?\/([^#]*)#?(.*)$/", $dsn, $matches)) {
-			$this->_params = [
-				'type'     => $matches[1],
-				'login'    => $matches[2],
-				'password' => $matches[3],
-				'host'     => $matches[4],
-				'port'     => $matches[5],
-				'base'     => $matches[6],
-				'sock'     => $matches[7],
-			];
-			if ($this->_params['type'] == 'mysqli')
-				$this->_params['type'] = 'mysql';
-			$login = $matches[2] ?: $login;
-			$password = $matches[3] ?: $password;
-		} else {
-			$this->_params = $dsn;
+	public function __construct(string $type, ?string $login=null, ?string $password=null, ?string $host=null, ?string $port=null, ?string $base=null, ?string $socket=null) {
+		TµLog::log('Temma/Base', 'DEBUG', "SQL database object creation.");
+		// check type
+		if (!in_array($type, self::DATABASE_TYPES)) {
+			throw new \Temma\Exceptions\Database("Invalid SQL type '$type'.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		}
+		// set parameters
+		$this->_type = ($type == 'mysqli') ? 'mysql' : $type;
 		$this->_login = $login;
 		$this->_password = $password;
+		$this->_host = $host;
+		$this->_port = $port;
+		$this->_base = $base;
+		$this->_socket = $socket;
 	}
 
 	/* ********** CONNECTION / DISCONNECTION ********** */
@@ -172,40 +206,25 @@ class Sql extends \Temma\Base\Datasource {
 			return;
 		$this->disconnect();
 		try {
-			$pdoDsn = null;
-			$pdoLogin = $this->_login;
-			$pdoPassword = $this->_password;
-			if (is_array($this->_params)) {
-				$pdoDsn = $this->_params['type'] . ':';
-				// special process for Oracle
-				if ($this->_params['type'] == 'oci')
-					$pdoDsn .= 'dbname=//' . $this->_params['host'] . ':' . $this->_params['port'] . '/' . $this->_params['base'];
+			$pdoDsn = $this->_type . ':';
+			// special process for Oracle
+			if ($this->_type == 'oci')
+				$pdoDsn .= 'dbname=//' . $this->_host . ':' . $this->_port . '/' . $this->_base;
+			else {
+				// other databases
+				$pdoDsn .= 'dbname=' . $this->_base;
+				// host
+				if ($this->_socket)
+					$pdoDsn .= ';unix_socket=' . $this->_socket;
 				else {
-					// other databases
-					$pdoDsn .= 'dbname=' . $this->_params['base'];
-					// host
-					if ($this->_params['sock'])
-						$pdoDsn .= ';unix_socket=' . $this->_params['sock'];
-					else {
-						$pdoDsn .= ';host=' . $this->_params['host'];
-						if ($this->_params['port'])
-							$pdoDsn .= ';port=' . $this->_params['port'];
-					}
+					$pdoDsn .= ';host=' . $this->_host;
+					if ($this->_port)
+						$pdoDsn .= ';port=' . $this->_port;
 				}
-				$pdoLogin = $this->_params['login'] ?: $pdoLogin;
-				$podPassword = $this->_params['password'] ?: $pdoPassword;
-			} else if (is_string($this->_params)) {
-				$pdoDsn = $this->_params;
-			} else
-				throw new \Exception("Bad configuration.");
-			if ($pdoLogin && $pdoPassword) {
-				$this->_db = new \PDO($pdoDsn, $pdoLogin, $pdoPassword);
-			} else {
-				$this->_db = new \PDO($pdoDsn);
 			}
+			$this->_db = new \PDO($pdoDsn, $this->_login, $this->_password);
 		} catch (\Exception $e) {
-			TµLog::log('Temma/Base', 'WARN', "Database connection error: " . $e->getMessage());
-			throw new \Temma\Exceptions\Database("Database connection error: " . $e->getMessage(), \Temma\Exceptions\Database::CONNECTION);
+			throw new \Temma\Exceptions\Database("SQL Database connection error: " . $e->getMessage(), \Temma\Exceptions\Database::CONNECTION);
 		}
 	}
 	/** Disconnection. */

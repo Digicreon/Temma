@@ -134,7 +134,7 @@ class S3 extends \Temma\Base\Datasource {
 	 * @param	bool	$publicAccess	(optional) True to set public access by default (false by default).
 	 * @throws	\Temma\Exceptions\Database	If a parameter is invalid.
 	 */
-	private function __construct(string $accessKey, string $privateKey, string $region, string $bucket, bool $publicAccess=false) {
+	public function __construct(string $accessKey, string $privateKey, string $region, string $bucket, bool $publicAccess=false) {
 		$this->_accessKey = trim($accessKey);
 		$this->_privateKey = trim($privateKey);
 		$this->_region = trim($region);

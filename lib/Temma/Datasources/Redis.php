@@ -101,7 +101,7 @@ class Redis extends \Temma\Base\Datasource {
 	 * @param	string	$base		Name of the base to connect to.
 	 * @param	int	$port		(optional) Port number.
 	 */
-	private function __construct(string $host, string $base, ?int $port=null) {
+	public function __construct(string $host, string $base, ?int $port=null) {
 		$this->_params = [
 			'host'	=> $host,
 			'base'	=> $base,

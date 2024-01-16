@@ -134,7 +134,7 @@ class Slack extends \Temma\Base\Datasource {
 	 * @param	?string	$username	(optional) User name.
 	 * @param	?string	$icon		(optional) User icon URL.
 	 */
-	private function __construct(string $webhook, ?string $username=null, ?string $icon=null) {
+	public function __construct(string $webhook, ?string $username=null, ?string $icon=null) {
 		$this->_webhook = $webhook;
 		$this->_username = $username;
 		$this->_icon = $icon;

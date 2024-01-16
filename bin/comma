@@ -137,8 +137,8 @@ $loader = new $loaderName([
 
 /* *** Connect to data sources. *** */
 $dataSources = [];
-foreach ($config->dataSources as $name => $dsn) {
-	$dataSources[$name] = \Temma\Base\Datasource::factory($dsn);
+foreach ($config->dataSources as $name => $dsParam) {
+	$dataSources[$name] = \Temma\Base\Datasource::metaFactory($dsParam);
 }
 $loader->set('dataSources', $dataSources);
 

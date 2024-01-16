@@ -55,10 +55,10 @@ class ZeroMQ extends \Temma\Base\Datasource {
 	 * Constructor.
 	 * @param	string	$connectionType	'bind' or 'connect'.
 	 * @param	string	$socketType	'REQ', 'REP', 'PUSH', 'PULL', 'PUB' or 'SUB'.
-	 * @param	array	$hosts		Array of IP addess + port number.
+	 * @param	array	$hosts		Array of IP addess + ':' + port number.
 	 * @throws	\Exception	If the parameters are not correct.
 	 */
-	private function __construct(string $connectionType, string $socketType, array $hosts) {
+	public function __construct(string $connectionType, string $socketType, array $hosts) {
 		if (!in_array($connectionType, ['bind', 'connect']) ||
 		    !in_array($socketType, ['REQ', 'REP', 'PUSH', 'PULL', 'PUB', 'SUB']) ||
 		    !$hosts)

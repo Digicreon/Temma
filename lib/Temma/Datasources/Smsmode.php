@@ -130,7 +130,7 @@ class Smsmode extends \Temma\Base\Datasource {
 	 * @param	?string	$sender	(optional) Sender name.
 	 * @throws	\Temma\Exceptions\Database	If a parameter is invalid.
 	 */
-	private function __construct(string $apiKey, ?string $sender=null) {
+	public function __construct(string $apiKey, ?string $sender=null) {
 		$this->_apiKey = $apiKey;
 		$this->_sender = $sender ?: null;
 	}

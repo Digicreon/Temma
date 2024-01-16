@@ -88,7 +88,7 @@ class File extends \Temma\Base\Datasource {
 	 * @param	string	$rootPath	File root path.
 	 * @param	string	$umask		(optional) Default umask.
 	 */
-	private function __construct(string $rootPath, ?string $umask=null) {
+	public function __construct(string $rootPath, ?string $umask=null) {
 		$this->_rootPath = trim($rootPath);
 		if (!$umask)
 			$umask = umask(null);

@@ -108,8 +108,8 @@ class Framework {
 		} else if (($_SERVER['REQUEST_URI'] ?? null))
 			TµLog::log('Temma/Web', 'DEBUG', "Processing URL '" . $_SERVER['REQUEST_URI'] . "'.");
 		// connect to data sources
-		foreach ($this->_config->dataSources as $name => $dsn) {
-			$this->_dataSources[$name] = \Temma\Base\Datasource::factory($dsn);
+		foreach ($this->_config->dataSources as $name => $dsParam) {
+			$this->_dataSources[$name] = \Temma\Base\Datasource::metaFactory($dsParam);
 		}
 		$this->_loader['dataSources'] = $this->_dataSources;
 		// get the session if needed

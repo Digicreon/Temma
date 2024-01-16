@@ -35,6 +35,10 @@ use \Temma\Base\Log as TµLog;
  * </code>
  */
 class Socket extends \Temma\Base\Datasource {
+	/** Constant: Socket prefixes. */
+	const SOCKET_TYPES = ['tcp', 'udp', 'ssl', 'sslv2', 'sslv3', 'tls', 'unix'];
+	/** Socket type. */
+	private string $_type;
 	/** Host. */
 	private string $_host;
 	/** Port. */
@@ -53,27 +57,34 @@ class Socket extends \Temma\Base\Datasource {
 	 */
 	static public function factory(string $dsn) : \Temma\Datasources\Socket {
 		TµLog::log('Temma/Base', 'DEBUG', "\\Temma\\Datasources\\Socket object creation with DSN: '$dsn'.");
+		$type = null;
+		$host = null;
 		$port = null;
 		$timeout = null;
 		if (str_starts_with($dsn, 'unix://')) {
-			$host = $dsn;
+			$type = 'unix';
+			$host = mb_substr($dsn, mb_strlen('unix://'));
 		} else if (preg_match('/^([^:]+):\/\/([^\/:]+):?(\d*)#?(\d*)$/', $dsn, $matches)) {
-			$host = $matches[1] . '://' . $matches[2];
+			$type = $matches[1];
+			$server = $matches[2];
 			$port = isset($matches[3]) ? intval($matches[3]) : null;
 			$timeout = isset($matches[4]) ? intval($matches[4]) : null;
-		} else {
-			TµLog::log('Temma/Base', 'WARN', "Invalid Socket DSN '$dsn'.");
-			throw new \Temma\Exceptions\Database("Invalid Socket DSN '$dsn'.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		}
-		return (new self($host, $port, $timeout));
+		return (new self($type, $host, $port, $timeout));
 	}
 	/**
 	 * Constructor.
+	 * @param	string	$type		Socket type.
 	 * @param	string	$host		Host name or IP address.
 	 * @param	?int	$port		Port number.
 	 * @param	?int	$timeout	Connection timeout.
+	 * @throws	\Temma\Exceptions\Database	If the socket type is invalid.
 	 */
-	private function __construct(string $host, ?int $port, ?int $timeout) {
+	public function __construct(string $type, string $host, ?int $port, ?int $timeout) {
+		if (!in_array($type, self::SOCKET_TYPES)) {
+			throw new \Temma\Exceptions\Database("Invalid socket type '$type'.", \Temma\Exceptions\Database::FUNDAMENTAL);
+		}
+		$this->_type = $type;
 		$this->_host = $host;
 		$this->_port = $port ?? -1;
 		$this->_connectionTimeout = $timeout;
@@ -94,8 +105,9 @@ class Socket extends \Temma\Base\Datasource {
 		if (!$this->_enabled)
 			return;
 		$this->disconnect();
+		$host = $this->_type . '://' . $this->_host;
 		$null = null;
-		$this->_sock = fsockopen($this->_host, $this->_port, $null, $null, $this->_connectionTimeout);
+		$this->_sock = fsockopen($host, $this->_port, $null, $null, $this->_connectionTimeout);
 		if (!$this->_sock)
 			throw new \Exception("Unable to open socket.");
 	}
