@@ -15,10 +15,8 @@ use \Temma\Exceptions\Framework as TµFrameworkException;
  * Object used to store the configuration of a Temma application.
  */
 class Config {
-	/** Name of the local configuration file (JSON format). */
-	const JSON_CONFIG_FILE_NAME = 'temma.json';
-	/** Name of the local configuration file (PHP format). */
-	const PHP_CONFIG_FILE_NAME = 'temma.php';
+	/** Prefix of the local configuration file. */
+	const CONFIG_FILE_PREFIX = 'temma';
 	/** Default log level. */
 	const LOG_LEVEL = 'WARN';
 	/** Name of the cookie which contains the session ID. */
@@ -129,7 +127,7 @@ class Config {
 	 */
 	public function __construct(string $appPath, ?array $attributes=null) {
 		$this->_appPath = $appPath;
-		$this->_etcPath = $this->_appPath . '/' . self::ETC_DIR;
+		$this->_etcPath = $this->_appPath . DIRECTORY_SEPARATOR . self::ETC_DIR;
 		// management of initialization attributes
 		if ($attributes) {
 			foreach ($attributes as $attrName => $attrValue) {
@@ -151,31 +149,27 @@ class Config {
 	}
 	/**
 	 * Reads the "temma.json" configuration file.
-	 * @param	?string	$forcedJsonConfigPath	(optional) Path to the 'temma.json' file to be used to get the configuration. Defaults to null, to get the default file 'etc/temma.json'.
+	 * @param	?string	$forcedConfigPath	(optional) Path to the 'temma.*' file to be used to get the configuration. Defaults to null, to get the default file 'etc/temma.*'.
 	 * @param	?array	$overConf		(optional) Associative array that contains data used to override the configuration file.
 	 * @throws	\Temma\Exceptions\Framework	If the configuration file is not correct.
 	 */
-	public function readConfigurationFile(?string $forcedJsonConfigPath=null, ?array $overConf=null) : void {
-		global $_globalTemmaConfig;
-
-		// try to include the PHP configuration file
-		if (!$forcedJsonConfigPath) {
-			$phpConfigPath = $this->_etcPath . '/' . self::PHP_CONFIG_FILE_NAME;
+	public function readConfigurationFile(?string $forcedConfigPath=null, ?array $overConf=null) : void {
+		// read the configuration file
+		if ($forcedConfigPath) {
 			try {
-				@include($phpConfigPath);
+				$ini = \Temma\Utils\Serializer::read($forcedConfigPath);
 			} catch (\Exception $e) {
+				throw new TµFrameworkException("Unable to read configuration file '$forcedConfigPath'.", TµFrameworkException::CONFIG);
 			}
-			if (isset($_globalTemmaConfig) && $_globalTemmaConfig instanceof \Temma\Web\Config) {
-				$this->_executorConfig = $_globalTemmaConfig;
-				$this->_initIncludePaths();
-				return;
+		} else {
+			$configPath = $this->_etcPath . '/' . self::CONFIG_FILE_PREFIX;
+			try {
+				$ini = \Temma\Utils\Serializer::readFromPrefix($configPath);
+			} catch (\Exception $e) {
+				throw new TµFrameworkException("Unable to read configuration file with prefix '$configPath'.", TµFrameworkException::CONFIG);
 			}
 		}
-		// load the configuration file
-		$jsonConfigPath = $forcedJsonConfigPath ?: ($this->_etcPath . '/' . self::JSON_CONFIG_FILE_NAME);
-		$ini = json_decode(file_get_contents($jsonConfigPath), true);
-		if (is_null($ini))
-			throw new TµFrameworkException("Unable to read configuration file '$jsonConfigPath'.", TµFrameworkException::CONFIG);
+		// overload if needed
 		if ($overConf)
 			$ini = array_replace_recursive($ini, $overConf);
 
