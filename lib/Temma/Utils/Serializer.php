@@ -473,9 +473,14 @@ class Serializer {
 	 * @throws	\Temma\Exceptions\Application	If a required dependency cannot be satisfied.
 	 */
 	static public function readNeon(string $path) : mixed {
-		if (($file = file_get_contents($path)) === false)
+		if (!class_exists('\Nette\Neon\Neon'))
+			throw new TµApplicationException("Unable to encode NEON stream. The Neon library is not loaded.", TµApplicationException::DEPENDENCY);
+		try {
+			$data = \Nette\Neon\Neon::decodeFile($path);
+		} catch (\Exception $e) {
 			throw new TµIOException("Unable to read configuration file '$path'.", TµIOException::UNREADABLE);
-		return (self::decodeNeon($file));
+		}
+		return ($data);
 	}
 	/**
 	 * Unserialize XML file.
