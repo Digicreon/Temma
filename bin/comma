@@ -5,7 +5,11 @@
  * COMMA: COMmand-line MAnager
  * Bootstrap script for Temma command-line execution manager.
  *
- * Usage: bin/comma controller [action [name1=param1] [name2=param2]...]
+ * Usage:
+ *     bin/comma help
+ *     bin/comma help controller
+ *     bin/comma controller [action [--param1=value1] [--param2=value2]...]
+ *     bin/comma [nostderr] [conf=/path/to/temma.php] [inc=/path/to/include] controller [action [--param1=value1] [--param2=value2]...]
  */
 
 $objectName = null;
@@ -40,64 +44,63 @@ if ($_SERVER['argc'] < 2) {
 }
 array_shift($_SERVER['argv']);
 // help management
-if ($_SERVER['argv'][0] == '--help') {
+if ($_SERVER['argv'][0] == 'help') {
 	showHelp();
 	exit(0);
 }
-// stderr management
-if ($_SERVER['argv'][0] == '--nostderr') {
-	TµLog::logToStdErr(false);
-	array_shift($_SERVER['argv']);
+while (true) {
+	// stderr management
+	if ($_SERVER['argv'][0] == 'nostderr') {
+		TµLog::logToStdErr(false);
+		array_shift($_SERVER['argv']);
+		continue;
+	}
+	// Temma configuration file management
+	if (str_starts_with($_SERVER['argv'][0], 'conf=')) {
+		$forcedConfigPath = mb_substr($_SERVER['argv'][0], mb_strlen('conf='));
+		array_shift($_SERVER['argv']);
+		continue;
+	}
+	// inclusion path management
+	if (str_starts_with($_SERVER['argv'][0], 'inc=')) {
+		$incPath = mb_substr($methodName, mb_strlen('--inc='));
+		set_include_path($incPath . PATH_SEPARATOR . get_include_path());
+		array_shift($_SERVER['argv']);
+		continue;
+	}
+	break;
 }
 // extract object, method and parameters
 $objectName = array_shift($_SERVER['argv']);
 $methodName = array_shift($_SERVER['argv']);
 if (str_starts_with($methodName, '--')) {
-	if ($methodName == '--nostderr') {
-		TµLog::logToStdErr(false);
-	} else if (str_starts_with($methodName, '--conf=')) {
-		// get path to the Temma configuration file
-		$forcedConfigPath = mb_substr($methodName, mb_strlen('--conf='));
-	} else if (str_starts_with($methodName, '--inc=')) {
-		// add inclusion path
-		$incPath = mb_substr($methodName, mb_strlen('--inc='));
-		set_include_path($incPath . PATH_SEPARATOR . get_include_path());
-	} else {
-		fprintf(STDERR, "Unknown parameter '$methodName'.\n");
-		exit(1);
-	}
-	$methodName = null;
-} else if (str_contains($methodName, '=')) {
 	fprintf(STDERR, "No parameter allowed for the root action.\n");
 	exit(1);
 }
 foreach ($_SERVER['argv'] as $param) {
-	if (str_starts_with($param, '--')) {
-		if ($param == '--nostderr') {
-			TµLog::logToStdErr(false);
-		} else if (str_starts_with($param, '--conf=')) {
-			// get path to the Temma configuration file
-			$forcedConfigPath = mb_substr($param, mb_strlen('--conf='));
-		} else if (str_starts_with($param, '--inc=')) {
-			// add inclusion path
-			$incPath = mb_substr($param, mb_strlen('--inc='));
-			set_include_path($incPath . PATH_SEPARATOR . get_include_path());
-		} else {
-			fprintf(STDERR, "Unknown parameter '$param'.\n");
-			exit(1);
-		}
+	// check parameter
+	if (!str_starts_with($param, '--')) {
+		fprintf(STDERR, "Invalid parameter '$param'.\n");
+		exit(2);
+	}
+	// remove '--' prefix
+	$param = mb_substr($param, 2);
+	// extract parameter without value
+	if (!str_contains($param, '=')) {
+		$params[$param] = true;
 		continue;
 	}
-	// check parameters
+	// extract parameter with value
 	if (!preg_match('/^([^=]+)=(.*)$/', $param, $matches)) {
 		fprintf(STDERR, "Bad parameter '$param'\n");
 		exit(2);
 	}
+	$param = $matches[1];
 	$val = $matches[2];
 	if ((str_starts_with($val, '"') && str_ends_with($val, '"')) ||
 	    (str_starts_with($val, "'") && str_ends_with($val, "'")))
 		$val = mb_substr($val, 1, -1);
-	$params[$matches[1]] = $val;
+	$params[$param] = $val;
 }
 
 /* *** Read configuration file. *** */
