@@ -23,10 +23,19 @@ namespace Temma\Base;
  * // this object must be defined in the 'NS1/NS3/Object2.php' file, inside a directory of the included paths.
  * $instance2 = new \NS1\NS3\Object2();
  *
- * // optional: Add include path
+ * // optional: Add include path at init (single path or list of paths)
+ * \Temma\Base\Autoload::autoload('/path/to/lib');
+ * \Temma\Base\Autoload::autoload(['/path/to/lib1', '/path/to/lib2', '/path/to/lib3']);
+ * // optional: Add namespaced include paths at init
+ * \Temma\Base\Autoload::autoload([
+ *     '\Temma\Base'      => '/path/to/temma/base/directory',
+ *     '\Acme\Log\Writer' => './acme-log-writer/lib/',
+ * ]);
+ *
+ * // optional: Add include path after init (single path or list of paths)
  * \Temma\Base\Autoload::addIncludePath('/path/to/lib');
  * \Temma\Base\Autoload::addIncludePath(['/path/to/lib1', '/path/to/lib2', '/path/to/lib3']);
- * // optional: Add include path for namespaces
+ * // optional: Add namespaced include paths
  * \Temma\Base\Autoload::addIncludePath([
  *     '\Temma\Base'      => '/path/to/temma/base/directory',
  *     '\Acme\Log\Writer' => './acme-log-writer/lib/',
@@ -59,7 +68,7 @@ class Autoload {
 		// check if there is some configured namespaces
 		if (self::$_namespaces) {
 			$prefix = $name;
-			while (($pos = strrpos($prefix, '\\')) !== false) {
+			while (($pos = mb_strrpos($prefix, '\\')) !== false) {
 				// cut the prefix down
 				$prefix = substr($name, 0, $pos);
 				// check if this prefix was declared
@@ -101,8 +110,6 @@ class Autoload {
 	static public function addIncludePath(string|array $path) : void {
 		if (is_string($path))
 			$path = [$path];
-		else if (!is_array($path))
-			throw new \Exception("Invalid include path parameter.");
 		foreach ($path as $ns => $pathChunk) {
 			if (empty(trim($pathChunk)))
 				continue;
