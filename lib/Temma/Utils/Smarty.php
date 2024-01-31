@@ -12,9 +12,11 @@ use \Temma\Base\Log as TµLog;
 use \Temma\Exceptions\Framework as TµFrameworkException;
 use \Temma\Exceptions\IO as TµIOException;
 
-include_once('smarty4/Autoloader.php');
-include_once('smarty4/bootstrap.php');
-require_once('smarty4/Smarty.class.php');
+if (!class_exists('\Smarty')) {
+	include_once('smarty4/Autoloader.php');
+	include_once('smarty4/bootstrap.php');
+	require_once('smarty4/Smarty.class.php');
+}
 
 /**
  * Smarty templates processing object.

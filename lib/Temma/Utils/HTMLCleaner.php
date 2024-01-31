@@ -8,7 +8,12 @@
 
 namespace Temma\Utils;
 
-require_once("HTMLPurifier.auto.php");
+if (!class_exists('\HTMLPurifier_Config')) {
+	if (stream_resolve_include_path('HTMLPurifier.auto.php')) {
+		throw new \RuntimeException("Unable to load the HTMLPurifier library.");
+	}
+	require_once('HTMLPurifier.auto.php');
+}
 
 /**
  * Object for HMTL code cleaning. Based on HTMLPurifier.

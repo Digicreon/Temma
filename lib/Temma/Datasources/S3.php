@@ -10,7 +10,9 @@ namespace Temma\Datasources;
 
 use \Temma\Base\Log as TµLog;
 
-require_once('aws.phar');
+if (!class_exists('\Aws\S3\S3Client')) {
+	require_once('aws.phar');
+}
 
 /**
  * Amazon S3 management object.
