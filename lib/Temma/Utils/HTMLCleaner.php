@@ -9,7 +9,7 @@
 namespace Temma\Utils;
 
 if (!class_exists('\HTMLPurifier_Config')) {
-	if (stream_resolve_include_path('HTMLPurifier.auto.php')) {
+	if (!stream_resolve_include_path('HTMLPurifier.auto.php')) {
 		throw new \RuntimeException("Unable to load the HTMLPurifier library.");
 	}
 	require_once('HTMLPurifier.auto.php');
