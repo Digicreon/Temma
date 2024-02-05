@@ -65,9 +65,6 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 			throw new \Temma\Exceptions\Database("The DSN '$dsn' is not valid.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		}
 		$servers = explode(';', $servers);
-		if (!$servers) {
-			throw new \Temma\Exceptions\Database("The DSN '$dsn' is not valid.", \Temma\Exceptions\Database::FUNDAMENTAL);
-		}
 		$instance = new self($servers);
 		return ($instance);
 	}
