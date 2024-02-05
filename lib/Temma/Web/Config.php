@@ -3,7 +3,7 @@
 /**
  * Config
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2007-2023, Amaury Bouchard
+ * @copyright	© 2007-2024, Amaury Bouchard
  */
 
 namespace Temma\Web;
@@ -17,6 +17,8 @@ use \Temma\Exceptions\Framework as TµFrameworkException;
 class Config {
 	/** Prefix of the local configuration file. */
 	const CONFIG_FILE_PREFIX = 'temma';
+	/** Environment variable which contains the platform type. */
+	const ENV_PLATFORM = 'TEMMA_PLATFORM';
 	/** Default log level. */
 	const LOG_LEVEL = 'WARN';
 	/** Name of the cookie which contains the session ID. */
@@ -162,12 +164,24 @@ class Config {
 				throw new TµFrameworkException("Unable to read configuration file '$forcedConfigPath'.", TµFrameworkException::CONFIG);
 			}
 		} else {
+			// read the base configuration file ('etc/temma.php', 'etc/temma.json', 'etc/temma.yaml' or 'etc/temma.neon')
 			$configPath = $this->_etcPath . '/' . self::CONFIG_FILE_PREFIX;
+			$ini = null;
 			try {
 				$ini = \Temma\Utils\Serializer::readFromPrefix($configPath);
-			} catch (\Exception $e) {
-				throw new TµFrameworkException("Unable to read configuration file with prefix '$configPath'.", TµFrameworkException::CONFIG);
+			} catch (\Exception $e) { }
+			// read the platform-specific configuration file (e.g. 'etc/temma.prod.php', 'etc/temma.staging.json', 'etc/temma.dev.yaml', etc.)
+			$envType = getenv(self::ENV_PLATFORM);
+			if ($envType) {
+				$envConfigPath = "$configPath.$envType";
+				try {
+					$envIni = \Temma\Utils\Serializer::readFromPrefix($envConfigPath);
+					$ini = array_merge(($ini ?? []), $envIni);
+				} catch (\Exception $e) { }
 			}
+			// verify if the configuration was found
+			if (!$ini)
+				throw new TµFrameworkException("Unable to read configuration file with prefix '$configPath'.", TµFrameworkException::CONFIG);
 		}
 		// overload if needed
 		if ($overConf)
