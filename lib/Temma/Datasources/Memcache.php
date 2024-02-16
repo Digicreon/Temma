@@ -3,7 +3,7 @@
 /**
  * Memcache
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2009-2023, Amaury Bouchard
+ * @copyright	© 2009-2024, Amaury Bouchard
  */
 
 namespace Temma\Datasources;
