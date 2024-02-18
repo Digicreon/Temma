@@ -18,7 +18,7 @@ class Config {
 	/** Prefix of the local configuration file. */
 	const CONFIG_FILE_PREFIX = 'temma';
 	/** Environment variable which contains the platform type. */
-	const ENV_PLATFORM = 'TEMMA_PLATFORM';
+	const ENV_PLATFORM = 'ENVIRONMENT';
 	/** Default log level. */
 	const LOG_LEVEL = 'WARN';
 	/** Name of the cookie which contains the session ID. */
