@@ -1,9 +1,9 @@
 <?php
 
 /**
- * EventsController
+ * EventController
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2023, Amaury Bouchard
+ * @copyright	© 2023-2024, Amaury Bouchard
  */
 
 namespace Temma\Web;
@@ -16,7 +16,7 @@ use \Temma\Attributes\View as TµView;
  * Enhanced controller object for Server Sent Events management.
  */
 #[TµView(false)]
-class EventsController extends Controller {
+class EventController extends Controller {
 	/** Tell if some data has been sent. */
 	protected bool $_dataSent = false;
 	/** List of used channels. */
