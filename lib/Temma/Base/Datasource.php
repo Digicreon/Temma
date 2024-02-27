@@ -3,7 +3,7 @@
 /**
  * Datasource
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2012-2023, Amaury Bouchard
+ * @copyright	© 2012-2024, Amaury Bouchard
  */
 
 namespace Temma\Base;
@@ -209,7 +209,7 @@ abstract class Datasource implements \ArrayAccess, \Countable {
 	 * @throws	\Temma\Exceptions\Database	Always throws an exception.
 	 */
 	public function read(string $key, mixed $defaultOrCallback=null, mixed $options=null) : mixed {
-		throw new \Temma\Exceptions\Database("No get() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);
+		throw new \Temma\Exceptions\Database("No read() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);
 	}
 	/**
 	 * Multiple read.
