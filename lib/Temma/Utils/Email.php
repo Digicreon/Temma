@@ -186,8 +186,8 @@ class Email implements \Temma\Base\Loadable {
 	static public function simpleMail(string $from, string|array $to, string $title='', string $message='',
 	                                  string|array $cc='', string|array $bcc='', ?string $envelopeSender=null) : void {
 		$headers = [ 
-			'Content-Type: text/plain; charset=utf-8',
-			"From: $from",
+			'Content-Type' => 'text/plain; charset=utf-8',
+			'From'         => $from,
 		];
 		// recipient
 		if (is_array($to)) {
@@ -200,14 +200,14 @@ class Email implements \Temma\Base\Loadable {
 			$cc = implode(', ', $cc);
 		}
 		if ($cc)
-			$headers[] = "Cc: $cc";
+			$headers['Cc'] = $cc;
 		// blinded recipients
 		if (is_array($bcc)) {
 			$bcc = array_filter($bcc);
 			$bcc = implode(', ', $bcc);
 		}
 		if ($bcc)
-			$headers[] = "Bcc: $bcc";
+			$headers['Bcc'] = $bcc;
 		// management of the envelope sender
 		$params = '';
 		if ($envelopeSender)
@@ -237,11 +237,11 @@ class Email implements \Temma\Base\Loadable {
 	                                ?string $unsubscribe=null, ?string $envelopeSender=null) : void {
 		// headers
 		$headers = [
-			'MIME-Version: 1.0',
-			"From: $from",
+			'MIME-Version' => '1.0',
+			'From'         => $from,
 		];
 		if ($unsubscribe)
-			$headers[] = "List-Unsubscribe: $unsubscribe";
+			$headers['List-Unsubscribe'] = $unsubscribe;
 		// recipient
 		if (is_array($to)) {
 			$to = array_filter($to);
@@ -253,29 +253,29 @@ class Email implements \Temma\Base\Loadable {
 			$cc = implode(', ', $cc);
 		}
 		if ($cc)
-			$headers[] = "Cc: $cc";
+			$headers['Cc'] = $cc;
 		// blinded recipients
 		if (is_array($bcc)) {
 			$bcc = array_filter($bcc);
 			$bcc = implode(', ', $bcc);
 		}
 		if ($bcc)
-			$headers[] = "Bcc: $bcc";
+			$headers['Bcc'] = $bcc;
 
 		if (!$html && !$attachments) {
-			$headers[] = 'Content-Type: text/plain; charset=utf-8';
+			$headers['Content-Type'] = 'text/plain; charset=utf-8';
 			$message = $text;
 		} else if ($html && !$text && !$attachments) {
-			$headers[] = 'Content-Type: text/html; charset=utf-8';
+			$headers['Content-Type'] = 'text/html; charset=utf-8';
 			$message = $html;
 		} else {
 			$mixedBoundary = bin2hex(random_bytes(16));
 			$altBoundary = bin2hex(random_bytes(16));
 			if ($attachments) {
-				$headers[] = "Content-type: multipart/mixed; boundary=\"$mixedBoundary\"";
+				$headers['Content-type'] = "multipart/mixed; boundary=\"$mixedBoundary\"";
 				$boundary = $mixedBoundary;
 			} else {
-				$headers[] = "Content-type: multipart/alternative; boundary=\"$altBoundary\"";
+				$headers['Content-type'] = "multipart/alternative; boundary=\"$altBoundary\"";
 				$boundary = $altBoundary;
 			}
 			$message = [];
