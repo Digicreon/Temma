@@ -144,6 +144,11 @@ class Loader extends \Temma\Utils\Registry {
 			if (isset($this->_data[$key]))
 				return ($this->_data[$key]);
 		}
+		if (is_a($key, '\Temma\Dao\Dao') && isset($this->_data['controller']) && $this->_data['controller'] instanceof \Temma\Web\Controller) {
+			$this->_data[$key] = $this->_data['controller']->_loadDao($key);
+			if (isset($this->_data[$key]))
+				return ($this->_data[$key]);
+		}
 		if (isset($this->_builder)) {
 			$builder = $this->_builder;
 			$this->_data[$key] = $builder($this, $key);
