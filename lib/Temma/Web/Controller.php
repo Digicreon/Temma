@@ -310,6 +310,8 @@ class Controller implements \ArrayAccess {
 		/* ********** init ********** */
 		// creation of the sub-controller
 		$obj = new $controller($this->_loader, $this);
+		// define the controller in the loader
+		$this->_loader['CONTROLLER'] = $obj;
 		// init of the sub-controller
 		$method = \Temma\Web\Framework::CONTROLLERS_INIT_METHOD;
 		try {

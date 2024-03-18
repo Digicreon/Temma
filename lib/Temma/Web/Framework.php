@@ -567,8 +567,11 @@ class Framework {
 				throw new TµHttpException("Plugin '$pluginName' has no executable '$pluginType' method.", 500);
 			}
 		}
-		// execute the plugin
+		// plugin instanciation
 		$plugin = new $pluginName($this->_loader, $this->_executorController);
+		// define plugin as the controller in the loader
+		$this->_loader['CONTROLLER'] = $plugin;
+		// plugin execution
 		$pluginReturn = $plugin->$methodName();
 		return ($pluginReturn);
 	}
