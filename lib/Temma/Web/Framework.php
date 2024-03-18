@@ -570,7 +570,7 @@ class Framework {
 		// plugin instanciation
 		$plugin = new $pluginName($this->_loader, $this->_executorController);
 		// define plugin as the controller in the loader
-		$this->_loader['CONTROLLER'] = $plugin;
+		$this->_loader['controller'] = $plugin;
 		// plugin execution
 		$pluginReturn = $plugin->$methodName();
 		return ($pluginReturn);
