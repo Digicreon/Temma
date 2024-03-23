@@ -332,6 +332,7 @@ class Dao {
 				$crit = $this->criteria();
 				foreach ($criteria as $k => $v)
 					$crit->equal($k, $v);
+				$criteria = $crit;
 			}
 			$where = $criteria->generate();
 			if (!empty($where))
