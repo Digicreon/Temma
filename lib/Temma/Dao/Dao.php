@@ -207,14 +207,21 @@ class Dao {
 	/* ********** REQUESTS ********** */
 	/**
 	 * Returns the number of matching records.
-	 * @param	?\Temma\Dao\Criteria	$criteria	(optional) Search criteria. Null to count all records in the table. (default: null)
+	 * @param	null|array|\Temma\Dao\Criteria	$criteria	(optional) Search criteria or an associative array of fields and their search values.
+	 *								Null to count all records in the table. (default: null)
 	 * @return	int	The number of records.
 	 */
-	public function count(?\Temma\Dao\Criteria $criteria=null) : int {
+	public function count(null|array|\Temma\Dao\Criteria $criteria=null) : int {
 		$cacheVarName = '__dao:' . $this->_dbName . ':' . $this->_tableName . ':count';
 		$sql = 'SELECT COUNT(*) AS nb
 			FROM ' . (!$this->_dbName ? '' : ('`' . $this->_dbName . '`.')) . '`' . $this->_tableName . '`';
 		if (isset($criteria)) {
+			if (is_array($criteria)) {
+				$crit = $this->criteria();
+				foreach ($criteria as $k => $v)
+					$crit->equal($k, $v);
+				$criteria = $crit;
+			}
 			$where = $criteria->generate();
 			if ($where) {
 				$sql .= ' WHERE ' . $where;
@@ -232,14 +239,20 @@ class Dao {
 	}
 	/**
 	 * Fetch a record from its primary key, or the first record matching a criteria.
-	 * @param	int|string|\Temma\Dao\Criteria	$id	Primary key or criteria.
+	 * @param	int|string|array|\Temma\Dao\Criteria	$id	Primary key or criteria.
 	 * @return	array	Associative array.
 	 */
-	public function get(int|string|\Temma\Dao\Criteria $id) : array {
+	public function get(int|string|array|\Temma\Dao\Criteria $id) : array {
 		if (is_int($id) || is_string($id)) {
 			$where = '`' . $this->_idField . "` = " . $this->_db->quote($id);
 			$idHash = md5($id);
 		} else {
+			if (is_array($id)) {
+				$crit = $this->criteria();
+				foreach ($id as $k => $v)
+					$crit->equal($k, $v);
+				$id = $crit;
+			}
 			$where = $id->generate();
 			$idHash = md5($where);
 		}
@@ -321,7 +334,7 @@ class Dao {
 	 * @param	null|false|string|array		$sort		(optional) Sort data. Null for natural sort, false for random sort.
 	 * @param	?int				$limitOffset	(optional) Offset of the first returned record. (default: 0).
 	 * @param	?int				$nbrLimit	(optional) Maximum number of records to return. Null for no limit. (default: null)
-	 * @return	array	List of associative arrays.
+	 * @return	array	List of associative arrays, indexed by the primary key (if defined).
 	 */
 	public function search(null|array|\Temma\Dao\Criteria $criteria=null, null|false|string|array $sort=null, ?int $limitOffset=null, ?int $nbrLimit=null) : array {
 		$cacheVarName = '__dao:' . $this->_dbName . ':' . $this->_tableName . ':count';
@@ -374,21 +387,21 @@ class Dao {
 		if (($data = $this->_getCache($cacheVarName)) !== null)
 			return ($data);
 		// exécution de la requête
-		$data = $this->_db->queryAll($sql);
+		$data = $this->_db->queryAll($sql, $this->_idField);
 		// écriture de la donnée en cache
 		$this->_setCache($cacheVarName, $data);
 		return ($data);
 	}
 	/**
 	 * Update one or more records.
-	 * @param	null|int|string|\Temma\Dao\Criteria	$criteria	Primary key of the record that must be updated, or a search criteria.
-	 *									Null to update all records. (default: null)
-	 * @param	array					$fields		Associative array where the keys are the fields to update, and their
-	 *									values are the new values to update. (default: empty array)
+	 * @param	null|int|string|array|\Temma\Dao\Criteria	$criteria	Primary key of the record that must be updated, or a search criteria.
+	 *										Null to update all records. (default: null)
+	 * @param	array						$fields		Associative array where the keys are the fields to update, and their
+	 *										values are the new values to update. (default: empty array)
 	 * @return	int	The number of modified lines.
 	 * @throws	\Temma\Exceptions\Dao	If the criteria or the fields array are not well formed.
 	 */
-	public function update(null|int|string|\Temma\Dao\Criteria $criteria=null, array $fields=[]) : int {
+	public function update(null|int|string|array|\Temma\Dao\Criteria $criteria=null, array $fields=[]) : int {
 		if (!$fields)
 			return (0);
 		// effacement du cache pour cette DAO
@@ -416,19 +429,26 @@ class Dao {
 			$sql .= ' WHERE ';
 			if (is_int($criteria) || is_string($criteria))
 				$sql .= '`' . $this->_idField . "` = " . $this->_db->quote($criteria);
-			else
+			else {
+				if (is_array($criteria)) {
+					$crit = $this->criteria();
+					foreach ($criteria as $k => $v)
+						$crit->equal($k, $v);
+					$criteria = $crit;
+				}
 				$sql .= $criteria->generate();
+			}
 		}
 		$modified = $this->_db->exec($sql);
 		return ($modified);
 	}
 	/**
 	 * Delete one or more records.
-	 * @param	null|int|string|\Temma\Dao\Criteria	$criteria	(optional) Primary key of the record that must be deleted, or a search criteria.
-	 *									Null to remove all entries. (default: null)
+	 * @param	null|int|string|array|\Temma\Dao\Criteria	$criteria	(optional) Primary key of the record that must be deleted, or a search criteria.
+	 *										Null to remove all entries. (default: null)
 	 * @return	int	The number of deleted lines.
 	 */
-	public function remove(null|int|string|\Temma\Dao\Criteria $criteria=null) : int {
+	public function remove(null|int|string|array|\Temma\Dao\Criteria $criteria=null) : int {
 		// effacement du cache pour cette DAO
 		$this->_flushCache();
 		// constitution et exécution de la requête
@@ -437,8 +457,15 @@ class Dao {
 			$sql .= ' WHERE ';
 			if (is_int($criteria) || is_string($criteria))
 				$sql .= '`' . $this->_idField . "` = " . $this->_db->quote($criteria);
-			else
+			else {
+				if (is_array($criteria)) {
+					$crit = $this->criteria();
+					foreach ($criteria as $k => $v)
+						$crit->equal($k, $v);
+					$criteria = $crit;
+				}
 				$sql .= $criteria->generate();
+			}
 		}
 		$deleted = $this->_db->exec($sql);
 		return ($deleted);
