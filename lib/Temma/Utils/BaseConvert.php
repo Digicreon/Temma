@@ -23,14 +23,23 @@ class BaseConvert {
 	/** Base 61, same as base 71 (all URL-allowed characters) without characters '0oO1ilIL!i~'. */
 	const BASE61 = "23456789abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ'()*-._";
 	/**
+	 * Base 64, same as base 62 (0-9a-zA-Z) with '+/' characters
+	 * @link	https://www.ietf.org/rfc/rfc4648.txt
+	 */
+	const BASE64 = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ+/';
+	/**
 	 * Base 71. Contains all characters that are not encoded in an URL.
 	 * @link	http://www.ietf.org/rfc/rfc2396.txt
 	 */
 	const BASE71 = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!'()*-._~";
 	/** Base 73, same as base 54 with some special characters. */
 	const BASE73 = '23456789abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ!#%()*+,-./:;=?@[]_';
+	/** Base 79, same as base 80 without ':' (used to separate logins and passwords). */
+	const BASE79 = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.-+=^!*()[]{}@%$#';
 	/** Base 80, same as base 85 without HTML special characters '&<>?/'. */
 	const BASE80 = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.-:+=^!*()[]{}@%$#';
+	/** Base 84, same as base 85 without ':' (used to separate logins and passwords). */
+	const BASE84 = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.-+=^!/*?&<>()[]{}@%$#';
 	/**
 	 * Base 85, ZeroMQ fashion. Contains only printable characters that could be used on command-line arguments.
 	 * Superset of base 36 (0-9a-z) and base 62 (0-9a-zA-Z).
@@ -45,7 +54,7 @@ class BaseConvert {
 	 * Convert a positive number from any base to any special base.
 	 * @param	string	$input		The number to convert.
 	 * @param	int	$inBase		Size of the input base (any number between 2 and 95).
-	 * @param	int	$outBase	Size of the output base. Could be 31, 54, 61, 71, 73, 80, 85 or 95.
+	 * @param	int	$outBase	Size of the output base. Could be 31, 54, 61, 64, 71, 73, 79, 80, 84, 85 or 95.
 	 * @return	string	The converted number.
 	 ù @throws	Exception	If the parameters are incorrect.
 	 */
@@ -59,12 +68,18 @@ class BaseConvert {
 			$outDigits = self::BASE54;
 		else if ($outBase == 61)
 			$outDigits = self::BASE61;
+		else if ($outBase == 64)
+			$outDigits = self::BASE64;
 		else if ($outBase == 71)
 			$outDigits = self::BASE71;
 		else if ($outBase == 73)
 			$outDigits = self::BASE73;
+		else if ($outBase == 79)
+			$outDigits = self::BASE79;
 		else if ($outBase == 80)
 			$outDigits = self::BASE80;
+		else if ($outBase == 84)
+			$outDigits = self::BASE84;
 		else if ($outBase == 85)
 			$outDigits = self::BASE85;
 		else if ($outBase == 95)
@@ -76,7 +91,7 @@ class BaseConvert {
 	/**
 	 * Convert a positive number from any special base to any base.
 	 * @param	string	$input		The number to convert.
-	 * @param	int	$inBase		Size of the input base. Could be 31, 54, 61, 71, 73, 80, 85 or 95.
+	 * @param	int	$inBase		Size of the input base. Could be 31, 54, 61, 64, 71, 73, 79, 80, 84, 85 or 95.
 	 * @param	int	$outBase	Size of the output base (any number between 2 and 95).
 	 * @return	string	The converted number.
 	 * @throws	\Exception	If the parameters are incorrect.
@@ -88,12 +103,18 @@ class BaseConvert {
 			$inDigits = self::BASE54;
 		else if ($inBase == 61)
 			$inDigits = self::BASE61;
+		else if ($inBase == 64)
+			$inDigits = self::BASE64;
 		else if ($inBase == 71)
 			$inDigits = self::BASE71;
 		else if ($inBase == 73)
 			$inDigits = self::BASE73;
+		else if ($inBase == 79)
+			$inDigits = self::BASE79;
 		else if ($inBase == 80)
 			$inDigits = self::BASE80;
+		else if ($inBase == 84)
+			$inDigits = self::BASE84;
 		else if ($inBase == 85)
 			$inDigits = self::BASE85;
 		else if ($inBase == 95)
