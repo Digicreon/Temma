@@ -301,9 +301,11 @@ class Controller implements \ArrayAccess {
 
 		/* ********** attributes on the controller ********** */
 		$controllerReflection = new \ReflectionClass($controller);
-		$attributes = $controllerReflection->getAttributes();
+		$attributes = $controllerReflection->getAttributes(null, \ReflectionAttribute::IS_INSTANCEOF);
+		for ($parentClass = $controllerReflection->getParentClass(); $parentClass; $parentClass = $parentClass->getParentClass())
+			$attributes = array_merge($attributes, $parentClass->getAttributes(null, \ReflectionAttribute::IS_INSTANCEOF));
 		foreach ($attributes as $attribute) {
-			TµLog::log('Temma/Web', 'DEBUG', "Action attribute '{$attribute->getName()}'.");
+			TµLog::log('Temma/Web', 'DEBUG', "Controller attribute '{$attribute->getName()}'.");
 			$attribute->newInstance();
 		}
 
@@ -359,7 +361,7 @@ class Controller implements \ArrayAccess {
 		/* ********** attributes on the action ********** */
 		$reflectionMethod = $isDefaultAction ? \Temma\Web\Framework::CONTROLLERS_DEFAULT_ACTION : $method;
 		$actionReflection = new \ReflectionMethod($obj, $reflectionMethod);
-		$attributes = $actionReflection->getAttributes();
+		$attributes = $actionReflection->getAttributes(null, \ReflectionAttribute::IS_INSTANCEOF);
 		foreach ($attributes as $attribute) {
 			TµLog::log('Temma/Web', 'DEBUG', "Action attribute '{$attribute->getName()}'.");
 			$attribute->newInstance();
