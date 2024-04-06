@@ -26,5 +26,7 @@ class Application extends \Exception {
 	const DEPENDENCY = 4;
 	/** Ask for retry. */
 	const RETRY = 5;
+	/** Bad parameter. */
+	const BAD_PARAM = 6;
 }
 
