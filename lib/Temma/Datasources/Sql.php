@@ -136,6 +136,8 @@ class Sql extends \Temma\Base\Datasource {
 	protected ?string $_base = null;
 	/** Database Unix socket. */
 	protected ?string $_socket = null;
+	/** Array of buffered requests. */
+	protected array $_bufferedRequests = [];
 
 	/* ********** CONSTRUCTION ********** */
 	/**
@@ -375,20 +377,36 @@ class Sql extends \Temma\Base\Datasource {
 	}
 	/**
 	 * Executes a SQL request without fetching data.
-	 * @param	string	$sql	The SQL request.
-	 * @return	int	The number of modified lines.
+	 * @param	string	$sql		The SQL request.
+	 * @param	bool	$buffered	(optional) Set to true for buffered request.
+	 *					Buffered requests are not executed, until a normal request
+	 *					is executed. In this case, the buffered requests are
+	 *					executed first (FIFO ordering). (default value: false)
+	 * @return	int	The number of modified lines, or 0 if the request is buffered.
 	 * @throws	\Temma\Exceptions\Database	If something went wrong.
 	 */
-	public function exec(string $sql) : int {
+	public function exec(string $sql, bool $buffered=false) : int {
 		TµLog::log('Temma/Base', 'DEBUG', "SQL query: $sql");
 		if (!$this->_enabled)
 			return (0);
+		/*
+		 * Add the new request to the list of buffered requests.
+		 * If the new request is buffered, it is not processed for now.
+		 * If the new request is not buffered, it will be processed
+		 * after the buffered requests.
+		 */
+		$this->_bufferedRequests[] = $sql;
+		if ($buffered)
+			return (0);
 		$this->connect();
-		$nbLines = $this->_db->exec($sql);
-		if ($nbLines === false) {
-			$errStr = 'Database request error: ' . $this->getError();
-			TµLog::log('Temma/Base', 'ERROR', $errStr);
-			throw new TµDatabaseException($errStr, TµDatabaseException::QUERY);
+		$nbLines = 0;
+		foreach ($this->_bufferedRequests as $request) {
+			$nbLines = $this->_db->exec($sql);
+			if ($nbLines === false) {
+				$errStr = 'Database request error: ' . $this->getError();
+				TµLog::log('Temma/Base', 'ERROR', $errStr);
+				throw new TµDatabaseException($errStr, TµDatabaseException::QUERY);
+			}
 		}
 		return ($nbLines);
 	}
