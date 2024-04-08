@@ -401,13 +401,14 @@ class Sql extends \Temma\Base\Datasource {
 		$this->connect();
 		$nbLines = 0;
 		foreach ($this->_bufferedRequests as $request) {
-			$nbLines = $this->_db->exec($sql);
+			$nbLines = $this->_db->exec($request);
 			if ($nbLines === false) {
 				$errStr = 'Database request error: ' . $this->getError();
 				TµLog::log('Temma/Base', 'ERROR', $errStr);
 				throw new TµDatabaseException($errStr, TµDatabaseException::QUERY);
 			}
 		}
+		$this->_bufferedRequests = [];
 		return ($nbLines);
 	}
 	/**
