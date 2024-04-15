@@ -70,10 +70,14 @@ class BaseConvert {
 			$outDigits = self::BASE31;
 		else if ($outBase == 54)
 			$outDigits = self::BASE54;
+		else if ($outBase == 60)
+			$outDigits = self::BASE60;
 		else if ($outBase == 61)
 			$outDigits = self::BASE61;
 		else if ($outBase == 64)
 			$outDigits = self::BASE64;
+		else if ($outBase == 70)
+			$outDigits = self::BASE70;
 		else if ($outBase == 71)
 			$outDigits = self::BASE71;
 		else if ($outBase == 73)
@@ -105,10 +109,14 @@ class BaseConvert {
 			$inDigits = self::BASE31;
 		else if ($inBase == 54)
 			$inDigits = self::BASE54;
+		else if ($inBase == 60)
+			$inDigits = self::BASE60;
 		else if ($inBase == 61)
 			$inDigits = self::BASE61;
 		else if ($inBase == 64)
 			$inDigits = self::BASE64;
+		else if ($inBase == 70)
+			$inDigits = self::BASE70;
 		else if ($inBase == 71)
 			$inDigits = self::BASE71;
 		else if ($inBase == 73)
