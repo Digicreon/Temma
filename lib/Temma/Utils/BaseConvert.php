@@ -20,13 +20,17 @@ class BaseConvert {
 	const BASE31 = '23456789abcdefghjkmnpqrstuvwxyz';
 	/** Base 54, same as base 62 (0-9a-zA-Z) without characters '0oO1iIlL'. */
 	const BASE54 = '23456789abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ';
-	/** Base 61, same as base 71 (all URL-allowed characters) without characters '0oO1ilIL!i~'. */
+	/** Base 60, same as base 71 (all URL-allowed characters) without characters "0oO1ilIL!~'". */
+	const BASE60 = "23456789abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ()*-._";
+	/** Base 61, same as base 71 (all URL-allowed characters) without characters '0oO1ilIL!~'. */
 	const BASE61 = "23456789abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ'()*-._";
 	/**
 	 * Base 64, same as base 62 (0-9a-zA-Z) with '+/' characters
 	 * @link	https://www.ietf.org/rfc/rfc4648.txt
 	 */
 	const BASE64 = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ+/';
+	/** Base 70, same as base 71 (all URL-allowed characters) without the quote character ('). */
+	const BASE70 = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!()*-._~';
 	/**
 	 * Base 71. Contains all characters that are not encoded in an URL.
 	 * @link	http://www.ietf.org/rfc/rfc2396.txt
