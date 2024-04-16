@@ -115,9 +115,9 @@ class Auth extends \Temma\Web\Attribute {
 					// manage forbidden role
 					if (mb_substr($role, 0, 1) == '-') {
 						$role = mb_substr($role, 1);
-						if (isset($userRoles[$role])) {
-							TµLog::log('Temma/Web', 'WARN', "User has forbidden role.");
-							throw new TµApplicationException("User has forbidden role.", TµApplicationException::UNAUTHORIZED);
+						if (($userRoles[$role] ?? false)) {
+							TµLog::log('Temma/Web', 'WARN', "User has the forbidden role '$role'.");
+							throw new TµApplicationException("User has the forbidden role '$role'.", TµApplicationException::UNAUTHORIZED);
 						}
 					}
 					// manage searched role
@@ -140,9 +140,9 @@ class Auth extends \Temma\Web\Attribute {
 					// manage forbidden service
 					if (mb_substr($service, 0, 1) == '-') {
 						$service = mb_substr($service, 1);
-						if (isset($userServices[$service])) {
-							TµLog::log('Temma/Web', 'WARN', "User has access to a forbidden service.");
-							throw new TµApplicationException("User has access to a forbidden service.", TµApplicationException::UNAUTHORIZED);
+						if (($userServices[$service] ?? false)) {
+							TµLog::log('Temma/Web', 'WARN', "User has access to the forbidden service '$service'.");
+							throw new TµApplicationException("User has access to the forbidden service '$service'.", TµApplicationException::UNAUTHORIZED);
 						}
 					}
 					// manage search service
