@@ -43,8 +43,20 @@ use \Temma\Exceptions\Application as TµApplicationException;
  * - Access to managers and writers:
  * #[TµAuth(role: ['manager', 'writer'])]
  *
+ * - No access for rookies:
+ * #[TµAuth('-rookie')]
+ *
+ * - Access to users with the 'manager' role, but without the 'rookie' role:
+ * #[TµAuth(['manager', '-rookie'])]
+ *
+ * - The same as the previous one:
+ * #[TµAuth(role: ['manager', '-rookie'])]
+ *
  * - Access to users who have access rights on images:
  * #[TµAuth(service: 'image')]
+ *
+ * - No access for user who have access rights on videos:
+ * #[TµAuth(service: '-video')]
  *
  * - Access to writers who have access rights on texts or images:
  * #[TµAuth(role: 'writer', service: ['text', 'image'])]
@@ -100,13 +112,22 @@ class Auth extends \Temma\Web\Attribute {
 				$userRoles = $this['currentUser']['roles'];
 				$found = false;
 				foreach ($authRoles as $role) {
+					// manage forbidden role
+					if (mb_substr($role, 0, 1) == '-') {
+						$role = mb_substr($role, 1);
+						if (isset($userRoles[$role])) {
+							TµLog::log('Temma/Web', 'WARN', "User has forbidden role.");
+							throw new TµApplicationException("User has forbidden role.", TµApplicationException::UNAUTHORIZED);
+						}
+					}
+					// manage searched role
 					if (isset($userRoles[$role])) {
 						$found = true;
 						break;
 					}
 				}
 				if (!$found) {
-					TµLog::log('Temma/Web', 'WARN', "User has no mathcing role.");
+					TµLog::log('Temma/Web', 'WARN', "User has no matching role.");
 					throw new TµApplicationException("User has no matching role.", TµApplicationException::UNAUTHORIZED);
 				}
 			}
@@ -116,6 +137,15 @@ class Auth extends \Temma\Web\Attribute {
 				$userServices = $this['currentUser']['services'] ?? [];
 				$found = false;
 				foreach ($authServices as $service) {
+					// manage forbidden service
+					if (mb_substr($service, 0, 1) == '-') {
+						$service = mb_substr($service, 1);
+						if (isset($userServices[$service])) {
+							TµLog::log('Temma/Web', 'WARN', "User has access to a forbidden service.");
+							throw new TµApplicationException("User has access to a forbidden service.", TµApplicationException::UNAUTHORIZED);
+						}
+					}
+					// manage search service
 					if (isset($userServices[$service])) {
 						$found = true;
 						break;
