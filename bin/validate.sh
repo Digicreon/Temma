@@ -36,7 +36,7 @@ require_once('/opt/Temma/lib/Temma/Base/Autoload.php');
 	'/opt/Temma/lib/',
 ]);
 
-// Composer autorloader
+// Composer autoloader
 if (file_exists('/opt/Temma/vendor/autoload.php'))
 	require_once('/opt/Temma/vendor/autoload.php');
 
