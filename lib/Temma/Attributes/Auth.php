@@ -97,19 +97,20 @@ class Auth extends \Temma\Web\Attribute {
 		global $temma;
 
 		try {
+			$authVariable = $this->_getConfig()->xtra('security', 'authVariable', 'currentUser');
 			// check authentication
-			if ($authenticated === true && !($this['currentUser']['id'] ?? false)) {
+			if ($authenticated === true && !($this[$authVariable]['id'] ?? false)) {
 				TµLog::log('Temma/Web', 'WARN', "User is not authenticated (while an authenticated user is expected).");
 				throw new TµApplicationException("User is not authenticated.", TµApplicationException::AUTHENTICATION);
 			}
-			if ($authenticated === false && ($this['currentUser']['id'] ?? false)) {
+			if ($authenticated === false && ($this[$authVariable]['id'] ?? false)) {
 				TµLog::log('Temma/Web', 'WARN', "User is authenticated (while a unauthenticated user is expected).");
 				throw new TµApplicationException("User is authenticated.", TµApplicationException::AUTHENTICATION);
 			}
 			// check roles
 			if ($role) {
 				$authRoles = is_array($role) ? $role : [$role];
-				$userRoles = $this['currentUser']['roles'];
+				$userRoles = $this[$authVariable]['roles'] ?? [];
 				$found = false;
 				foreach ($authRoles as $role) {
 					// manage forbidden role
@@ -134,7 +135,7 @@ class Auth extends \Temma\Web\Attribute {
 			// check services
 			if ($service) {
 				$authServices = is_array($service) ? $service : [$service];
-				$userServices = $this['currentUser']['services'] ?? [];
+				$userServices = $this[$authVariable]['services'] ?? [];
 				$found = false;
 				foreach ($authServices as $service) {
 					// manage forbidden service
