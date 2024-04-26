@@ -286,25 +286,37 @@ class Dao {
 	public function create(array $data, mixed $safeData=null) : int {
 		// Flush cache for this DAO
 		$this->_flushCache();
+		// boolean used for the safe data (telling if the primary key is in the given data)
+		$idUpdated = false;
 		// create and execute the query
 		$sql = 'INSERT INTO ' . (empty($this->_dbName) ? '' : ($this->_dbName . '.')) . $this->_tableName .
 			' SET ';
 		$set = [];
 		foreach ($data as $key => $value) {
+			// manage the key
+			if (($field = array_search($key, $this->_fields)) !== false && !is_int($field))
+				$key = $field;
+			// manage the boolean
+			if ($key == $this->_idField)
+				$idUpdated = true;
+			// add the data
 			if (is_null($value))
 				$set[] = "`$key` = NULL";
-			else {
-				if (!is_string($value) && !is_numeric($value) && !is_bool($value))
-					throw new TµDaoException("Bad field value for key '$key'.", TµDaoException::FIELD);
-				$key = (($field = array_search($key, $this->_fields)) === false || is_int($field)) ? $key : $field;
+			else if (is_string($value) || is_numeric($value) || is_bool($value))
 				$set[] = "`$key` = " . $this->_db->quote($value);
-			}
+			else
+				throw new TµDaoException("Bad field value for key '$key'.", TµDaoException::FIELD);
 		}
 		$dataSet = implode(', ', $set);
 		$sql .= $dataSet;
 		// management of key duplication
 		if (!is_null($safeData)) {
 			$sql .= ' ON DUPLICATE KEY UPDATE ';
+			if (!$idUpdated && $this->_idField) {
+				// this instruction is used to make the subsequent call to LAST_INSERT_ID() returns the rightful value
+				// see: https://stackoverflow.com/questions/778534/mysql-on-duplicate-key-last-insert-id
+				$sql .= '`' . $this->_idField . '` = LAST_INSERT_ID(`' . $this->_idField . '`), ';
+			}
 			if ($safeData === true)
 				$sql .= $dataSet;
 			else if (is_string($safeData)) {
