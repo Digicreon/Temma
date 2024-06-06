@@ -12,10 +12,12 @@ use \Temma\Base\Log as TµLog;
 use \Temma\Exceptions\Framework as TµFrameworkException;
 use \Temma\Exceptions\IO as TµIOException;
 
-if (!class_exists('\Smarty')) {
+if (!class_exists('\Smarty\Smarty')) {
 	include_once('smarty4/Autoloader.php');
 	include_once('smarty4/bootstrap.php');
 	require_once('smarty4/Smarty.class.php');
+} else if (!function_exists('smarty_ucfirst_ascii')) {
+	require_once('Smarty/functions.php');
 }
 
 /**
@@ -33,7 +35,7 @@ class Smarty extends \Temma\Web\View {
 	/** Flag telling if the page could be stored in cache. */
 	private bool $_isCacheable = false;
 	/** Smarty object. */
-	private \Smarty $_smarty;
+	private \Smarty|\Smarty\Smarty $_smarty;
 	/** Name of the template. */
 	private ?string $_template = null;
 
@@ -56,13 +58,19 @@ class Smarty extends \Temma\Web\View {
 		if (!is_dir($cacheDir) && !mkdir($cacheDir, 0755))
 			throw new TµFrameworkException("Unable to create directory '$cacheDir'.", TµFrameworkException::CONFIG);
 		// create the Smarty object
-		$this->_smarty = new \Smarty();
+		if (!class_exists('\Smarty\Smarty')) {
+			// smarty 4
+			$this->_smarty = new \Smarty();
+		} else {
+			// smarty 5
+			$this->_smarty = new \Smarty\Smarty();
+		}
 		$smarty = $this->_smarty;
 		$this->_smarty->setCompileDir($compiledDir);
 		$this->_smarty->setCacheDir($cacheDir);
 		$this->_smarty->setErrorReporting(E_ALL & ~E_NOTICE);
 		$this->_smarty->muteUndefinedOrNullWarnings();
-		// add plugins include path
+		// registration of plugins
 		$pluginPathList = [];
 		$pluginPathList[] = $config->appPath . '/' . self::PLUGINS_DIR;
 		$pluginsDir = $config->xtra('smarty-view', 'pluginsDir');
@@ -70,8 +78,36 @@ class Smarty extends \Temma\Web\View {
 			$pluginPathList[] = $pluginsDir;
 		else if (is_array($pluginsDir))
 			$pluginPathList = array_merge($pluginPathList, $pluginsDir);
-		$pluginPathList = array_merge($this->_smarty->getPluginsDir(), $pluginPathList);
-		$this->_smarty->setPluginsDir($pluginPathList);
+		if (!class_exists('\Smarty\Smarty')) {
+			// smarty 4
+			$pluginPathList = array_merge($this->_smarty->getPluginsDir(), $pluginPathList);
+			$this->_smarty->addPluginsDir($pluginPathList);
+		} else {
+			// smarty 5
+			foreach ($pluginPathList as $path) {
+				$path = rtrim($path, '/');
+				foreach(['function', 'modifier', 'block', 'compiler', 'prefilter', 'postfilter', 'outputfilter'] as $type) {
+					foreach (glob("$path/$type.?*.php") as $filename) {
+						if (preg_match('/.*\.([a-z_A-Z0-9]+)\.php$/', $filename, $matches)) {
+							$pluginName = $matches[1];
+							require_once($filename);
+							$functionOrClassName = 'smarty_' . $type . '_' . $pluginName;
+							if (function_exists($functionOrClassName) || class_exists($functionOrClassName)) {
+								$this->_smarty->registerPlugin($type, $pluginName, $functionOrClassName, true, []);
+							}
+						}
+					}
+				}
+			}
+			// registration of native PHP modifiers
+			$functions = ['array_key_exists', 'ceil', 'count', 'date', 'explode', 'floatval', 'htmlentities',
+				      'md5', 'in_array', 'ip2long', 'is_array', 'is_numeric', 'intval', 'json_encode',
+				      'mb_strtoupper', 'nl2br', 'number_format', 'round', 'str_starts_with',
+				      'str_ends_with', 'str_contains', 'strip_tags', 'stripslashes', 'mb_strlen',
+				      'strstr', 'strtolower', 'strtotime', 'strtoupper', 'trim', 'urlencode'];
+			foreach ($functions as $f)
+				$smarty->registerPlugin('modifier', $f, $f);
+		}
 	}
 	/**
 	 * Tell that this view use template files.
