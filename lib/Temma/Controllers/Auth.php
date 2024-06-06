@@ -137,8 +137,10 @@ class Auth extends \Temma\Web\Plugin {
 		$this->_createDao();
 		// fetch user data
 		$user = $this->_userDao->get($currentUserId);
-		if (!$user)
+		if (!$user) {
+			unset($this->_session['currentUserId']);
 			return;
+		}
 		// update user last access
 		$this->_userDao->update($user['id'], ['date_last_access' => date('c')]);
 		// extract and index roles
@@ -258,6 +260,7 @@ class Auth extends \Temma\Web\Plugin {
 		$token = \Temma\Utils\BaseConvert::convertToSpecialBase($token, 16, 31);
 		$token = substr($token, 0, 12);
 		// store the token in database
+		TµLog::log('arkiv', 'DEBUG', "Token : '$token'");
 		$this->_tokenDao->create([
 			$this->_tokenFieldName      => hash('sha256', $token),
 			$this->_expirationFieldName => date('Y-m-d H:i:s', strtotime('+1 hour')),
