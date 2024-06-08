@@ -69,7 +69,7 @@ class Language extends \Temma\Web\Plugin {
 		$this->_loader->request->setAction($newAction);
 		$this->_loader->request->setParams($params);
 		// read the translation file
-		$langFile = parse_ini_file($this->_loader->config->etcPath . "/lang/$currentLang.ini", true);
+		$langFile = parse_ini_file($this->_loader->config->etcPath . "/lang/$currentLang.ini", true, INI_SCANNER_RAW);
 		$this['lang'] = $currentLang;
 		$this['l10n'] = $langFile;
 		// URL update
