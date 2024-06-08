@@ -100,11 +100,9 @@ class Smarty extends \Temma\Web\View {
 				}
 			}
 			// registration of native PHP modifiers
-			$functions = ['array_key_exists', 'ceil', 'count', 'date', 'explode', 'floatval', 'htmlentities',
-				      'md5', 'in_array', 'ip2long', 'is_array', 'is_numeric', 'intval', 'json_encode',
-				      'mb_strtoupper', 'nl2br', 'number_format', 'round', 'str_starts_with',
-				      'str_ends_with', 'str_contains', 'strip_tags', 'stripslashes', 'mb_strlen',
-				      'strstr', 'strtolower', 'strtotime', 'strtoupper', 'trim', 'urlencode'];
+			$functions = ['array_key_exists', 'ceil', 'date', 'explode', 'floatval', 'htmlentities',
+				      'md5', 'ip2long', 'is_array', 'is_numeric', 'intval', 'str_starts_with',
+				      'str_ends_with', 'str_contains', 'stripslashes', 'strstr', 'strtotime', 'trim'];
 			foreach ($functions as $f)
 				$smarty->registerPlugin('modifier', $f, $f);
 		}
