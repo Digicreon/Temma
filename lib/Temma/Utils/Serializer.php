@@ -375,8 +375,13 @@ class Serializer {
 	static public function readFromPrefix(string $prefixPath, array $types=[self::PHP, self::JSON, self::INI, self::YAML, self::NEON, self::XML]) : mixed {
 		foreach ($types as $type) {
 			$path = "$prefixPath.$type";
-			if (file_exists($path))
-				return (self::read($path, $type));
+			if (file_exists($path)) {
+				try {
+					return (self::read($path, $type));
+				} catch (TµIOException $ioe) {
+					// unable to read file, continue to loop
+				}
+			}
 		}
 		throw new TµIOException("Unable to find configuration file with prefix '$prefixPath'.", TµIOException::NOT_FOUND);
 	}
@@ -418,13 +423,20 @@ class Serializer {
 	 * Unserialize PHP fiie.
 	 * @param	string	$path	Path to the PHP file.
 	 * @return	mixed	The decoded data.
-	 * @throws	\Temma\Exceptions\IO	If the format is not correct.
+	 * @throws	\Temma\Exceptions\IO	If the file doesn't exist or its format is not correct.
 	 */
 	static public function readPhp(string $path) : mixed {
+		set_error_handler(function($errno, $errstr, $errfile, $errline ) {
+			throw new \ErrorException($errstr, $errno, 0, $errfile, $errline);
+		});
 		try {
-			$data = @include($path);
-		} catch (\Exception $e) {
-			throw new TµIOException("Unable to read PHP file '$path'.", TµIOException::BAD_FORMAT);
+			$data = include($path);
+		} catch (\ErrorException $ex) {
+			throw new TµIOException("Unable to read PHP file '$path'.", TµIOException::NOT_FOUND);
+		} catch (\Error $err) {
+			throw new TµIOException("Bad syntax in PHP file '$path'.", TµIOException::BAD_FORMAT);
+		} finally {
+			restore_error_handler();
 		}
 		return ($data);
 	}
@@ -447,7 +459,17 @@ class Serializer {
 	 * @throws	\Temma\Exceptions\IO	If the format is not correct.
 	 */
 	static public function readIni(string $path) : mixed {
-		if (($data = parse_ini_file($path, true)) === false)
+		set_error_handler(function($errno, $errstr, $errfile, $errline ) {
+			throw new \ErrorException($errstr, $errno, 0, $errfile, $errline);
+		});
+		try {
+			$data = parse_ini_file($path, true);
+		} catch (\ErrorException $ex) {
+			throw new TµIOException("Unable to read INI file '$path'.", TµIOException::NOT_FOUND);
+		} finally {
+			restore_error_handler();
+		}
+		if ($data === false)
 			throw new TµIOException("Unable to read INI file '$path'.", TµIOException::UNREADABLE);
 		return ($data);
 	}
