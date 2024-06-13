@@ -9,6 +9,8 @@
 namespace Temma\Plugins;
 
 use \Temma\Base\Log as TµLog;
+use \Temma\Utils\Serializer as TµSerializer;
+use \Temma\Exceptions\IO as TµIOException;
 
 /**
  * Plugin used to manage website localization.
@@ -60,7 +62,7 @@ class Language extends \Temma\Web\Plugin {
 			$this->_redirect("/$defaultLanguage" . $_SERVER['REQUEST_URI']);
 			return (self::EXEC_HALT);
 		}
-		/* the language was given as first URL chunk */
+		/* The language was given as first URL chunk. */
 		// we shift all URL chunks
 		$newController = $this['ACTION'];
 		$this->_loader->request->setController($newController);
@@ -68,8 +70,15 @@ class Language extends \Temma\Web\Plugin {
 		$newAction = array_shift($params);
 		$this->_loader->request->setAction($newAction);
 		$this->_loader->request->setParams($params);
-		// read the translation file
-		$langFile = parse_ini_file($this->_loader->config->etcPath . "/lang/$currentLang.ini", true, INI_SCANNER_RAW);
+		/* Read the translation file. */
+		$langPath = $this->_loader->config->etcPath . "/lang/$currentLang";
+		try {
+			$langFile = TµSerializer::readFromPrefix($langPath);
+		} catch (TµIOException $ioe) {
+			$logLevel = ($currentLang == $defaultLanguage) ? 'NOTE' : 'WARN';
+			TµLog::log('Temma/Web', $logLevel, "Unable to read language file '$langPath'.");
+			$langFile = null;
+		}
 		$this['lang'] = $currentLang;
 		$this['l10n'] = $langFile;
 		// URL update
