@@ -6,7 +6,7 @@
  * @param	string			$content	Textual content.
  * @param	\Smarty\Template	$template	Template.
  * @param	bool			$repeat		False for the closing tag.
- * @return	string	The translated string.
+ * @return	?string	The translated string.
  * @link	https://smarty-php.github.io/smarty/stable/api/extending/block-tags/
  * @link	https://stackoverflow.com/a/23178267
  * @author	Amaury Bouchard <amaury@æmaury.net>
