@@ -26,8 +26,15 @@ function smarty_modifier_l10n(string $str, ...$data) {
 	// process the string with data if needed
 	if ($data)
 		$res = sprintf($res, ...$data);
+	// context and count
+	if (is_array($res) && isset($res['default']))
+		$res = $res['default'];
+	if (is_array($res) && isset($res['*']))
+		$res = $res['*'];
 	// escaping
-	$res = htmlspecialchars($res, ENT_COMPAT, 'UTF-8', true);
+	$res = (string)$res;
+	if (!$smarty->escape_html)
+		$res = htmlspecialchars($res, ENT_COMPAT, 'UTF-8', true);
 	return ($res);
 }
 
