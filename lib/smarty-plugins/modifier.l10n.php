@@ -27,10 +27,18 @@ function smarty_modifier_l10n(string $str, ...$data) {
 	if ($data)
 		$res = sprintf($res, ...$data);
 	// context and count
-	if (is_array($res) && isset($res['default']))
-		$res = $res['default'];
-	if (is_array($res) && isset($res['*']))
-		$res = $res['*'];
+	if (is_iterable($res)) {
+		if (isset($res['*']) && is_scalar($res['*']))
+			$res = $res['*'];
+		else
+			$res = current($res);
+	}
+	if (is_iterable($res)) {
+		if (isset($res['*']) && is_scalar($res['*']))
+			$res = $res['*'];
+		else
+			$res = current($res);
+	}
 	// escaping
 	$res = (string)$res;
 	if (!$smarty->escape_html)

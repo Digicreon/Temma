@@ -19,10 +19,16 @@ function smarty_block_l10n($params, $content, $template, &$repeat) {
 	if ($repeat || !$content)
 		return (null);
 	$content = trim($content);
-	// search if there was a specified domain ('default' as default domain)
-	$domain = ($params['_domain'] ?? null) ?: 'default';
-	// search if there was a count parameter
-	$count = $params['_count'] ?? null;
+	// get parameters
+	$split = $domain = $ctx = $count = null;
+	if (isset($params['_']))
+		$split = explode(',', $params['_']);
+	$domain = $params['_domain'] ?? $split[0] ?? null;
+	$domain = (is_string($domain) ? trim($domain) : null) ?: 'default';
+	$ctx = $params['_ctx'] ?? $split[1] ?? null;
+	$ctx = (is_string($ctx) ? trim($ctx) : null) ?: null;
+	$count = $params['_count'] ?? $split[2] ?? null;
+	$count = is_string($count) ? trim($count) : $count;
 	if (!is_numeric($count)) {
 		if (is_countable($count))
 			$count = count($count);
@@ -31,46 +37,10 @@ function smarty_block_l10n($params, $content, $template, &$repeat) {
 		else
 			$count = 0;
 	}
-	// search if there was a context
-	$ctx = $params['_ctx'] ?? null;
 	// search for the translated string
 	$l10n = $smarty->getTemplateVars('l10n');
 	$res = $l10n[$domain][$content] ?? null;
-	if (is_iterable($res)) {
-		// found an array
-		// search for context
-		if (isset($res['default']) && (!$ctx || !isset($res[$ctx]))) {
-			// no context asked, or the asked context doesn't exist
-			// => use the default context
-			$res = $res['default'];
-		} else if ($ctx && isset($res[$ctx])) {
-			// a context was asked, and it exists
-			// => use it
-			$res = $res[$ctx];
-		}
-		if (!is_iterable($res)) {
-			// direct string associated to the context
-			$res = (string)$res;
-		} else {
-			// loop on count definitions
-			$found = false;
-			foreach ($res as $key => $val) {
-				$isLessOrEqual = str_starts_with($key, '<=');
-				$isLess = $isLessOrEqual ? false : str_starts_with($key, '<');
-				if ($key == '*' ||
-				    $count == $key ||
-				    (is_numeric($count) &&
-				     (($isLessOrEqual && $count <= mb_substr($key, 2)) ||
-				      ($isLess && $count < mb_substr($key, 1))))) {
-					$res = (string)$val;
-					$found = true;
-					break;
-				}
-			}
-			if (!$found)
-				$res = null;
-		}
-	}
+	$res = _l10n_extract_context_count($res, $ctx, $count);
 	if (!isset($res)) {
 		// not found: use the given string
 		$res = $content;
@@ -89,5 +59,68 @@ function smarty_block_l10n($params, $content, $template, &$repeat) {
 		$res = strtr($res, $replace);
 	}
 	return ($res);
+}
+/**
+ * "private" function used by the block tag to find the text from context and count.
+ * @param	mixed	$input	Data associated to the translated string.
+ * @param	mixed	$ctx	Given context.
+ * @param	mixed	$count	Given count.
+ * @return	?string	The resulting string.
+ */
+function _l10n_extract_context_count(mixed $input, mixed $ctx, mixed $count) : ?string {
+	if (is_null($input))
+		return (null);
+	if (!is_iterable($input) && !($input instanceof \ArrayAccess))
+		return ((string)$input);
+	// search for the given context
+	if ($ctx && isset($input[$ctx])) {
+		// searched context found
+		$context = $input[$ctx];
+		$value = _l10n_extract_count($context, $count);
+		return ($value);
+	}
+	// search for what could be the context
+	$context = current($input);
+	if (is_null($context))
+		return (null);
+	// if this context's content is an array, it contains a list of counts
+	if (is_iterable($context)) {
+		$value = _l10n_extract_count($context, $count);
+		return ($value);
+	}
+	// this context's content is not an array
+	// maybe the input is a list of counts
+	$value = _l10n_extract_count($input, $count);
+	if (isset($value))
+		return ($value);
+	// as a last resort, use the context's value
+	return ((string)$context);
+}
+/**
+ * "private" function used by the block tag to find the text from count.
+ * @param	mixed	$input	Input data.
+ * @param	mixed	$count	Given count.
+ * @return	?string	The resulting string.
+ */
+function _l10n_extract_count(mixed $input, mixed $count) : ?string {
+	if (is_null($input))
+		return (null);
+	if (!is_iterable($input))
+		return ((string)$input);
+	foreach ($input as $key => $val) {
+		$isLessOrEqual = $isLess = false;
+		if (is_string($key)) {
+			$isLessOrEqual = str_starts_with($key, '<=');
+			$isLess = $isLessOrEqual ? false : str_starts_with($key, '<');
+		}
+		if ($key == '*' ||
+		    $count == $key ||
+		    (is_numeric($count) &&
+		     (($isLessOrEqual && $count <= mb_substr($key, 2)) ||
+		      ($isLess && $count < mb_substr($key, 1))))) {
+			return ((string)$val);
+		}
+	}
+	return (null);
 }
 
