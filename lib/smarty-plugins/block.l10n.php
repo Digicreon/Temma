@@ -23,11 +23,11 @@ function smarty_block_l10n($params, $content, $template, &$repeat) {
 	$split = $domain = $ctx = $count = null;
 	if (isset($params['_']))
 		$split = explode(',', $params['_']);
-	$domain = $params['_domain'] ?? $split[0] ?? null;
+	$domain = $params['domain'] ?? $split[0] ?? null;
 	$domain = (is_string($domain) ? trim($domain) : null) ?: 'default';
-	$ctx = $params['_ctx'] ?? $split[1] ?? null;
+	$ctx = $params['ctx'] ?? $split[1] ?? null;
 	$ctx = (is_string($ctx) ? trim($ctx) : null) ?: null;
-	$count = $params['_count'] ?? $split[2] ?? null;
+	$count = $params['count'] ?? $split[2] ?? null;
 	$count = is_string($count) ? trim($count) : $count;
 	if (!is_numeric($count)) {
 		if (is_countable($count))
@@ -40,7 +40,7 @@ function smarty_block_l10n($params, $content, $template, &$repeat) {
 	// search for the translated string
 	$l10n = $smarty->getTemplateVars('l10n');
 	$res = $l10n[$domain][$content] ?? null;
-	$res = _l10n_extract_context_count($res, $ctx, $count);
+	$res = _block_l10n_extract_context_count($res, $ctx, $count);
 	if (!isset($res)) {
 		// not found: use the given string
 		$res = $content;
@@ -49,13 +49,11 @@ function smarty_block_l10n($params, $content, $template, &$repeat) {
 	if ($params) {
 		$replace = [];
 		foreach ($params as $key => $val) {
-			if (!in_array($key, ['_domain', '_ctx', '_count']))
-				$replace['%' . $key . '%'] = $val;
+			$replace['%' . $key . '%'] = $val;
 		}
-		if (isset($ctx))
-			$replace['%_ctx%'] = $ctx;
-		if (isset($count))
-			$replace['%_count%'] = $count;
+		$replace['%domain%'] = $domain;
+		$replace['%ctx%'] = $ctx;
+		$replace['%count%'] = $count;
 		$res = strtr($res, $replace);
 	}
 	return ($res);
@@ -67,7 +65,7 @@ function smarty_block_l10n($params, $content, $template, &$repeat) {
  * @param	mixed	$count	Given count.
  * @return	?string	The resulting string.
  */
-function _l10n_extract_context_count(mixed $input, mixed $ctx, mixed $count) : ?string {
+function _block_l10n_extract_context_count(mixed $input, mixed $ctx, mixed $count) : ?string {
 	if (is_null($input))
 		return (null);
 	if (!is_iterable($input) && !($input instanceof \ArrayAccess))
@@ -76,7 +74,7 @@ function _l10n_extract_context_count(mixed $input, mixed $ctx, mixed $count) : ?
 	if ($ctx && isset($input[$ctx])) {
 		// searched context found
 		$context = $input[$ctx];
-		$value = _l10n_extract_count($context, $count);
+		$value = _block_l10n_extract_count($context, $count);
 		return ($value);
 	}
 	// search for what could be the context
@@ -85,12 +83,12 @@ function _l10n_extract_context_count(mixed $input, mixed $ctx, mixed $count) : ?
 		return (null);
 	// if this context's content is an array, it contains a list of counts
 	if (is_iterable($context)) {
-		$value = _l10n_extract_count($context, $count);
+		$value = _block_l10n_extract_count($context, $count);
 		return ($value);
 	}
 	// this context's content is not an array
 	// maybe the input is a list of counts
-	$value = _l10n_extract_count($input, $count);
+	$value = _block_l10n_extract_count($input, $count);
 	if (isset($value))
 		return ($value);
 	// as a last resort, use the context's value
@@ -102,7 +100,7 @@ function _l10n_extract_context_count(mixed $input, mixed $ctx, mixed $count) : ?
  * @param	mixed	$count	Given count.
  * @return	?string	The resulting string.
  */
-function _l10n_extract_count(mixed $input, mixed $count) : ?string {
+function _block_l10n_extract_count(mixed $input, mixed $count) : ?string {
 	if (is_null($input))
 		return (null);
 	if (!is_iterable($input))
