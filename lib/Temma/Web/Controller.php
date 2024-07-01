@@ -299,19 +299,11 @@ class Controller implements \ArrayAccess {
 			throw new TµHttpException("Unable to find controller '$controller'.", 404);
 		}
 
-		/* ********** attributes on the controller ********** */
-		$controllerReflection = new \ReflectionClass($controller);
-		$attributes = $controllerReflection->getAttributes(null, \ReflectionAttribute::IS_INSTANCEOF);
-		for ($parentClass = $controllerReflection->getParentClass(); $parentClass; $parentClass = $parentClass->getParentClass())
-			$attributes = array_merge($attributes, $parentClass->getAttributes(null, \ReflectionAttribute::IS_INSTANCEOF));
-		foreach ($attributes as $attribute) {
-			TµLog::log('Temma/Web', 'DEBUG', "Controller attribute '{$attribute->getName()}'.");
-			$attribute->newInstance();
-		}
-
 		/* ********** init ********** */
 		// creation of the sub-controller
-		$obj = new $controller($this->_loader, $this);
+		$this->_loader->parentController = $this;
+		$obj = $this->_loader->$controller;
+		$this->_loader->parentController = null;
 		// define the controller in the loader
 		$this->_loader['controller'] = $obj;
 		// init of the sub-controller

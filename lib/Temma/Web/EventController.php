@@ -43,7 +43,7 @@ class EventController extends Controller {
 		if ($execTime === '0')
 			return;
 		// set the new time limit
-		$execTime = !$execTime ? 30 : $execTime;
+		$execTime = ($execTime === false) ? 30 : $execTime;
 		set_time_limit($execTime);
 	}
 	/**

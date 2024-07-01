@@ -132,34 +132,55 @@ class Loader extends \Temma\Utils\Registry {
 		if ($key == 'Asynk') {
 			return (new \Temma\Asynk\Client($this));
 		}
-		// other values
+		// key exists
 		if (isset($this->_data[$key])) {
 			if ($this->_data[$key] instanceof \Closure)
 				$this->_data[$key] = $this->_data[$key]($this);
 			if (isset($this->_data[$key]))
 				return ($this->_data[$key]);
 		}
+		// loadable
 		if (($interfaces = @class_implements($key)) && isset($interfaces['Temma\Base\Loadable'])) {
 			$this->_data[$key] = new $key($this);
 			if (isset($this->_data[$key]))
 				return ($this->_data[$key]);
 		}
+		// DAO
 		if (is_a($key, '\Temma\Dao\Dao') && isset($this->_data['controller']) && $this->_data['controller'] instanceof \Temma\Web\Controller) {
 			$this->_data[$key] = $this->_data['controller']->_loadDao($key);
 			if (isset($this->_data[$key]))
 				return ($this->_data[$key]);
 		}
+		// controller
+		if (is_subclass_of($key, '\Temma\Web\Controller')) {
+			// management of controller's attributes
+			$controllerReflection = new \ReflectionClass($key);
+			$attributes = $controllerReflection->getAttributes(null, \ReflectionAttribute::IS_INSTANCEOF);
+			for ($parentClass = $controllerReflection->getParentClass(); $parentClass; $parentClass = $parentClass->getParentClass())
+				$attributes = array_merge($attributes, $parentClass->getAttributes(null, \ReflectionAttribute::IS_INSTANCEOF));
+			foreach ($attributes as $attribute) {
+				TµLog::log('Temma/Web', 'DEBUG', "Controller attribute '{$attribute->getName()}'.");
+				$attribute->newInstance();
+			}
+			// instanciation of the controller
+			$this->_data[$key] = new $key($this, ($this->_data['parentController'] ?? $this->_data['controller'] ?? null));
+			if (isset($this->_data[$key]))
+				return ($this->_data[$key]);
+		}
+		// call builder function
 		if (isset($this->_builder)) {
 			$builder = $this->_builder;
 			$this->_data[$key] = $builder($this, $key);
 			if (isset($this->_data[$key]))
 				return ($this->_data[$key]);
 		}
+		// call loader's builder method
 		if (method_exists($this, 'builder')) {
 			$this->_data[$key] = $this->builder($key);
 			if (isset($this->_data[$key]))
 				return ($this->_data[$key]);
 		}
+		// if the default value is a callback, execute it
 		if ($default instanceof \Closure) {
 			$default = $default($this);
 		}
