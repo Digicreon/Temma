@@ -31,7 +31,7 @@ class Smarty extends \Temma\Web\View {
 	/** Name of the temporary directory where Smarty cache files must be written. */
 	const CACHE_DIR = 'templates_cache';
 	/** Path to the smarty plugins directory. */
-	const PLUGINS_DIR = 'lib/smarty/plugins';
+	const PLUGINS_DIR = 'lib/smarty-plugins';
 	/** Flag telling if the page could be stored in cache. */
 	private bool $_isCacheable = false;
 	/** Smarty object. */
