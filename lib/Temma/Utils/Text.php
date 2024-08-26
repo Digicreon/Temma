@@ -135,43 +135,98 @@ class Text {
 	static public function urlize(?string $txt, bool $avoidUnderscores=true) : string {
 		if (!$txt)
 			return ('');
-		// vowels
-		$mask = ['à', 'á', 'â', 'ã', 'ä', 'å', '@', 'À', 'Á', 'Â', 'Ã', 'Ä', 'Å'];
-		$txt = str_replace($mask, 'a', $txt);
-		$mask = ['é', 'è', 'ê', 'ë', '€', 'È', 'É', 'Ê', 'Ë'];
-		$txt = str_replace($mask, 'e', $txt);
-		$mask = ['í', 'ï', 'ì', 'î', 'Ì', 'Í', 'Î', 'Ï'];
-		$txt = str_replace($mask, 'i', $txt);
-		$mask = ['ò', 'ó', 'ô', 'õ', 'ö', 'ø', 'Ò', 'Ó', 'Ô', 'Õ', 'Ö', 'Ø'];
-		$txt = str_replace($mask, 'o', $txt);
-		$mask = ['ù', 'ú', 'û', 'ü', 'Ù', 'Ú', 'Û', 'Ü'];
-		$txt = str_replace($mask, 'u', $txt);
-		$mask = ['ý', 'ÿ', 'Ý', 'Ÿ'];
-		$txt = str_replace($mask, 'y', $txt);
-		// consonants
-		$mask = ['ç', 'Ç'];
-		$txt = str_replace($mask, 'c', $txt);
-		$mask = ['ð', 'Ð'];
-		$txt = str_replace($mask, 'd', $txt);
-		$mask = ['ñ', 'Ñ'];
-		$txt = str_replace($mask, 'n', $txt);
-		// digraphs
-		$mask = ['æ', 'Æ'];
-		$txt = str_replace($mask, 'ae', $txt);
-		$mask = ['œ', 'Œ'];
-		$txt = str_replace($mask, 'oe', $txt);
-		$mask = ['ǳ', 'ǆ', 'ǲ', 'Ǳ', 'ǅ', 'Ǆ'];
-		$txt = str_replace($mask, 'dz', $txt);
-		$mask = ['ĳ', 'Ĳ'];
-		$txt = str_replace($mask, 'ij', $txt);
-		$mask = ['ǉ', 'ǈ', 'Ǉ'];
-		$txt = str_replace($mask, 'lj', $txt);
-		$mask = ['ǌ', 'ǋ', 'Ǌ'];
-		$txt = str_replace($mask, 'nj', $txt);
-		$mask = ['ß', 'ẞ'];
-		$txt = str_replace($mask, 'ss', $txt);
-		$mask = '&';
-		$txt = str_replace($mask, 'et', $txt);
+		if (extension_loaded('intl')) {
+			$transliterator = \Transliterator::create('Any-Latin; Latin-ASCII');
+			$txt = $transliterator->transliterate($txt);
+		} else {
+			if (function_exists('iconv'))
+				$txt = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $txt);
+			// vowels
+			$mask = ['à', 'á', 'â', 'ã', 'ä', 'å', '@', 'À', 'Á', 'Â', 'Ã', 'Ä', 'Å'];
+			$txt = str_replace($mask, 'a', $txt);
+			$mask = ['é', 'è', 'ê', 'ë', '€', 'È', 'É', 'Ê', 'Ë'];
+			$txt = str_replace($mask, 'e', $txt);
+			$mask = ['í', 'ï', 'ì', 'î', 'Ì', 'Í', 'Î', 'Ï'];
+			$txt = str_replace($mask, 'i', $txt);
+			$mask = ['ò', 'ó', 'ô', 'õ', 'ö', 'ø', 'Ò', 'Ó', 'Ô', 'Õ', 'Ö', 'Ø'];
+			$txt = str_replace($mask, 'o', $txt);
+			$mask = ['ù', 'ú', 'û', 'ü', 'Ù', 'Ú', 'Û', 'Ü'];
+			$txt = str_replace($mask, 'u', $txt);
+			$mask = ['ý', 'ÿ', 'Ý', 'Ÿ'];
+			$txt = str_replace($mask, 'y', $txt);
+			// consonants
+			$mask = ['ç', 'Ç'];
+			$txt = str_replace($mask, 'c', $txt);
+			$mask = ['ð', 'Ð'];
+			$txt = str_replace($mask, 'd', $txt);
+			$mask = ['ñ', 'Ñ'];
+			$txt = str_replace($mask, 'n', $txt);
+			// digraphs
+			$mask = ['æ', 'Æ'];
+			$txt = str_replace($mask, 'ae', $txt);
+			$mask = ['œ', 'Œ'];
+			$txt = str_replace($mask, 'oe', $txt);
+			$mask = ['ǳ', 'ǆ', 'ǲ', 'Ǳ', 'ǅ', 'Ǆ'];
+			$txt = str_replace($mask, 'dz', $txt);
+			$mask = ['ĳ', 'Ĳ'];
+			$txt = str_replace($mask, 'ij', $txt);
+			$mask = ['ǉ', 'ǈ', 'Ǉ'];
+			$txt = str_replace($mask, 'lj', $txt);
+			$mask = ['ǌ', 'ǋ', 'Ǌ'];
+			$txt = str_replace($mask, 'nj', $txt);
+			$mask = ['ß', 'ẞ'];
+			$txt = str_replace($mask, 'ss', $txt);
+			$mask = '&';
+			$txt = str_replace($mask, 'et', $txt);
+			// greek alphabet
+			$greekToLatin = [
+				// lowercase
+				'α' => 'a', 'β' => 'b', 'γ' => 'g', 'δ' => 'd', 'ε' => 'e',
+				'ζ' => 'z', 'η' => 'i', 'θ' => 'th', 'ι' => 'i', 'κ' => 'k',
+				'λ' => 'l', 'μ' => 'm', 'ν' => 'n', 'ξ' => 'x', 'ο' => 'o',
+				'π' => 'p', 'ρ' => 'r', 'σ' => 's', 'τ' => 't', 'υ' => 'y',
+				'φ' => 'f', 'χ' => 'ch', 'ψ' => 'ps', 'ω' => 'o',
+				// uppercase
+				'Α' => 'A', 'Β' => 'B', 'Γ' => 'G', 'Δ' => 'D', 'Ε' => 'E',
+				'Ζ' => 'Z', 'Η' => 'I', 'Θ' => 'TH', 'Ι' => 'I', 'Κ' => 'K',
+				'Λ' => 'L', 'Μ' => 'M', 'Ν' => 'N', 'Ξ' => 'X', 'Ο' => 'O',
+				'Π' => 'P', 'Ρ' => 'R', 'Σ' => 'S', 'Τ' => 'T', 'Υ' => 'Y',
+				'Φ' => 'F', 'Χ' => 'CH', 'Ψ' => 'PS', 'Ω' => 'O',
+				// common diacritical marks
+				'ά' => 'a', 'έ' => 'e', 'ή' => 'i', 'ί' => 'i', 'ό' => 'o',
+				'ύ' => 'y', 'ώ' => 'o', 'ϊ' => 'i', 'ϋ' => 'y', 'ΐ' => 'i',
+				'ΰ' => 'y', 'Ά' => 'A', 'Έ' => 'E', 'Ή' => 'I', 'Ί' => 'I',
+				'Ό' => 'O', 'Ύ' => 'Y', 'Ώ' => 'O',
+				// other
+				'ς' => 's',  // final sigma
+			];
+			$txt = strtr($txt, $greekToLatin);
+			// cyrillic alphabet
+			$cyrillicToLatin = [
+				// lowercase
+				'а' => 'a', 'б' => 'b', 'в' => 'v', 'г' => 'g', 'д' => 'd',
+				'е' => 'e', 'ё' => 'yo', 'ж' => 'zh', 'з' => 'z', 'и' => 'i',
+				'й' => 'y', 'к' => 'k', 'л' => 'l', 'м' => 'm', 'н' => 'n',
+				'о' => 'o', 'п' => 'p', 'р' => 'r', 'с' => 's', 'т' => 't',
+				'у' => 'u', 'ф' => 'f', 'х' => 'kh', 'ц' => 'ts', 'ч' => 'ch',
+				'ш' => 'sh', 'щ' => 'sch', 'ъ' => '', 'ы' => 'y', 'ь' => '',
+				'э' => 'e', 'ю' => 'yu', 'я' => 'ya',
+				// uppercase
+				'А' => 'A', 'Б' => 'B', 'В' => 'V', 'Г' => 'G', 'Д' => 'D',
+				'Е' => 'E', 'Ё' => 'Yo', 'Ж' => 'Zh', 'З' => 'Z', 'И' => 'I',
+				'Й' => 'Y', 'К' => 'K', 'Л' => 'L', 'М' => 'M', 'Н' => 'N',
+				'О' => 'O', 'П' => 'P', 'Р' => 'R', 'С' => 'S', 'Т' => 'T',
+				'У' => 'U', 'Ф' => 'F', 'Х' => 'Kh', 'Ц' => 'Ts', 'Ч' => 'Ch',
+				'Ш' => 'Sh', 'Щ' => 'Sch', 'Ъ' => '', 'Ы' => 'Y', 'Ь' => '',
+				'Э' => 'E', 'Ю' => 'Yu', 'Я' => 'Ya',
+				// common Cyrillic diacritics (Serbian, Macedonian)
+				'Љ' => 'Lj', 'љ' => 'lj', 'Њ' => 'Nj', 'њ' => 'nj', 'Ћ' => 'C',
+				'ћ' => 'c', 'Ђ' => 'Dj', 'ђ' => 'dj', 'Џ' => 'Dz', 'џ' => 'dz',
+				'Ґ' => 'G', 'ґ' => 'g', 'Є' => 'Ye', 'є' => 'ye', 'І' => 'I',
+				'і' => 'i', 'Ї' => 'Yi', 'ї' => 'yi',
+			];
+			$txt = strtr($txt, $cyrillicToLatin);
+		}
 		// all other letters
 		$txt = preg_replace("/[^a-zA-Z0-9-_ \+]/", ' ', $txt);
 		// remove multiple spaces
