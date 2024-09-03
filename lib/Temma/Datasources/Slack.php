@@ -26,39 +26,17 @@ use \Temma\Base\Log as TµLog;
  * // where WEBHOOK_URL is the fetched webhook URL without the 'https://' part at its beginning.
  * // example: 'slack://hooks.slack.com/services/TXXXXXXXX/BYYYYYYYY/ZZZZZZZZZZZZZZZZZZZZZZZZ'
  *
- * // initialization with a given notifier name
- * $slack = \Temma\Datasources\Slack::factory('slack://username@WEBHOOK_URL');
- * $slack = \Temma\Base\Datasource::factory('slack://username@WEBHOOK_URL');
- *
- * // initialization with a given notifier name and a notifier icon URL
- * // the icon URL must be URL-encoded
- * $slack = \Temma\Datasources\Slack::factory('slack://username:ICON_URL@WEBHOOK_URL');
- * $slack = \Temma\Base\Datasource::factory('slack://username:ICON_URL@WEBHOOK_URL');
- *
  * // send a simple text message to the given channel
  * $slack['CHANNEL'] = 'Text message';
- * $slack->write('CHANNEL', 'Text message');
- * $slack->set('CHANNEL', 'Text message');
- *
- * // send a simple message, with a defined user name and icon
- * $slack->write('CHANNEL', 'Text message', [
- *     'author' => 'Author name',
- *     'icon'   => 'https://site.com/path/to/author/icon.png',
- * ]);
- * $slack->set('CHANNEL', 'Text message', [
- *     'author' => 'Author name',
- *     'icon'   => 'https://site.com/path/to/author/icon.png',
- * ]);
+ * $slack->write('', 'Text message');
+ * $slack->set('L', 'Text message');
  *
  * // send a formatted notification
- * $slack['CHANNEL'] = [
+ * $slack[''] = [
  *     'text'        => 'Text above the notification <https://temma.net|with a link>',
  *     'attachments' => [
  *         [
  *             'pretext' => 'Text before the attachment',
- *             'author'  => 'Attachment author's name',
- *             'icon'    => 'Attachment author's icon URL',
- *             'link'    => 'Attachment author's link URL',
  *             'text'    => 'Attachment's text content',
  *             'image'   => 'https://site.com/path/to/image.jpg',
  *             'footer'  => 'Attachment's footer text',
@@ -70,33 +48,10 @@ use \Temma\Base\Log as TµLog;
  *         ],
  *     ],
  * ];
- *
- * // send a formatted notification, with a defined user name and icon
- * $slack->set('CHANNEL', [
- *     'text'        => 'blah blah blah',
- *     'attachments' => ['Text 1', 'Text 2'],
- * ], [
- *     'author' => 'Author name',
- *     'icon'   => 'https://site.com/path/to/author/icon.png',
- * ]);
- *
- * // definition of user and icon for all messages
- * $slack->setAuthor('Notifier's name', 'https://site.com/path/to/author/icon.png');
- * $slask['CHANNEL'] = 'Text';
- * $slack['CHANNEL'] = 'blah blah blah';
- * $slack['CHANNEL'] = [
- *     'text'        => 'blah blah',
- *     'attachments' => ['text 1', 'text 2'],
- * ];
- * </code>
  */
 class Slack extends \Temma\Base\Datasource {
 	/** Webhook URL. */
 	private ?string $_webhook = null;
-	/** User name. */
-	private ?string $_username = null;
-	/** User icon. */
-	private ?string $_icon = null;
 
 	/* ********** CONSTRUCTION ********** */
 	/**
@@ -107,48 +62,25 @@ class Slack extends \Temma\Base\Datasource {
 	 */
 	static public function factory(string $dsn) : \Temma\Datasources\Slack {
 		TµLog::log('Temma/Base', 'DEBUG', "\\Temma\\Datasources\\Slack object creation with DSN: '$dsn'.");
-		$username = null;
 		$webhook = null;
-		$icon = null;
 		if (!str_starts_with($dsn, 'slack://')) {
 			TµLog::log('Temma/Base', 'WARN', "Invalid Slack DSN '$dsn'.");
 			throw new \Temma\Exceptions\Database("Invalid Slack DSN '$dsn'.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		}
 		$dsn = mb_substr($dsn, mb_strlen('slack://'));
-		if (($pos = mb_strpos($dsn, '@')) !== false) {
-			$username = mb_substr($dsn, 0, $pos);
+		if (($pos = mb_strpos($dsn, '@')) !== false)
 			$dsn = mb_substr($dsn, $pos + 1);
-			if (($pos = mb_strpos($username, ':')) !== false) {
-				$icon = urldecode(mb_substr($username, $pos + 1));
-				$username = mb_substr($username, 0, $pos);
-			}
-		}
 		if (!str_starts_with($dsn, 'hooks.slack.com/services/'))
 			throw new \Temma\Exceptions\Database("Invalid Slack webhook '$dsn'.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		$webhook = "https://$dsn";
-		return (new self($webhook, $username, $icon));
+		return (new self($webhook));
 	}
 	/**
 	 * Constructor.
 	 * @param	string	$webhook	Slack webhook.
-	 * @param	?string	$username	(optional) User name.
-	 * @param	?string	$icon		(optional) User icon URL.
 	 */
-	public function __construct(string $webhook, ?string $username=null, ?string $icon=null) {
+	public function __construct(string $webhook) {
 		$this->_webhook = $webhook;
-		$this->_username = $username;
-		$this->_icon = $icon;
-	}
-
-	/* ********** SPECIAL METHODS ********** */
-	/**
-	 * Defines the notifer name and icon for all subsequent calls.
-	 * @param	?string	$author	(optional) Author name.
-	 * @param	?string	$icon	(optional) Author icon URL.
-	 */
-	public function setAuthor(?string $author, ?string $icon) : void {
-		$this->_username = $author;
-		$this->_icon = $icon;
 	}
 
 	/* ********** STANDARD REQUESTS ********** */
@@ -167,9 +99,7 @@ class Slack extends \Temma\Base\Datasource {
 	 * @param	string	$channel	Slack channel (starting with a sharp character).
 	 * @param	string	$text		Text message, or array of text messages, or an associative array with formatted message data,
 	 *					or a list of associative arrays.
-	 * @param	mixed	$options	(optional) Associative array with some of the following keys:
-	 * 					- author: Notification author's name.
-	 *					- icon: Notification author's icon.
+	 * @param	mixed	$options	Not used.
 	 * @return	bool	Always true.
 	 * @throws	\Exception	If an error occured.
 	 */
@@ -184,9 +114,7 @@ class Slack extends \Temma\Base\Datasource {
 	 * @param	string		$channel	Slack channel (starting with a sharp character).
 	 * @param	string|array	$message	Text message, or array of text messages, or an associative array with formatted message data,
 	 *						or a list of associative arrays.
-	 * @param	mixed		$options	(optional) Associative array with some of the following keys:
-	 * 						- author: Notification author's name.
-	 *						- icon: Notification author's icon.
+	 * @param	mixed		$options	Not used.
 	 * @return	bool	always true.
 	 * @throws	\Exception	If an error occured.
 	 */
@@ -209,12 +137,6 @@ class Slack extends \Temma\Base\Datasource {
 						$chunk = [];
 						if (isset($attachment['pretext']))
 							$chunk['pretext'] = $attachment['pretext'];
-						if (isset($attachment['author']))
-							$chunk['author_name'] = $attachment['author'];
-						if (isset($attachment['icon']))
-							$chunk['author_icon'] = $attachment['icon'];
-						if (isset($attachment['link']))
-							$chunk['author_link'] = $attachment['link'];
 						if (isset($attachment['text']))
 							$chunk['text'] = $attachment['text'];
 						if (isset($attachment['image']))
@@ -229,14 +151,6 @@ class Slack extends \Temma\Base\Datasource {
 		} else
 			throw new \Temma\Exceptions\Database("Bad Slack message parameter.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		$data['channel'] = $channel;
-		if (($options['author'] ?? null))
-			$data['username'] = $options['author'];
-		else if ($this->_username)
-			$data['username'] = $this->_username;
-		if (($options['icon'] ?? null))
-			$data['icon_url'] = $options['icon'];
-		else if ($this->_icon)
-			$data['icon_url'] = $this->_icon;
 		// send the message
 		$json = json_encode($data);
 		$curl = curl_init($this->_webhook);

@@ -81,23 +81,25 @@ abstract class Datasource implements \ArrayAccess, \Countable {
 		if (str_starts_with($dsn, 'redis://') ||
 		    str_starts_with($dsn, 'redis-sock://'))
 			return (\Temma\Datasources\Redis::factory($dsn));
-		if (str_starts_with($dsn, 's3://'))
-			return (\Temma\Datasources\S3::factory($dsn));
-		if (str_starts_with($dsn, 'dummy://'))
-			return (\Temma\Datasources\Dummy::factory(''));
 		if (str_starts_with($dsn, 'file://'))
 			return (\Temma\Datasources\File::factory($dsn));
-		if (str_starts_with($dsn, 'beanstalk://'))
-			return (\Temma\Datasources\Beanstalk::factory($dsn));
-		if (str_starts_with($dsn, 'sqs://'))
-			return (\Temma\Datasources\Sqs::factory($dsn));
-		if (str_starts_with($dsn, 'smsmode://'))
-			return (\Temma\Datasources\Smsmode::factory($dsn));
-		if (str_starts_with($dsn, 'pushover://'))
-			return (\Temma\Datasources\Pushover::factory($dsn));
+		if (str_starts_with($dsn, 's3://'))
+			return (\Temma\Datasources\S3::factory($dsn));
 		if (str_starts_with($dsn, 'zmq://') ||
 		    str_starts_with($dsn, 'zmq-bind://'))
 			return (\Temma\Datasources\ZeroMQ::factory($dsn));
+		if (str_starts_with($dsn, 'sqs://'))
+			return (\Temma\Datasources\Sqs::factory($dsn));
+		if (str_starts_with($dsn, 'beanstalk://'))
+			return (\Temma\Datasources\Beanstalk::factory($dsn));
+		if (str_starts_with($dsn, 'smsmode://'))
+			return (\Temma\Datasources\Smsmode::factory($dsn));
+		if (str_starts_with($dsn, 'slack://'))
+			return (\Temma\Datasources\Slack::factory($dsn));
+		if (str_starts_with($dsn, 'pushover://'))
+			return (\Temma\Datasources\Pushover::factory($dsn));
+		if (str_starts_with($dsn, 'dummy://'))
+			return (\Temma\Datasources\Dummy::factory(''));
 		if (str_starts_with($dsn, 'env://')) {
 			$dsn = getenv(substr($dsn, 6));
 			return (self::factory($dsn));
