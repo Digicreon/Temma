@@ -32,6 +32,8 @@ class Smarty extends \Temma\Web\View {
 	const CACHE_DIR = 'templates_cache';
 	/** Path to the smarty plugins directory. */
 	const PLUGINS_DIR = 'lib/smarty-plugins';
+	/** Default setting for HTML auto-escaping. */
+	const DEFAULT_AUTO_ESCAPE = true;
 	/** Flag telling if the page could be stored in cache. */
 	private bool $_isCacheable = false;
 	/** Smarty object. */
@@ -70,6 +72,9 @@ class Smarty extends \Temma\Web\View {
 		$this->_smarty->setCacheDir($cacheDir);
 		$this->_smarty->setErrorReporting(E_ALL & ~E_NOTICE);
 		$this->_smarty->muteUndefinedOrNullWarnings();
+		// auto-escaping
+		$autoEscape = $config->xtra('smarty-view', 'autoEscape', self::DEFAULT_AUTO_ESCAPE);
+		$this->_smarty->setEscapeHtml($autoEscape);
 		// registration of plugins
 		$pluginPathList = [];
 		$pluginPathList[] = $config->appPath . '/' . self::PLUGINS_DIR;
