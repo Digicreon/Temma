@@ -14,9 +14,8 @@ use \Temma\Base\Log as TµLog;
  * Slack management object.
  *
  * This object is used to send notifications on Slack.
- * To send Skriv notifications on Slack, you must install the official Incoming Webhook application
- * (https://my.slack.com/services/new/incoming-webhook), and get the given Incoming Webhook URL.
- *
+ * To send a notifications on Slack, you create a Slack application and add a webhook.
+ * See https://api.slack.com/messaging/webhooks
  *
  * <b>Usage</b>
  * <code>
@@ -27,9 +26,9 @@ use \Temma\Base\Log as TµLog;
  * // example: 'slack://hooks.slack.com/services/TXXXXXXXX/BYYYYYYYY/ZZZZZZZZZZZZZZZZZZZZZZZZ'
  *
  * // send a simple text message to the given channel
- * $slack['CHANNEL'] = 'Text message';
+ * $slack[''] = 'Text message';
  * $slack->write('', 'Text message');
- * $slack->set('L', 'Text message');
+ * $slack->set('', 'Text message');
  *
  * // send a formatted notification
  * $slack[''] = [
@@ -77,7 +76,7 @@ class Slack extends \Temma\Base\Datasource {
 	}
 	/**
 	 * Constructor.
-	 * @param	string	$webhook	Slack webhook.
+	 * @param	string	$webhook	Slack webhook URL.
 	 */
 	public function __construct(string $webhook) {
 		$this->_webhook = $webhook;
@@ -96,7 +95,7 @@ class Slack extends \Temma\Base\Datasource {
 	/* ********** RAW REQUESTS ********** */
 	/**
 	 * Send a Slack notification.
-	 * @param	string	$channel	Slack channel (starting with a sharp character).
+	 * @param	string	$channel	Not used.
 	 * @param	string	$text		Text message, or array of text messages, or an associative array with formatted message data,
 	 *					or a list of associative arrays.
 	 * @param	mixed	$options	Not used.
@@ -111,7 +110,7 @@ class Slack extends \Temma\Base\Datasource {
 	/* ********** KEY-VALUE REQUESTS ********** */
 	/**
 	 * Send a notification to Slack.
-	 * @param	string		$channel	Slack channel (starting with a sharp character).
+	 * @param	string		$channel	Not used.
 	 * @param	string|array	$message	Text message, or array of text messages, or an associative array with formatted message data,
 	 *						or a list of associative arrays.
 	 * @param	mixed		$options	Not used.
