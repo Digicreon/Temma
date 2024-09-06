@@ -55,6 +55,8 @@ class Sqs extends \Temma\Base\Datasource {
 	private ?string $_region = null;
 	/** Queue URL. */
 	private ?string $_url = null;
+	/** Long polling wait duration in seconds. */
+	private ?int $_waitPolling = null;
 
 	/* ********** CONSTRUCTION ********** */
 	/**
@@ -65,7 +67,7 @@ class Sqs extends \Temma\Base\Datasource {
 	 */
 	static public function factory(string $dsn) : \Temma\Datasources\Sqs {
 		TµLog::log('Temma/Base', 'DEBUG', "\\Temma\\Datasources\\Sqs object creation with DSN: '$dsn'.");
-		if (!preg_match('/^([^:]+):\/\/([^:]+):([^@]+)@(sqs\.)?([^\.]+)\.amazonaws\.com\/(.*)$/', $dsn, $matches)) {
+		if (!preg_match('/^([^:]+):\/\/([^:]+):([^@]+)@(sqs\.)?([^\.]+)\.amazonaws\.com\/(.*)#?(\d*)$/', $dsn, $matches)) {
 			TµLog::log('Temma/Base', 'WARN', "Invalid Sqs DSN '$dsn'.");
 			throw new \Temma\Exceptions\Database("Invalid Sqs DSN '$dsn'.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		}
@@ -74,10 +76,11 @@ class Sqs extends \Temma\Base\Datasource {
 		$privateKey = $matches[3] ?? '';
 		$region = $matches[5] ?? '';
 		$path = $matches[6] ?? '';
+		$waitPolling = $matches[7] ?? null;
 		if ($type != 'sqs' || !$accessKey || !$privateKey || !$region || !$path)
 			throw new \Temma\Exceptions\Database("Invalid Sqs DSN '$dsn'.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		$url = "https://sqs.$region.amazonaws.com/$path";
-		return (new self($accessKey, $privateKey, $region, $url));
+		return (new self($accessKey, $privateKey, $region, $url, $waitPolling));
 	}
 	/**
 	 * Constructor.
@@ -85,13 +88,15 @@ class Sqs extends \Temma\Base\Datasource {
 	 * @param	string	$privateKey	AWS private key.
 	 * @param	string	$region		SQS region.
 	 * @param	string	$url		SQS queue URL.
+	 * @param	?int	$waitPolling	(optional) Long polling wait duration in seconds.
 	 * @throws	\Temma\Exceptions\Database	If a parameter is invalid.
 	 */
-	public function __construct(string $accessKey, string $privateKey, string $region, string $url) {
+	public function __construct(string $accessKey, string $privateKey, string $region, string $url, ?int $waitPolling) {
 		$this->_accessKey = $accessKey;
 		$this->_privateKey = $privateKey;
 		$this->_region = $region;
 		$this->_url = $url;
+		$this->_waitPolling = $waitPolling;
 	}
 
 	/* ********** CONNECTION ********** */
@@ -207,6 +212,8 @@ class Sqs extends \Temma\Base\Datasource {
 			];
 			if (is_int($options) && $options)
 				$params['WaitTimeSeconds'] = $options;
+			else if ($this->_waitPolling)
+				$params['WaitTimeSeconds'] = $this->_waitPolling;
 			$result = $this->_sqsClient->receiveMessage($params);
 			$messages = $result->get('Messages');
 			if ($messages && count($messages)) {
