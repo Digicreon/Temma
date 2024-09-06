@@ -410,10 +410,11 @@ class Dao {
 	 *										Null to update all records. (default: null)
 	 * @param	array						$fields		Associative array where the keys are the fields to update, and their
 	 *										values are the new values to update. (default: empty array)
+	 * @param	?int						$limit		(optional) Maximum number of lines to update. Null to update without limit.
 	 * @return	int	The number of modified lines.
 	 * @throws	\Temma\Exceptions\Dao	If the criteria or the fields array are not well formed.
 	 */
-	public function update(null|int|string|array|\Temma\Dao\Criteria $criteria=null, array $fields=[]) : int {
+	public function update(null|int|string|array|\Temma\Dao\Criteria $criteria=null, array $fields=[], ?int $limit=null) : int {
 		if (!$fields)
 			return (0);
 		// effacement du cache pour cette DAO
@@ -451,6 +452,8 @@ class Dao {
 				$sql .= $criteria->generate();
 			}
 		}
+		if (!is_null($limit))
+			$sql .= " LIMIT $limit";
 		$modified = $this->_db->exec($sql);
 		return ($modified);
 	}
