@@ -190,7 +190,7 @@ class Sqs extends \Temma\Base\Datasource {
 	 * Get a message from SQS.
 	 * @param	string	$key			Not used, should be an empty string.
 	 * @param       mixed   $defaultOrCallback      (optional) Not used.
-	 * @param	mixed	$options		(optional) Not used.
+	 * @param	mixed	$options		(optional) The number of seconds to wait for a message.
 	 * @return	?array	An associative array with the keys "id" (temporary message identifier that can be used to delete the message)
 	 *			and "data" (raw message data).
 	 * @throws	\Exception	If an error occured.
@@ -201,9 +201,13 @@ class Sqs extends \Temma\Base\Datasource {
 		$this->connect();
 		// fetch the message
 		try {
-			$result = $this->_sqsClient->receiveMessage([
-				'QueueUrl' => $this->_url,
-			]);
+			$params = [
+				'QueueUrl'            => $this->_url,
+				'MaxNumberOfMessages' => 1,
+			];
+			if (is_int($options) && $options)
+				$params['WaitTimeSeconds'] = $options;
+			$result = $this->_sqsClient->receiveMessage($params);
 			$messages = $result->get('Messages');
 			if ($messages && count($messages)) {
 				$id = [
@@ -306,7 +310,7 @@ class Sqs extends \Temma\Base\Datasource {
 	 * Get a message from SQS.
 	 * @param	string	$key			Not used, should be an empty string.
 	 * @param       mixed   $defaultOrCallback      (optional) Not used.
-	 * @param	mixed	$options		(optional) Not used.
+	 * @param	mixed	$options		(optional) Number of seconds to wait for a message.
 	 * @return	mixed	An associative array with the keys "id" (temporary message identifier that can be used to delete the message)
 	 *			and "data" (JSON-decoded message data).
 	 * @throws	\Exception	If an error occured.
