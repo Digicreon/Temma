@@ -363,31 +363,7 @@ class Dao {
 			if (!empty($where))
 				$sql .= ' WHERE ' . $where;
 		}
-		if (!is_null($sort)) {
-			$sortList = [];
-			if ($sort === false)
-				$sortList[] = 'RAND()';
-			else if (is_string($sort)) {
-				if (str_starts_with($sort, '-'))
-					$sortList[] = mb_substr($sort, 1) . ' DESC';
-				else
-					$sortList[] = $sort;
-			} else if (is_array($sort)) {
-				foreach ($sort as $key => $value) {
-					$field = is_int($key) ? $value : $key;
-					if (str_starts_with($field, '-')) {
-						$field = mb_substr($field, 1);
-						$sortType = 'DESC';
-					} else
-						$sortType = (!is_int($key) && !strcasecmp($value, 'desc')) ? 'DESC' : 'ASC';
-					if (($field2 = array_search($field, $this->_fields)) !== false && !is_int($field2))
-						$field = $field2;
-					$sortList[] = "$field $sortType";
-				}
-			}
-			if (!empty($sortList))
-				$sql .= ' ORDER BY ' . implode(', ', $sortList);
-		}
+		$sql .= $this->_getSortString($sort);
 		if (!is_null($limitOffset) && !is_null($nbrLimit))
 			$sql .= " LIMIT $limitOffset, $nbrLimit";
 		else if (!is_null($nbrLimit))
@@ -410,24 +386,25 @@ class Dao {
 	 *										Null to update all records. (default: null)
 	 * @param	array						$fields		Associative array where the keys are the fields to update, and their
 	 *										values are the new values to update. (default: empty array)
+	 * @param	null|false|string|array		$sort		(optional) Sort data. Null for natural sort, false for random sort.
 	 * @param	?int						$limit		(optional) Maximum number of lines to update. Null to update without limit.
 	 * @return	int	The number of modified lines.
 	 * @throws	\Temma\Exceptions\Dao	If the criteria or the fields array are not well formed.
 	 */
-	public function update(null|int|string|array|\Temma\Dao\Criteria $criteria=null, array $fields=[], ?int $limit=null) : int {
+	public function update(null|int|string|array|\Temma\Dao\Criteria $criteria=null, array $fields=[],
+	                            null|false|string|array $sort=null, ?int $limit=null) : int {
 		if (!$fields)
 			return (0);
-		// effacement du cache pour cette DAO
 		$this->_flushCache();
-		// constitution et exécution de la requête
+		// creation of the request
 		$sql = 'UPDATE ' . (!$this->_dbName ? '' : ('`' . $this->_dbName . '`.')) . '`' . $this->_tableName . '`' .
 			' SET ';
 		$set = [];
 		foreach ($fields as $field => $value) {
-			// récupération du champ s'il est aliasé
+			// get the field if it is aliased
 			if (($field2 = array_search($field, $this->_fields)) !== false && !is_int($field2))
 				$field = $field2;
-			// génération de la requête
+			// request generation
 			if (is_string($value) || is_int($value) || is_float($value))
 				$set[] = "`$field` = " . $this->_db->quote($value);
 			else if (is_bool($value))
@@ -452,6 +429,9 @@ class Dao {
 				$sql .= $criteria->generate();
 			}
 		}
+		// sort management
+		$sql .= $this->_getSortString($sort);
+		// limit management
 		if (!is_null($limit))
 			$sql .= " LIMIT $limit";
 		$modified = $this->_db->exec($sql);
@@ -507,6 +487,39 @@ class Dao {
 	}
 
 	/* ****** PRIVATE METHODS ****** */
+	/**
+	 * Generates the sort string.
+	 * @param	null|false|string|array		$sort		(optional) Sort data. Null for natural sort, false for random sort.
+	 * @return	string	The generated string. Could be empty.
+	 */
+	protected function _getSortString(null|false|string|array $sort=null) : string {
+		if (is_null($sort))
+			return ('');
+		$sortList = [];
+		if ($sort === false)
+			$sortList[] = 'RAND()';
+		else if (is_string($sort)) {
+			if (str_starts_with($sort, '-'))
+				$sortList[] = mb_substr($sort, 1) . ' DESC';
+			else
+				$sortList[] = $sort;
+		} else if (is_array($sort)) {
+			foreach ($sort as $key => $value) {
+				$field = is_int($key) ? $value : $key;
+				if (str_starts_with($field, '-')) {
+					$field = mb_substr($field, 1);
+					$sortType = 'DESC';
+				} else
+					$sortType = (!is_int($key) && !strcasecmp($value, 'desc')) ? 'DESC' : 'ASC';
+				if (($field2 = array_search($field, $this->_fields)) !== false && !is_int($field2))
+					$field = $field2;
+				$sortList[] = "$field $sortType";
+			}
+		}
+		if (!$sortList)
+			return ('');
+		return (' ORDER BY ' . implode(', ', $sortList) . ' ');
+	}
 	/**
 	 * Generate the string with the fields list.
 	 * @return	string	The generated string.

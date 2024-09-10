@@ -76,7 +76,7 @@ class Sqs extends \Temma\Base\Datasource {
 		$privateKey = $matches[3] ?? '';
 		$region = $matches[5] ?? '';
 		$path = $matches[6] ?? '';
-		$waitPolling = $matches[7] ?? null;
+		$waitPolling = ($matches[7] ?? null) ? intval($matches[7]) : null;
 		if ($type != 'sqs' || !$accessKey || !$privateKey || !$region || !$path)
 			throw new \Temma\Exceptions\Database("Invalid Sqs DSN '$dsn'.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		$url = "https://sqs.$region.amazonaws.com/$path";
