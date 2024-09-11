@@ -38,17 +38,14 @@ class AsynkDao implements \Temma\Base\Loadable {
 		'Temma\Datasources\Sql',
 		'Temma\Datasources\Redis',
 	];
-	/** Constant: message queue storage objects. */
-	const STORAGE_QUEUES = [
-		'Temma\Datasources\Sql',
-		'Temma\Datasources\Redis',
-		'Temma\Datasources\Sqs',
-		'Temma\Datasources\Beanstalk',
-	];
 	/** Transport data source. */
 	protected ?\Temma\Base\Datasource $_transport = null;
 	/** Storage data source. */
 	protected ?\Temma\Base\Datasource $_storage = null;
+	/** Transport class name. */
+	protected ?string $_transportClass = null;
+	/** Storage class name. */
+	protected ?string $_storageClass = null;
 	/** SQL DAO. */
 	protected ?\Temma\Dao\Dao $_dao = null;
 
@@ -67,62 +64,79 @@ class AsynkDao implements \Temma\Base\Loadable {
 		$transportClass = $this->_transport ? get_class($transportObject) : null;
 		// checks
 		if ((!$transport && in_array($storageClass, self::STORAGE_NO_TRANSPORT)) ||
-		    (in_array($transport, self::TRANSPORT_NOTIFY) && in_array($storage, self::STORAGE_NOTIFIED_TRANSPORT)) ||
-		    (in_array($transport, self::TRANSPORT_QUEUES) && in_array($storage, self::STORAGE_QUEUES))) {
+		    (in_array($transportClass, self::TRANSPORT_NOTIFY) && in_array($storageClass, self::STORAGE_NOTIFIED_TRANSPORT)) ||
+		    (in_array($transportClass, self::TRANSPORT_QUEUES) && !$storage)) {
 			$this->_storage = $storageObject;
 			$this->_transport = $transportObject;
+			$this->_storageClass = $storageClass;
+			$this->_transportClass = $transportClass;
 		} else {
 			throw new TµFrameworkException("Invalid storage '$storage' with '$transport' transport.", TµFrameworkException::CONFIG);
 		}
 		if ($storageClass == 'Temma\Datasources\Sql') {
 			$daoClass = $loader->config->xtra('asynk', 'dao', '\Temma\Dao\Dao');
+			$dbName = $loader->config->xtra('asynk', 'base');
 			$tableName = $loader->config->xtra('asynk', 'table', 'Task');
 			$idField = $loader->config->xtra('asynk', 'id', 'id');
-			$dbName = $loader->config->xtra('asynk', 'base');
-			$fields = $loader->config->xtra('asynk', 'fields');
-			$this->_dao = new $daoClass($storageObject, null, $tableName, $idField, $dbName, $fields);
+			$statusField = $loader->config->xtra('asynk', 'status');
+			$tokenField = $loader->config->xtra('asynk', 'token');
+			$targetField = $loader->config->xtra('asynk', 'target');
+			$actionField = $loader->config->xtra('asynk', 'action');
+			$dataField = $loader->config->xtra('asynk', 'data');
+			$fields = [];
+			if ($statusField)
+				$fields[$statusField] = 'status';
+			if ($tokenField)
+				$fields[$tokenField] = 'token';
+			if ($targetField)
+				$fields[$targetField] = 'target';
+			if ($actionField)
+				$fields[$actionField] = 'action';
+			if ($dataField)
+				$fields[$dataField] = 'data';
+			$this->_dao = new $daoClass($storageObject, null, $tableName, $idField, $dbName, ($fields ?: null));
 		}
 	}
 	/**
-	 * Process a task.
+	 * Create a task.
 	 * @param	string	$target	Name of the object to execute.
 	 * @param	string	$action	Name of the method to execute.
 	 * @param	array	$params	Parameters list.
+	 * @throws	\Temma\Exceptions\Framework	If the configuration is incorrect.
 	 */
 	public function createTask(string $target, string $action, array $params) : void {
-		$transportClass = $this->_transport ? get_class($this->_transport) : null;
-		$storageClass = get_class($this->_storage);
 		$taskId = null;
 		// storage
-		if ($storageClass == 'Temma\Datasources\Sql') {
-			// MySQL storage
+		if ($this->_storageClass == 'Temma\Datasources\Sql') {
+			// MySQL storage (with or without transport)
 			$taskId = $this->_storeTaskSql($target, $action, $params);
-		} else if (!$transportClass && $storageClass == 'Temma\Datasources\Redis') {
-			// Redis queue (Redis storage and no transport)
-			$this->_storeTaskRedisQueue($target, $action, $params);
-		} else if (!in_array($storageClass, self::TRANSPORT_QUEUES)) {
-			// key-value storage (Redis)
-			$taskId = $this->_storeTaskKeyValue($target, $action, $params);
+		} else if ($this->_storageClass == 'Temma\Datasources\Redis') {
+			// Redis storage
+			if ($this->_transport) {
+				// key-value storage (Redis used with xinetd)
+				$taskId = $this->_storeTaskKeyValue($target, $action, $params);
+			} else {
+				// Redis queue (Redis storage and no transport)
+				$this->_storeTaskRedisQueue($target, $action, $params);
+			}
+		} else {
+			throw new TµFrameworkException("Unknown Asynk storage '{$this->_storageClass}'.", TµFrameworkException::CONFIG);
 		}
 		// transport
-		if (!$transportClass) {
-			// cron
+		if (!$this->_transport) {
+			// crontab
 			return;
 		}
-		if (in_array($transportClass, self::TRANSPORT_NOTIFY)) {
+		if (in_array($this->_transportClass, self::TRANSPORT_NOTIFY)) {
 			// (x)inetd
 			$this->_transport->set('', $taskId);
 			if (method_exists($this->_transport, 'disconnect'))
 				$this->_transport->disconnect();
-		} else if (in_array($transportClass, self::TRANSPORT_QUEUES)) {
+		} else if (in_array($this->_transportClass, self::TRANSPORT_QUEUES)) {
 			// SQS or Beanstalk
-			if ($storageClass) {
-				// send task ID
-				$this->_transport->write('', $taskId);
-			} else {
-				// send full task
-				$this->_transportQueue($target, $action, $params);
-			}
+			$this->_transportQueue($target, $action, $params);
+		} else {
+			throw new TµFrameworkException("Unknown Asynk transport '{$this->_transportClass}'.", TµFrameworkException::CONFIG);
 		}
 	}
 	/**
@@ -131,8 +145,7 @@ class AsynkDao implements \Temma\Base\Loadable {
 	 * @param	int|string	$taskId	Task identifier.
 	 * @return	?array	Associative array.
 	 */
-	public function getTaskForProcessing(int|string $taskId) : ?array {
-		$storageClass = get_class($this->_storage);
+	public function getTaskFromId(int|string $taskId) : ?array {
 		if ($this->_dao) {
 			/* MySQL storage */
 			// reserve the task
@@ -156,6 +169,11 @@ class AsynkDao implements \Temma\Base\Loadable {
 				$task['data'] = json_decode($task['data'], true);
 			return ($task);
 		}
+		// Redis storage?
+		if (!$this->_storage)
+			return (null);
+		if ($this->_storageClass != 'Temma\Datasources\Redis')
+			return (null);
 		/* Redis storage */
 		// fetch the task
 		$task = $this->_storage[$taskId];
@@ -164,19 +182,27 @@ class AsynkDao implements \Temma\Base\Loadable {
 		// update task's status
 		$task['status'] = 'processing';
 		$this->_storage[$taskId] = $task;
+		$task['id'] = $taskId;
 		return ($task);
 	}
 	/**
-	 * Reserve tasks.
-	 * @param	int	$nbr	(optional) Maximum number of tasks to reserve. (defaults to 10)
-	 * @return	array	Array of two values, the reservation token and the number of reserved tasks.
+	 * Returns the next task to process.
+	 * For a Beanstalkd transport, to function will block until a message is available.
+	 * @return	?array	Associative array or null.
 	 */
-	public function reserveTasks(int $nbr=10) : array {
-		if (!$this->_storage)
-			return ([null, null]);
+	public function getNextTask() : ?array {
+		// Beanstalkd or SQS transport
+		if (in_array($this->_transportClass, self::TRANSPORT_QUEUES)) {
+			$task = $this->_transport[''];
+			if (!($task['id'] ?? null) || !($task['data'] ?? null))
+				return (null);
+			$task['data']['id'] = $task['id'];
+			return ($task['data']);
+		}
+		// MySQL storage
 		if ($this->_dao) {
-			/* MySQL storage */
-			$token = bin2hex(random_bytes(4));
+			// reserve a task
+			$token = bin2hex(random_bytes(8));
 			$nbr = $this->_dao->update(
 				$this->_dao->criteria()->equal('token', null)
 				                       ->equal('status', 'waiting'),
@@ -184,58 +210,60 @@ class AsynkDao implements \Temma\Base\Loadable {
 					'token'  => $token,
 					'status' => 'reserved',
 				],
+				sort: 'id',
+				limit: 1,
 			);
-			return ([$token, $nbr]);
-		}
-		// Redis queue (Redis storage and no transport)
-		$len = $this->_storage->lLen(self::REDIS_QUEUE_NAME);
-		return (['', $len]);
-	}
-	/**
-	 * Returns the next reserved task.
-	 * @param	string	$token		Reservation token.
-	 * @param	?array	$exceptIds	(optional) List of unwanted identifiers. (defaults to null)
-	 * @return	?array	Associative array or null.
-	 */
-	public function getNextReservedTask(string $token, ?array $exceptIds=null) : ?array {
-		if ($this->_dao) {
-			/* MySQL storage */
+			if (!$nbr)
+				return (null);
 			// get the task
 			$result = $this->_dao->search(
 				$this->_dao->criteria()->equal('token', $token),
-				'id',
-				0,
-				1,
+				sort: 'id',
+				limitOffset: 0,
+				nbrLimit: 1,
 			);
 			$task = $result[0] ?? null;
 			if (($task['data'] ?? null))
 				$task['data'] = json_decode($task['data'], true);
 			// update the task's status
-			$this->_dao->update($task['id'], ['status' => 'processing']);
+			if (($task['id'] ?? null))
+				$this->_dao->update($task['id'], ['status' => 'processing']);
 			return ($task);
 		}
+		// xinetd transport
+		if ($this->_transportClass == 'Temma\Datasources\Socket')
+			return (null);
 		// Redis queue
 		$task = $this->_storage->rPopLPush(self::REDIS_QUEUE_NAME, self::REDIS_PROCESSING_QUEUE_NAME);
 		return ($task);
 	}
 	/**
-	 * Remove a reserved task.
+	 * Remove a task fetched with getNextTask().
 	 * @param	array	$task	Task informations.
 	 */
-	public function removeReservedTask(array $task) : void {
+	public function removeFetchedTask(array $task) : void {
+		// Beanstalkd or SQS transport
+		if (in_array($this->_transportClass, self::TRANSPORT_QUEUES)) {
+			if (isset($task['id']))
+				unset($this->_transport[$task['id']]);
+			return;
+		}
+		// MySQL storage
 		if ($this->_dao) {
-			// MySQL storage
 			$this->_dao->remove($task['id']);
 			return;
 		}
+		// xinetd transport
+		if ($this->_transportClass == 'Temma\Datasources\Socket')
+			return;
 		// Redis queue
 		$this->_storage->lRem(self::REDIS_PROCESSING_QUEUE_NAME, 1, $task);
 	}
 	/**
-	 * Invalidate a reserved task.
+	 * Invalidate a task fetched with getNextTask().
 	 * @param	array	$task	Task data.
 	 */
-	public function invalidateReservedTask(array $task) : void {
+	public function invalidateFetchedTask(array $task) : void {
 		if ($this->_dao) {
 			// MySQL storage
 			$this->_dao->update($task['id'], ['status' => 'error']);
@@ -248,7 +276,7 @@ class AsynkDao implements \Temma\Base\Loadable {
 	 * @param	int|string	$taskId	Task identifier.
 	 * @param	string		$status	Task status.
 	 */
-	public function setTaskStatus(int|string $taskId, string $status) : void {
+	public function setTaskStatusFromId(int|string $taskId, string $status) : void {
 		if ($this->_dao) {
 			/* MySQL storage */
 			$this->_dao->update($taskId, [
@@ -269,7 +297,7 @@ class AsynkDao implements \Temma\Base\Loadable {
 	 * Remove a task from its ID.
 	 * @param	int|string	$taskId	Task identifier.
 	 */
-	public function removeTask(int|string $taskId) : void {
+	public function removeTaskFromId(int|string $taskId) : void {
 		if ($this->_dao) {
 			/* MySQL storage */
 			$this->_dao->remove($taskId);
@@ -292,7 +320,7 @@ class AsynkDao implements \Temma\Base\Loadable {
 			'dateCreation' => date('c'),
 			'target'       => $target,
 			'action'       => $action,
-			'status'       => 'status',
+			'status'       => 'waiting',
 			'data'         => json_encode($params),
 		]);
 		return ($taskId);

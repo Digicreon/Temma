@@ -33,7 +33,7 @@ class AsynkInetd extends \Temma\Web\Controller {
 			exit(0);
 		}
 		// reserve the task, set its status and get it
-		$task = $this->_asynkDao->getTaskForProcessing($taskId);
+		$task = $this->_asynkDao->getTaskFromId($taskId);
 		if (!$task) {
 			TµLog::log('Temma/Asynk', 'WARN', "Unknown task '$taskId'.");
 			exit(1);
@@ -48,10 +48,10 @@ class AsynkInetd extends \Temma\Web\Controller {
 			$method = $task['action'];
 			$object->$method(...$task['data']);
 			// task deletion
-			$this->_asynkDao->removeTask($task['id']);
+			$this->_asynkDao->removeTaskFromId($task['id']);
 		} catch (\Exception $e) {
 			TµLog::log('Temma/Asynk', 'WARN', "Asynk error: " . $e->getMessage());
-			$this->_asynkDao->setTaskStatus($task['id'], 'error');
+			$this->_asynkDao->setTaskStatusFromId($task['id'], 'error');
 			exit(1);
 		}
 	}

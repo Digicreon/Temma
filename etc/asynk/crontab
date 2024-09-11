@@ -1,0 +1,6 @@
+# Temma Asynk processing using crontab
+# New tasks are processed every minute.
+
+# adapt the path to your projet's root
+* * * * *	root	cd /path/to/project; bin/comma AsynkWorker crontab
+
