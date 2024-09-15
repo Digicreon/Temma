@@ -66,7 +66,7 @@ class Socket extends \Temma\Base\Datasource {
 			$host = mb_substr($dsn, mb_strlen('unix://'));
 		} else if (preg_match('/^([^:]+):\/\/([^\/:]+):?(\d*)#?(\d*)$/', $dsn, $matches)) {
 			$type = $matches[1];
-			$server = $matches[2];
+			$host = $matches[2];
 			$port = isset($matches[3]) ? intval($matches[3]) : null;
 			$timeout = isset($matches[4]) ? intval($matches[4]) : null;
 		}
