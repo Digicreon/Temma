@@ -129,7 +129,7 @@ class Loader extends \Temma\Utils\Registry {
 	 */
 	public function get(string $key, mixed $default=null) : mixed {
 		// special processing for Asynk
-		if ($key == 'Asynk') {
+		if ($key == 'asynk') {
 			return (new \Temma\Asynk\Client($this));
 		}
 		// key exists

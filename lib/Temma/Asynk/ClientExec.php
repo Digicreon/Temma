@@ -36,7 +36,7 @@ class ClientExec {
 	 */
 	public function __call(string $methodName, array $params) {
 		// create the task
-		$taskId = $this->_loader->AsynkDao->createTask($this->_className, $methodName, $params);
+		$taskId = $this->_loader['\Temma\Asynk\AsynkDao']->createTask($this->_className, $methodName, $params);
 	}
 }
 

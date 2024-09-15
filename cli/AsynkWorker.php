@@ -14,8 +14,8 @@ use \Temma\Base\Log as TµLog;
  * This objet fetch waiting tasks, process them and remove them.
  */
 class AsynkWorker extends \Temma\Web\Controller {
-	/** Constant: number of tasks fetched on each loop. */
-	const NBR_TASKS_PER_LOOP = 10;
+	/** Constant: default delay between two loops (in seconds). */
+	const DEFAULT_LOOP_DELAY = 60;
 	/** Asynk DAO. */
 	private ?\Temma\Asynk\AsynkDao $_asynkDao = null;
 
@@ -45,7 +45,7 @@ class AsynkWorker extends \Temma\Web\Controller {
 	private function _process(bool $infiniteLoop, int $sleep=0) {
 		// infinite loop: if the sleep wasn't given, use the configuration
 		if ($infiniteLoop && !$sleep)
-			$sleep = $this->_loader->config->xtra('asynk', 'sleep', 0);
+			$sleep = $this->_loader->config->xtra('asynk', 'loopDelay', self::DEFAULT_LOOP_DELAY);
 		// loop
 		for (; ; ) {
 			// get next task
@@ -56,7 +56,7 @@ class AsynkWorker extends \Temma\Web\Controller {
 					sleep($sleep);
 					continue;
 				}
-				continue;
+				break;
 			}
 			// process the task
 			try {

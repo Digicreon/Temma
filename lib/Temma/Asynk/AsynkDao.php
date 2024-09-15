@@ -8,6 +8,7 @@
 
 namespace Temma\Asynk;
 
+use \Temma\Base\Log as TµLog;
 use \Temma\Exceptions\Framework as TµFrameworkException;
 
 /**
@@ -60,8 +61,8 @@ class AsynkDao implements \Temma\Base\Loadable {
 		$transport = $loader->config->xtra('asynk', 'transport');
 		$storageObject = ($storage && isset($loader->dataSources[$storage])) ? $loader->dataSources[$storage] : null;
 		$transportObject = ($transport && isset($loader->dataSources[$transport])) ? $loader->dataSources[$transport] : null;
-		$storageClass = $this->_storage ? get_class($storageObject) : null;
-		$transportClass = $this->_transport ? get_class($transportObject) : null;
+		$storageClass = $storageObject ? get_class($storageObject) : null;
+		$transportClass = $transportObject ? get_class($transportObject) : null;
 		// checks
 		if ((!$transport && in_array($storageClass, self::STORAGE_NO_TRANSPORT)) ||
 		    (in_array($transportClass, self::TRANSPORT_NOTIFY) && in_array($storageClass, self::STORAGE_NOTIFIED_TRANSPORT)) ||
@@ -222,7 +223,7 @@ class AsynkDao implements \Temma\Base\Loadable {
 				limitOffset: 0,
 				nbrLimit: 1,
 			);
-			$task = $result[0] ?? null;
+			$task = $result ? current($result) : null;
 			if (($task['data'] ?? null))
 				$task['data'] = json_decode($task['data'], true);
 			// update the task's status
