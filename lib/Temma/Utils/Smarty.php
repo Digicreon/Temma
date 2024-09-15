@@ -63,12 +63,43 @@ class Smarty implements \Temma\Base\Loadable {
 		$this->_smarty->setPluginsDir($pluginPathList);
 	}
 	/**
+	 * Tell if a template file exists.
+	 * @param	string	$path	Path to the template file.
+	 * @return	bool	True if the template exists.
+	 */
+	public function templateExists(string $path) : bool {
+		return ($this->_smarty->templateExists($path));
+	}
+	/**
 	 * Process a Smarty template with the given set of data.
 	 * @param	string	$template	Template path.
 	 * @param	?array	$data		Associative array.
 	 * @return	string	The generated stream.
+	 * @throws	\Temma\Exceptions\IO	If the template doesnt exist.
 	 */
 	public function render(string $template, ?array $data) : string {
+		return ($this->_process($template, $data));
+	}
+	/**
+	 * Process a Smarty template which content is given in a string.
+	 * @param	string	$templateContent	Content of the template.
+	 * @param	?array	$data			Associative array.
+	 * @return	string	The generated stream.
+	 * @throws	\Temma\Exceptions\IO	If the template doesnt exist.
+	 */
+	public function eval(string $templateContent, ?array $data) : string {
+		return ($this->_process('eval:' . $templateContent, $data));
+	}
+
+	/* ********** PRIVATE METHODS ********** */
+	/**
+	 * Process a Smarty template with the given set of data.
+	 * @param	string	$template	Template path.
+	 * @param	?array	$data		Associative array.
+	 * @return	string	The generated stream.
+	 * @throws	\Temma\Exceptions\IO	If the template doesnt exist.
+	 */
+	protected function _process(string $template, ?array $data) : string {
 		// check template
 		if (!$this->_smarty->templateExists($template))
 			throw new TµIOException("Can't find template '$template'.", TµIOException::NOT_FOUND);
