@@ -20,7 +20,7 @@ abstract class View {
 		'Pragma: no-cache',
 	];
 	/** List of data sources. */
-	protected array $_dataSources;
+	protected array|\ArrayAccess $_dataSources;
 	/** Configuration object. */
 	protected \Temma\Web\Config $_config;
 	/** Response object. */
@@ -28,11 +28,11 @@ abstract class View {
 
 	/**
 	 * Constructor.
-	 * @param	array			$dataSources	List of data sources.
+	 * @param	array|\ArrayAccess	$dataSources	List of data sources.
 	 * @param	\Temma\Web\Config	$config		Configuration object.
 	 * @param	\Temma\Web\Response	$response	Response object.
 	 */
-	public function __construct(array $dataSources, \Temma\Web\Config $config, ?\Temma\Web\Response $response=null) {
+	public function __construct(array|\ArrayAccess $dataSources, \Temma\Web\Config $config, ?\Temma\Web\Response $response=null) {
 		$this->_dataSources = $dataSources;
 		$this->_config = $config;
 		$this->_response = $response;

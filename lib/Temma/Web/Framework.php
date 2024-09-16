@@ -52,7 +52,7 @@ class Framework {
 	/** Configuration object. */
 	private ?\Temma\Web\Config $_config = null;
 	/** List of data sources. */
-	private array $_dataSources = [];
+	private \Temma\Utils\Registry $_dataSources = new \Temma\Utils\Registry();
 	/** Session object. */
 	private ?\Temma\Base\Session $_session = null;
 	/** Request object. */

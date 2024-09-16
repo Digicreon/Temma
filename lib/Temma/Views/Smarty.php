@@ -43,12 +43,12 @@ class Smarty extends \Temma\Web\View {
 
 	/**
 	 * Constructor.
-	 * @param	array			$dataSources	Liste de connexions à des sources de données.
+	 * @param	array|\ArrayAccess	$dataSources	Liste de connexions à des sources de données.
 	 * @param	\Temma\Web\Config	$config		Objet de configuration.
 	 * @param	\Temma\Web\Response	$response	Objet de réponse.
 	 * @throws	\Temma\Exceptions\Framework	If something went wrong.
 	 */
-	public function __construct(array $dataSources, \Temma\Web\Config $config, ?\Temma\Web\Response $response) {
+	public function __construct(array|\ArrayAccess $dataSources, \Temma\Web\Config $config, ?\Temma\Web\Response $response) {
 		global $smarty;
 
 		parent::__construct($dataSources, $config, $response);
