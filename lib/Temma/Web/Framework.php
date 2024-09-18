@@ -21,7 +21,9 @@ use \Temma\Exceptions\IO as TµIOException;
  * @see		\Temma\Web\View
  */
 class Framework {
-	/** Name of the roott action. */
+	/** Version number of Temma's last tagged release. */
+	const TEMMA_VERSION = '2.4.0';
+	/** Name of the root action. */
 	const CONTROLLERS_ROOT_ACTION = '__invoke';
 	/** Name of the proxy action. */
 	const CONTROLLERS_PROXY_ACTION = '__proxy';
