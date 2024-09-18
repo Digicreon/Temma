@@ -80,7 +80,7 @@ class Router extends \Temma\Web\Plugin {
 			$this->_exec = $this->_exec['action'];
 		}
 		// extract controller and action
-		$res = explode('::', $this->_exec);
+		$res = explode('::', trim($this->_exec));
 		if (count($res) != 2) {
 			TµLog::log('Temma/Web', 'WARN', "Router: Bad configuration (missing '::' separator between object and method).");
 			throw new TµFrameworkException("Router: Bad configuration (missing '::' separator between object and method).", TµFrameworkException::CONFIG);
@@ -92,9 +92,14 @@ class Router extends \Temma\Web\Plugin {
 			$action = $method;
 			$params = [];
 		} else {
+			if (!str_ends_with($method, ')')) {
+				TµLog::log('Temma/Web', 'WARN', "Router: Bad configuration (missing ')' at the end of method expression).");
+				throw new TµFrameworkException("Router: Bad configuration (missing ')' at the end of method expression)).", TµFrameworkException::CONFIG);
+			}
 			$action = mb_substr($method, 0, $pos);
 			$params = mb_substr($method, $pos + 1, -1);
 			$params = explode(',', $params);
+			$params = array_filter(array_map('trim', $params));
 			foreach ($params as &$p) {
 				$p = trim($p);
 				if ($p[0] == '$') {
