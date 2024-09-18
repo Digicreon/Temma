@@ -52,7 +52,7 @@ class Framework {
 	/** Configuration object. */
 	private ?\Temma\Web\Config $_config = null;
 	/** List of data sources. */
-	private \Temma\Utils\Registry $_dataSources = new \Temma\Utils\Registry();
+	private ?\Temma\Utils\Registry $_dataSources = null;
 	/** Session object. */
 	private ?\Temma\Base\Session $_session = null;
 	/** Request object. */
@@ -108,6 +108,7 @@ class Framework {
 		} else if (($_SERVER['REQUEST_URI'] ?? null))
 			TµLog::log('Temma/Web', 'DEBUG', "Processing URL '" . $_SERVER['REQUEST_URI'] . "'.");
 		// connect to data sources
+		$this->_dataSources = new \Temma\Utils\Registry();
 		foreach ($this->_config->dataSources as $name => $dsParam) {
 			$this->_dataSources[$name] = \Temma\Base\Datasource::metaFactory($dsParam);
 		}
