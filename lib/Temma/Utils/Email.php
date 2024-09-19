@@ -58,8 +58,8 @@ class Email implements \Temma\Base\Loadable {
 	private string $_envelopeSender = '';
 
 	/**
-	 * Constructeur.
-	 * @param       \Temma\Base\Loader      $loader Composant d'injection de dépendances.
+	 * Constructor.
+	 * @param	\Temma\Base\Loader	$loader	Dependency injection component.
 	 */
 	public function __construct(\Temma\Base\Loader $loader) {
 		$disabled = $loader->config?->xtra('email', 'disabled');
