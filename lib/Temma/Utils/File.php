@@ -13,10 +13,6 @@ use \Temma\Exceptions\IO as TµIOException;
 
 /**
  * Object used to manage files and folders.send emails.
- *
- * Most of its methods are intended to be used with real files and directories as well as archive
- * files (zip or tar.gz), so there are not intended to be used with directories containing large amount
- * of files.
  */
 class File {
 	/**
@@ -32,9 +28,11 @@ class File {
 	static public function recursiveCopy(string $from, string $to, bool $force=false, bool $sync=false, bool $hidden=false) : void {
 		// remove unknown files
 		if ($sync && is_dir($to)) {
-			$items = scandir($to);
-			foreach ($items as $item) {
-				if (!$hidden && str_starts_with($item, '.'))
+			if (($dir = opendir($to)) === false)
+				throw new TµIOException("Unable to open directory '$to'.", TµIOException::UNREADABLE);
+			while (($item = readdir($dir))) {
+				if ($item == '.' || $item == '..' ||
+				    (!$hidden && str_starts_with($item, '.')))
 					continue;
 				$fromItem = $from . DIRECTORY_SEPARATOR . $item;
 				$toItem = $to . DIRECTORY_SEPARATOR . $item;
@@ -45,11 +43,12 @@ class File {
 					 !unlink($toItem))
 					throw new TµIOException("Unable to remove file '$toItem'.", TµIOException::FUNDAMENTAL);
 			}
+			closedir($dir);
 		}
-		// recreate a link
+		// recreate a symlink
 		if (is_link($from)) {
 			// end of processing if a file or a dir exists and we don't force the copy
-			if (!is_link($to) && !$force)
+			if (file_exists($to) && !is_link($to) && !$force)
 				return;
 			// remove existing file or link with the destination name
 			if ((is_file($to) || is_link($to)) && !unlink($to))
@@ -67,8 +66,8 @@ class File {
 		}
 		// copy a file
 		if (is_file($from)) {
-			// en of processing if a link or a dir exists and we don't force the copy
-			if (!is_file($to) && !$force)
+			// enid of processing if a symlink or a dir exists and we don't force the copy
+			if (file_exists($to) && !is_file($to) && !$force)
 				return;
 			// remove existing link with the destination name)
 			if (is_link($to) && !unlink($to))
@@ -83,7 +82,7 @@ class File {
 		}
 		// check source
 		if (!is_dir($from))
-			throw new TµIOException("Unkonwn file type '$from'.", TµIOException::BAD_FORMAT);
+			throw new TµIOException("Unknown file type '$from'.", TµIOException::BAD_FORMAT);
 		// remove and create destination if needed
 		if (!is_dir($to)) {
 			if (file_exists($to)) {
@@ -96,28 +95,39 @@ class File {
 				throw new TµIOException("Unable to create directory '$to'.", TµIOException::UNWRITABLE);
 		}
 		// copy the directory content
-		$items = scandir($from);
-		foreach ($items as $item) {
-			if ($hidden && str_starts_with($item, '.'))
+		if (($dir = opendir($from)) === false)
+			throw new TµIOException("Unable to open directory '$from'.", TµIOException::UNREADABLE);
+		while (($item = readdir($dir))) {
+			if ($item == '.' || $item == '..' ||
+			    ($hidden && str_starts_with($item, '.')))
 				continue;
 			$fromItem = $from . DIRECTORY_SEPARATOR . $item;
 			$toItem = $to . DIRECTORY_SEPARATOR . $item;
 			self::recursiveCopy($fromItem, $toItem, $force, $sync, $hidden);
 		}
+		closedir($dir);
 	}
 	/**
          * Remove a directory and its content.
          * @param       string  $path   Path to the directory.
+	 * @throws	\Temma\Exceptions\IO	If an error occurred.
          */
         static public function recursiveRemove(string $path) : void {
 		// remove file/symlink
-                if (!is_dir($path) && !unlink($path))
-			throw new TµIOException("Unable to remove '$path'.", TµIOException::FUNDAMENTAL);
+                if (!is_dir($path)) {
+			if (!unlink($path))
+				throw new TµIOException("Unable to remove '$path'.", TµIOException::FUNDAMENTAL);
+			return;
+		}
 		// remove directory content
-                $items = scandir($path);
-                foreach ($items as $item) {
+		if (($dir = opendir($path)) === false)
+			throw new TµIOException("Unable to open directory '$path'.", TµIOException::UNREADABLE);
+		while (($item = readdir($dir))) {
+			if ($item == '.' || $item == '..')
+				continue;
 			self::recursiveRemove($path . DIRECTORY_SEPARATOR . $item);
                 }
+		closedir($dir);
 		// remove directory
                 rmdir($path);
         }
