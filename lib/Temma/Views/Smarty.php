@@ -86,9 +86,11 @@ class Smarty extends \Temma\Web\View {
 		if (!class_exists('\Smarty\Smarty')) {
 			// smarty 4
 			$pluginPathList = array_merge($this->_smarty->getPluginsDir(), $pluginPathList);
+			$pluginPathList = array_unique($pluginPathList);
 			$this->_smarty->addPluginsDir($pluginPathList);
 		} else {
 			// smarty 5
+			$pluginPathList = array_unique($pluginPathList);
 			foreach ($pluginPathList as $path) {
 				$path = rtrim($path, '/');
 				foreach(['function', 'modifier', 'block', 'compiler', 'prefilter', 'postfilter', 'outputfilter'] as $type) {
