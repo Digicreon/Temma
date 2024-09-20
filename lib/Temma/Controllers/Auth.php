@@ -144,11 +144,11 @@ class Auth extends \Temma\Web\Plugin {
 		// update user last access
 		$this->_userDao->update($user['id'], ['date_last_access' => date('c')]);
 		// extract and index roles
-		$roles = str_getcsv($user['roles']);
+		$roles = str_getcsv($user['roles'] ?? '');
 		$roles = (($roles[0] ?? null) === null) ? [] : $roles;
 		$user['roles'] = array_fill_keys($roles, true);
 		// extract and index services
-		$services = str_getcsv($user['services']);
+		$services = str_getcsv($user['services'] ?? '');
 		$services = (($services[0] ?? null) === null) ? [] : $services;
 		$user['services'] = array_fill_keys($services, true);
 		// create template variables
