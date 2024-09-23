@@ -133,7 +133,7 @@ class Temma extends \Temma\Web\Controller {
 	 * @param	string			$dirName	Name of the processed directory.
 	 * @param	string			$fromDirPath	Path to the source directory.
 	 * @param	string			$toDirPath	Path to the destination directory.
-	 * @param	inull|string|array	$files		File name or list of file names. Null to copy the full directory.
+	 * @param	null|string|array	$files		File name or list of file names. Null to copy the full directory.
 	 * @param	bool			$force		(optional) True to force behaviour. Defaults to false.
 	 * @param	bool			$sync		(optional) True to delete unknown files. Defaults to false.
 	 * @throws	\Exception		If an error occured.
