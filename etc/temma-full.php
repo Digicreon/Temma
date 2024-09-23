@@ -12,6 +12,7 @@ return [
 		'enableSessions'    => true,
 		'sessionName'       => 'TemmaSession',
 		'sessionSource'     => 'ndb',
+		'cookieDomain'      => 'admin.mydomain.com',
 		'defaultNamespace'  => '\MyApp\Controllers',
 		'rootController'    => 'Homepage',
 		'defaultController' => 'NotFound',

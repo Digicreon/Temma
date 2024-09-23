@@ -59,6 +59,13 @@ class Session implements \ArrayAccess {
 	private ?string $_cookieName = null;
 	/** Session duration. */
 	private ?int $_duration = null;
+	/**
+	 * Cookie domain name.
+	 * null  = domain is not set, use the default (level 1 domain name of the current host)
+	 * false = domain should not be defined, so the navigator will use the strict host
+	 * other = use the defined value as the cookie domain
+	 */
+	private null|false|string $_domain = null;
 	/** Associative array of session data. */
 	private ?array $_data = null;
 	/** Session identifier. */
@@ -72,19 +79,30 @@ class Session implements \ArrayAccess {
 	 * @param	\Temma\Base\Datasource	$cache		(optional) Cache management object.
 	 * @param	string			$cookieName	(optional) Name of the session cookie. "TEMMA_SESSION" by default.
 	 * @param	int			$duration	(optional) Session duration. One year by default.
+	 * @param	null|false|string	$domain		(optional) Cookie domain name. null by default.
+	 *							- null  = domain is not set, use the level 1 domain name of the current host
+	 *							- false = domain show not be defined, so the navigator will use the strict host
+	 *							- other = use the defined value as the cookie domain
 	 * @return	\Temma\Base\Session	The created instance.
 	 */
-	static public function factory(?\Temma\Base\Datasource $cache=null, string $cookieName='TEMMA_SESSION', int $duration=31536000) : \Temma\Base\Session {
-		return (new \Temma\Base\Session($cache, $cookieName, $duration));
+	static public function factory(?\Temma\Base\Datasource $cache=null, string $cookieName='TEMMA_SESSION',
+	                               int $duration=31536000, null|false|string $domain=null) : \Temma\Base\Session {
+		return (new \Temma\Base\Session($cache, $cookieName, $duration, $domain));
 	}
 	/**
 	 * Constructor.
 	 * @param	\Temma\Base\Datasource	$cache		(optional) Cache management object.
-	 * @param	string			$cookieName	(optional) Name of the session cookie. "TEMMA_SESSION" by default.
-	 * @param	int			$duration	(optional) Session duration. One year by default.
+	 * @param	?string			$cookieName	(optional) Name of the session cookie. "TEMMA_SESSION" by default.
+	 * @param	?int			$duration	(optional) Session duration. One year by default.
+	 * @param	null|false|string	$domain		(optional) Cookie domain name. null by default.
+	 *							- null  = domain is not set, use the level 1 domain name of the current host
+	 *							- false = domain show not be defined, so the navigator will use the strict host
+	 *							- other = use the defined value as the cookie domain
 	 */
-	private function __construct(?\Temma\Base\Datasource $cache=null, ?string $cookieName=null, ?int $duration=null) {
+	private function __construct(?\Temma\Base\Datasource $cache=null, ?string $cookieName=null,
+	                             ?int $duration=null, null|false|string $domain=null) {
 		TµLog::log('Temma/Base', 'DEBUG', "Session object creation.");
+		$this->_domain = $domain;
 		// fetch the cache
 		if (isset($cache) && $cache->isEnabled())
 			$this->_cache = clone $cache;
@@ -130,30 +148,29 @@ class Session implements \ArrayAccess {
 			return;
 		$timestamp = time() + $this->_duration;
 		$expiration = date('Y-m-d H-i-s', $timestamp);
-		// store the session ID in cookie
-		if (!preg_match("/[^.]+\.[^.]+$/", $_SERVER['HTTP_HOST'], $matches))
-			$host = $_SERVER['HTTP_HOST'];
+		// set cookie's domain
+		if ($this->_domain === false)
+			$host = false;
+		else if ($this->_domain)
+			$host = $this->_domain;
+		else if (preg_match("/([^.]+\.[^.:]+)(:\d*)?$/", $_SERVER['HTTP_HOST'], $matches))
+			$host = $matches[1];
 		else
-			$host = $matches[0];
+			$host = $_SERVER['HTTP_HOST'];
+		// store the session ID in cookie
 		$oldSessionId = $_COOKIE[$this->_cookieName] ?? null;
 		if (!isset($_COOKIE[$this->_cookieName]) || empty($_COOKIE[$this->_cookieName]) || $this->_sessionId != $oldSessionId && !headers_sent()) {
 			TµLog::log('Temma/Base', 'DEBUG', "Send cookie '{$this->_cookieName}' - '{$this->_sessionId}' - '$timestamp' - '.$host'");
-			$secure = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off') ? true : false;
-			// send the cookie
-			if (PHP_VERSION_ID < 70300) {
-				// PHP < 7.3: use a hack to send the 'samesite' attribute
-				setcookie($this->_cookieName, $this->_sessionId, $timestamp, '/; samesite=Lax', ".$host", $secure, true);
-			} else {
-				// PHP >= 7.3: use an associative array
-				setcookie($this->_cookieName, $this->_sessionId, [
-					'expires'	=> $timestamp,
-					'path'		=> '/',
-					'domain'	=> ".$host",
-					'secure'	=> $secure,
-					'httponly'	=> true,
-					'samesite'	=> 'Lax'
-				]);
-			}
+			$options = [
+				'expires'	=> $timestamp,
+				'path'		=> '/',
+				'secure'	=> (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off') ? true : false,
+				'httponly'	=> true,
+				'samesite'	=> 'Lax'
+			];
+			if ($host !== false)
+				$options['domain'] = $host;
+			setcookie($this->_cookieName, $this->_sessionId, $options);
 			$this->_cookieSent = true;
 		}
 	}

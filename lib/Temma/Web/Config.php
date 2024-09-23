@@ -75,6 +75,13 @@ class Config {
 	protected bool $_sessionSecure = false;
 	/** Session duration. */
 	protected ?int $_sessionDuration = null;
+	/**
+	 * Session's cookie domain name.
+	 * null  = domain is not set, use the default (level 1 domain name of the current host)
+	 * false = domain should not be defined, so the navigator will use the strict host
+	 * other = use the defined value as cookie domain
+	 */
+	protected ?string $_cookieDomain = null;
 	/** Path to the application root directory. */
 	protected ?string $_appPath = null;
 	/** Path to the configuration directory. */
@@ -266,14 +273,22 @@ class Config {
 		if (isset($ini['application']['enableSessions']) && $ini['application']['enableSessions'] === false)
 			$this->_enableSessions = false;
 		// define the session name
-		$this->_sessionName = (isset($ini['application']['sessionName']) && !empty($ini['application']['sessionName'])) ? $ini['application']['sessionName'] : self::SESSION_NAME;
+		$this->_sessionName = ($ini['application']['sessionName'] ?? null) ?: self::SESSION_NAME;
 		// define the data source that stores the sessions
-		$this->_sessionSource = (isset($ini['application']['sessionSource']) && !empty($ini['application']['sessionSource'])) ? $ini['application']['sessionSource'] : null;
+		$this->_sessionSource = ($ini['application']['sessionSource'] ?? null) ?: null;
 		// define if session cookies are secured
 		$this->_sessionSecure = (isset($ini['application']['sessionSecure']) && is_bool($ini['application']['sessionSecure'])) ? $ini['application']['sessionSecure'] : self::SESSION_SECURE;
 		// define session duration
-		$this->_sessionDuration = (isset($ini['application']['sessionDuration']) && !empty($ini['application']['sessionDuration'])) ?
-		                          $ini['application']['sessionDuration'] : self::SESSION_DURATION;
+		$this->_sessionDuration = ($ini['application']['sessionDuration'] ?? null) ?: self::SESSION_DURATION;
+		// define session's cookie domain name
+		// if the domain is not defined in the configuration, the variable is set to null
+		// if the domain is set in the configuration, but empty (empty string, false or null), the variable is set to false
+		// if the domain is set in the configuration and not empty, its value is set in the variable
+		if (array_key_exists('cookieDomain', $ini['application'])) {
+			if (is_string($ini['application']['cookieDomain']))
+				$ini['application']['cookieDomain'] = trim($ini['application']['cookieDomain']);
+			$this->_cookieDomain = $ini['application']['cookieDomain'] ?: false;
+		}
 
 		// definitions
 		$this->_logManager = $ini['application']['logManager'] ?? null;
