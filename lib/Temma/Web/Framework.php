@@ -121,6 +121,9 @@ class Framework {
 					 $this->_dataSources[$this->_config->sessionSource] : null;
 			$this->_session = \Temma\Base\Session::factory($sessionSource, $this->_config->sessionName, $this->_config->sessionDuration, $this->_config->cookieDomain);
 			$this->_loader['session'] = $this->_session;
+			// manage flash variables
+			$flash = $this->_session->extractPrefix('__');
+			$this->_response->addData($flash);
 		}
 	}
 	/**

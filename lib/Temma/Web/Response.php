@@ -90,6 +90,26 @@ class Response implements \ArrayAccess {
 		$this->_template = $template;
 	}
 	/**
+	 * Clear all template variable data.
+	 */
+	public function clearData() : void {
+		$this->_data = [];
+	}
+	/**
+	 * Set all template variable data.
+	 * @param	array	$data	Associative array containing the data.
+	 */
+	public function setData(array $data) : void {
+		$this->_data = $data;
+	}
+	/**
+	 * Add template variables.
+	 * @param	array	$data	Associative array containing the added data.
+	 */
+	public function addData(array $data) : void {
+		$this->_data = array_merge($this->_data, $data);
+	}
+	/**
 	 * Add a view header.
 	 * @param	string	$header	The header string.
 	 */
@@ -97,7 +117,7 @@ class Response implements \ArrayAccess {
 		$this->_headers[] = $header;
 	}
 	/**
-	 * Add a template variable, object-oriented syntax.
+	 * Add a template variable, array-like syntax.
 	 * @param	mixed	$name	Data name.
 	 * @param	mixed	$value	Data value.
 	 */

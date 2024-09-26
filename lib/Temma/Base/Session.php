@@ -181,8 +181,7 @@ class Session implements \ArrayAccess {
 		TµLog::log('Temma/Base', 'DEBUG', "Cleaning session.");
 		if (!isset($this->_cache)) {
 			// standard PHP session
-			foreach ($_SESSION as $key => $val)
-				unset($_SESSION[$key]);
+			$_SESSION = [];
 			return;
 		}
 		// reset internal array
@@ -218,6 +217,21 @@ class Session implements \ArrayAccess {
 
 	/* ********** DATA MANAGEMENT ********** */
 	/**
+	 * Store data in database and send cookie if needed.
+	 */
+	protected function _storeData() : void {
+		if (!isset($this->_cache))
+			return;
+		// data sync
+		$cacheData = [
+			'_magic' => 'Ax',
+			'data'   => $this->_data,
+		];
+		$this->_cache->set('sess:' . $this->_sessionId, $cacheData, $this->_duration);
+		// send the cookie to the browser
+		$this->sendCookie();
+	}
+	/**
 	 * Add a data in session.
 	 * @param	string	$key	Data name.
 	 * @param	mixed	$value	(optional) Data value. The data is removed if the value is null. Null by default.
@@ -238,13 +252,7 @@ class Session implements \ArrayAccess {
 		else
 			$this->_data[$key] = $value;
 		// data sync
-		$cacheData = [
-			'_magic' => 'Ax',
-			'data'   => $this->_data,
-		];
-		$this->_cache->set('sess:' . $this->_sessionId, $cacheData, $this->_duration);
-		// send the cookie to the browser
-		$this->sendCookie();
+		$this->_storeData();
 	}
 	/**
 	 * Add data in session, array-like syntax.
@@ -291,13 +299,40 @@ class Session implements \ArrayAccess {
 			$this->_data[$key][$arrayKey] = $value;
 		}
 		// data sync
-		$cacheData = [
-			'_magic'	=> 'Ax',
-			'data'		=> $this->_data
-		];
-		$this->_cache->set('sess:' . $this->_sessionId, $cacheData, $this->_duration);
-		// send the cookie to the browser
-		$this->sendCookie();
+		$this->_storeData();
+	}
+	/**
+	 * Fetch a session data, and remove it from the session.
+	 * @param	string	$key		Data name.
+	 * @param	mixed	$default	(optional) Default value, used if the data doesn't exist in session.
+	 * @return	mixed	Value of the session data.
+	 */
+	public function extract(string $key, mixed $default=null) : mixed {
+		TµLog::log('Temma/Base', 'DEBUG', "Extracting value for key '$key'.");
+		$data = $this->get($key, $default);
+		$this->set($key, null);
+		return ($data);
+	}
+	/**
+	 * Fetch all session data that starts with the given prefix, and remove them from the session.
+	 * @param	string	$prefix	Prefix of the session data's name.
+	 * @return	array	Associative array with the variables.
+	 */
+	public function extractPrefix(string $prefix) : array {
+		$list = [];
+		if (!isset($this->_cache))
+			$from = &$_SESSION;
+		else
+			$from = &$this->_data;
+		foreach ($from as $key => $val) {
+			if (!str_starts_with($key, $prefix))
+				continue;
+			$list[$key] = $val;
+			unset($from[$key]);
+		}
+		// data sync
+		$this->_storeData();
+		return ($list);
 	}
 	/**
 	 * Tell if a data exists, array-like syntax.
@@ -332,24 +367,30 @@ class Session implements \ArrayAccess {
 		return (null);
 	}
 	/**
+	 * Fetch all session data that starts with the given prefix.
+	 * @param	string	$prefix	Prefix of the session data's name.
+	 * @return	array	Associative array with the variables.
+	 */
+	public function getPrefix(string $prefix) : array {
+		$list = [];
+		if (!isset($this->_cache))
+			$from = &$_SESSION;
+		else
+			$from = &$this->_data;
+		foreach ($from as $key => $val) {
+			if (!str_starts_with($key, $prefix))
+				continue;
+			$list[$key] = $val;
+		}
+		return ($list);
+	}
+	/**
 	 * Fetch a session data, array-like syntax.
 	 * @param	mixed	$key	Data name.
 	 * @return	mixed	Value of the session data.
 	 */
 	public function offsetGet(mixed $key) : mixed {
 		return ($this->get($key));
-	}
-	/**
-	 * Fetch a session data, and remove it from the session.
-	 * @param	string	$key		Data name.
-	 * @param	mixed	$default	(optional) Default value, used if the data doesn't exist in session.
-	 * @return	mixed	Value of the session data.
-	 */
-	public function extract(string $key, mixed $default=null) : mixed {
-		TµLog::log('Temma/Base', 'DEBUG', "Extracting value for key '$key'.");
-		$data = $this->get($key, $default);
-		$this->set($key, null);
-		return ($data);
 	}
 	/**
 	 * Return all session variables.
