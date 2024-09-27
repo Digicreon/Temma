@@ -17,7 +17,8 @@ fi
 
 VALIDATION_PATHS="$CURRENT_DIR/../controllers
                   $CURRENT_DIR/../cli
-                  $CURRENT_DIR/../lib"
+                  $CURRENT_DIR/../lib/Temma
+                  $CURRENT_DIR/../lib/smarty-plugins"
 
 pushd "$CURRENT_DIR" > /dev/null
 
@@ -55,13 +56,36 @@ if [ ! -f /opt/Temma/lib/aws.phar ]; then
 		wget -O /opt/Temma/lib/aws.phar https://docs.aws.amazon.com/aws-sdk-php/v3/download/aws.phar
 	fi
 fi
+# check if the Smarty library is available
+if [ ! -d /opt/Temma/lib/Smarty ]; then
+	# Smarty 4
+	if [ ! -f /tmp/smarty-4.5.4.tgz ]; then
+		wget https://github.com/smarty-php/smarty/archive/refs/tags/v4.5.4.tar.gz -O /tmp/smarty-4.5.4.tgz
+	fi
+	pushd /opt/Temma/lib > /dev/null
+	cp /tmp/smarty-4.5.4.tgz /opt/Temma/lib/
+	tar xzf smarty-4.5.4.tgz smarty-4.5.4/libs
+	mv smarty-4.5.4/libs smarty4
+	rm -rf smarty-4.5.4.tgz smarty-4.5.4
+	popd > /dev/null
+	# Smarty 5
+	if [ ! -f /tmp/smarty-5.4.1.tgz ]; then
+		wget https://github.com/smarty-php/smarty/archive/refs/tags/v5.4.1.tar.gz -O /tmp/smarty-5.4.1.tgz
+	fi
+	pushd /opt/Temma/lib > /dev/null
+	cp -a /tmp/smarty-5.4.1.tgz /opt/Temma/lib/
+	tar xzf smarty-5.4.1.tgz smarty-5.4.1/src
+	mv smarty-5.4.1/src Smarty
+	rm -rf smarty-5.4.1.tgz smarty-5.4.1
+	popd > /dev/null
+fi
 # check if the vendor directory exists and contains the Pheanstalk package
 if [ ! -d /opt/Temma/vendor ]; then
 	if [ -d /tmp/temma-vendor ]; then
 		mv /tmp/temma-vendor /opt/Temma/vendor
 	fi
 	if [ ! -d /opt/Temma/vendor/pda/pheanstalk ]; then
-		pushd /opt/Temma
+		pushd /opt/Temma > /dev/null
 		echo '{
     "require": {
         "pda/pheanstalk": "v5.x-dev"
@@ -69,7 +93,7 @@ if [ ! -d /opt/Temma/vendor ]; then
 }' > composer.json
 		composer update
 		rm composer.json composer.lock
-		popd
+		popd > /dev/null
 	fi
 fi
 
@@ -98,4 +122,5 @@ popd > /dev/null
 # cleanup
 mv /opt/Temma/lib/aws.phar /tmp/aws.phar
 mv /opt/Temma/vendor /tmp/temma-vendor
+rm -rf /opt/Temma/lib/Smarty /opt/Temma/lib/smarty4
 
