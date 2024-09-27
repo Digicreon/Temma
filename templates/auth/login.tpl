@@ -21,6 +21,8 @@
  * which sends (along with the email address) the number of milliseconds between
  * page loading and form submission. An MD5 hash is also sent, just to ensure data
  * consistency.
+ *
+ * @copyright	© 2023-2024 Amaury Bouchard <amaury@amaury.net>
  *}
 <!DOCTYPE html>
 <html>
@@ -72,7 +74,7 @@
 <body>
 
 	{* management of authentication statuses *}
-	{if $authStatus}
+	{if $__authStatus}
 		<h4>
 			{if $authStatus == 'logout'}
 				You have been disconnected

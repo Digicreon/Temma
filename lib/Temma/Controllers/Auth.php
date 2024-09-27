@@ -166,7 +166,7 @@ class Auth extends \Temma\Web\Plugin {
 		unset($this->_session['currentUserId']);
 		// set the status
 		if ($this['currentUser'])
-			$this->_session['authStatus'] = 'logout';
+			$this->_session['__authStatus'] = 'logout';
 		// redirection
 		return $this->_redirect('/auth/login');
 	}
@@ -181,9 +181,6 @@ class Auth extends \Temma\Web\Plugin {
 		// management of the token
 		if ($token)
 			$this['token'] = $token;
-		// retrieve any status message
-		$this['authStatus'] = $this->_session['authStatus'];
-		unset($this->_session['authStatus']);
 		// template
 		$this->_template('auth/login.tpl');
 	}
@@ -198,7 +195,7 @@ class Auth extends \Temma\Web\Plugin {
 		$email = trim($_POST['email'] ?? null);
 		if (!$email || filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
 			TµLog::log('Temma/App', 'DEBUG', "Invalid email address '$email'.");
-			$this->_session['authStatus'] = 'email';
+			$this->_session['__authStatus'] = 'email';
 			return (self::EXEC_HALT);
 		}
 		// check hash (anti-robot system)
@@ -206,7 +203,7 @@ class Auth extends \Temma\Web\Plugin {
 			$hash = $_POST['hash'] ?? '';
 			if (!$hash || !preg_match('/^([^#]*)#([^#]*)#([^#]*)$/', $hash, $matches)) {
 				// empty hash or without '#' character
-				$this->_session['authStatus'] = 'robot';
+				$this->_session['__authStatus'] = 'robot';
 				return (self::EXEC_HALT);
 			}
 			$timeDiff = intval($matches[1] ?? 0);
@@ -222,7 +219,7 @@ class Auth extends \Temma\Web\Plugin {
 				// [2] time difference between form submission and now
 				//     is greater than 5 minutes
 				// [3] received hash is different from the one calculated
-				$this->_session['authStatus'] = 'robot';
+				$this->_session['__authStatus'] = 'robot';
 				return (self::EXEC_HALT);
 			}
 		}
@@ -237,7 +234,7 @@ class Auth extends \Temma\Web\Plugin {
 			// check if the user must be registered
 			if (!($conf['registration'] ?? false)) {
 				// no automatic registration
-				$this->_session['authStatus'] = 'tokenSent';
+				$this->_session['__authStatus'] = 'tokenSent';
 				return (self::EXEC_HALT);
 			}
 			// register the user
@@ -251,7 +248,7 @@ class Auth extends \Temma\Web\Plugin {
 			if (!isset($user['id'])) {
 				// unable to register the user
 				TµLog::log('Temma/App', 'DEBUG', "Unable to register user '$email'.");
-				$this->_session['authStatus'] = 'tokenSent';
+				$this->_session['__authStatus'] = 'tokenSent';
 				return (self::EXEC_HALT);
 			}
 		}
@@ -271,7 +268,7 @@ class Auth extends \Temma\Web\Plugin {
 		// store the token as a template variable (for testing purpose)
 		$this['token'] = $token;
 		// redirect
-		$this->_session['authStatus'] = 'tokenSent';
+		$this->_session['__authStatus'] = 'tokenSent';
 		return (self::EXEC_HALT);
 	}
 	/**
@@ -297,7 +294,7 @@ class Auth extends \Temma\Web\Plugin {
 			$currentUser = $this->_userDao->get($tokenData['user_id']);
 		// check the user (hence the token)
 		if (!$currentUser) {
-			$this->_session['authStatus'] = 'badToken';
+			$this->_session['__authStatus'] = 'badToken';
 			return $this->_redirect('/auth/login');
 		}
 		// store the user identifier in session

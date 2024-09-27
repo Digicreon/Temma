@@ -178,8 +178,7 @@ class Auth extends \Temma\Web\Attribute {
 			       $this->_getConfig()->xtra('security', 'redirect');       // general configuration
 			if ($url) {
 				TµLog::log('Temma/Web', 'DEBUG', "Redirecting to '$url'.");
-				if ($authError)
-					$this->_getSession()['__authError'] = $authError;
+				$this->_getSession()['__authError'] = $authError;
 				if ($authErrorData)
 					$this->_getSession()['__authErrorData'] = $authErrorData;
 				$this->_redirect($url);
