@@ -96,14 +96,18 @@ class Auth extends \Temma\Web\Attribute {
 	                            ?bool $authenticated=true, ?string $redirect=null, ?string $redirectVar=null, bool $storeUrl=false) {
 		global $temma;
 
+		$authError = null;
+		$authErrorData = null;
 		try {
 			$authVariable = $this->_getConfig()->xtra('security', 'authVariable', 'currentUser');
 			// check authentication
 			if ($authenticated === true && !($this[$authVariable]['id'] ?? false)) {
+				$authError = 'not_authenticated';
 				TµLog::log('Temma/Web', 'WARN', "User is not authenticated (while an authenticated user is expected).");
 				throw new TµApplicationException("User is not authenticated.", TµApplicationException::AUTHENTICATION);
 			}
 			if ($authenticated === false && ($this[$authVariable]['id'] ?? false)) {
+				$authError = 'authenticated';
 				TµLog::log('Temma/Web', 'WARN', "User is authenticated (while a unauthenticated user is expected).");
 				throw new TµApplicationException("User is authenticated.", TµApplicationException::AUTHENTICATION);
 			}
@@ -117,6 +121,8 @@ class Auth extends \Temma\Web\Attribute {
 					if (mb_substr($role, 0, 1) == '-') {
 						$role = mb_substr($role, 1);
 						if (($userRoles[$role] ?? false)) {
+							$authError = 'forbidden_role';
+							$authErrorData = $role;
 							TµLog::log('Temma/Web', 'WARN', "User has the forbidden role '$role'.");
 							throw new TµApplicationException("User has the forbidden role '$role'.", TµApplicationException::UNAUTHORIZED);
 						}
@@ -128,6 +134,7 @@ class Auth extends \Temma\Web\Attribute {
 					}
 				}
 				if (!$found) {
+					$authError = 'no_role';
 					TµLog::log('Temma/Web', 'WARN', "User has no matching role.");
 					throw new TµApplicationException("User has no matching role.", TµApplicationException::UNAUTHORIZED);
 				}
@@ -142,6 +149,8 @@ class Auth extends \Temma\Web\Attribute {
 					if (mb_substr($service, 0, 1) == '-') {
 						$service = mb_substr($service, 1);
 						if (($userServices[$service] ?? false)) {
+							$authError = 'forbidden_service';
+							$authErrorData = $service;
 							TµLog::log('Temma/Web', 'WARN', "User has access to the forbidden service '$service'.");
 							throw new TµApplicationException("User has access to the forbidden service '$service'.", TµApplicationException::UNAUTHORIZED);
 						}
@@ -153,6 +162,7 @@ class Auth extends \Temma\Web\Attribute {
 					}
 				}
 				if (!$found) {
+					$authError = 'no_service';
 					TµLog::log('Temma/Web', 'WARN', "User has no matching access.");
 					throw new TµApplicationException("User has no matching access.", TµApplicationException::UNAUTHORIZED);
 				}
@@ -168,6 +178,10 @@ class Auth extends \Temma\Web\Attribute {
 			       $this->_getConfig()->xtra('security', 'redirect');       // general configuration
 			if ($url) {
 				TµLog::log('Temma/Web', 'DEBUG', "Redirecting to '$url'.");
+				if ($authError)
+					$this->_getSession()['__authError'] = $authError;
+				if ($authErrorData)
+					$this->_getSession()['__authErrorData'] = $authErrorData;
 				$this->_redirect($url);
 				throw new \Temma\Exceptions\FlowHalt();
 			}
