@@ -46,22 +46,25 @@ use \Temma\Base\Log as TµLog;
  * @link	https://www.php.net/manual/en/function.mail.php
  */
 class Email implements \Temma\Base\Loadable {
+	/** Dependency injection component. */
+	protected \Temma\Base\Loader $_loader;
 	/** Tell if message sending is disabled. */
-	private bool $_disabled = false;
+	protected bool $_disabled = false;
 	/** List of allowed domains. */
-	private ?array $_allowedDomains = null;
+	protected ?array $_allowedDomains = null;
 	/** Recipients added to all messages. */
-	private ?array $_cc = [];
+	protected ?array $_cc = [];
 	/** Blinded recipients added to all messages. */
-	private ?array $_bcc = [];
+	protected ?array $_bcc = [];
 	/** Envelope sender used for all messages. */
-	private string $_envelopeSender = '';
+	protected string $_envelopeSender = '';
 
 	/**
 	 * Constructor.
 	 * @param	\Temma\Base\Loader	$loader	Dependency injection component.
 	 */
 	public function __construct(\Temma\Base\Loader $loader) {
+		$this->_loader = $loader;
 		$disabled = $loader->config?->xtra('email', 'disabled');
 		if ($disabled)
 			$this->_disabled = true;
@@ -174,7 +177,42 @@ class Email implements \Temma\Base\Loadable {
 		self::fullMail($from, $to, $title, $html, $text, $attachments, $cc, $bcc, $unsubscribe, $envelopeSender);
 	}
 	/**
-	 * Send a simple raw-text message, without attachment.
+	 * Send an HTML mail, with or without a raw text version, with or without attached files.
+	 * The text and HTML messages are generated from Smarty templates.
+	 * @param	string		$from		Sender of the message (in the form "Name <address@domain>" or "address@domain").
+	 * @param	string|array	$to		Recipient of the message, or list of recipients (each recipient in the form "Name <address@domain>" or "address@domain").
+	 * @param	string		$title		(optional) Title of the message.
+	 * @param	?string		$htmlTplPath	(optional) Path to the HTML template file. Can be an absolute path (starting with '/')
+	 *						or a relative path (under the 'templates/' directory).
+	 * @param	?string		$textTplPath	(optional) Path to the text template file. Can be an absolute path (starting with '/')
+	 *						or a relative path (under the 'templates/' directory).
+	 * @param	?array		$templateData	(optional) Associative array of data that must be sent to the templates.
+	 * @param	?array		$attachments	(optional) List of files to attach, each one represented by an associative array containing these keys:
+	 *  			               		- filename	Name of the file.
+	 * 			               		- mimetype	MIME type of the file.
+	 * 			               		- data		Binary content of the file.
+	 * @param	string|array	$cc		(optional) Other recipient, or list of recipients.
+	 * @param	string|array	$bcc		(optional) Blinded recipient, or list of recipients.
+	 * @param	?string		$unsubscribe	(optional) Content for the "List-Unsubscribe" header.
+	 *						For example: "<mailto:contact@site.com?subject=Unsubscribe>, <https://www.site.com/mail/unsubscribe>"
+	 * @param	?string		$envelopeSender	(optional) Envelope sender passed to sendmail.
+	 */
+	public function templatedMail(string $from, string|array $to, string $title='',
+	                              ?string $htmlTplPath='', ?string $textTplPath=null,
+	                              ?array $templateData=null, ?array $attachments=null,
+	                              string|array $cc='', string|array $bcc='',
+	                              ?string $unsubscribe=null, ?string $envelopeSender=null) : void {
+		$html = $text = '';
+		if ($htmlTplPath)
+			$html = $this->_loader['\Temma\Utils\Smarty']->render($htmlTplPath, $templateData);
+		if ($textTplPath)
+			$text = $this->_loader['\Temma\Utils\Smarty']->render($textTplPath, $templateData);
+		$this->mimeMail($from, $to, $title, $html, $text, $attachments, $cc, $bcc, $unsubscribe, $envelopeSender);
+	}
+
+	/* ********** STATIC METHODS ********** */
+	/**
+	 * Sends a simple raw-text message, without attachment.
 	 * @param	string		$from		Sender of the message (in the form "Name <address@domain>" or "address@domain").
 	 * @param	string|array	$to		Recipient of the message, or list of recipients (each recipient in the form "Name <address@domain>" or "address@domain").
 	 * @param	string		$title		(optional) Title of the message.
