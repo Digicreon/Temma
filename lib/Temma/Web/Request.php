@@ -99,6 +99,13 @@ class Request {
 
 	/* ***************** GETTERS *************** */
 	/**
+	 * Tell if the current request is an AJAX request.
+	 * @return	bool	True if the "X-Requested-With" header has the "XMLHttpRequest" value.
+	 */
+	public function isAjax() : bool {
+		return (strtolower($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') === 'xmlhttprequest');
+	}
+	/**
 	 * Returns the pathInfo.
 	 * @return 	string	The pathInfo.
 	 */
