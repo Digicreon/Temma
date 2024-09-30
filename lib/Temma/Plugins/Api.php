@@ -116,7 +116,7 @@ class Api extends \Temma\Web\Plugin {
         /**
 	 * Preplugin method.
 	 * @return	mixed	EXEC_HALT if a redirection is needed. EXEC_FORWARD otherwise.
-	 * @throws	\Temma\Exceptions\FlowHalt	If the URL is ont well formed.
+	 * @throws	\Temma\Exceptions\FlowHalt	If the URL is not well formed.
 	 */
         public function preplugin() {
 		// check if the current user has already been fetch by another plugin
