@@ -85,8 +85,26 @@ class Log {
 	const ERROR = 'ERROR';
 	/** Constant - critical error message; the application may damage its environment (filesystem or database). */
 	const CRIT = 'CRIT';
-	/** Nameof the default log class. */
+	/** Constant: Nameof the default log class. */
 	const DEFAULT_CLASS = 'default';
+	/** Constant: array of sorted log levels. */
+	const LEVELS = [
+		'DEBUG'	=> 10,
+		'INFO'	=> 20,
+		'NOTE'	=> 30,
+		'WARN'	=> 40,
+		'ERROR'	=> 50,
+		'CRIT'	=> 60
+	];
+	/** Constant: array of log level text labels. */
+	const LABELS = [
+		'DEBUG'	=> 'DEBUG',
+		'INFO'	=> 'INFO ',
+		'NOTE'	=> 'NOTE ',
+		'WARN'	=> 'WARN ',
+		'ERROR'	=> 'ERROR',
+		'CRIT'	=> 'CRIT '
+	];
 	/** Request identifier. */
 	static private ?string $_requestId = null;
 	/** Path to the log file. */
@@ -107,24 +125,6 @@ class Log {
 	static private ?array $_bufferingThreshold = null;
 	/** Buffer of waiting messages. */
 	static private ?array $_messageBuffer = null;
-	/** Array of sorted log levels.*/
-	static private array $_levels = [
-		'DEBUG'	=> 10,
-		'INFO'	=> 20,
-		'NOTE'	=> 30,
-		'WARN'	=> 40,
-		'ERROR'	=> 50,
-		'CRIT'	=> 60
-	];
-	/** Array of log level text labels. */
-	static private array $_labels = [
-		'DEBUG'	=> 'DEBUG',
-		'INFO'	=> 'INFO ',
-		'NOTE'	=> 'NOTE ',
-		'WARN'	=> 'WARN ',
-		'ERROR'	=> 'ERROR',
-		'CRIT'	=> 'CRIT '
-	];
 
 	/* ********** PUBLIC METHODS ********** */
 	/**
@@ -224,16 +224,16 @@ class Log {
 			$priority = self::INFO;
 			$message = $classOrMessageOrPriority;
 		}
-		$priority = isset(self::$_levels[$priority]) ? $priority : self::INFO;
+		$priority = isset(self::LEVELS[$priority]) ? $priority : self::INFO;
 		$writeLog = true;
 		$bufferLog = false;
 		// the message is not written if its criticity is lower than the defined threshold
-		if ((isset(self::$_threshold[$class]) && self::$_levels[$priority] < self::$_levels[self::$_threshold[$class]]) ||
-		    (!isset(self::$_threshold[$class]) && (!isset(self::$_threshold[self::DEFAULT_CLASS]) || self::$_levels[$priority] < self::$_levels[self::$_threshold[self::DEFAULT_CLASS]]))) {
+		if ((isset(self::$_threshold[$class]) && self::LEVELS[$priority] < self::LEVELS[self::$_threshold[$class]]) ||
+		    (!isset(self::$_threshold[$class]) && (!isset(self::$_threshold[self::DEFAULT_CLASS]) || self::LEVELS[$priority] < self::LEVELS[self::$_threshold[self::DEFAULT_CLASS]]))) {
 			$writeLog = false;
 			// message critivity is too low
 			// check if the message must be buffered
-			if (isset(self::$_bufferingThreshold[$class]) && self::$_levels[$priority] >= self::$_levels[self::$_bufferingThreshold[$class]])
+			if (isset(self::$_bufferingThreshold[$class]) && self::LEVELS[$priority] >= self::LEVELS[self::$_bufferingThreshold[$class]])
 				$bufferLog = true;
 		}
 		if (!$writeLog && !$bufferLog)
@@ -300,7 +300,7 @@ class Log {
 	static public function checkLogLevel(mixed $loglevel) : ?string {
 		if (is_string($loglevel) &&
 		    ($loglevel = strtoupper($loglevel)) &&
-		    isset(self::$_levels[$loglevel]))
+		    isset(self::LEVELS[$loglevel]))
 			return ($loglevel);
 		return (null);
 	}
@@ -320,7 +320,7 @@ class Log {
 			self::$_requestId = substr(base_convert(bin2hex(random_bytes(3)), 16, 36), 0, 4);
 		}
 		// create the message
-		$text = date('c') . ' [' . self::$_requestId . '] ' . (isset(self::$_labels[$priority]) ? (self::$_labels[$priority] . ' ') : '');
+		$text = date('c') . ' [' . self::$_requestId . '] ' . (isset(self::LABELS[$priority]) ? (self::LABELS[$priority] . ' ') : '');
 		if (!empty($class) && $class != self::DEFAULT_CLASS)
 			$text .= "-$class- ";
 		$text .= $message . "\n";
