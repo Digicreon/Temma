@@ -9,6 +9,7 @@
 namespace Temma\Plugins;
 
 use \Temma\Base\Log as TµLog;
+use \Temma\Utils\Text as TµText;
 
 /**
  * Plugin used to set debug toolbar.
@@ -78,6 +79,7 @@ class Debug extends \Temma\Web\Plugin {
 		$colorMedium = '#107EF4';
 		$colorLight = '#DCE9F7';
 		$colorWhite = '#F8F8FF';
+		$colorContrastLight = '#F7E9DC';
 		$html = <<<JAVASCRIPT
 			<script>
 				function tµIsVisible(target) {
@@ -91,9 +93,9 @@ class Debug extends \Temma\Web\Plugin {
 						element.style.display = "none";
 					});
 				}
-				function tµShow(target) {
+				function tµShow(target, displayType) {
 					document.querySelectorAll(target).forEach(function(element) {
-						element.style.display = "block";
+						element.style.display = displayType ? displayType : "block";
 					});
 				}
 				function tµToggle(target, type) {
@@ -145,6 +147,24 @@ class Debug extends \Temma\Web\Plugin {
 					tµToggle("#tµ-toolbar");
 					tµRemoveClass("._tµ-btn", "tµ-tab-active");
 				}
+				var tµLogUsedLevel = "";
+				var tµLogUsedClass = "";
+				function tµLogSetLevel(level) {
+					tµHide("._tµ-log");
+					var selector = level ? ("._tµ-log-" + level) : "._tµ-log";
+					if (tµLogUsedClass)
+						selector += "._tµ-log-class-" + tµLogUsedClass;
+					tµShow(selector, "table-row");
+					tµLogUsedLevel = level;
+				}
+				function tµLogSetClass(logClass) {
+					tµHide("._tµ-log");
+					var selector = logClass ? ("._tµ-log-class-" + logClass) : "._tµ-log";
+					if (tµLogUsedLevel)
+						selector += "._tµ-log-" + tµLogUsedLevel;
+					tµShow(selector, "table-row");
+					tµLogUsedClass = logClass;
+				}
 			</script>
 			<style>
 				body {
@@ -174,13 +194,16 @@ class Debug extends \Temma\Web\Plugin {
 				.tµ-panel td {
 			        	background-color: $colorWhite;
 				}
+				.tµ-panel tr:hover td {
+					background-color: $colorContrastLight;
+				}
 				.tµ-panel pre {
 					margin-bottom: 0;
 				}
 				.tµ-panel button {
 					background-color: $colorMedium;
 					margin: 5px;
-					/*padding: 8px;*/
+					padding: 1px 8px;
 					border: 1px solid $colorLight;
 				}
 				.tµ-panel button:hover {
@@ -235,36 +258,71 @@ class Debug extends \Temma\Web\Plugin {
 					color: $colorBlack;
 					border: 1px solid $colorMedium;
 				}
+				#tµ-toolbar-logs select {
+					margin: 5px;
+				}
 			</style>
 		JAVASCRIPT;
 		// logs
 		$html .= <<<LOG_PANEL
 			<div id="tµ-toolbar-logs" class="tµ-panel _tµ-toolbar _tµ-panel" style="display: none;">
-				<h1 style="margin-bottom: 20px;">Logs</h1>
-				<div style="margin-bottom: 15px;">
+				<h1>Logs</h1>
+				<table>
 		LOG_PANEL;
-		$html .= "<button id='tµ-log-btn-all' class='tµ-log-btn tµ-active'
-		           onclick=\"tµRemoveClass('.tµ-log-btn', 'tµ-active'); tµAddClass('#tµ-log-btn-all', 'tµ-active'); tµShow('._tµ-log');\">All (" . count(self::$_logs) . ")</button>";
-		foreach (TµLog::LEVELS as $level => $value) {
-			if (!isset(self::$_logLevelCounts[$level]))
-				continue;
-			$count = self::$_logLevelCounts[$level];
-			$url = \Temma\Utils\Text::urlize($level);
-			$html .= "<button id='tµ-log-btn-$url' class='tµ-log-btn'
-			           onclick=\"tµRemoveClass('.tµ-log-btn', 'tµ-active'); tµAddClass('#tµ-log-btn-$url', 'tµ-active'); tµHide('._tµ-log'); tµShow('._tµ-log-$url')\">" . htmlspecialchars($level) . " ($count)</button>";
+		if (self::$_logLevelCounts || self::$_logClasses) {
+			$html .= "<tr>
+					<td style='background-color: transparent;'></td>";
+			if (self::$_logLevelCounts) {
+				$html .= "<td style='background-color: transparent; padding: 0;'>
+						<select onchange='tµLogSetLevel(this.value)' style='margin: 0 0 0px 0;'>
+							<option value=''>All</option>";
+				foreach (TµLog::LEVELS as $level => $value) {
+					if (!isset(self::$_logLevelCounts[$level]))
+						continue;
+					$html .= "<option value='" . TµText::urlize($level) . "'>" . htmlspecialchars($level) . " (" . self::$_logLevelCounts[$level] . ")</option>";
+				}
+				$html .= "	</select>
+					</td>";
+			}
+			if (self::$_logClasses) {
+				$html .= "<td style='background-color: transparent; padding: 0;'>
+						<select onchange='tµLogSetClass(this.value)' style='margin: 0 0 0px 0;'>
+							<option value=''>All</option>";
+				foreach (self::$_logClasses as $class => $value) {
+					$html .= "<option value='" . TµText::urlize($class) . "'>" . htmlspecialchars($class) . " ($value)</option>";
+				}
+				$html .= "	</select>
+					</td>";
+			}
+			$html .= "<td style='width: 100%; background-color: transparent;'></td>";
 		}
-		$html .= "</div><pre>\n";
 		foreach (self::$_logs as $log) {
-			$html .= "<div class='_tµ-log _tµ-log-" . \Temma\Utils\Text::urlize($log['level']) . "' style='background-color: $colorWhite; margin-bottom: 2px;'>";
+			$cssClass = ($log['level'] ? '_tµ-log-' . TµText::urlize($log['level']) : '') . ' ' .
+			            ($log['class'] ? '_tµ-log-class-' . TµText::urlize($log['class']) : '');
 			$color = in_array($log['level'], ['CRIT', 'ERROR']) ? 'red' :
 			         ($log['level'] == 'WARN' ? 'orange' :
-			          (in_array($log['level'], ['NOTE', 'INFO']) ? 'green' : 'gray'));
-			$html .= $log['date'] . " <span style='padding: 2px 2px 1px 2px; color: #fff; background-color: $color;'>" . htmlspecialchars(TµLog::LABELS[$log['level']] ?? $log['level']) . "</span> ";
-			if ($log['class'])
-				$html .= "<span style='background-color: gray; color: #fff; padding: 2px 2px 1px 2px;'>" . htmlspecialchars($log['class']) . "</span> ";
-			$html .= "<span style='color: $color;'>" . $log['message'] . "</span></div>";
+			          (in_array($log['level'], ['NOTE', 'INFO']) ? '#383' : '#666'));
+			$html .= "<tr valign='top' class='_tµ-log _tµ-log-" . TµText::urlize($log['level']) . " _tµ-log-class-" . TµText::urlize($log['class']) . "'>
+					<td><pre>" . $log['date'] . "</pre></td>";
+			if (self::$_logLevelCounts)
+				$html .= "<td style='text-align: center;'><pre><span style='padding: 2px 2px 1px 2px; color: #fff; background-color: $color;'>" . htmlspecialchars($log['level']) . "</span></pre></td>";
+			$classBg = '#555';
+			$classFg = '#fff';
+			if ($log['class'] == 'Temma/Base')
+				$classBg = $colorMedium;
+			else if ($log['class'] == 'Temma/Web')
+				$classBg = $colorDark;
+			else if (str_starts_with($log['class'], 'Temma/')) {
+				$classBg = $colorLight;
+				$classFg = $colorDark;
+			}
+			if (self::$_logClasses)
+				$html .= "<td style='text-align: center;'><pre><span style='padding: 2px 2px 1px 2px; background-color: $classBg; color: $classFg;'>" . htmlspecialchars($log['class']) . "</span></pre></td>";
+			$html .= "	<td style='color: $color;'><pre style='color: $color;'>" . htmlspecialchars($log['message']) . "</pre></td>
+				  </tr>";
 		}
-		$html .= "</pre></div>";
+		$html .= "</table>
+			  </div>";
 		// session variables
 		$html .= <<<SESSION_PANEL
 			<div id="tµ-toolbar-session" class="tµ-panel _tµ-toolbar _tµ-panel" style="display: none;">
@@ -274,7 +332,7 @@ class Debug extends \Temma\Web\Plugin {
 		$sessionVars = $this->_session->getAll();
 		foreach ($sessionVars as $key => $value) {
 			$html .= "<tr><td><pre>" . htmlspecialchars($key) . "</pre></td>" .
-			         "<td style='width: 100%;'><pre>" . htmlspecialchars(var_export($value, true)) . "</pre></td></tr>\n";
+			         "<td><pre>" . htmlspecialchars(var_export($value, true)) . "</pre></td></tr>\n";
 		}
 		$html .= "</table></div>";
 		// variables
@@ -334,19 +392,19 @@ class Debug extends \Temma\Web\Plugin {
 		$html .= "</table></div>";
 		// config
 		$configData = [
-			'Application path'        => htmlspecialchars($this->_config->appPath),
+			'Application path'        => htmlspecialchars($this->_config->appPath ?? ''),
 			'Include path'            => htmlspecialchars(var_export($this->_config->pathsToInclude, true)),
 			'Data sources'            => htmlspecialchars(var_export($this->_config->dataSources, true)),
 			'Sessions enabled'        => $this->_config->enableSessions ? 'yes' : 'no',
-			'Session name'            => htmlspecialchars($this->_config->sessionName),
-			'Session source'          => htmlspecialchars($this->_config->sessionSource),
-			'Root controller'         => htmlspecialchars($this->_config->rootController),
-			'Default controller'      => htmlspecialchars($this->_config->defaultController),
-			'Proxy controller'        => htmlspecialchars($this->_config->proxyController),
-			'Default namespace'       => htmlspecialchars($this->_config->defaultNamespace),
-			'Default view'            => htmlspecialchars($this->_config->defaultView),
-			'Loader'                  => htmlspecialchars($this->_config->loader),
-			'Log manager'             => htmlspecialchars($this->_config->logManager),
+			'Session name'            => htmlspecialchars($this->_config->sessionName ?? ''),
+			'Session source'          => htmlspecialchars($this->_config->sessionSource ?? ''),
+			'Root controller'         => htmlspecialchars($this->_config->rootController ?? ''),
+			'Default controller'      => htmlspecialchars($this->_config->defaultController ?? ''),
+			'Proxy controller'        => htmlspecialchars($this->_config->proxyController ?? ''),
+			'Default namespace'       => htmlspecialchars($this->_config->defaultNamespace ?? ''),
+			'Default view'            => htmlspecialchars($this->_config->defaultView ?? ''),
+			'Loader'                  => htmlspecialchars($this->_config->loader ?? ''),
+			'Log manager'             => htmlspecialchars($this->_config->logManager ?? ''),
 			'Log levels'              => htmlspecialchars(var_export($this->_config->logLevels, true)),
 			'Buffering log levels'    => htmlspecialchars(var_export($this->_config->bufferingLogLevels, true)),
 			'Routes'                  => htmlspecialchars(var_export($this->_config->routes, true)),
@@ -401,13 +459,18 @@ class Debug extends \Temma\Web\Plugin {
 					Config
 				</button>
 				<span style="float: right; margin: 5px 8px 0 0; color: #ddd;">
+					<span title="Execution time before template">
 		BAR;
 		if ($time < 1)
 			$html .= sprintf("%d ms", ($time * 1000));
 		else
 			$html .= sprintf("%.02f s", $time);
+		$html .= <<<'BAR'
+			</span>
+			<span style='color: #999;'>|</span>
+			<span title="Peak memory usage">
+		BAR;
 		$memory = memory_get_peak_usage(true);
-		$html .= " <span style='color: #999;'>|</span> ";
 		if ($memory > (1024 * 1024 * 1024 * 1024))
 			$html .= sprintf("%.02f TB", ($memory / (1024 * 1024 * 1024 * 1024)));
 		else if ($memory > (1024 * 1024 * 1024))
@@ -419,6 +482,7 @@ class Debug extends \Temma\Web\Plugin {
 		else
 			$html .= sprintf("%d bytes", $memory);
 		$html .= <<<'BAR'
+					</span>
 				</span>
 			</div>
 		BAR;

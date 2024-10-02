@@ -132,7 +132,7 @@ class Response implements \ArrayAccess {
 	 * @param	string	$appendStream	Stream to append to the response.
 	 */
 	public function setAppendStream(string $appendStream) : void {
-		$this->_apprendStream = $appendStream;
+		$this->_appendStream = $appendStream;
 	}
 	/**
 	 * Add a template variable, array-like syntax.
@@ -244,7 +244,7 @@ class Response implements \ArrayAccess {
 	 * @return	string	The stream to append to the response.
 	 */
 	public function getAppendStream() : string {
-		return($this->_apprendStream);
+		return($this->_appendStream);
 	}
 	/**
 	 * Returns a template variable, array-like syntax.
