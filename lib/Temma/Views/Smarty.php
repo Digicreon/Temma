@@ -148,6 +148,7 @@ class Smarty extends \Temma\Web\View {
 	}
 	/** Write body. */
 	public function sendBody() : void {
+		print($this->_response->getPrependStream());
 		// cache management
 		if ($this->_isCacheable && ($dataSource = $this->_config->xtra('temma-cache', 'source')) &&
 		    isset($this->_dataSources[$dataSource]) && ($cache = $this->_dataSources[$dataSource])) {
@@ -160,10 +161,11 @@ class Smarty extends \Temma\Web\View {
 			}
 			// write the page to stdout
 			print($data);
-			return;
+		} else {
+			// direct rendering to stdout
+			$this->_smarty->display($this->_template);
 		}
-		// direct rendering to stdout
-		$this->_smarty->display($this->_template);
+		print($this->_response->getAppendStream());
 	}
 }
 

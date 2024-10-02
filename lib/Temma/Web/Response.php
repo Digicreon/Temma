@@ -32,6 +32,10 @@ class Response implements \ArrayAccess {
 	private array $_headers = [];
 	/** Template variables. */
 	private array $_data = [];
+	/** Prepended response stream. */
+	private string $_prependStream = '';
+	/** Appended response stream. */
+	private string $_appendStream = '';
 
 	/**
 	 * Constructor.
@@ -115,6 +119,20 @@ class Response implements \ArrayAccess {
 	 */
 	public function header(string $header) : void {
 		$this->_headers[] = $header;
+	}
+	/**
+	 * Set the prepend stream.
+	 * @param	string	$prependStream	Stream to prepend to the response.
+	 */
+	public function setPrependStream(string $prependStream) : void {
+		$this->_preprendStream = $prependStream;
+	}
+	/**
+	 * Set the append stream.
+	 * @param	string	$appendStream	Stream to append to the response.
+	 */
+	public function setAppendStream(string $appendStream) : void {
+		$this->_apprendStream = $appendStream;
 	}
 	/**
 	 * Add a template variable, array-like syntax.
@@ -213,6 +231,20 @@ class Response implements \ArrayAccess {
 			$default = $default($callbackParam);
 		$this[$key] = $default;
 		return ($default);
+	}
+	/**
+	 * Returns the prepend stream.
+	 * @return	string	The stream to prepend to the response.
+	 */
+	public function getPrependStream() : string {
+		return ($this->_prependStream);
+	}
+	/**
+	 * REturns the append stream.
+	 * @return	string	The stream to append to the response.
+	 */
+	public function getAppendStream() : string {
+		return($this->_apprendStream);
 	}
 	/**
 	 * Returns a template variable, array-like syntax.
