@@ -15,6 +15,18 @@ use \Temma\Utils\Text as TµText;
  * Plugin used to set debug toolbar.
  */
 class Debug extends \Temma\Web\Plugin {
+	/** Constant: color close to black. */
+	const COLOR_BLACK = '#334';
+	/** Constant : dark color. */
+	const COLOR_DARK = '#0069D9';
+	/** Constant : medium color. */
+	const COLOR_MEDIUM = '#107EF4';
+	/** Constant : light color. */
+	const COLOR_LIGHT = '#DCE9F7';
+	/** Constant : color close to white. */
+	const COLOR_WHITE = '#F8F8FF';
+	/** Constant : light contrast color. */
+	const COLOR_CONTRAST_LIGHT = '#F7E9DC';
 	/** List of log messages. */
 	static protected array $_logs = [];
 	/** Number of log messages per log level. */
@@ -74,12 +86,12 @@ class Debug extends \Temma\Web\Plugin {
 	 * @return	string	The HTML stream.
 	 */
 	public function _generateHtml(float $time) : string {
-		$colorBlack = '#334';
-		$colorDark = '#0069D9';
-		$colorMedium = '#107EF4';
-		$colorLight = '#DCE9F7';
-		$colorWhite = '#F8F8FF';
-		$colorContrastLight = '#F7E9DC';
+		$colorBlack = self::COLOR_BLACK;
+		$colorDark = self::COLOR_DARK;
+		$colorMedium = self::COLOR_MEDIUM;
+		$colorLight = self::COLOR_LIGHT;
+		$colorWhite = self::COLOR_WHITE;
+		$colorContrastLight = self::COLOR_CONTRAST_LIGHT;
 		$html = <<<JAVASCRIPT
 			<script>
 				function tµIsVisible(target) {
@@ -140,6 +152,7 @@ class Debug extends \Temma\Web\Plugin {
 					} else {
 						tµShow("#" + panelId);
 						tµAddClass("#" + tabBtnId, "tµ-tab-active");
+						document.getElementById(panelId).scrollTop = 0;
 					}
 				}
 				function tµIconToggle() {
@@ -186,15 +199,38 @@ class Debug extends \Temma\Web\Plugin {
 				.tµ-panel h1 {
 					font-family: sans-serif;
 				}
-				.tµ-panel table {
+				.tµ-panel pre.tµ-wrap {
+					white-space: pre-wrap;
+				}
+				.tµ-panel table.data {
+					width: calc(100% - 30px);
+					border-collapse: separate;
+					border-spacing: 2px;
+					margin-left: 30px;
+				}
+				.tµ-panel table.data td {
+					padding: 2px 8px 0 8px;
+				}
+				.tµ-panel table.data > tbody > tr.tµ-tr-light > td,
+				.tµ-panel table.data > tbody > tr > td > table.data > tbody > tr.tµ-tr-light > td,
+				.tµ-panel table.data > tbody > tr > td > table.data > tbody > tr > td > table.data > tbody > tr.tµ-tr-light > td {
+					background-color: $colorWhite;
+				}
+				.tµ-panel table.data > tbody > tr.tµ-tr-dark > td,
+				.tµ-panel table.data > tbody > tr > td > table.data > tbody > tr.tµ-tr-dark > td,
+				.tµ-panel table.data > tbody > tr > td > table.data > tbody > tr > td > table.data > tbody > tr.tµ-tr-dark > td {
+					background-color: $colorLight;
+				}
+				.tµ-panel > table {
 					width: 100%;
 					border-collapse: separate;
 					border-spacing: 3px;
 				}
-				.tµ-panel td {
+				.tµ-panel > table > tbody > tr > td {
+					padding: 2px 8px 0 8px;
 			        	background-color: $colorWhite;
 				}
-				.tµ-panel tr:hover td {
+				.tµ-panel > table > tbody > tr:hover > td {
 					background-color: $colorContrastLight;
 				}
 				.tµ-panel pre {
@@ -288,6 +324,7 @@ class Debug extends \Temma\Web\Plugin {
 				$html .= "<td style='background-color: transparent; padding: 0;'>
 						<select onchange='tµLogSetClass(this.value)' style='margin: 0 0 0px 0;'>
 							<option value=''>All</option>";
+				ksort(self::$_logClasses);
 				foreach (self::$_logClasses as $class => $value) {
 					$html .= "<option value='" . TµText::urlize($class) . "'>" . htmlspecialchars($class) . " ($value)</option>";
 				}
@@ -318,7 +355,7 @@ class Debug extends \Temma\Web\Plugin {
 			}
 			if (self::$_logClasses)
 				$html .= "<td style='text-align: center;'><pre><span style='padding: 2px 2px 1px 2px; background-color: $classBg; color: $classFg;'>" . htmlspecialchars($log['class']) . "</span></pre></td>";
-			$html .= "	<td style='color: $color;'><pre style='color: $color;'>" . htmlspecialchars($log['message']) . "</pre></td>
+			$html .= "	<td style='color: $color;'><pre class='tµ-wrap'style='color: $color;'>" . htmlspecialchars($log['message']) . "</pre></td>
 				  </tr>";
 		}
 		$html .= "</table>
@@ -330,9 +367,12 @@ class Debug extends \Temma\Web\Plugin {
 				<table>
 		SESSION_PANEL;
 		$sessionVars = $this->_session->getAll();
+		ksort($sessionVars);
 		foreach ($sessionVars as $key => $value) {
-			$html .= "<tr><td><pre>" . htmlspecialchars($key) . "</pre></td>" .
-			         "<td><pre>" . htmlspecialchars(var_export($value, true)) . "</pre></td></tr>\n";
+			$html .= "<tr valign='top'>
+					<td style='width: 1%;'><pre>" . htmlspecialchars($key) . "</pre></td>
+					<td>" . self::dump($value) . "</td>
+				  </tr>\n";
 		}
 		$html .= "</table></div>";
 		// variables
@@ -341,29 +381,42 @@ class Debug extends \Temma\Web\Plugin {
 			$html .= "<h1>GET variables</h1>
 			          <table>";
 			foreach ($_GET as $key => $value) {
-				$html .= "<tr valign='top'><td><pre>$" . htmlspecialchars($key) . "</pre></td>" .
-					 "<td><pre>" . htmlspecialchars(var_export($value, true)) . "</pre></td></tr>\n";
+				$html .= "<tr valign='top'>
+						<td style='width: 1%;'><pre>$" . htmlspecialchars($key) . "</pre></td>
+						<td>" . self::dump($value) . "</td>
+					  </tr>\n";
 			}
 			$html .= "</table>";
 		}
 		if ($_COOKIE) {
 			$html .= "<h1 style='margin-top: 15px;'>Cookies variables</h1>
 			          <table>";
+			$cookies = $_COOKIE;
+			ksort($cookies);
 			foreach ($_COOKIE as $key => $value) {
-				$html .= "<tr valign='top'><td><pre>$" . htmlspecialchars($key) . "</pre></td>" .
-					 "<td><pre>" . htmlspecialchars(var_export($value, true)) . "</pre></td></tr>\n";
+				$html .= "<tr valign='top'>
+						<td style='width: 1%;'><pre>$" . htmlspecialchars($key) . "</pre></td>
+						<td>" . self::dump($value) . "</td>
+					  </tr>\n";
 			}
+			unset($cookies);
 			$html .= "</table>";
 		}
 		$tplVars = $this->_response->getData();
 		if ($tplVars) {
 			$html .= "<h1 style='margin-top: 15px;'>Template variables</h1>
 				<table>";
+			ksort($tplVars);
 			foreach ($tplVars as $key => $value) {
 				if (str_starts_with($key, 'tµ__'))
 					continue;
-				$html .= "<tr valign='top'><td><pre>$" . htmlspecialchars($key) . "</pre></td>" .
-				         "<td><pre>" . htmlspecialchars(var_export($value, true)) . "</pre></td></tr>\n";
+				$txt = '$' . htmlspecialchars($key);
+				if (in_array($key, ['ACTION', 'CONTROLLER', 'URL', 'SESSIONID', 'AJAX', 'conf']))
+					$txt = "<strong>$txt</strong>";
+				$html .= "<tr valign='top'>
+						<td style='width: 1%;'><pre>$txt</pre></td>
+						<td>" . self::dump($value) . "</td>
+					  </tr>\n";
 			}
 			$html .= "</table>";
 		}
@@ -377,8 +430,10 @@ class Debug extends \Temma\Web\Plugin {
 		$constants = $_SERVER;
 		ksort($constants);
 		foreach ($constants as $key => $value) {
-			$html .= "<tr><td><pre>" . htmlspecialchars($key) . "</pre></td>" .
-			         "<td><pre>" . nl2br(htmlspecialchars($value)) . "</pre></td></tr>\n";
+			$html .= "<tr valign='top'>
+					<td style='width: 1%;'><pre>" . htmlspecialchars($key) . "</pre></td>
+					<td>" . self::dump($value) . "</td>
+				  </tr>\n";
 		}
 		$html .= "</table>
 		          <h1 style='margin-top: 15px;'>Environment</h1>
@@ -386,41 +441,48 @@ class Debug extends \Temma\Web\Plugin {
 		$constants = getenv();
 		ksort($constants);
 		foreach ($constants as $key => $value) {
-			$html .= "<tr><td><pre>" . htmlspecialchars($key) . "</pre></td>" .
-			         "<td><pre>" . nl2br(htmlspecialchars($value)) . "</pre></td></tr>\n";
+			$html .= "<tr valign='top'>
+					<td style='width: 1%;'><pre>" . htmlspecialchars($key) . "</pre></td>
+					<td>" . self::dump($value) . "</td>
+				  </tr>\n";
 		}
+		unset($constants);
 		$html .= "</table></div>";
 		// config
 		$configData = [
-			'Application path'        => htmlspecialchars($this->_config->appPath ?? ''),
-			'Include path'            => htmlspecialchars(var_export($this->_config->pathsToInclude, true)),
-			'Data sources'            => htmlspecialchars(var_export($this->_config->dataSources, true)),
+			'Application path'        => $this->_config->appPath,
+			'Include path'            => $this->_config->pathsToInclude,
+			'Data sources'            => $this->_config->dataSources,
 			'Sessions enabled'        => $this->_config->enableSessions ? 'yes' : 'no',
-			'Session name'            => htmlspecialchars($this->_config->sessionName ?? ''),
-			'Session source'          => htmlspecialchars($this->_config->sessionSource ?? ''),
-			'Root controller'         => htmlspecialchars($this->_config->rootController ?? ''),
-			'Default controller'      => htmlspecialchars($this->_config->defaultController ?? ''),
-			'Proxy controller'        => htmlspecialchars($this->_config->proxyController ?? ''),
-			'Default namespace'       => htmlspecialchars($this->_config->defaultNamespace ?? ''),
-			'Default view'            => htmlspecialchars($this->_config->defaultView ?? ''),
-			'Loader'                  => htmlspecialchars($this->_config->loader ?? ''),
-			'Log manager'             => htmlspecialchars($this->_config->logManager ?? ''),
-			'Log levels'              => htmlspecialchars(var_export($this->_config->logLevels, true)),
-			'Buffering log levels'    => htmlspecialchars(var_export($this->_config->bufferingLogLevels, true)),
-			'Routes'                  => htmlspecialchars(var_export($this->_config->routes, true)),
-			'Plugins'                 => htmlspecialchars(var_export($this->_config->plugins, true)),
-			'Auto-imported variables' => htmlspecialchars(var_export($this->_config->autoimport, true)),
+			'Session name'            => $this->_config->sessionName,
+			'Session source'          => $this->_config->sessionSource,
+			'Root controller'         => $this->_config->rootController,
+			'Default controller'      => $this->_config->defaultController,
+			'Proxy controller'        => $this->_config->proxyController,
+			'Default namespace'       => $this->_config->defaultNamespace,
+			'Default view'            => $this->_config->defaultView,
+			'Loader'                  => $this->_config->loader,
+			'Log manager'             => $this->_config->logManager,
+			'Log levels'              => $this->_config->logLevels,
+			'Buffering log levels'    => $this->_config->bufferingLogLevels,
+			'Routes'                  => $this->_config->routes,
+			'Plugins'                 => $this->_config->plugins,
+			'Auto-imported variables' => $this->_config->autoimport,
 		];
-		foreach ($this->_config->extraConfig as $xtra => $content)
-			$configData[$xtra] = htmlspecialchars(var_export($content, true));
+		$xtraConf = $this->_config->extraConfig;
+		ksort($xtraConf);
+		$configData = array_merge($configData, $xtraConf);
+		unset($xtraConf);
 		$html .= <<<CONFIG_PANEL
 			<div id="tµ-toolbar-config" class="tµ-panel _tµ-toolbar _tµ-panel" style="display: none;">
 				<h1>Configuration</h1>
 				<table>
 		CONFIG_PANEL;
 		foreach ($configData as $key => $val) {
-			$html .= "<tr><td>$key</td>
-			              <td><pre>$val</pre></td></tr>";
+			$html .= "<tr valign='top'>
+					<td style='width: 1%;'><pre>$key</pre></td>
+					<td>" . self::dump($val) . "</td>
+				  </tr>";
 		}
 		$html .= <<<CONFIG_PANEL
 				</table>
@@ -451,6 +513,7 @@ class Debug extends \Temma\Web\Plugin {
 				</button>
 			BAR;
 		}
+		unset($tplVars);
 		$html .= <<<BAR
 				<button id="tµ-btn-constants" class="_tµ-btn" onclick="tµTogglePanel('constants')">
 					Constants
@@ -493,6 +556,59 @@ class Debug extends \Temma\Web\Plugin {
 			title="Close" onclick="tµIconToggle()" />
 		ICON;
 		return ($html);
+	}
+	/**
+	 * Returns an HTML stream for a given variable.
+	 * @param	mxed	$data	The variable.
+	 * @param	array	$known	(optional) List of known objects and arrays, to prevent circular references.
+	 * @param	bool	$light	(optional) True for light background. Defaults to false.
+	 * @return	string	The HTML stream.
+	 */
+	private static function dump(mixed $data, array &$known=[], bool $light=false) : string {
+		if (is_null($data))
+			return ("<pre>null</pre>\n");
+		if (is_bool($data))
+			return ("<pre>" . ($data ? 'true' : 'false') . "</pre>\n");
+		if (is_scalar($data))
+			return ("<pre class='tµ-wrap'>" . htmlspecialchars($data) . "</pre>\n");
+		if (is_array($data)) {
+			$arrayId = md5(serialize($data));
+			if (isset($known[$arrayId]))
+				return ("<em>RECURSION</em>\n");
+			$known[$arrayId] = true;
+			$res = '<pre>array (' . count($data) . "):</pre>
+				<table class='data'>\n";
+			foreach ($data as $key => $value) {
+				$bgColor = $light ? self::COLOR_WHITE : self::COLOR_LIGHT;
+				$res .= "<tr valign='top'>
+						<td style='background-color: $bgColor; width: 1%;'><pre>" . htmlspecialchars($key) . "</pre></td>
+						<td style='background-color: $bgColor;'>";
+				$res .= self::dump($value, $known, !$light);
+				$res .= "</td></tr>\n";
+			}
+			$res .= "</table>\n";
+			return ($res);
+		}
+		if (is_object($data)) {
+			$objectId = spl_object_hash($data);
+			if (isset($known[$objectId]))
+				return ("<em>RECURSION</em>\n");
+			$known[$objectId] = true;
+			$res = '<pre>Object [' . htmlspecialchars(get_class($data)) . "]:</pre>\n<table class='data'>\n";
+			foreach (get_object_vars($data) as $key => $value) {
+				$bgColor = $light ? self::COLOR_WHITE : self::COLOR_LIGHT;
+				$res .= "<tr valign='top'>
+						<td style='background-color: $bgColor; max-width: 33%;'><pre>" . htmlspecialchars($key) . "</pre></td>
+						<td style='background-color: $bgColor;'>";
+				$res .= self::dump($value, $known, !$light);
+				$res .= "</td></tr>\n";
+			}
+			$res .= "</table\n";
+			return ($res);
+		}
+		if (is_resource($data))
+			return ('Resource [' . get_resource_type($data) . "]: " . get_resource_id($data) . "\n");
+		return ("<em>Unknown type</em>\n");
 	}
 }
 
