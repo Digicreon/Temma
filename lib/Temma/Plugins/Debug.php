@@ -45,8 +45,6 @@ class Debug extends \Temma\Web\Plugin {
 	static protected bool $_showBar = true;
 	/** Show logs. */
 	static protected bool $_showLogs = true;
-	/** Show session. */
-	static protected bool $_showSession = true;
 	/** Show variables. */
 	static protected bool $_showVariables = true;
 	/** Show constants. */
@@ -66,7 +64,6 @@ class Debug extends \Temma\Web\Plugin {
 		// get configuration
 		self::$_showBar = $this->_config->xtra('debug', 'showBar', true);
 		self::$_showLogs = $this->_config->xtra('debug', 'showLogs', true);
-		self::$_showSession = $this->_config->xtra('debug', 'showSession', true);
 		self::$_showVariables = $this->_config->xtra('debug', 'showVariables', true);
 		self::$_showConstants = $this->_config->xtra('debug', 'showConstants', true);
 		self::$_showConfig = $this->_config->xtra('debug', 'showConfig', true);
@@ -221,6 +218,7 @@ class Debug extends \Temma\Web\Plugin {
 		$colorWhite = self::COLOR_WHITE;
 		$colorContrastLight = self::COLOR_CONTRAST_LIGHT;
 		$colorContrastMedium = self::COLOR_CONTRAST_MEDIUM;
+		$sessionVars = $tplVars = null;
 		$html = <<<JAVASCRIPT
 			<script>
 				function tµIsVisible(target) {
@@ -489,35 +487,34 @@ class Debug extends \Temma\Web\Plugin {
 			$html .= "</table>
 				  </div>";
 		}
-		// session variables
-		if (self::$_showSession) {
-			$html .= <<<SESSION_PANEL
-				<div id="tµ-toolbar-session" class="tµ-panel _tµ-toolbar _tµ-panel" style="display: none;">
-					<h1>Session</h1>
-					<table>
-			SESSION_PANEL;
-			$sessionVars = $this->_session->getAll();
-			ksort($sessionVars);
-			foreach ($sessionVars as $key => $value) {
-				$html .= "<tr valign='top'>
-						<td style='width: 1%;'><pre>" . htmlspecialchars($key) . "</pre></td>
-						<td>" . self::dump($value) . "</td>
-					  </tr>\n";
-			}
-			$html .= "</table></div>";
-		}
 		// variables
 		if (self::$_showVariables) {
 			$html .= "<div id='tµ-toolbar-variables' class='tµ-panel _tµ-toolbar _tµ-panel' style='display: none;'>";
+			$sessionVars = $this->_session->getAll();
+			if ($sessionVars) {
+				ksort($sessionVars);
+				$html .= "<h1>Session variables</h1>
+					  <table>";
+				foreach ($sessionVars as $key => $value) {
+					$html .= "<tr valign='top'>
+							<td style='width: 1%;'><pre>" . htmlspecialchars($key) . "</pre></td>
+							<td>" . self::dump($value) . "</td>
+						  </tr>\n";
+				}
+				$html .= "</table>\n";
+			}
 			if ($_GET) {
 				$html .= "<h1>GET variables</h1>
 					  <table>";
-				foreach ($_GET as $key => $value) {
+				$getVars = $_GET;
+				ksort($getVars);
+				foreach ($getVars as $key => $value) {
 					$html .= "<tr valign='top'>
 							<td style='width: 1%;'><pre>$" . htmlspecialchars($key) . "</pre></td>
 							<td>" . self::dump($value) . "</td>
 						  </tr>\n";
 				}
+				unset($getVars);
 				$html .= "</table>";
 			}
 			if ($_COOKIE) {
@@ -525,7 +522,7 @@ class Debug extends \Temma\Web\Plugin {
 					  <table>";
 				$cookies = $_COOKIE;
 				ksort($cookies);
-				foreach ($_COOKIE as $key => $value) {
+				foreach ($cookies as $key => $value) {
 					$html .= "<tr valign='top'>
 							<td style='width: 1%;'><pre>$" . htmlspecialchars($key) . "</pre></td>
 							<td>" . self::dump($value) . "</td>
@@ -651,20 +648,14 @@ class Debug extends \Temma\Web\Plugin {
 					</button>
 				BAR;
 			}
-			if (self::$_showSession && $sessionVars) {
-				$html .= <<<BAR
-					<button id="tµ-btn-session" class="_tµ-btn" onclick="tµTogglePanel('session')">
-						Session
-					</button>
-				BAR;
-			}
-			if (self::$_showVariables && ($_GET || $tplVars)) {
+			if (self::$_showVariables && ($sessionVars || $_COOKIE || $_GET || $tplVars)) {
 				$html .= <<<BAR
 					<button id="tµ-btn-variables" class="_tµ-btn" onclick="tµTogglePanel('variables')">
 						Variables
 					</button>
 				BAR;
 			}
+			unset($sessionVars);
 			unset($tplVars);
 			if (self::$_showConstants) {
 				$html .= <<<BAR
