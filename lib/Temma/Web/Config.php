@@ -183,7 +183,7 @@ class Config {
 				$envConfigPath = "$configPath.$envType";
 				try {
 					$envIni = \Temma\Utils\Serializer::readFromPrefix($envConfigPath);
-					$ini = array_replace_recursive(($ini ?? []), $envIni);
+					$ini = \Temma\Utils\ExtendedArray::fusion(($ini ?? []), $envIni);
 				} catch (\Exception $e) { }
 			}
 			// verify if the configuration was found
