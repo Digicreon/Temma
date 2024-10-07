@@ -110,7 +110,7 @@ class Debug extends \Temma\Web\Plugin {
 		$time = $timer->stop()->getTime();
 		if (self::$_showBar) {
 			$html = $this->_generateHtml($time);
-			$this->_response->setAppendStream($html);
+			$this->_response->addAppendStream($html);
 			unset($this['tµ__timer']);
 		}
 	}
@@ -763,7 +763,7 @@ class Debug extends \Temma\Web\Plugin {
 	}
 	/**
 	 * Returns an HTML stream for a given variable.
-	 * @param	mxed	$data	The variable.
+	 * @param	mixed	$data	The variable.
 	 * @param	array	$known	(optional) List of known objects and arrays, to prevent circular references.
 	 * @param	bool	$light	(optional) True for light background. Defaults to false.
 	 * @return	string	The HTML stream.

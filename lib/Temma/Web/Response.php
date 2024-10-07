@@ -125,7 +125,14 @@ class Response implements \ArrayAccess {
 	 * @param	string	$prependStream	Stream to prepend to the response.
 	 */
 	public function setPrependStream(string $prependStream) : void {
-		$this->_preprendStream = $prependStream;
+		$this->_prependStream = $prependStream;
+	}
+	/**
+	 * Add content to the prepend stream.
+	 * @param	string	$stream	Stream to prepend to the response.
+	 */
+	public function addPrependStream(string $stream) : void {
+		$this->_prependStream .= $stream;
 	}
 	/**
 	 * Set the append stream.
@@ -133,6 +140,13 @@ class Response implements \ArrayAccess {
 	 */
 	public function setAppendStream(string $appendStream) : void {
 		$this->_appendStream = $appendStream;
+	}
+	/**
+	 * Add content to the append stream.
+	 * @param	string	$stream	Stream to append to the response.
+	 */
+	public function addAppendStream(string $stream) : void {
+		$this->_appendStream .= $stream;
 	}
 	/**
 	 * Add a template variable, array-like syntax.
