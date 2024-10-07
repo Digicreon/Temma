@@ -630,7 +630,7 @@ class Debug extends \Temma\Web\Plugin {
 				$totalTime += $item->duration;
 			$html .= <<<TELEMETRY_PANEL
 				<div id="tµ-toolbar-telemetry" class="tµ-panel _tµ-toolbar _tµ-panel" style="display: none;">
-					<h1>Telemetry ($totalTime)</h1>
+					<h1>Telemetry</h1>
 			TELEMETRY_PANEL;
 			//$html .= '<pre>' . print_r(self::$_teleTree, true) . '</pre>';
 			$html .= self::dumpTelemetry(self::$_teleTree, $totalTime);
