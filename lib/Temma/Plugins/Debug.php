@@ -211,6 +211,7 @@ class Debug extends \Temma\Web\Plugin {
 	 * @return	string	The HTML stream.
 	 */
 	protected function _generateHtml(float $time) : string {
+		// variables
 		$colorBlack = self::COLOR_BLACK;
 		$colorDark = self::COLOR_DARK;
 		$colorMedium = self::COLOR_MEDIUM;
@@ -219,6 +220,7 @@ class Debug extends \Temma\Web\Plugin {
 		$colorContrastLight = self::COLOR_CONTRAST_LIGHT;
 		$colorContrastMedium = self::COLOR_CONTRAST_MEDIUM;
 		$sessionVars = $tplVars = null;
+		// HTML generation
 		$html = <<<JAVASCRIPT
 			<script>
 				function tµIsVisible(target) {
@@ -283,6 +285,10 @@ class Debug extends \Temma\Web\Plugin {
 					}
 				}
 				function tµIconToggle() {
+					var tµBarStatus = "1";
+					if (tµIsVisible("tµ-toolbar"))
+						tµBarStatus = "0";
+					localStorage.setItem('tµ-debug-bar-status', tµBarStatus);
 					tµHide("._tµ-panel");
 					tµToggle("#tµ-toolbar");
 					tµRemoveClass("._tµ-btn", "tµ-tab-active");
@@ -323,8 +329,15 @@ class Debug extends \Temma\Web\Plugin {
 					z-index: 99999;
 					overflow: auto;
 				}
-				.tµ-panel h1 {
+				.tµ-panel h2 {
 					font-family: sans-serif;
+				}
+				.tµ-panel a {
+					color: blue;
+				}
+				.tµ-panel a:hover {
+					color: red;
+					text-decoration: underline;
 				}
 				.tµ-panel pre.tµ-wrap {
 					white-space: pre-wrap;
@@ -428,113 +441,100 @@ class Debug extends \Temma\Web\Plugin {
 		if (self::$_showLogs) {
 			$html .= <<<LOG_PANEL
 				<div id="tµ-toolbar-logs" class="tµ-panel _tµ-toolbar _tµ-panel" style="display: none;">
-					<h1>Logs</h1>
-					<table>
+					<h2>Logs</h2>
 			LOG_PANEL;
-			if (self::$_logLevelCounts || self::$_logClasses) {
-				$html .= "<tr>
-						<td style='background-color: transparent;'></td>";
-				if (self::$_logLevelCounts) {
-					$html .= "<td style='background-color: transparent; padding: 0;'>
-							<select onchange='tµLogSetLevel(this.value)' style='margin: 0 0 0px 0;'>
-								<option value=''>All</option>";
-					foreach (TµLog::LEVELS as $level => $value) {
-						if (!isset(self::$_logLevelCounts[$level]))
-							continue;
-						$html .= "<option value='" . TµText::urlize($level) . "'>" . htmlspecialchars($level) . " (" . self::$_logLevelCounts[$level] . ")</option>";
+			if (!self::$_logs) {
+				$html .= "<p>No log to display.";
+				$logLevels = $this->_config->logLevels;
+				if (!is_array($logLevels))
+					$logLevels = ['default' => $logLevels];
+				$debugFound = false;
+				foreach ($logLevels as $level) {
+					if ($level == 'DEBUG') {
+						$debugFound = true;
+						break;
 					}
-					$html .= "	</select>
-						</td>";
 				}
-				if (self::$_logClasses) {
-					$html .= "<td style='background-color: transparent; padding: 0;'>
-							<select onchange='tµLogSetClass(this.value)' style='margin: 0 0 0px 0;'>
-								<option value=''>All</option>";
-					ksort(self::$_logClasses);
-					foreach (self::$_logClasses as $class => $value) {
-						$html .= "<option value='" . TµText::urlize($class) . "'>" . htmlspecialchars($class) . " ($value)</option>";
+				if (!$debugFound)
+					$html .= "<br>Set a <a href='https://www.temma.net/en/documentation/configuration#doc-loglevels' target='_blank'>log level</a> to <tt>DEBUG</tt> to get log messages..";
+				$html .= "</p>";
+			} else {
+				$html .= "<table>\n";
+				if (self::$_logLevelCounts || self::$_logClasses) {
+					$html .= "<tr>
+							<td style='background-color: transparent;'></td>";
+					if (self::$_logLevelCounts) {
+						$html .= "<td style='background-color: transparent; padding: 0;'>
+								<select onchange='tµLogSetLevel(this.value)' style='margin: 0 0 0px 0;'>
+									<option value=''>All</option>";
+						foreach (TµLog::LEVELS as $level => $value) {
+							if (!isset(self::$_logLevelCounts[$level]))
+								continue;
+							$html .= "<option value='" . TµText::urlize($level) . "'>" . htmlspecialchars($level) . " (" . self::$_logLevelCounts[$level] . ")</option>";
+						}
+						$html .= "	</select>
+							</td>";
 					}
-					$html .= "	</select>
-						</td>";
+					if (self::$_logClasses) {
+						$html .= "<td style='background-color: transparent; padding: 0;'>
+								<select onchange='tµLogSetClass(this.value)' style='margin: 0 0 0px 0;'>
+									<option value=''>All</option>";
+						ksort(self::$_logClasses);
+						foreach (self::$_logClasses as $class => $value) {
+							$html .= "<option value='" . TµText::urlize($class) . "'>" . htmlspecialchars($class) . " ($value)</option>";
+						}
+						$html .= "	</select>
+							</td>";
+					}
+					$html .= "<td style='width: 100%; background-color: transparent;'></td>";
 				}
-				$html .= "<td style='width: 100%; background-color: transparent;'></td>";
-			}
-			foreach (self::$_logs as $log) {
-				$cssClass = ($log['level'] ? '_tµ-log-' . TµText::urlize($log['level']) : '') . ' ' .
-					    ($log['class'] ? '_tµ-log-class-' . TµText::urlize($log['class']) : '');
-				$color = in_array($log['level'], ['CRIT', 'ERROR']) ? 'red' :
-					 ($log['level'] == 'WARN' ? 'orange' :
-					  (in_array($log['level'], ['NOTE', 'INFO']) ? '#383' : '#666'));
-				$html .= "<tr valign='top' class='_tµ-log _tµ-log-" . TµText::urlize($log['level']) . " _tµ-log-class-" . TµText::urlize($log['class']) . "'>
-						<td><pre>" . $log['date'] . "</pre></td>";
-				if (self::$_logLevelCounts)
-					$html .= "<td style='text-align: center;'><pre><span style='padding: 2px 2px 1px 2px; color: #fff; background-color: $color;'>" . htmlspecialchars($log['level']) . "</span></pre></td>";
-				$classBg = '#555';
-				$classFg = '#fff';
-				if ($log['class'] == 'Temma/Base')
-					$classBg = $colorMedium;
-				else if ($log['class'] == 'Temma/Web')
-					$classBg = $colorDark;
-				else if (str_starts_with($log['class'], 'Temma/')) {
-					$classBg = $colorLight;
-					$classFg = $colorDark;
+				foreach (self::$_logs as $log) {
+					$cssClass = ($log['level'] ? '_tµ-log-' . TµText::urlize($log['level']) : '') . ' ' .
+						    ($log['class'] ? '_tµ-log-class-' . TµText::urlize($log['class']) : '');
+					$color = in_array($log['level'], ['CRIT', 'ERROR']) ? 'red' :
+						 ($log['level'] == 'WARN' ? 'orange' :
+						  (in_array($log['level'], ['NOTE', 'INFO']) ? '#383' : '#666'));
+					$html .= "<tr valign='top' class='_tµ-log _tµ-log-" . TµText::urlize($log['level']) . " _tµ-log-class-" . TµText::urlize($log['class']) . "'>
+							<td><pre>" . $log['date'] . "</pre></td>";
+					if (self::$_logLevelCounts)
+						$html .= "<td style='text-align: center;'><pre><span style='padding: 2px 2px 1px 2px; color: #fff; background-color: $color;'>" . htmlspecialchars($log['level']) . "</span></pre></td>";
+					$classBg = '#555';
+					$classFg = '#fff';
+					if ($log['class'] == 'Temma/Base')
+						$classBg = $colorMedium;
+					else if ($log['class'] == 'Temma/Web')
+						$classBg = $colorDark;
+					else if (str_starts_with($log['class'], 'Temma/')) {
+						$classBg = $colorLight;
+						$classFg = $colorDark;
+					}
+					if (self::$_logClasses)
+						$html .= "<td style='text-align: center;'><pre><span style='padding: 2px 2px 1px 2px; background-color: $classBg; color: $classFg;'>" . htmlspecialchars($log['class']) . "</span></pre></td>";
+					$html .= "	<td style='color: $color;'><pre class='tµ-wrap'style='color: $color;'>" . htmlspecialchars($log['message']) . "</pre></td>
+						  </tr>";
 				}
-				if (self::$_logClasses)
-					$html .= "<td style='text-align: center;'><pre><span style='padding: 2px 2px 1px 2px; background-color: $classBg; color: $classFg;'>" . htmlspecialchars($log['class']) . "</span></pre></td>";
-				$html .= "	<td style='color: $color;'><pre class='tµ-wrap'style='color: $color;'>" . htmlspecialchars($log['message']) . "</pre></td>
-					  </tr>";
+				$html .= "</table>\n";
 			}
-			$html .= "</table>
-				  </div>";
+			$html .= "</div>";
 		}
 		// variables
 		if (self::$_showVariables) {
 			$html .= "<div id='tµ-toolbar-variables' class='tµ-panel _tµ-toolbar _tµ-panel' style='display: none;'>";
-			$sessionVars = $this->_session->getAll();
-			if ($sessionVars) {
-				ksort($sessionVars);
-				$html .= "<h1>Session variables</h1>
-					  <table>";
-				foreach ($sessionVars as $key => $value) {
-					$html .= "<tr valign='top'>
-							<td style='width: 1%;'><pre>" . htmlspecialchars($key) . "</pre></td>
-							<td>" . self::dump($value) . "</td>
-						  </tr>\n";
-				}
-				$html .= "</table>\n";
-			}
-			if ($_GET) {
-				$html .= "<h1>GET variables</h1>
-					  <table>";
-				$getVars = $_GET;
-				ksort($getVars);
-				foreach ($getVars as $key => $value) {
-					$html .= "<tr valign='top'>
-							<td style='width: 1%;'><pre>$" . htmlspecialchars($key) . "</pre></td>
-							<td>" . self::dump($value) . "</td>
-						  </tr>\n";
-				}
-				unset($getVars);
-				$html .= "</table>";
-			}
-			if ($_COOKIE) {
-				$html .= "<h1 style='margin-top: 15px;'>Cookies variables</h1>
-					  <table>";
-				$cookies = $_COOKIE;
-				ksort($cookies);
-				foreach ($cookies as $key => $value) {
-					$html .= "<tr valign='top'>
-							<td style='width: 1%;'><pre>$" . htmlspecialchars($key) . "</pre></td>
-							<td>" . self::dump($value) . "</td>
-						  </tr>\n";
-				}
-				unset($cookies);
-				$html .= "</table>";
-			}
+			// template variables
+			$html .= "<div>
+					<span style='float: right;'>
+						<a href='#tµ-vars-h1-session'>Session variables</a>&nbsp;|
+						<a href='#tµ-vars-h1-get'>GET variables</a>&nbsp;|
+						<a href='#tµ-vars-h1-post'>POST variables</a>&nbsp;|
+						<a href='#tµ-vars-h1-cookie'>Cookie variables</a>
+					</span>
+					<h2 id='tµ-vars-h1-tpl' style='margin-top: 15px;'>Template variables</h2>
+				  </div>\n";
 			$tplVars = $this->_response->getData();
-			if ($tplVars) {
-				$html .= "<h1 style='margin-top: 15px;'>Template variables</h1>
-					<table>";
+			if (!$tplVars) {
+				$html .= "<p>Nothin</p>";
+			} else {
+				$html .= "<table>";
 				ksort($tplVars);
 				foreach ($tplVars as $key => $value) {
 					if (str_starts_with($key, 'tµ__'))
@@ -549,13 +549,112 @@ class Debug extends \Temma\Web\Plugin {
 				}
 				$html .= "</table>";
 			}
+			// session variables
+			$html .= "<div>
+					<span style='float: right;'>
+						<a href='#tµ-vars-h1-tpl'>Template variables</a>&nbsp;|
+						<a href='#tµ-vars-h1-get'>GET variables</a>&nbsp;|
+						<a href='#tµ-vars-h1-post'>POST variables</a>&nbsp;|
+						<a href='#tµ-vars-h1-cookie'>Cookie variables</a>
+					</span>
+					<h2 id='tµ-vars-h1-session' style='margin-top: 15px;'>Session variables</h2>
+				  </div>\n";
+			$sessionVars = $this->_session->getAll();
+			if (!$sessionVars) {
+				$html .= "<p>Nothing</p>\n";
+			} else {
+				ksort($sessionVars);
+				$html .= "<table>";
+				foreach ($sessionVars as $key => $value) {
+					$html .= "<tr valign='top'>
+							<td style='width: 1%;'><pre>" . htmlspecialchars($key) . "</pre></td>
+							<td>" . self::dump($value) . "</td>
+						  </tr>\n";
+				}
+				$html .= "</table>\n";
+			}
+			// GET variables
+			$html .= "<div>
+					<span style='float: right;'>
+						<a href='#tµ-vars-h1-tpl'>Template variables</a>&nbsp;|
+						<a href='#tµ-vars-h1-session'>Session variables</a>&nbsp;|
+						<a href='#tµ-vars-h1-post'>POST variables</a>&nbsp;|
+						<a href='#tµ-vars-h1-cookie'>Cookie variables</a>
+					</span>
+					<h2 id='tµ-vars-h1-get' style='margin-top: 15px;'>GET variables</h2>
+				  </div>\n";
+			if (!$_GET) {
+				$html .= "<p>Nothing</p>";
+			} else {
+				$html .= "<table>";
+				$getVars = $_GET;
+				ksort($getVars);
+				foreach ($getVars as $key => $value) {
+					$html .= "<tr valign='top'>
+							<td style='width: 1%;'><pre>" . htmlspecialchars($key) . "</pre></td>
+							<td>" . self::dump($value) . "</td>
+						  </tr>\n";
+				}
+				unset($getVars);
+				$html .= "</table>";
+			}
+			// POST variables
+			$html .= "<div>
+					<span style='float: right;'>
+						<a href='#tµ-vars-h1-tpl'>Template variables</a>&nbsp;|
+						<a href='#tµ-vars-h1-session'>Session variables</a>&nbsp;|
+						<a href='#tµ-vars-h1-get'>GET variables</a>&nbsp;|
+						<a href='#tµ-vars-h1-cookie'>Cookie variables</a>
+					</span>
+					<h2 id='tµ-vars-h1-post' style='margin-top: 15px;'>POST variables</h2>
+				  </div>\n";
+			if (!$_POST) {
+				$html .= "<p>Nothing</p>";
+			} else {
+				$html .= "<table>";
+				$getVars = $_GET;
+				ksort($getVars);
+				foreach ($getVars as $key => $value) {
+					$html .= "<tr valign='top'>
+							<td style='width: 1%;'><pre>" . htmlspecialchars($key) . "</pre></td>
+							<td>" . self::dump($value) . "</td>
+						  </tr>\n";
+				}
+				unset($getVars);
+				$html .= "</table>";
+			}
+			// cookie variables
+			$html .= "<div>
+					<span style='float: right;'>
+						<a href='#tµ-vars-h1-tpl'>Template variables</a>&nbsp;|
+						<a href='#tµ-vars-h1-session'>Session variables</a>&nbsp;|
+						<a href='#tµ-vars-h1-get'>GET variables</a>&nbsp;|
+						<a href='#tµ-vars-h1-post'>POST variables</a>
+					</span>
+					<h2 id='tµ-vars-h1-cookie' style='margin-top: 15px;'>Cookie variables</h2>
+				  </div>\n";
+			if (!$_COOKIE) {
+				$html .= "<p>Nothin</p>";
+			} else {
+				$html .= "<table>";
+				$cookies = $_COOKIE;
+				ksort($cookies);
+				foreach ($cookies as $key => $value) {
+					$html .= "<tr valign='top'>
+							<td style='width: 1%;'><pre>" . htmlspecialchars($key) . "</pre></td>
+							<td>" . self::dump($value) . "</td>
+						  </tr>\n";
+				}
+				unset($cookies);
+				$html .= "</table>";
+			}
 			$html .= "</div>";
 		}
 		// constants
 		if (self::$_showConstants) {
 			$html .= <<<CONSTANTS_PANEL
 				<div id="tµ-toolbar-constants" class="tµ-panel _tµ-toolbar _tµ-panel" style="display: none;">
-					<h1><tt>\$_SERVER</tt></h1>
+					<h2><tt>\$_SERVER</tt></h2>
 					<table>
 			CONSTANTS_PANEL;
 			$constants = $_SERVER;
@@ -567,7 +666,7 @@ class Debug extends \Temma\Web\Plugin {
 					  </tr>\n";
 			}
 			$html .= "</table>
-				  <h1 style='margin-top: 15px;'>Environment</h1>
+				  <h2 style='margin-top: 15px;'>Environment</h2>
 				  <table>";
 			$constants = getenv();
 			ksort($constants);
@@ -608,7 +707,7 @@ class Debug extends \Temma\Web\Plugin {
 			unset($xtraConf);
 			$html .= <<<CONFIG_PANEL
 				<div id="tµ-toolbar-config" class="tµ-panel _tµ-toolbar _tµ-panel" style="display: none;">
-					<h1>Configuration</h1>
+					<h2>Configuration</h2>
 					<table>
 			CONFIG_PANEL;
 			foreach ($configData as $key => $val) {
@@ -630,7 +729,7 @@ class Debug extends \Temma\Web\Plugin {
 				$totalTime += $item->duration;
 			$html .= <<<TELEMETRY_PANEL
 				<div id="tµ-toolbar-telemetry" class="tµ-panel _tµ-toolbar _tµ-panel" style="display: none;">
-					<h1>Telemetry</h1>
+					<h2>Telemetry</h2>
 			TELEMETRY_PANEL;
 			//$html .= '<pre>' . print_r(self::$_teleTree, true) . '</pre>';
 			$html .= self::dumpTelemetry(self::$_teleTree, $totalTime);
@@ -639,9 +738,9 @@ class Debug extends \Temma\Web\Plugin {
 		// toolbar
 		if (self::$_showBar) {
 			$html .= <<<BAR
-				<div id="tµ-toolbar" class="_tµ-toolbar">
+				"<div id="tµ-toolbar" class="_tµ-toolbar">
 			BAR;
-			if (self::$_logs) {
+			if (self::$_showLogs) {
 				$html .= <<<BAR
 					<button id="tµ-btn-logs" class="_tµ-btn" onclick="tµTogglePanel('logs')">
 						Logs
@@ -680,6 +779,13 @@ class Debug extends \Temma\Web\Plugin {
 			}
 			$html .= <<< BAR
 					<span style="float: right; margin: 5px 8px 0 0; color: #ddd;">
+			BAR;
+			$controllerName = $this->_loader->temma->getControllerName();
+			$actionName = $this->_loader->temma->getActionName();
+			if ($controllerName && $actionName)
+				$html .= "<span title='Executed controller' style='font-family: monospace;'>$controllerName::$actionName()</span>";
+			$html .= <<< BAR
+						<span style='color: #999;'>|</span>
 						<span title="Execution time before template">
 			BAR;
 			if ($time < 1)
@@ -714,6 +820,15 @@ class Debug extends \Temma\Web\Plugin {
 			style="position: fixed; width: 26px; height: 26px; left: 8px; bottom: 8px; cursor: pointer; z-index: 1000000;"
 			title="Close" onclick="tµIconToggle()" />
 		ICON;
+		// check if the bar should be closed
+		$html .= <<<'JS'
+			<script>
+				var tµBarStatus = localStorage.getItem("tµ-debug-bar-status");
+				if (tµBarStatus == "0") {
+					tµHide("#tµ-toolbar");
+				}
+			</script>
+		JS;
 		return ($html);
 	}
 	/**

@@ -92,12 +92,14 @@ class Framework {
 			$this->_loader['config'] ??= $this->_config;
 			$this->_loader['request'] ??= $this->_request;
 			$this->_loader['response'] ??= $this->_response;
+			$this->_loader['temma'] ??= $this;
 		} else {
 			$loaderName = $this->_config->loader;
 			$this->_loader = new $loaderName([
 				'config'   => $this->_config,
 				'request'  => $this->_request,
 				'response' => $this->_response,
+				'temma'    => $this,
 			]);
 		}
 		// initialization of the log system
@@ -330,6 +332,20 @@ class Framework {
 	 */
 	public function getLoader() : ?\Temma\Base\Loader {
 		return ($this->_loader);
+	}
+	/**
+	 * Returns the controller object name.
+	 * @return	string	The object controller name.
+	 */
+	public function getControllerName() : string {
+		return ($this->_objectControllerName);
+	}
+	/**
+	 * Returns the action name.
+	 * @return	string	The action name.
+	 */
+	public function getActionName() : string {
+		return ($this->_actionName);
 	}
 
 	/* ********** PRIVATE METHODS ********** */
