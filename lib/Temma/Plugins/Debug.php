@@ -559,7 +559,7 @@ class Debug extends \Temma\Web\Plugin {
 					</span>
 					<h2 id='tµ-vars-h1-session' style='margin-top: 15px;'>Session variables</h2>
 				  </div>\n";
-			$sessionVars = $this->_session->getAll();
+			$sessionVars = $this->_session?->getAll();
 			if (!$sessionVars) {
 				$html .= "<p>Nothing</p>\n";
 			} else {
