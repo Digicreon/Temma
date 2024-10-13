@@ -12,6 +12,15 @@ namespace Temma\Utils;
  * Text management object.
  */
 class Text {
+	/** Constant: snake case. */
+	const SNAKE_CASE = 'SNAKE_CASE';
+	/** Constant: kebab case. */
+	const KEBAB_CASE = 'KEBAB_CASE';
+	/** Constant: camel case. */
+	const CAMEL_CASE = 'CAMEL_CASE';
+	/** Constant: pascal case. */
+	const PASCAL_CASE = 'PASCAL_CASE';
+
 	/**
 	 * Checks the syntax of an HTML stream.
 	 * @param	string	$html	HTML content to check.
@@ -118,7 +127,7 @@ class Text {
 		], '.', $filename);
 		// lowercase for windows/unix interoperability http://support.microsoft.com/kb/100625
 		if ($lowercase)
-			$filename = mb_strtolower($filename, mb_detect_encoding($filename));
+			$filename = mb_convert_case($filename, MB_CASE_LOWER, mb_detect_encoding($filename));
 		// ".file-name.-" becomes "file-name"
 		$filename = trim($filename, '.-');
 		// maximise filename length to 255 bytes http://serverfault.com/a/9548/44086
@@ -127,12 +136,11 @@ class Text {
 		return $filename;
 	}
 	/**
-	 * Transform a text to an URL-compatible string.
+	 * Converts a string to ASCII-only string.
 	 * @param	?string	$txt			The text to convert.
-	 * @param	bool	$avoidUnderscores	Set to true to replace underscores with dashes. (default: true)
 	 * @return	string	The converted text.
 	 */
-	static public function urlize(?string $txt, bool $avoidUnderscores=true) : string {
+	static public function ascii(?string $txt) : string {
 		if (!$txt)
 			return ('');
 		if (extension_loaded('intl')) {
@@ -227,6 +235,18 @@ class Text {
 			];
 			$txt = strtr($txt, $cyrillicToLatin);
 		}
+                return ($txt);
+	}
+	/**
+	 * Transform a text to an URL-compatible string.
+	 * @param	?string	$txt			The text to convert.
+	 * @param	bool	$avoidUnderscores	Set to true to replace underscores with dashes. (default: true)
+	 * @return	string	The converted text.
+	 */
+	static public function urlize(?string $txt, bool $avoidUnderscores=true) : string {
+		if (!$txt)
+			return ('');
+		$txt = self::ascii($txt);
 		// all other letters
 		$txt = preg_replace("/[^a-zA-Z0-9-_ \+]/", ' ', $txt);
 		// remove multiple spaces
@@ -273,6 +293,104 @@ class Text {
 			return ('');
 		$chunk = mb_substr($str, 0, $pos);
 		return ($chunk);
+	}
+	/**
+	 * Tells if a string contains a lower case character.
+	 * @param	?string	$txt	The input string, or null.
+	 * @return	bool	True if the string contains a lower case character.
+	 */
+	static public function hasLower(?string $txt) : bool {
+		if (!$txt)
+			return (false);
+		$length = mb_strlen($txt);
+		for ($i = 0; $i < $length; $i++) {
+			$char = mb_substr($txt, $i, 1);
+			if ($char == mb_convert_case($char, MB_CASE_LOWER))
+				return (true);
+		}
+		return (false);
+	}
+	/**
+	 * Tells if a string contains an upper case character.
+	 * @param	?string	$txt	The input string, or null.
+	 * @return	bool	True if the string contains an upper case character.
+	 */
+	static public function hasUpper(?string $txt) : bool {
+		if (!$txt)
+			return (false);
+		$length = mb_strlen($txt);
+		for ($i = 0; $i < $length; $i++) {
+			$char = mb_substr($txt, $i, 1);
+			if ($char == mb_convert_case($char, MB_CASE_UPPER))
+				return (true);
+		}
+		return (false);
+	}
+	/**
+	 * Converts a string from a given case to another one.
+	 * @param	?string	$txt		The input string, or null.
+	 * @param	string	$inCase		The input case (self::KEBAB_CASE, self::CAMEL_CASE, self::PASCALECASE, self::SNAKE_CASE).
+	 * @param	string	$outCase	The output case (self::KEBAB_CASE, self::CAMEL_CASE, self::PASCAL_CASE, self::SNAKE_CASE).
+	 * @param	?bool	$upperCase	(optional) True for upper case output. False for lower case output.
+	 *					Defaults to null, to avoid upper/lower case modification.
+	 * @param	bool	$ascii		(optional) Set to true to convert all characters to ASCII. Defaults to false.
+	 * @return	?string	The converted string, or null if the input was null.
+	 */
+	static public function convertCase(?string $txt, string $inCase, string $outCase, ?bool $upperCase=null, bool $ascii=false) : ?string {
+		if (!$txt)
+			return ($txt);
+		// ASCII conversion
+		if ($ascii)
+			$txt = self::ascii($txt);
+		// no transformation
+		if ($inCase == $outCase)
+			return ($txt);
+		// to camel case or pascal case
+		if ($outCase == self::CAMEL_CASE || $outCase == self::PASCAL_CASE) {
+			$char = ($inCase == self::SNAKE_CASE) ? '_' : '-';
+			$pos = 0;
+			while (($pos = mb_strpos($txt, $char, $pos)) !== false) {
+				$begin = mb_substr($txt, 0, $pos);
+				$letter = mb_substr($txt, $pos + 1, 1);
+				$rest = mb_substr($txt, $pos + 2);
+				$txt = $begin . mb_convert_case($letter, MB_CASE_UPPER) . $rest;
+			}
+			if ($outCase == self::PASCAL_CASE)
+				$txt = mb_convert_case(mb_substr($txt, 0, 1), MB_CASE_UPPER) . mb_substr($txt, 1);
+			goto finalize;
+		}
+		// snake case to kebab case
+		if ($inCase == self::SNAKE_CASE && $outCase == self::KEBAB_CASE) {
+			$txt = str_replace($txt, '_', '-');
+			$txt = preg_replace('/-+/', '-', $txt);
+			goto finalize;
+		}
+		// kebab case to snake case
+		if ($inCase == self::KEBAB_CASE && $outCase == self::SNAKE_CASE) {
+			$txt = str_replace($txt, '-', '_');
+			$txt = preg_replace('/_+/', '_', $txt);
+			goto finalize;
+		}
+		// from camel case or pascal case to snake case or kebab case
+		$separator = ($outCase == self::SNAKE_CASE) ? '_' : '-';
+		$res = '';
+		$length = mb_strlen($txt);
+		for ($i = 0; $i < $length; $i++) {
+			$c = mb_substr($txt, $i, 1);
+			$lower = mb_convert_case($c, MB_CASE_LOWER);
+			if ($c == $lower)
+				$res .= $c;
+			else
+				$res .= $separator . $lower;
+		}
+		$txt = ltrim($txt, $separator);
+		$txt = preg_replace("/$separator+/", $separator, $txt);
+	finalize:
+		if ($upperCase === true)
+			$txt = mb_convert_case($txt, MB_CASE_UPPER);
+		if ($upperCase === false)
+			$txt = mb_convert_case($txt, MB_CASE_LOWER);
+		return ($txt);
 	}
 }
 
