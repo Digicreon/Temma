@@ -339,15 +339,56 @@ class Text {
 	static public function convertCase(?string $txt, string $inCase, string $outCase, ?bool $upperCase=null, bool $ascii=false) : ?string {
 		if (!$txt)
 			return ($txt);
+		$separator = null;
 		// ASCII conversion
 		if ($ascii)
 			$txt = self::ascii($txt);
-		// no transformation
+		// snake case to snake case
+		if ($inCase == self::SNAKE_CASE && $outCase == self::SNAKE_CASE) {
+			$txt = str_replace('-', '_', $txt);
+			$separator = '_';
+			goto finalize;
+		}
+		// kebab case to kebab case
+		if ($inCase == self::KEBAB_CASE && $outCase == self::KEBAB_CASE) {
+			$txt = str_replace('_', '-', $txt);
+			$separator = '-';
+			goto finalize;
+		}
+		// camel case to camel case, or pascal case to pascal case
 		if ($inCase == $outCase)
-			return ($txt);
-		// to camel case or pascal case
+			goto finalize;
+		// snake case to kebab case
+		if ($inCase == self::SNAKE_CASE && $outCase == self::KEBAB_CASE) {
+			$txt = str_replace('_', '-', $txt);
+			$separator = '-';
+			goto finalize;
+		}
+		// kebab case to snake case
+		if ($inCase == self::KEBAB_CASE && $outCase == self::SNAKE_CASE) {
+			$txt = str_replace('-', '_', $txt);
+			$separator = '_';
+			goto finalize;
+		}
+		// camel case to pascal case
+		if ($inCase == self::CAMEL_CASE && $outCase == self::PASCAL_CASE) {
+			$txt = mb_convert_case(mb_substr($txt, 0, 1), MB_CASE_UPPER) . mb_substr($txt, 1);
+			goto finalize;
+		}
+		// pascal case to camel case
+		if ($inCase == self::PASCAL_CASE && $outCase == self::CAMEL_CASE) {
+			$txt = mb_convert_case(mb_substr($txt, 0, 1), MB_CASE_LOWER) . mb_substr($txt, 1);
+			goto finalize;
+		}
+		// snake case or kebab case to camel case or pascal case
 		if ($outCase == self::CAMEL_CASE || $outCase == self::PASCAL_CASE) {
-			$char = ($inCase == self::SNAKE_CASE) ? '_' : '-';
+			if ($inCase == self::SNAKE_CASE) {
+				$txt = str_replace('-', '_', $txt);
+				$char = '_';
+			} else if ($inCase == self::KEBAB_CASE) {
+				$txt = str_replace('_', '-', $txt);
+				$char = '-';
+			}
 			$pos = 0;
 			while (($pos = mb_strpos($txt, $char, $pos)) !== false) {
 				$begin = mb_substr($txt, 0, $pos);
@@ -357,18 +398,6 @@ class Text {
 			}
 			if ($outCase == self::PASCAL_CASE)
 				$txt = mb_convert_case(mb_substr($txt, 0, 1), MB_CASE_UPPER) . mb_substr($txt, 1);
-			goto finalize;
-		}
-		// snake case to kebab case
-		if ($inCase == self::SNAKE_CASE && $outCase == self::KEBAB_CASE) {
-			$txt = str_replace($txt, '_', '-');
-			$txt = preg_replace('/-+/', '-', $txt);
-			goto finalize;
-		}
-		// kebab case to snake case
-		if ($inCase == self::KEBAB_CASE && $outCase == self::SNAKE_CASE) {
-			$txt = str_replace($txt, '-', '_');
-			$txt = preg_replace('/_+/', '_', $txt);
 			goto finalize;
 		}
 		// from camel case or pascal case to snake case or kebab case
@@ -383,9 +412,14 @@ class Text {
 			else
 				$res .= $separator . $lower;
 		}
-		$txt = ltrim($txt, $separator);
-		$txt = preg_replace("/$separator+/", $separator, $txt);
+		$txt = $res;
 	finalize:
+		// remove multiple separators
+		if ($separator) {
+			$txt = trim($txt, $separator);
+			$txt = preg_replace("/$separator+/", $separator, $txt);
+		}
+		// process lower/upper-case
 		if ($upperCase === true)
 			$txt = mb_convert_case($txt, MB_CASE_UPPER);
 		if ($upperCase === false)
