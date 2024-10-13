@@ -101,7 +101,7 @@ use \Temma\Base\Log as TµLog;
  * }
  * ```
  *
- * @see	https://www.temma.net/documentation/plugin-api
+ * @link	https://www.temma.net/documentation/plugin-api
  */
 class Api extends \Temma\Web\Plugin {
 	/** User DAO. */
