@@ -4,6 +4,7 @@
  * Sql
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2007-2023, Amaury Bouchard
+ * @link	https://www.temma.net/en/documentation/datasource-sql
  */
 
 namespace Temma\Datasources;

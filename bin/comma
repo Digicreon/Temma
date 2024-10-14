@@ -10,6 +10,9 @@
  *     bin/comma help controller
  *     bin/comma controller [action [--param1=value1] [--param2=value2]...]
  *     bin/comma [nostderr] [conf=/path/to/temma.php] [inc=/path/to/include] controller [action [--param1=value1] [--param2=value2]...]
+ * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2023, Aamury Bouchard
+ * @link	https://www.temma.net/en/documentation/cli
  */
 
 $objectName = null;

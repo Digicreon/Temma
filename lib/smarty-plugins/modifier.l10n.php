@@ -8,6 +8,7 @@
  * @link	http://www.smarty.net/docs/en/language.modifier.escape
  * @author	Amaury Bouchard <amaury@æmaury.net>
  * @copyright	© 2020, Amaury Bouchard
+ * @link	https://www.temma.net/en/documentation/helper-plugin_language#doc-templates-modifier
  */
 function smarty_modifier_l10n(string $str, ...$data) {
 	global $smarty;

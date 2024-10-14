@@ -1,5 +1,14 @@
 <?php
 
+/**
+ * autoload.php
+ *
+ * This file is used for testing purposes with PHPUnit (see documentation).
+ * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2023, Amaury Bouchard
+ * @link	https://www.temma.net/en/documentation/tests
+ */
+
 // include path configuration
 set_include_path(__DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'lib' . PATH_SEPARATOR . get_include_path());
 

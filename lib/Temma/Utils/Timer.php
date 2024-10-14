@@ -4,8 +4,15 @@
  * Timer
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2007-2023, Amaury Bouchard
+ * @link	https://www.temma.net/en/documentation/helper-timer
+ */
+
+namespace Temma\Utils;
+
+/**
+ * Timing object.
  *
- * <code>
+ * ```
  * // creates a timer
  * $timer = new \Temma\Utils\Timer();
  * // starts the timer
@@ -14,13 +21,7 @@
  * $timer->stop();
  * // show the duration
  * print($timer->getTime());
- * </code>
- */
-
-namespace Temma\Utils;
-
-/**
- * Timing object.
+ * ```
  */
 class Timer {
 	/** Date of timing start. */

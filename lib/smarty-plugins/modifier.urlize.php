@@ -6,6 +6,7 @@
  * @return	string	The processed text.
  * @author	Amaury Bouchard <amaury@æmaury.net>
  * @copyright	© 2007, Amaury Bouchard
+ * @link	https://www.temma.net/en/documentation/helper-smarty_urlize
  */
 function smarty_modifier_urlize(?string $text) : string {
 	if (!$text)

@@ -4,16 +4,17 @@
  * BaseConvert
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2017-2023 Amaury Bouchard
+ * @link	https://www.temma.net/en/documentation/helper-baseconvert
  */
 
 namespace Temma\Utils;
 
 /**
  * Big int converter.
- * @see	http://stackoverflow.com/questions/4964197/converting-a-number-base-10-to-base-62-a-za-z0-9
- * @see	http://www.technischedaten.de/pmwiki2/pmwiki.php?n=Php.BaseConvert
- * @see	http://i.imgur.com/gfYw57t.png
- * @see	https://openauthentication.org/token-specs/
+ * @link	http://stackoverflow.com/questions/4964197/converting-a-number-base-10-to-base-62-a-za-z0-9
+ * @link	http://www.technischedaten.de/pmwiki2/pmwiki.php?n=Php.BaseConvert
+ * @link	http://i.imgur.com/gfYw57t.png
+ * @link	https://openauthentication.org/token-specs/
  */
 class BaseConvert {
 	/** Base 31, same as base 36 (0-9a-z) without characters '0o1il'. */

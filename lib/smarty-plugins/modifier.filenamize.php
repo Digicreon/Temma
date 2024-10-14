@@ -8,6 +8,7 @@
  * @return	string	The processed text.
  * @author	Amaury Bouchard <amaury@æmaury.net>
  * @copyright	© 2017, Amaury Bouchard
+ * @link	https://www.temma.net/en/documentation/helper-smarty_filenamize
  */
 function smarty_modifier_filenamize(string $text, bool $hyphenSpaces=true, bool $lowercase=true) : string {
 	if (!class_exists('\Temma\Utils\Text'))

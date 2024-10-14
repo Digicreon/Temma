@@ -4,6 +4,7 @@
  * Ansi
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2008-2023, Amaury Bouchard
+ * @link	https://www.temma.net/en/documentation/helper-ansi
  */
 
 namespace Temma\Utils;
@@ -32,11 +33,11 @@ use \Temma\Utils\Term as TµTerm;
  * print(\Temma\Utils\Ansi::backColor('blue', 'red', 'blah blah blah'));
  * </code>
  *
- * @see	https://gist.github.com/fnky/458719343aabd01cfb17a3a4f7296797
- * @see	https://gist.github.com/JBlond/2fea43a3049b38287e5e9cefc87b2124
- * @see	https://en.wikipedia.org/wiki/Box-drawing_character
- * @see	https://gist.github.com/egmontkob/eb114294efbcd5adb1944c9f3cb5feda
- * @see	https://stackoverflow.com/questions/1176904/how-to-remove-all-non-printable-characters-in-a-string
+ * @link	https://gist.github.com/fnky/458719343aabd01cfb17a3a4f7296797
+ * @link	https://gist.github.com/JBlond/2fea43a3049b38287e5e9cefc87b2124
+ * @link	https://en.wikipedia.org/wiki/Box-drawing_character
+ * @link	https://gist.github.com/egmontkob/eb114294efbcd5adb1944c9f3cb5feda
+ * @link	https://stackoverflow.com/questions/1176904/how-to-remove-all-non-printable-characters-in-a-string
  */
 class Ansi {
 	/** Textual color definitions. */

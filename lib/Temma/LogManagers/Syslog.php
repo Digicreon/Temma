@@ -4,6 +4,7 @@
  * Syslog
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2022-2023, Amaury Bouchard
+ * @link	https://www.temma.net/en/documentation/log-syslog
  */
 
 namespace Temma\LogManagers;

@@ -1,6 +1,12 @@
 <?php
 
-// extended configuration file for demonstration
+/**
+ * Extended configuration file for demonstration.
+ *
+ * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2024, Amaury Bouchard
+ * @link	https://www.temma.net/en/documentation/configuration
+ */
 return [
 	'application' => [
 		// data sources

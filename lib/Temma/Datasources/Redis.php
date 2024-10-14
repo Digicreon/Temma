@@ -4,6 +4,7 @@
  * Redis
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2012-2023, Amaury Bouchard
+ * @link	https://www.temma.net/en/documentation/datasource-redis
  */
 
 namespace Temma\Datasources;

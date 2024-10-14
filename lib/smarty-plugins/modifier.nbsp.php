@@ -6,6 +6,7 @@
  * @return	string	The processed text.
  * @author	Amaury Bouchard <amaury@æmaury.net>
  * @copyright	© 2019, Amaury Bouchard
+ * @link	https://www.temma.net/en/documentation/helper-smarty_nbsp
  */
 function smarty_modifier_nbsp(string $text) : string {
 	$text = str_replace(

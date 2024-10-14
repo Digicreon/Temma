@@ -4,7 +4,8 @@ Temma is a simple and efficient PHP MVC framework.
 
 Additional information
 ----------------------
-* Created in 2007 by Amaury Bouchard. Released as open source software.
+* Created in 2007 by Amaury Bouchard. Has since powered tens of millions of visits to hundreds of websites.
+* Released as open source software (MIT License).
 * Project leader: Amaury Bouchard (amaury@amaury.net)
 * Discussions: https://github.com/Digicreon/Temma/discussions
 * **More information**: https://www.temma.net

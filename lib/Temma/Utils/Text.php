@@ -4,6 +4,7 @@
  * Text
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2011-2019, Amaury Bouchard
+ * @link	https://www.temma.net/en/documentation/helper-text
  */
 
 namespace Temma\Utils;

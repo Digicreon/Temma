@@ -4,6 +4,7 @@
  * Temma
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2024, Amaury Bouchard
+ * @link	https://www.temma.net/en/documentation/update
  */
 
 use \Temma\Utils\Ansi as TµAnsi;
