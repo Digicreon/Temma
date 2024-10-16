@@ -694,6 +694,8 @@ class Debug extends \Temma\Web\Plugin {
 				'Default namespace'       => $this->_config->defaultNamespace,
 				'Default view'            => $this->_config->defaultView,
 				'Loader'                  => $this->_config->loader,
+				'Loader aliases'          => $this->_config->loaderAliases,
+				'Loader prefixes'         => $this->_config->loaderPrefixes,
 				'Log manager'             => $this->_config->logManager,
 				'Log levels'              => $this->_config->logLevels,
 				'Buffering log levels'    => $this->_config->bufferingLogLevels,
@@ -891,7 +893,7 @@ class Debug extends \Temma\Web\Plugin {
 		if (is_scalar($data))
 			return ("<pre class='tµ-wrap'>" . htmlspecialchars($data) . "</pre>\n");
 		if (is_array($data)) {
-			$arrayId = md5(serialize($data));
+			$arrayId = md5(\Temma\Utils\Serializer::encode($data, \Temma\Utils\Serializer::PHP));
 			if (isset($known[$arrayId]))
 				return ("<em>RECURSION</em>\n");
 			$known[$arrayId] = true;

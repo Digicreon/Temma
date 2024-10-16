@@ -106,6 +106,10 @@ class Config {
 	protected ?string $_webPath = null;
 	/** Name of the loader object. */
 	protected ?string $_loader = null;
+	/** Array of loader aliases. */
+	protected ?array $_loaderAliases = null;
+	/** Array of loader prefixes. */
+	protected ?array $_loaderPrefixes = null;
 	/** Log manager(s). */
 	protected null|string|array $_logManager = null;
 	/** Definition of log levels. */
@@ -291,6 +295,8 @@ class Config {
 		}
 
 		// definitions
+		$this->_loaderAliases = $ini['x-loader']['aliases'] ?? null;
+		$this->_loaderPrefixes = $ini['x-loader']['prefixes'] ?? null;
 		$this->_logManager = $ini['application']['logManager'] ?? null;
 		$this->_logLevels = $ini['loglevels'] ?? null;
 		$this->_bufferingLogLevels = $ini['bufferingLoglevels'] ?? null;

@@ -76,6 +76,10 @@ use \Temma\Base\Log as TµLog;
 class Loader extends \Temma\Utils\Registry {
 	/** Builder function. */
 	protected /*?callable*/ $_builder = null;
+	/** Aliases. */
+	protected array $_aliases = [];
+	/** Prefixes. */
+	protected array $_prefixes = [];
 
 	/* ********** CONSTRUCTION ********** */
 	/**
@@ -95,6 +99,44 @@ class Loader extends \Temma\Utils\Registry {
 	public function setBuilder(callable $builder) : \Temma\Base\Loader {
 		$this->_builder = $builder;
 		return ($this);
+	}
+
+	/* ********** ALIASES AND PREFIXES ********** */
+	/**
+	 * Add an alias.
+	 * @param	string	$name	Name of the alias.
+	 * @param	?string	$class	Name of the aliased class. Could be null to remove the alias.
+	 */
+	public function setAlias(string $name, ?string $class) : void {
+		if (!$class)
+			unset($this->_aliases[$name]);
+		else
+			$this->_aliases[$name] = $class;
+	}
+	/**
+	 * Add aliases.
+	 * @param	array	$aliases	Associative array of aliases.
+	 */
+	public function setAliases(array $aliases) : void {
+		$this->_aliases = array_merge($this->_aliases, $aliases);
+	}
+	/**
+	 * Add a prefix.
+	 * @param	string	$name	Name of the prefix.
+	 * @param	?string	$prefix	Prefixed namespace. Could be null to remove a prefix.
+	 */
+	public function setPrefix(string $name, ?string $prefix) : void {
+		if (!$prefix)
+			unset($this->_prefixes[$name]);
+		else
+			$this->_prefixes[$name] = $prefix;
+	}
+	/**
+	 * Add prefixes.
+	 * @param	array	$prefixes	Associative array of prefixes.
+	 */
+	public function setPrefixes(array $prefixes) : void {
+		$this->_prefixes = array_merge($this->_prefixes, $prefixes);
 	}
 
 	/* ********** DATA WRITING ********** */
@@ -135,27 +177,78 @@ class Loader extends \Temma\Utils\Registry {
 		}
 		// key exists
 		if (isset($this->_data[$key])) {
-			if ($this->_data[$key] instanceof \Closure)
+			if (is_callable($this->_data[$key]) && !$this->_data[$key] instanceof \Temma\Web\Controller)
 				$this->_data[$key] = $this->_data[$key]($this);
 			if (isset($this->_data[$key]))
 				return ($this->_data[$key]);
 		}
+		// check aliases and prefixes
+		$alias = null;
+		if (isset($this->_aliases[$key])) {
+			// get alias
+			$alias = $this->_aliases[$key];
+			// store in data
+			if ((is_callable($alias) && !$alias instanceof \Temma\Web\Controller) || is_string($alias)) {
+				// it's a callback, execute it
+				// it's a string, use it as an alias
+				$this->_data[$key] = $this->_instanciate($alias, $default);
+			} else {
+				// it's not a callback nor a string, use it as the associated value
+				$this->_data[$key] = $alias;
+			}
+			// remove the alias
+			unset($this->_aliases[$key]);
+		} else {
+			// loop on prefixes
+			foreach ($this->_prefixes as $prefix => $value) {
+				if (!str_starts_with($key, $prefix) || !isset($value))
+					continue;
+				$shortKey = mb_substr($key, mb_strlen($prefix));
+				if (is_callable($value) && !$value instanceof \Temma\Web\Controller) {
+					// it's a callback, execute it
+					$this->_data[$key] = $value($this, $shortKey);
+				} else {
+					// it's hopefully a string
+					$this->_data[$key] = $this->_instanciate("$value$shortKey", $default);
+				}
+				if (isset($this->_data[$key]))
+					break;
+			}
+		}
+		if (isset($this->_data[$key]))
+			return ($this->_data[$key]);
+		// instanciate the object
+		$this->_data[$key] = $this->_instanciate($key, $default);
+		return ($this->_data[$key]);
+	}
+
+	/* ********** PRIVATE METHODS ********** */
+	/**
+	 * Instanciate an object.
+	 * @param	string|callable	$obj		Object name or callable value.
+	 * @param	mixed		$default	(optional) Default value that must be returned is the requested key doesn't exist.
+	 * @return	mixed	The associated value, or null.
+	 */
+	private function _instanciate(string|callable $obj, mixed $default=null) : mixed {
+		$result = null;
+		// callable
+		if (is_callable($obj) && !$obj instanceof \Temma\Web\Controller) {
+			$result = $obj($this);
+			if (isset($result))
+				return ($result);
+		}
 		// loadable
-		if (($interfaces = @class_implements($key)) && isset($interfaces['Temma\Base\Loadable'])) {
-			$this->_data[$key] = new $key($this);
-			if (isset($this->_data[$key]))
-				return ($this->_data[$key]);
+		if (($interfaces = @class_implements($obj)) && isset($interfaces['Temma\Base\Loadable'])) {
+			return (new $obj($this));
 		}
 		// DAO
-		if (is_subclass_of($key, '\Temma\Dao\Dao') && isset($this->_data['controller']) && $this->_data['controller'] instanceof \Temma\Web\Controller) {
-			$this->_data[$key] = $this->_data['controller']->_loadDao($key);
-			if (isset($this->_data[$key]))
-				return ($this->_data[$key]);
+		if (is_subclass_of($obj, '\Temma\Dao\Dao') && isset($this->_data['controller']) && $this->_data['controller'] instanceof \Temma\Web\Controller) {
+			return ($this->_data['controller']->_loadDao($obj));
 		}
 		// controller
-		if (is_subclass_of($key, '\Temma\Web\Controller')) {
+		if (is_subclass_of($obj, '\Temma\Web\Controller')) {
 			// management of controller's attributes
-			$controllerReflection = new \ReflectionClass($key);
+			$controllerReflection = new \ReflectionClass($obj);
 			$attributes = $controllerReflection->getAttributes(null, \ReflectionAttribute::IS_INSTANCEOF);
 			for ($parentClass = $controllerReflection->getParentClass(); $parentClass; $parentClass = $parentClass->getParentClass())
 				$attributes = array_merge($attributes, $parentClass->getAttributes(null, \ReflectionAttribute::IS_INSTANCEOF));
@@ -164,25 +257,23 @@ class Loader extends \Temma\Utils\Registry {
 				$attribute->newInstance();
 			}
 			// instanciation of the controller
-			$this->_data[$key] = new $key($this, ($this->_data['parentController'] ?? $this->_data['controller'] ?? null));
-			if (isset($this->_data[$key]))
-				return ($this->_data[$key]);
+			return (new $obj($this, ($this->_data['parentController'] ?? $this->_data['controller'] ?? null)));
 		}
 		// call builder function
 		if (isset($this->_builder)) {
 			$builder = $this->_builder;
-			$this->_data[$key] = $builder($this, $key);
-			if (isset($this->_data[$key]))
-				return ($this->_data[$key]);
+			$result = $builder($this, $obj);
+			if (isset($result))
+				return ($result);
 		}
 		// call loader's builder method
 		if (method_exists($this, 'builder')) {
-			$this->_data[$key] = $this->builder($key);
-			if (isset($this->_data[$key]))
-				return ($this->_data[$key]);
+			$result = $this->builder($obj);
+			if (isset($result))
+				return ($result);
 		}
 		// if the default value is a callback, execute it
-		if ($default instanceof \Closure) {
+		if (is_callable($default) && !$default instanceof \Temma\Web\Controller) {
 			$default = $default($this);
 		}
 		return ($default);
