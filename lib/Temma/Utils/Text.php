@@ -382,11 +382,12 @@ class Text {
 			goto finalize;
 		}
 		// snake case or kebab case to camel case or pascal case
-		if ($outCase == self::CAMEL_CASE || $outCase == self::PASCAL_CASE) {
+		if (($inCase == self::SNAKE_CASE || $inCase == self::KEBAB_CASE) &&
+		    ($outCase == self::CAMEL_CASE || $outCase == self::PASCAL_CASE)) {
 			if ($inCase == self::SNAKE_CASE) {
 				$txt = str_replace('-', '_', $txt);
 				$char = '_';
-			} else if ($inCase == self::KEBAB_CASE) {
+			} else {
 				$txt = str_replace('_', '-', $txt);
 				$char = '-';
 			}
