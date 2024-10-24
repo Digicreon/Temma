@@ -140,7 +140,7 @@ class Smarty extends \Temma\Web\View {
 	/** Init. */
 	public function init() : void {
 		foreach ($this->_response->getData() as $key => $value) {
-			if (isset($key[0]) && $key[0] != '_')
+			if (str_starts_with($key, '__') || !str_starts_with($key, '_'))
 				$this->_smarty->assign($key, $value);
 			else if ($key == '_temmaCacheable' && $value === true)
 				$this->_isCacheable = true;
