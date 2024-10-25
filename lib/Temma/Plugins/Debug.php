@@ -795,9 +795,9 @@ class Debug extends \Temma\Web\Plugin {
 			else
 				$html .= sprintf("%.02f s", $time);
 			$html .= <<<'BAR'
-				</span>
-				<span style='color: #999;'>|</span>
-				<span title="Peak memory usage">
+						</span>
+						<span style='color: #999;'>|</span>
+						<span title="Peak memory usage">
 			BAR;
 			$memory = memory_get_peak_usage(true);
 			if ($memory > (1024 * 1024 * 1024 * 1024))
@@ -810,7 +810,12 @@ class Debug extends \Temma\Web\Plugin {
 				$html .= sprintf("%.02f KB", ($memory / 1024));
 			else
 				$html .= sprintf("%d bytes", $memory);
-			$html .= <<<'BAR'
+			$version = \Temma\Web\Framework::TEMMA_VERSION;
+			$html .= <<<BAR
+						</span>
+						<span style='color: #999;'>|</span>
+						<span title='Temma version'>
+							<a href="https://github.com/Digicreon/Temma/releases/tag/$version" target="_blank" style="color: #ddd;">v$version</a>
 						</span>
 					</span>
 				</div>
