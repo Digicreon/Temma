@@ -525,7 +525,7 @@ class Ansi {
 	 * @return	string	The formatted text.
 	 */
 	static public function color(int|string $textColor, ?string $text) : string {
-		if (!$text)
+		if (!mb_strlen($text))
 			return ('');
 		$textColor = (is_string($textColor) && ctype_digit($textColor)) ? intval($textColor) : $textColor;
 		if ($textColor === "default" || (is_string($textColor) && !isset(self::COLORS[$textColor])))
@@ -542,7 +542,7 @@ class Ansi {
 	 * @return	string	The formatted text.
 	 */
 	static public function backColor(int|string $backColor, int|string $textColor, ?string $text) : string {
-		if (!$text)
+		if (!mb_strlen($text))
 			return ('');
 		$prefix1 = $prefix2 = $suffix1 = $suffix2 = '';
 		// background color
@@ -576,7 +576,7 @@ class Ansi {
 	 * @return	string	The formatted text.
 	 */
 	static public function link(?string $url, ?string $title=null) : string {
-		if (!$url && !$title)
+		if (!$url && !mb_strlen($title))
 			return ('');
 		if (!$url)
 			return ($title);
@@ -592,7 +592,7 @@ class Ansi {
 	 * @return	string	The formatted text.
 	 */
 	static public function title1(?string $s) : string {
-		if (!$s)
+		if (!mb_strlen($s))
 			return ('');
 		return (self::style('<h1>' . htmlspecialchars($s, ENT_QUOTES | ENT_SUBSTITUTE | ENT_XML1) . '</h1>'));
 	}
@@ -602,7 +602,7 @@ class Ansi {
 	 * @return	string	The formatted text.
 	 */
 	static public function title2(?string $s) : string {
-		if (!$s)
+		if (!mb_strlen($s))
 			return ('');
 		return (self::style('<h2>' . htmlspecialchars($s, ENT_QUOTES | ENT_SUBSTITUTE | ENT_XML1) . '</h2>'));
 	}
@@ -612,7 +612,7 @@ class Ansi {
 	 * @return	string	The formatted text.
 	 */
 	static public function title3(?string $s) : string {
-		if (!$s)
+		if (!mb_strlen($s))
 			return ('');
 		return (self::style('<h3>' . htmlspecialchars($s, ENT_QUOTES | ENT_SUBSTITUTE | ENT_XML1) . '</h3>'));
 	}
@@ -622,7 +622,7 @@ class Ansi {
 	 * @return	string	The formatted text.
 	 */
 	static public function title4(?string $s) : string {
-		if (!$s)
+		if (!mb_strlen($s))
 			return ('');
 		return (self::style('<h4>' . htmlspecialchars($s, ENT_QUOTES | ENT_SUBSTITUTE | ENT_XML1) . '</h4>'));
 	}
@@ -633,7 +633,7 @@ class Ansi {
 	 * @return	string	The formatted text.
 	 */
 	static public function block(string $block, ?string $s) : string {
-		if (!$s)
+		if (!mb_strlen($s))
 			return ('');
 		return (self::style("<$block>" . htmlspecialchars($s, ENT_QUOTES | ENT_SUBSTITUTE | ENT_XML1) . "</$block>"));
 	}
