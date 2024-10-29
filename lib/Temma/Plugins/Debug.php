@@ -12,6 +12,7 @@ declare(ticks=1);
 
 use \Temma\Base\Log as TµLog;
 use \Temma\Utils\Text as TµText;
+use \Temma\Utils\Dumper as TµDumper;
 
 /**
  * Plugin used to set debug toolbar.
@@ -30,7 +31,9 @@ class Debug extends \Temma\Web\Plugin {
 	/** Constant : light contrast color. */
 	const COLOR_CONTRAST_LIGHT = '#F7E9DC';
 	/** Constant : medium contrast color. */
-	const COLOR_CONTRAST_MEDIUM = '#FFDBC6';//'#FBCDAD';
+	const COLOR_CONTRAST_MEDIUM = '#FFDBC6';
+	/** Dumper object. */
+	static protected TµDumper $_dumper;
 	/** List of log messages. */
 	static protected array $_logs = [];
 	/** Number of log messages per log level. */
@@ -339,39 +342,54 @@ class Debug extends \Temma\Web\Plugin {
 					color: red;
 					text-decoration: underline;
 				}
-				.tµ-panel pre.tµ-wrap {
+				.tµ-panel pre.tµ-wrap,
+				.tµ-dump pre.tµ-wrap {
 					white-space: pre-wrap;
 				}
-				.tµ-panel table.data {
+				.tµ-dump {
+					color: $colorBlack;
+					font-family: Arial, sans-serif;
+				}
+				.tµ-panel table.tµ-data,
+				.tµ-dump table.tµ-data {
 					width: calc(100% - 30px);
 					border-collapse: separate;
 					border-spacing: 2px;
 					margin-left: 30px;
 				}
-				.tµ-panel table.data td {
+				.tµ-panel table.tµ-data td,
+				.tµ-dump table.tµ-data td {
 					padding: 2px 8px 0 8px;
 				}
-				.tµ-panel table.data td[style='background-color: $colorWhite;']:hover,
-				.tµ-panel table.data td[style='background-color: $colorWhite; padding-right: 0;']:hover {
+				.tµ-panel table.tµ-data td[style='background-color: $colorWhite;']:hover,
+				.tµ-panel table.tµ-data td[style='background-color: $colorWhite; padding-right: 0;']:hover,
+				.tµ-dump table.tµ-data td[style='background-color: $colorWhite;']:hover,
+				.tµ-dump table.tµ-data td[style='background-color: $colorWhite; padding-right: 0;']:hover {
 					background-color: $colorContrastLight !important;
 				}
-				.tµ-panel table.data td[style='background-color: $colorLight;']:hover,
-				.tµ-panel table.data td[style='background-color: $colorLight; padding-right: 0;']:hover {
+				.tµ-panel table.tµ-data td[style='background-color: $colorLight;']:hover,
+				.tµ-panel table.tµ-data td[style='background-color: $colorLight; padding-right: 0;']:hover,
+				.tµ-dump table.tµ-data td[style='background-color: $colorLight;']:hover,
+				.tµ-dump table.tµ-data td[style='background-color: $colorLight; padding-right: 0;']:hover {
 					background-color: $colorContrastMedium !important;
 				}
-				.tµ-panel > table {
+				.tµ-panel > table,
+				.tµ-dump > table {
 					width: 100%;
 					border-collapse: separate;
 					border-spacing: 3px;
 				}
-				.tµ-panel > table > tbody > tr > td {
+				.tµ-panel > table > tbody > tr > td,
+				.tµ-dump > table > tbody > tr > td {
 					padding: 2px 8px 0 8px;
 			        	background-color: $colorWhite;
 				}
-				.tµ-panel > table > tbody > tr:hover > td {
+				.tµ-panel > table > tbody > tr:hover > td,
+				.tµ-dump > table > tbody > tr:hover > td {
 					background-color: $colorContrastLight;
 				}
-				.tµ-panel pre {
+				.tµ-panel pre,
+				.tµ-dump pre {
 					margin-bottom: 0;
 				}
 				.tµ-panel button {
@@ -536,6 +554,7 @@ class Debug extends \Temma\Web\Plugin {
 			} else {
 				$html .= "<table>";
 				ksort($tplVars);
+				self::$_dumper = TµDumper::factoryHtml();
 				foreach ($tplVars as $key => $value) {
 					if (str_starts_with($key, 'tµ__'))
 						continue;
@@ -544,7 +563,7 @@ class Debug extends \Temma\Web\Plugin {
 						$txt = "<strong>$txt</strong>";
 					$html .= "<tr valign='top'>
 							<td style='width: 1%;'><pre>$txt</pre></td>
-							<td>" . self::dump($value) . "</td>
+							<td>" . self::$_dumper->dump($value) . "</td>
 						  </tr>\n";
 				}
 				$html .= "</table>";
@@ -564,11 +583,12 @@ class Debug extends \Temma\Web\Plugin {
 				$html .= "<p>Nothing</p>\n";
 			} else {
 				ksort($sessionVars);
+				self::$_dumper = TµDumper::factoryHtml();
 				$html .= "<table>";
 				foreach ($sessionVars as $key => $value) {
 					$html .= "<tr valign='top'>
 							<td style='width: 1%;'><pre>" . htmlspecialchars($key) . "</pre></td>
-							<td>" . self::dump($value) . "</td>
+							<td>" . self::$_dumper->dump($value) . "</td>
 						  </tr>\n";
 				}
 				$html .= "</table>\n";
@@ -589,10 +609,11 @@ class Debug extends \Temma\Web\Plugin {
 				$html .= "<table>";
 				$getVars = $_GET;
 				ksort($getVars);
+				self::$_dumper = TµDumper::factoryHtml();
 				foreach ($getVars as $key => $value) {
 					$html .= "<tr valign='top'>
 							<td style='width: 1%;'><pre>" . htmlspecialchars($key) . "</pre></td>
-							<td>" . self::dump($value) . "</td>
+							<td>" . self::$_dumper->dump($value) . "</td>
 						  </tr>\n";
 				}
 				unset($getVars);
@@ -614,10 +635,11 @@ class Debug extends \Temma\Web\Plugin {
 				$html .= "<table>";
 				$getVars = $_GET;
 				ksort($getVars);
+				self::$_dumper = TµDumper::factoryHtml();
 				foreach ($getVars as $key => $value) {
 					$html .= "<tr valign='top'>
 							<td style='width: 1%;'><pre>" . htmlspecialchars($key) . "</pre></td>
-							<td>" . self::dump($value) . "</td>
+							<td>" . self::$_dumper->dump($value) . "</td>
 						  </tr>\n";
 				}
 				unset($getVars);
@@ -639,10 +661,11 @@ class Debug extends \Temma\Web\Plugin {
 				$html .= "<table>";
 				$cookies = $_COOKIE;
 				ksort($cookies);
+				self::$_dumper = TµDumper::factoryHtml();
 				foreach ($cookies as $key => $value) {
 					$html .= "<tr valign='top'>
 							<td style='width: 1%;'><pre>" . htmlspecialchars($key) . "</pre></td>
-							<td>" . self::dump($value) . "</td>
+							<td>" . self::$_dumper->dump($value) . "</td>
 						  </tr>\n";
 				}
 				unset($cookies);
@@ -658,22 +681,24 @@ class Debug extends \Temma\Web\Plugin {
 					<table>
 			CONSTANTS_PANEL;
 			$constants = $_SERVER;
+			self::$_dumper = TµDumper::factoryHtml();
 			ksort($constants);
 			foreach ($constants as $key => $value) {
 				$html .= "<tr valign='top'>
 						<td style='width: 1%;'><pre>" . htmlspecialchars($key) . "</pre></td>
-						<td>" . self::dump($value) . "</td>
+						<td>" . self::$_dumper->dump($value) . "</td>
 					  </tr>\n";
 			}
 			$html .= "</table>
 				  <h2 style='margin-top: 15px;'>Environment</h2>
 				  <table>";
 			$constants = getenv();
+			self::$_dumper = TµDumper::factoryHtml();
 			ksort($constants);
 			foreach ($constants as $key => $value) {
 				$html .= "<tr valign='top'>
 						<td style='width: 1%;'><pre>" . htmlspecialchars($key) . "</pre></td>
-						<td>" . self::dump($value) . "</td>
+						<td>" . self::$_dumper->dump($value) . "</td>
 					  </tr>\n";
 			}
 			unset($constants);
@@ -712,10 +737,11 @@ class Debug extends \Temma\Web\Plugin {
 					<h2>Configuration</h2>
 					<table>
 			CONFIG_PANEL;
+			self::$_dumper = TµDumper::factoryHtml();
 			foreach ($configData as $key => $val) {
 				$html .= "<tr valign='top'>
 						<td style='width: 1%;'><pre>$key</pre></td>
-						<td>" . self::dump($val) . "</td>
+						<td>" . self::$_dumper->dump($val) . "</td>
 					  </tr>";
 			}
 			$html .= <<<CONFIG_PANEL
@@ -848,7 +874,8 @@ class Debug extends \Temma\Web\Plugin {
 	private static function dumpTelemetry(array $items, float $totalDuration, bool $light=true) : string {
 		if (!$items)
 			return ('');
-		$res = "<table class='data' style='margin-left: 5px; width: calc(100% - 5px);'>\n";
+		$res = "<div class='tµ-dump'>
+		                <table class='tµ-data' style='margin-left: 5px; width: calc(100% - 5px);'>\n";
 		$bgColor = $light ? self::COLOR_WHITE : self::COLOR_LIGHT;
 		foreach ($items as $item) {
 			$name = "<span style='color: brown;'>" . htmlspecialchars($item->f) . "(<span style='color: gray;'>";
@@ -880,61 +907,9 @@ class Debug extends \Temma\Web\Plugin {
 			$res .= "	</td>
 				 </tr>\n";
 		}
-		$res .= "</table>\n";
+		$res .= "        </table>
+		         </div>\n";
 		return ($res);
-	}
-	/**
-	 * Returns an HTML stream for a given variable.
-	 * @param	mixed	$data	The variable.
-	 * @param	array	$known	(optional) List of known objects and arrays, to prevent circular references.
-	 * @param	bool	$light	(optional) True for light background. Defaults to false.
-	 * @return	string	The HTML stream.
-	 */
-	private static function dump(mixed $data, array &$known=[], bool $light=false) : string {
-		if (is_null($data))
-			return ("<pre>null</pre>\n");
-		if (is_bool($data))
-			return ("<pre>" . ($data ? 'true' : 'false') . "</pre>\n");
-		if (is_scalar($data))
-			return ("<pre class='tµ-wrap'>" . htmlspecialchars($data) . "</pre>\n");
-		if (is_array($data)) {
-			$arrayId = md5(\Temma\Utils\Serializer::encode($data, \Temma\Utils\Serializer::PHP));
-			if (isset($known[$arrayId]))
-				return ("<em>RECURSION</em>\n");
-			$known[$arrayId] = true;
-			$res = "<pre>array (" . count($data) . "):</pre>
-				<table class='data'>\n";
-			$bgColor = $light ? self::COLOR_WHITE : self::COLOR_LIGHT;
-			foreach ($data as $key => $value) {
-				$res .= "<tr valign='top'>
-						<td style='background-color: $bgColor; width: 1%;'><pre>" . htmlspecialchars($key) . "</pre></td>
-						<td style='background-color: $bgColor;'>";
-				$res .= self::dump($value, $known, !$light);
-				$res .= "</td></tr>\n";
-			}
-			$res .= "</table>\n";
-			return ($res);
-		}
-		if (is_object($data)) {
-			$objectId = spl_object_hash($data);
-			if (isset($known[$objectId]))
-				return ("<em>RECURSION</em>\n");
-			$known[$objectId] = true;
-			$res = '<pre>Object [' . htmlspecialchars(get_class($data)) . "]:</pre>\n<table class='data'>\n";
-			foreach (get_object_vars($data) as $key => $value) {
-				$bgColor = $light ? self::COLOR_WHITE : self::COLOR_LIGHT;
-				$res .= "<tr valign='top'>
-						<td style='background-color: $bgColor; max-width: 33%;'><pre>" . htmlspecialchars($key) . "</pre></td>
-						<td style='background-color: $bgColor;'>";
-				$res .= self::dump($value, $known, !$light);
-				$res .= "</td></tr>\n";
-			}
-			$res .= "</table\n";
-			return ($res);
-		}
-		if (is_resource($data))
-			return ('Resource [' . get_resource_type($data) . "]: " . get_resource_id($data) . "\n");
-		return ("<em>Unknown type</em>\n");
 	}
 }
 
