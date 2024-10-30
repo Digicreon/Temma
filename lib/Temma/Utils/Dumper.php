@@ -287,14 +287,15 @@ class Dumper {
 	}
 	/** Text scalar. */
 	public function _dumpTextScalar(mixed $data) : string {
-		if (is_string($data)) {
+		if (is_int($data)) {
+			$type = 'int';
+		} else if (is_float($data)) {
+			$type = 'float';
+		} else {
 			$type = 'string';
 			$data = json_encode($data);
-			$data = str_replace("\\n", "\n" . str_repeat("\t", $this->_indentation) . " ", $data);
-		} else if (is_int($data))
-			$type = 'int';
-		else if (is_float($data))
-			$type = 'float';
+			$data = str_replace("\\n", ("\n" . str_repeat("\t", $this->_indentation) . " "), $data);
+		}
 		return ("($type) $data\n");
 	}
 	/** Text array start. */
@@ -309,13 +310,12 @@ class Dumper {
 		if ($key == end($this->_arrayCounterStack)) {
 			$this->_arrayCounterStack[count($this->_arrayCounterStack) - 1]++;
 		} else {
-			if (is_string($key)) {
-				$key = json_encode($key);
-			} else {
+			if (is_int($key)) {
 				$this->_arrayCounterStack[count($this->_arrayCounterStack) - 1] = $key + 1;
-				$res .= $key;
+			} else {
+				$key = json_encode($key);
 			}
-			$res .= ' => ';
+			$res .= $key . ' => ';
 		}
 		return ($res);
 	}
@@ -405,7 +405,7 @@ class Dumper {
 					$res .= TµAnsi::color('magenta', $key);
 			} else {
 				$this->_arrayCounterStack[count($this->_arrayCounterStack) - 1] = $key + 1;
-				$res .= TµAnsi::color('light-blue', $key);
+				$res .= TµAnsi::color('light-blue', (string)$key);
 			}
 			$res .= TµAnsi::color('yellow', ' => ');
 		}
@@ -480,13 +480,14 @@ class Dumper {
 	/** HTML scalar. */
 	public function _dumpHtmlScalar(mixed $data) : string {
 		$color = '#00c';
-		if (is_string($data)) {
+		if (is_int($data)) {
+			$type = 'int';
+		} else if (is_float($data)) {
+			$type = 'float';
+		} else {
 			$type = 'string';
 			$color = '#a0a';
-		} else if (is_int($data))
-			$type = 'int';
-		else if (is_float($data))
-			$type = 'float';
+		}
 		return ("<pre title='$type' class='tµ-wrap' style='color: $color;'>" . htmlspecialchars($data) . "</pre>\n");
 	}
 	/** HTML array start. */
