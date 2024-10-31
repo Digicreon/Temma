@@ -294,7 +294,7 @@ class Dumper {
 		} else {
 			$type = 'string';
 			$data = json_encode($data);
-			$data = str_replace("\\n", ("\n" . str_repeat("\t", $this->_indentation) . " "), $data);
+			$data = str_replace("\\n", ("\n" . str_repeat('    ', $this->_indentation)), $data);
 		}
 		return ("($type) $data\n");
 	}
@@ -306,7 +306,7 @@ class Dumper {
 	}
 	/** Text array item start. */
 	public function _dumpTextItemStart(int|string $key, mixed $value) : string {
-		$res = str_repeat("\t", $this->_indentation);
+		$res = str_repeat('    ', $this->_indentation);
 		if ($key == end($this->_arrayCounterStack)) {
 			$this->_arrayCounterStack[count($this->_arrayCounterStack) - 1]++;
 		} else {
@@ -329,7 +329,7 @@ class Dumper {
 		array_pop($this->_arrayCounterStack);
 		if (!$data)
 			return ('');
-		return (str_repeat("\t", $this->_indentation) . "]\n");
+		return (str_repeat('    ', $this->_indentation) . "]\n");
 	}
 	/** Text object start. */
 	public function _dumpTextObjectStart(object $data, string $objectName, array $properties) : string {
@@ -339,7 +339,7 @@ class Dumper {
 	/** Text object property start. */
 	public function _dumpTextPropertyStart(mixed $value, string $propertyName, string $visibility, string $staticness) : string {
 		$title = (($staticness == 'static') ? 'static ' : '') . $visibility;
-		return (str_repeat("\t", $this->_indentation) . "$title \$$propertyName: ");
+		return (str_repeat('    ', $this->_indentation) . "$title \$$propertyName: ");
 	}
 	/** Text objet property end. */
 	public function _dumpTextPropertyEnd(mixed $value, string $propertyName, string $visibility, string $staticness) : string {
@@ -350,7 +350,7 @@ class Dumper {
 		$this->_indentation--;
 		if (!$properties)
 			return ('');
-		return (str_repeat("\t", $this->_indentation) . "}\n");
+		return (str_repeat('    ', $this->_indentation) . "}\n");
 	}
 
 	/* ********** ANSI DUMPER PSEUDO-PRIVATE METHODS ********** */
@@ -372,7 +372,7 @@ class Dumper {
 		$color = 'light-blue';
 		if (is_string($data)) {
 			$data = json_encode($data);
-			$data = str_replace("\\n", "\n" . str_repeat("\t", $this->_indentation) . ' ', $data);
+			$data = str_replace("\\n", "\n" . str_repeat('    ', $this->_indentation) . ' ', $data);
 			$color = 'magenta';
 		}
 		if (str_starts_with($data, '"') && str_ends_with($data, '"')) {
@@ -391,7 +391,7 @@ class Dumper {
 	}
 	/** ANSI array item start. */
 	public function _dumpAnsiItemStart(int|string $key, mixed $value) : string {
-		$res = str_repeat("\t", $this->_indentation);
+		$res = str_repeat('    ', $this->_indentation);
 		if ($key == end($this->_arrayCounterStack)) {
 			$this->_arrayCounterStack[count($this->_arrayCounterStack) - 1]++;
 		} else {
@@ -422,7 +422,7 @@ class Dumper {
 		if (!$data)
 			return ('');
 		return (
-			str_repeat("\t", $this->_indentation) .
+			str_repeat('    ', $this->_indentation) .
 			TµAnsi::color('yellow', "]\n")
 		);
 	}
@@ -439,7 +439,7 @@ class Dumper {
 	/** ANSI object property start. */
 	public function _dumpAnsiPropertyStart(mixed $value, string $propertyName, string $visibility, string $staticness) : string {
 		$visibility = ($visibility == 'public') ? '+' : (($visibility == 'protected') ? '#' : '-');
-		$res = str_repeat("\t", $this->_indentation) .
+		$res = str_repeat('    ', $this->_indentation) .
 		       TµAnsi::color('yellow', $visibility);
 		if ($staticness == 'static')
 			$res .= TµAnsi::underline($propertyName);
@@ -458,7 +458,7 @@ class Dumper {
 		if (!$properties)
 			return ('');
 		return (
-			str_repeat("\t", $this->_indentation) .
+			str_repeat('    ', $this->_indentation) .
 			TµAnsi::color('yellow', "}\n")
 		);
 	}
@@ -521,7 +521,7 @@ class Dumper {
 		return (
 			'<pre>Object [' . htmlspecialchars($objectName) . ']' .
 			($properties ? ':' : '') . "</pre>
-			<table class='data'>\n"
+			<table class='tµ-data'>\n"
 		);
 	}
 	/** HTML object property start. */
