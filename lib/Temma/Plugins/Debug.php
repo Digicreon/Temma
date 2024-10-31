@@ -563,7 +563,7 @@ class Debug extends \Temma\Web\Plugin {
 						$txt = "<strong>$txt</strong>";
 					$html .= "<tr valign='top'>
 							<td style='width: 1%;'><pre>$txt</pre></td>
-							<td>" . self::$_dumper->dump($value) . "</td>
+							<td>" . self::$_dumper->execDump($value) . "</td>
 						  </tr>\n";
 				}
 				$html .= "</table>";
@@ -588,7 +588,7 @@ class Debug extends \Temma\Web\Plugin {
 				foreach ($sessionVars as $key => $value) {
 					$html .= "<tr valign='top'>
 							<td style='width: 1%;'><pre>" . htmlspecialchars($key) . "</pre></td>
-							<td>" . self::$_dumper->dump($value) . "</td>
+							<td>" . self::$_dumper->execDump($value) . "</td>
 						  </tr>\n";
 				}
 				$html .= "</table>\n";
@@ -613,7 +613,7 @@ class Debug extends \Temma\Web\Plugin {
 				foreach ($getVars as $key => $value) {
 					$html .= "<tr valign='top'>
 							<td style='width: 1%;'><pre>" . htmlspecialchars($key) . "</pre></td>
-							<td>" . self::$_dumper->dump($value) . "</td>
+							<td>" . self::$_dumper->execDump($value) . "</td>
 						  </tr>\n";
 				}
 				unset($getVars);
@@ -639,7 +639,7 @@ class Debug extends \Temma\Web\Plugin {
 				foreach ($getVars as $key => $value) {
 					$html .= "<tr valign='top'>
 							<td style='width: 1%;'><pre>" . htmlspecialchars($key) . "</pre></td>
-							<td>" . self::$_dumper->dump($value) . "</td>
+							<td>" . self::$_dumper->execDump($value) . "</td>
 						  </tr>\n";
 				}
 				unset($getVars);
@@ -665,7 +665,7 @@ class Debug extends \Temma\Web\Plugin {
 				foreach ($cookies as $key => $value) {
 					$html .= "<tr valign='top'>
 							<td style='width: 1%;'><pre>" . htmlspecialchars($key) . "</pre></td>
-							<td>" . self::$_dumper->dump($value) . "</td>
+							<td>" . self::$_dumper->execDump($value) . "</td>
 						  </tr>\n";
 				}
 				unset($cookies);
@@ -686,7 +686,7 @@ class Debug extends \Temma\Web\Plugin {
 			foreach ($constants as $key => $value) {
 				$html .= "<tr valign='top'>
 						<td style='width: 1%;'><pre>" . htmlspecialchars($key) . "</pre></td>
-						<td>" . self::$_dumper->dump($value) . "</td>
+						<td>" . self::$_dumper->execDump($value) . "</td>
 					  </tr>\n";
 			}
 			$html .= "</table>
@@ -698,7 +698,7 @@ class Debug extends \Temma\Web\Plugin {
 			foreach ($constants as $key => $value) {
 				$html .= "<tr valign='top'>
 						<td style='width: 1%;'><pre>" . htmlspecialchars($key) . "</pre></td>
-						<td>" . self::$_dumper->dump($value) . "</td>
+						<td>" . self::$_dumper->execDump($value) . "</td>
 					  </tr>\n";
 			}
 			unset($constants);
@@ -741,7 +741,7 @@ class Debug extends \Temma\Web\Plugin {
 			foreach ($configData as $key => $val) {
 				$html .= "<tr valign='top'>
 						<td style='width: 1%;'><pre>$key</pre></td>
-						<td>" . self::$_dumper->dump($val) . "</td>
+						<td>" . self::$_dumper->execDump($val) . "</td>
 					  </tr>";
 			}
 			$html .= <<<CONFIG_PANEL

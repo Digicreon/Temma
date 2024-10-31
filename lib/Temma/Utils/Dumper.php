@@ -136,13 +136,36 @@ class Dumper {
 		return ($dumper);
 	}
 	/**
+	 * Static dumper. On CLI SAPI, dump ANSI text; otherwise dump HTML stream.
+	 * @param	mixed	$data	The data to be dumped.
+	 * @return	string	The generated string.
+	 * @link	https://www.binarytides.com/php-check-running-cli/
+	 */
+	static public function dump(mixed $data) : string {
+		if (php_sapi_name() == 'cli' ||
+		    defined('STDIN') ||
+		    (!($_SERVER['REMOTE_ADDR'] ?? null) && ($_SERVER['argv'] ?? null))) {
+			// CLI
+			return (self::dumpAnsi($data));
+		}
+		return (self::dumpHtml($data));
+	}
+	/**
+	 * Dump the content of a variable and exits.
+	 * @param	mixed	$data	The data to be dumped.
+	 */
+	static public function die(mixed $data) : void {
+		print(self::dump($data));
+		exit(1);
+	}
+	/**
 	 * Static text dumper.
 	 * @param	mixed	$data	The data to be dumped.
 	 * @return	string	The text string.
 	 */
 	static public function dumpText(mixed $data) : string {
 		$dumper = self::factoryText();
-		return ($dumper->dump($data));
+		return ($dumper->execDump($data));
 	}
 	/**
 	 * Static ANSI dumper.
@@ -151,7 +174,7 @@ class Dumper {
 	 */
 	static public function dumpAnsi(mixed $data) : string {
 		$dumper = self::factoryAnsi();
-		return ($dumper->dump($data));
+		return ($dumper->execDump($data));
 	}
 	/**
 	 * Static HTML dumper.
@@ -160,7 +183,7 @@ class Dumper {
 	 */
 	static public function dumpHtml(mixed $data) : string {
 		$dumper = self::factoryHtml();
-		return ($dumper->dump($data));
+		return ($dumper->execDump($data));
 	}
 	/**
 	 * Callbacks setter.
@@ -212,7 +235,7 @@ class Dumper {
 	 * @param	mixed	$data	The data to dump.
 	 * @return	string	The generated dump.
 	 */
-	public function dump(mixed $data) : string {
+	public function execDump(mixed $data) : string {
 		if (is_null($data))
 			return (($this->_dumpNull)());
 		if (is_bool($data))
@@ -227,7 +250,7 @@ class Dumper {
 			$res = ($this->_dumpArrayStart)($data);
 			foreach ($data as $key => $value) {
 				$res .= ($this->_dumpItemStart)($key, $value);
-				$res .= $this->dump($value);
+				$res .= $this->execDump($value);
 				$res .= ($this->_dumpItemEnd)($key, $value);
 			}
 			$res .= ($this->_dumpArrayEnd)($data);
@@ -260,7 +283,7 @@ class Dumper {
 					foreach ($subsublist as $propertyName => $property) {
 						$value = $property->getValue($data);
 						$res .= ($this->_dumpPropertyStart)($value, $propertyName, $visibility, $staticness);
-						$res .= $this->dump($value);
+						$res .= $this->execDump($value);
 						$res .= ($this->_dumpPropertyEnd)($value, $propertyName, $visibility, $staticness);
 					}
 				}
@@ -494,8 +517,19 @@ class Dumper {
 	public function _dumpHtmlArrayStart(array $data) : string {
 		$count = count($data);
 		$this->_lightBgStack[] = !$this->_lightBgStack ? false : !end($this->_lightBgStack);
-		return("<pre>array ($count)" . ($count ? ':' : '') . "</pre>
-		        <table class='tµ-data'>\n");
+		$id = bin2hex(random_bytes(5));
+		return(
+			"<div>
+				<tt>
+					array ($count)" . ($count ? ':' : '') . "
+					<span id='tµ-array-tr-$id' style='color: #666; cursor: pointer; display: none;'
+					 onclick=\"document.getElementById('tµ-array-td-$id').style.display = 'inline'; document.getElementById('tµ-array-$id').style.display = 'block'; this.style.display = 'none';\">▶</span>
+					<span id='tµ-array-td-$id' style='color: #666; cursor: pointer;'
+					 onclick=\"document.getElementById('tµ-array-tr-$id').style.display = 'inline'; document.getElementById('tµ-array-$id').style.display = 'none'; this.style.display = 'none';\">▼</span>
+				</tt>
+			</div>
+			<table id='tµ-array-$id' class='tµ-data'>\n"
+		);
 	}
 	/** HTML array item start. */
 	public function _dumpHtmlItemStart(int|string $key, mixed $value) : string {
@@ -518,10 +552,18 @@ class Dumper {
 	/** HTML object start. */
 	public function _dumpHtmlObjectStart(object $data, string $objectName, array $properties) : string {
 		$this->_lightBgStack[] = !$this->_lightBgStack ? false : !end($this->_lightBgStack);
+		$id = bin2hex(random_bytes(5));
 		return (
-			'<pre>Object [' . htmlspecialchars($objectName) . ']' .
-			($properties ? ':' : '') . "</pre>
-			<table class='tµ-data'>\n"
+			"<div>
+				<tt>
+					Object [" . htmlspecialchars($objectName) . "]" . ($properties ? ':' : '') . "
+					<span id='tµ-object-tr-$id' style='color: #666; cursor: pointer; display: none;'
+					 onclick=\"document.getElementById('tµ-object-td-$id').style.display = 'inline'; document.getElementById('tµ-object-$id').style.display = 'block'; this.style.display = 'none';\">▶</span>
+					<span id='tµ-object-td-$id' style='color: #666; cursor: pointer;'
+					 onclick=\"document.getElementById('tµ-object-tr-$id').style.display = 'inline'; document.getElementById('tµ-object-$id').style.display = 'none'; this.style.display = 'none';\">▼</span>
+				</tt>
+			</div>
+			<table id='tµ-object-$id' class='tµ-data'>\n"
 		);
 	}
 	/** HTML object property start. */
