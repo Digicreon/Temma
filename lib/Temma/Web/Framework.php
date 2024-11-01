@@ -22,7 +22,7 @@ use \Temma\Exceptions\IO as TµIOException;
  */
 class Framework {
 	/** Version number of Temma's last tagged release. */
-	const TEMMA_VERSION = '2.6.0';
+	const TEMMA_VERSION = '2.8.0';
 	/** Name of the root action. */
 	const CONTROLLERS_ROOT_ACTION = '__invoke';
 	/** Name of the proxy action. */
