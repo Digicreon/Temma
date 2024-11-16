@@ -108,10 +108,6 @@ class Api extends \Temma\Web\Plugin {
 	private ?\Temma\Dao\Dao $_userDao = null;
 	/** ApiKey DAO. */
 	private ?\Temma\Dao\Dao $_apiKeyDao = null;
-	/** Name of the "public_key" field in the "ApiKey" table. */
-	private string $_publicKeyFieldName = 'public_key';
-	/** Name of the "private_key" field in the "ApiKey" table. */
-	private string $_privateKeyFieldName = 'private_key';
 
         /**
 	 * Preplugin method.
@@ -202,11 +198,12 @@ class Api extends \Temma\Web\Plugin {
 		$privateKey = $_SERVER['PHP_AUTH_PW'] ?? null;
 		if (!$publicKey || !$privateKey)
 			return;
-		// get user ID from the keys
-		$privateHash = hash('sha256', $privateKey);
-		$criteria = $this->_apiKeyDao->criteria()->equal($this->_publicKeyFieldName, $publicKey)
-							 ->equal($this->_privateKeyFieldName, $privateHash);
-		$apiKeyData = $this->_apiKeyDao->get($criteria);
+		// get key data from database
+		$apiKeyData = $this->_apiKeyDao->get($publicKey);
+		// check private key
+		if (!password_verify($privateKey, ($apiKeyData['private_key'] ?? '')))
+			return;
+		// check user ID
 		if (!($apiKeyData['user_id'] ?? null))
 			return;
 		// fetch user data
@@ -282,15 +279,13 @@ class Api extends \Temma\Web\Plugin {
 				if (isset($conf['apiKeyData']['public_key'])) {
 					$params['id'] = $conf['apiKeyData']['public_key'];
 					$params['fields'][$conf['apiKeyData']['public_key']] = 'public_key';
-					$this->_publicKeyFieldName = $conf['apiKeyData']['token'];
 				} else {
 					$params['id'] = 'public_key';
 					$params['fields'][] = 'public_key';
 				}
-				if (isset($conf['apiKeyData']['private_key'])) {
+				if (isset($conf['apiKeyData']['private_key']))
 					$params['fields'][$conf['apiKeyData']['private_key']] = 'private_key';
-					$this->_privateKeyFieldName = $conf['apiKeyData']['private_key'];
-				} else
+				else
 					$params['fields'][] = 'private_key';
 				if (isset($conf['apiKeyData']['name']))
 					$params['fields'][$conf['apiKeyData']['name']] = 'name';
