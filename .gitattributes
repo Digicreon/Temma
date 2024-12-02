@@ -1,0 +1,4 @@
+bin/dpk_pkg-pre_script.sh export-ignore
+bin/validate.sh export-ignore
+etc/dispak.conf export-ignore
+
