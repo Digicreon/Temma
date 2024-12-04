@@ -1,4 +1,7 @@
 bin/dpk_pkg-pre_script.sh export-ignore
+bin/dpk_pkg-post_script.sh export-ignore
 bin/validate.sh export-ignore
 etc/dispak.conf export-ignore
+COPYING export-ignore
+README.md export-ignore
 
