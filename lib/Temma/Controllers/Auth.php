@@ -4,7 +4,7 @@
  * Auth
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2023, Amaury Bouchard
- * @link	https://www.temma.net/en/documentation/helper-ctrl_auth
+ * @link	https://www.temma.net/documentation/helper-ctrl_auth
  */
 
 namespace Temma\Controllers;

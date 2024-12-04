@@ -84,7 +84,7 @@ class Controller implements \ArrayAccess {
 	 * Could be overloaded in all controllers.
 	 * The return could be an constant (e.g. `return self::EXEC_QUIT;`) or null (`return (null);`) or nothing (`return;`).
 	 * Null and zero return values are the same than returning `self::EXEC_FORWARD`.
-	 * @link	https://www.temma.net/en/documentation/flow
+	 * @link	https://www.temma.net/documentation/flow
 	 */
 	public function __wakeup() {
 	}
@@ -94,7 +94,7 @@ class Controller implements \ArrayAccess {
 	 * Could be overloaded in all controllers.
 	 * The return could be an constant (e.g. `return self::EXEC_QUIT;`) or null (`return (null);`) or nothing (`return;`).
 	 * Null and zero return values are the same than returning `self::EXEC_FORWARD`.
-	 * @link	https://www.temma.net/en/documentation/flow
+	 * @link	https://www.temma.net/documentation/flow
 	 */
 	public function __sleep() {
 	}

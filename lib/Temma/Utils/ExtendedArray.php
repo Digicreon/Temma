@@ -4,7 +4,7 @@
  * ExtendedArray.
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2024, Amaury Bouchard
- * @link	https://www.temma.net/en/documentation/helper-extendedarray
+ * @link	https://www.temma.net/documentation/helper-extendedarray
  */
 
 namespace Temma\Utils;

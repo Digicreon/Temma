@@ -4,7 +4,7 @@
  * Dumper
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2024, Amaury Bouchard
- * @link	https://www.temma.net/en/documentation/helper-dumper
+ * @link	https://www.temma.net/documentation/helper-dumper
  */
 
 namespace Temma\Utils;

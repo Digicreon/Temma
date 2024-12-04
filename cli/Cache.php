@@ -4,7 +4,7 @@
  * Cache
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2023, Amaury Bouchard
- * @link	https://www.temma.net/en/documentation/helper-cli_cache
+ * @link	https://www.temma.net/documentation/helper-cli_cache
  */
 
 use \Temma\Utils\Ansi as TµAnsi;

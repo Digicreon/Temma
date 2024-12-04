@@ -7,7 +7,7 @@
  * @return	string	The hashed string.
  * @author	Amaury Bouchard <amaury@æmaury.net>
  * @copyright	© 2024, Amaury Bouchard
- * @link	https://www.temma.net/en/documentation/helper-smarty_hash
+ * @link	https://www.temma.net/documentation/helper-smarty_hash
  */
 function smarty_modifier_hash(?string $content, string $algo='sha256') {
 	return hash($algo, ($content ?? ''));

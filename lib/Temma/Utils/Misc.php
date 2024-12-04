@@ -4,7 +4,7 @@
  * Misc
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2023, Amaury Bouchard
- * @link	https://www.temma.net/en/documentation/helper-misc
+ * @link	https://www.temma.net/documentation/helper-misc
  */
 
 namespace Temma\Utils;

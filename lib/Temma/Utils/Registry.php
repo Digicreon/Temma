@@ -4,7 +4,7 @@
  * Registry
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2007-2023, Amaury Bouchard
- * @link	https://www.temma.net/en/documentation/helper-registry
+ * @link	https://www.temma.net/documentation/helper-registry
  */
 
 namespace Temma\Utils;

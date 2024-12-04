@@ -4,7 +4,7 @@
  * Term
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2023, Amaury Bouchard
- * @link	https://www.temma.net/en/documentation/helper-term
+ * @link	https://www.temma.net/documentation/helper-term
  */
 
 namespace Temma\Utils;

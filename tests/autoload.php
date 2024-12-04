@@ -6,7 +6,7 @@
  * This file is used for testing purposes with PHPUnit (see documentation).
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2023-2024, Amaury Bouchard
- * @link	https://www.temma.net/en/documentation/tests
+ * @link	https://www.temma.net/documentation/tests
  */
 
 // include path configuration

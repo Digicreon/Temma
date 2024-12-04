@@ -4,7 +4,7 @@
  * Memcache
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2009-2024, Amaury Bouchard
- * @link	https://www.temma.net/en/documentation/datasource-memcache
+ * @link	https://www.temma.net/documentation/datasource-memcache
  */
 
 namespace Temma\Datasources;

@@ -4,7 +4,7 @@
  * HTMLCleaner
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2010-2019, Amaury Bouchard
- * @link	https://www.temma.net/en/documentation/helper-htmlcleaner
+ * @link	https://www.temma.net/documentation/helper-htmlcleaner
  */
 
 namespace Temma\Utils;

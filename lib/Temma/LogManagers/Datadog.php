@@ -4,7 +4,7 @@
  * Datadog
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2022-2023, Amaury Bouchard
- * @link	https://www.temma.net/en/documentation/log-datadog
+ * @link	https://www.temma.net/documentation/log-datadog
  */
 
 namespace Temma\LogManagers;

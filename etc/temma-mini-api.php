@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Minimum configuration file for demonstration.
+ * Minimum configuration file for API demonstration.
  *
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2024, Amaury Bouchard
@@ -14,12 +14,14 @@ return [
 			// connection to a MySQL server
 			'db' => 'mysql://user:passwd@localhost/mybase',
 		],
-		// root controller
-		'rootController' => 'HomepageController',
 	],
 	// threshold for log messages
 	'loglevels' => 'WARN',
-	// HTML page sent when an error occurs
-	'errorPages' => 'error404.html',
+	// plugins
+	'plugins' => [
+		'_pre' => [
+			'\Temma\Plugins\Api',
+		],
+	],
 ];
 

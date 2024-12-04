@@ -5,7 +5,7 @@
  *
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2024, Amaury Bouchard
- * @link	https://www.temma.net/en/documentation/configuration
+ * @link	https://www.temma.net/documentation/configuration
  */
 return [
 	'application' => [

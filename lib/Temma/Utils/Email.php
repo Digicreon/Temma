@@ -4,7 +4,7 @@
  * Email.
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2023, Amaury Bouchard
- * @link	https://www.temma.net/en/documentation/helper-email
+ * @link	https://www.temma.net/documentation/helper-email
  */
 
 namespace Temma\Utils;

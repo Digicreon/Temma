@@ -9,7 +9,7 @@
  * @return	?string	The translated string.
  * @author	Amaury Bouchard <amaury@æmaury.net>
  * @copyright	© 2024, Amaury Bouchard
- * @link	https://www.temma.net/en/documentation/helper-plugin_language
+ * @link	https://www.temma.net/documentation/helper-plugin_language
  * @link	https://smarty-php.github.io/smarty/stable/api/extending/block-tags/
  * @link	https://stackoverflow.com/a/23178267
  */

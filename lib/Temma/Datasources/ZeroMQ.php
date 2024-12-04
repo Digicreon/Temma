@@ -4,7 +4,7 @@
  * ZeroMQ
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2023, Amaury Bouchard
- * @link	https://www.temma.net/en/documentation/datasource-zeromq
+ * @link	https://www.temma.net/documentation/datasource-zeromq
  */
 
 namespace Temma\Datasources;

@@ -4,7 +4,7 @@
  * File.
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2024, Amaury Bouchard
- * @link	https://www.temma.net/en/documentation/helper-file
+ * @link	https://www.temma.net/documentation/helper-file
  */
 
 namespace Temma\Utils;

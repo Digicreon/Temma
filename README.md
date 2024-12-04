@@ -7,8 +7,9 @@ Additional information
 * Created in 2007 by Amaury Bouchard. Has since powered tens of millions of visits to hundreds of websites.
 * Released as open source software (MIT License).
 * Project leader: Amaury Bouchard (amaury@amaury.net)
-* Discussions: https://github.com/Digicreon/Temma/discussions
-* **More information**: https://www.temma.net
+* **Website**: https://www.temma.net
+* Forum: https://github.com/Digicreon/Temma/discussions
+* Issues: https://github.com/Digicreon/Temma/issues
 
 License
 -------

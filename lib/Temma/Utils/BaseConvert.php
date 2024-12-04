@@ -4,7 +4,7 @@
  * BaseConvert
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2017-2023 Amaury Bouchard
- * @link	https://www.temma.net/en/documentation/helper-baseconvert
+ * @link	https://www.temma.net/documentation/helper-baseconvert
  */
 
 namespace Temma\Utils;

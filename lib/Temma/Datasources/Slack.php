@@ -4,7 +4,7 @@
  * Slack
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2023, Amaury Bouchard
- * @link	https://www.temma.net/en/documentation/datasource-slack
+ * @link	https://www.temma.net/documentation/datasource-slack
  */
 
 namespace Temma\Datasources;

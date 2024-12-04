@@ -4,7 +4,7 @@
  * Timer
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2007-2023, Amaury Bouchard
- * @link	https://www.temma.net/en/documentation/helper-timer
+ * @link	https://www.temma.net/documentation/helper-timer
  */
 
 namespace Temma\Utils;

@@ -4,7 +4,7 @@
  * Lock
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2021-2023, Amaury Bouchard
- * @link	https://www.temma.net/en/documentation/helper-lock
+ * @link	https://www.temma.net/documentation/helper-lock
  */
 
 namespace Temma\Utils;

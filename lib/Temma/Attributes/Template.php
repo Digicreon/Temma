@@ -4,7 +4,7 @@
  * Template
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2023, Amaury Bouchard
- * @link	https://www.temma.net/en/documentation/helper-attr_template
+ * @link	https://www.temma.net/documentation/helper-attr_template
  */
 
 namespace Temma\Attributes;
