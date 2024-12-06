@@ -6,7 +6,7 @@
  * @copyright	© 2024, Amaury Bouchard
  */
 
-namespace Temma\Web;
+namespace Temma\Comma;
 
 use \Temma\Base\Log as TµLog;
 use \Temma\Utils\Ansi as TµAnsi;
@@ -48,7 +48,7 @@ class Comma {
 	/**
 	 * Comma execution.
 	 */
-	static public function exec() : void {
+	public function exec() : void {
 		global $temma;
 
 		$temma = null;
@@ -115,14 +115,14 @@ class Comma {
 	private function _initLoader() : void {
 		// create request
 		$this->_request = new \Temma\Web\Request(false);
-		$this->_request->setParams($params);
+		$this->_request->setParams($this->_params);
 		// create response
 		$this->_response = new \Temma\Web\Response();
 		$this->_response['CONTROLLER'] = $this->_objectName;
 		$this->_response['ACTION'] = $this->_methodName;
 		$this->_response['conf'] = $this->_config->autoimport;
 		// create the loader
-		$loaderName = $config->loader;
+		$loaderName = $this->_config->loader;
 		$this->_loader = new $loaderName([
 			'config'   => $this->_config,
 			'request'  => $this->_request,
@@ -175,7 +175,7 @@ class Comma {
 			}
 			// inclusion path management
 			if (str_starts_with($_SERVER['argv'][0], 'inc=')) {
-				$incPath = mb_substr($methodName, mb_strlen('--inc='));
+				$incPath = mb_substr($_SERVER['argv'][0], mb_strlen('inc='));
 				set_include_path($incPath . PATH_SEPARATOR . get_include_path());
 				array_shift($_SERVER['argv']);
 				continue;
@@ -199,7 +199,7 @@ class Comma {
 			$param = mb_substr($param, 2);
 			// extract parameter without value
 			if (!str_contains($param, '=')) {
-				$params[$param] = true;
+				$this->_params[$param] = true;
 				continue;
 			}
 			// extract parameter with value
@@ -226,8 +226,7 @@ class Comma {
 		if (!$_SERVER['argv'] || $showUsage) {
 			$s = "<h1 padding='2'>COMMA USAGE</h1>
 <h2 line=''>Common usage</h2>
-    <b>bin/comma</b> <color t='blue'>controller</color> <faint>[</faint><color t='green'>action</color> <faint>[</faint>--<color t='yellow'>param1</color>=<color t='cyan'>value1</color><faint>] [</faint>--<color t='yellow'>param2<
-/color>=<color t='cyan'>value2</color><faint>]</faint>...<faint>]</faint><br />
+    <b>bin/comma</b> <color t='blue'>controller</color> <faint>[</faint><color t='green'>action</color> <faint>[</faint>--<color t='yellow'>param1</color>=<color t='cyan'>value1</color><faint>] [</faint>--<color t='yellow'>param2</color>=<color t='cyan'>value2</color><faint>]</faint>...<faint>]</faint><br />
         <faint>If no action is given, the <span textColor='green'>__invoke()</span> method is executed.</faint><br />
         <faint>If the controller has a <span textColor='green'>__proxy()</span> method, it is executed systematically.</faint><br />
         <faint>If the requested action doesn't exist, but the controller has a <span textColor='green'>__call()</span> method, this method is executed.</faint><br />
@@ -252,11 +251,11 @@ class Comma {
 			exit(1);
 		}
 		// get controller info
-		$reflect = new ReflectionClass($objectName);
+		$reflect = new \ReflectionClass($objectName);
 		print(TµAnsi::title1('COMMA HELP'));
 		print(TµAnsi::title3("Controller: $objectName"));
 		$notMethods = get_class_methods('\Temma\Web\Controller');
-		$methods = $reflect->getMethods(ReflectionMethod::IS_PUBLIC);
+		$methods = $reflect->getMethods(\ReflectionMethod::IS_PUBLIC);
 		$realMethods = [];
 		foreach ($methods as $method) {
 			if (in_array($method->name, $notMethods))
