@@ -59,6 +59,8 @@ class Bootloader {
 				readfile($errorPage);
 		}
 	}
+
+	/* ********** PRIVATE METHODS ********** */
 	/**
 	 * Returns the string for a given HTTP status code.
 	 * @param	int	$code	The HTTP code.

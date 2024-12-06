@@ -29,10 +29,11 @@ return [
 		'logManager'        => [ 'ElasticLogManager', 'SentryLogManager' ]
 	],
 	'loglevels' => [
-		'Temma/Base' => 'ERROR',
-		'Temma/Web'  => 'WARN',
-		'myapp'      => 'DEBUG',
-		'default'    => 'NOTE',
+		'Temma/Base'  => 'ERROR',
+		'Temma/Web'   => 'WARN',
+		'Temma/Asynk' => 'INFO',
+		'myapp'       => 'DEBUG',
+		'default'     => 'NOTE',
 	],
 	'routes' => [
 		'sitemap.xml'          => 'SitemapController',

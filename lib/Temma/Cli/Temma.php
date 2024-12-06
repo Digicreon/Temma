@@ -7,6 +7,8 @@
  * @link	https://www.temma.net/documentation/update
  */
 
+namespace Temma\Cli;
+
 use \Temma\Utils\Ansi as TµAnsi;
 use \Temma\Utils\Term as TµTerm;
 use \Temma\Utils\File as TµFile;

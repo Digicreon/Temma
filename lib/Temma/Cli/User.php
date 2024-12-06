@@ -3,9 +3,11 @@
 /**
  * User
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2023, Amaury Bouchard
+ * @copyright	© 2023-2024, Amaury Bouchard
  * @link	https://www.temma.net/documentation/helper-cli_user
  */
+
+namespace Temma\Cli;
 
 use \Temma\Base\Log as TµLog;
 use \Temma\Utils\Ansi as TµAnsi;

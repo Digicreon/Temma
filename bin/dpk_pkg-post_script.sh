@@ -24,10 +24,7 @@ fi
 echo "== Update 'temma-lib'"
 # copy files
 pushd /opt/Temma > /dev/null
-cp    bin/comma     /opt/temma-lib/bin/
 cp -a lib/*         /opt/temma-lib/lib/
-cp    tests/*       /opt/temma-lib/tests/
-cp    www/index.php /opt/temma-lib/www/
 popd > /dev/null
 # commit tiles
 pushd /opt/temma-lib > /dev/null
@@ -49,11 +46,14 @@ fi
 echo "== Update 'temma-skel-web'"
 # copy files
 pushd /opt/Temma > /dev/null
+cp    bin/comma          /opt/temma-skel-web/bin/
 cp    etc/apache.conf    /opt/temma-skel-web/etc/
 cp    etc/temma-mini.php /opt/temma-skel-web/etc/temma.php
 cp    etc/temma-full.php /opt/temma-skel-web/etc/
 cp -a etc/asynk          /opt/temma-skel-web/etc/
 cp -a templates/*        /opt/temma-skel-web/templates/
+cp    tests/*            /opt/temma-skel-web/tests/
+cp    www/index.php      /opt/temma-skel-web/www/
 cp    www/*.html         /opt/temma-skel-web/www/
 cp    www/.htaccess      /opt/temma-skel-web/www/
 cp    .htaccess          /opt/temma-skel-web/
@@ -77,10 +77,13 @@ fi
 echo "== Update 'temma-skel-api'"
 # copy files
 pushd /opt/Temma > /dev/null
+cp    bin/comma              /opt/temma-skel-api/bin/
 cp    etc/apache.conf        /opt/temma-skel-api/etc/
 cp    etc/temma-mini-api.php /opt/temma-skel-api/etc/temma.php
 cp    etc/temma-full.php     /opt/temma-skel-api/etc/
 cp -a etc/asynk              /opt/temma-skel-api/etc/
+cp    tests/*                /opt/temma-skel-api/tests/
+cp    www/index.php          /opt/temma-skel-web/www/
 cp    www/.htaccess          /opt/temma-skel-api/www/
 cp    .htaccess              /opt/temma-skel-api/
 # commit tiles

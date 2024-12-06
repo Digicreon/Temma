@@ -1,11 +1,13 @@
 <?php
 
 /**
- * AsynkCron
+ * Cron
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2023, Amaury Bouchard
  * @link	https://www.temma.net/documentation/asynk
  */
+
+namespace Temma\Cli\Asynk;
 
 use \Temma\Base\Log as TµLog;
 
@@ -14,7 +16,7 @@ use \Temma\Base\Log as TµLog;
  *
  * This objet fetch waiting tasks, process them and remove them.
  */
-class AsynkWorker extends \Temma\Web\Controller {
+class Worker extends \Temma\Web\Controller {
 	/** Constant: default delay between two loops (in seconds). */
 	const DEFAULT_LOOP_DELAY = 60;
 	/** Asynk DAO. */

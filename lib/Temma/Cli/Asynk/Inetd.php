@@ -1,11 +1,13 @@
 <?php
 
 /**
- * AsynkInetd
+ * Inetd
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2023, Amaury Bouchard
  * @link	https://www.temma.net/documentation/asynk
  */
+
+namespace Temma\Cli\Asynk;
 
 use \Temma\Base\Log as TµLog;
 
@@ -15,7 +17,7 @@ use \Temma\Base\Log as TµLog;
  * This objet expects to receive a task identifier on its standard input.
  * The task is processed and removed.
  */
-class AsynkInetd extends \Temma\Web\Controller {
+class Inetd extends \Temma\Web\Controller {
 	/** Asynk DAO. */
 	private ?\Temma\Asynk\AsynkDao $_asynkDao = null;
 

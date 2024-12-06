@@ -5,7 +5,7 @@ service temma_asynk
 	wait		= no
 	port		= 11137
 	server		= /path/to/project/bin/comma
-	server_args	= nostderr AsynkInetd
+	server_args	= nostderr '\Temma\Cli\Asynk\Inetd'
 	protocol	= tcp
 	socket_type	= stream
 }

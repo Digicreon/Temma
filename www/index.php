@@ -8,17 +8,13 @@
  * @package	Temma
  */
 
-// include path configuration
-set_include_path(__DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'lib' . PATH_SEPARATOR . get_include_path());
-
-// Temma autoloader
-@include_once('Temma/Base/Autoload.php');
-
 // Composer autoloader
 @include_once(__DIR__ . '/../vendor/autoload.php');
 
-// Temma autoloader init
-\Temma\Base\Autoload::autoload();
+// Temma autoloader with include path
+@include_once(__DIR__ . '/../lib/Temma/Base/Autoload.php');
+\Temma\Base\Autoload::autoload(__DIR__ . '/../lib');
 
+// start the bootloader
 \Temma\Web\Bootloader::bootloader();
 

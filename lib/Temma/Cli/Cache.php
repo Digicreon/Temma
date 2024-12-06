@@ -3,9 +3,11 @@
 /**
  * Cache
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2023, Amaury Bouchard
+ * @copyright	© 2023-2024, Amaury Bouchard
  * @link	https://www.temma.net/documentation/helper-cli_cache
  */
+
+namespace Temma\Cli;
 
 use \Temma\Utils\Ansi as TµAnsi;
 
