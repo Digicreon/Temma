@@ -31,7 +31,7 @@ else
 		git add .
 		git commit -m "Update from Temma main repository version '$PKG_TAG'."
 		git push
-		dpk pkg --tag=$PKG_TAG
+		/opt/Dispak/dpk pkg --tag=$PKG_TAG
 	fi
 	echo "   done"
 	popd > /dev/null
@@ -65,7 +65,7 @@ else
 		git add .
 		git commit -m "Update from Temma main repository version '$PKG_TAG'."
 		git push
-		dpk pkg --tag=$PKG_TAG
+		/opt/dispak/dpk pkg --tag=$PKG_TAG
 	fi
 	echo "   done"
 	popd > /dev/null
@@ -97,7 +97,7 @@ else
 		git add .
 		git commit -m "Update from Temma main repository version '$PKG_TAG'."
 		git push
-		dpk pkg --tag=$PKG_TAG
+		/opt/Dispak/dpk pkg --tag=$PKG_TAG
 	fi
 	echo "   done"
 	popd > /dev/null
