@@ -37,27 +37,27 @@ else
 	popd > /dev/null
 fi
 
-# ########## temma-skel-web ##########
+# ########## temma-project-web ##########
 # check if the directory exists
-if [ ! -d /opt/temma-skel-web ]; then
-	echo "No directory '/opt/temma-skel-web' found."
+if [ ! -d /opt/temma-project-web ]; then
+	echo "No directory '/opt/temma-project-web' found."
 else
-	echo "== Update 'temma-skel-web'"
+	echo "== Update 'temma-project-web'"
 	# copy files
 	pushd /opt/Temma > /dev/null
-	cp    bin/comma          /opt/temma-skel-web/bin/
-	cp    etc/apache.conf    /opt/temma-skel-web/etc/
-	cp    etc/temma-mini.php /opt/temma-skel-web/etc/temma.php
-	cp    etc/temma-full.php /opt/temma-skel-web/etc/
-	cp -a etc/asynk          /opt/temma-skel-web/etc/
-	cp -a templates/*        /opt/temma-skel-web/templates/
-	cp    tests/*            /opt/temma-skel-web/tests/
-	cp    www/index.php      /opt/temma-skel-web/www/
-	cp    www/*.html         /opt/temma-skel-web/www/
-	cp    www/.htaccess      /opt/temma-skel-web/www/
-	cp    .htaccess          /opt/temma-skel-web/
+	cp    bin/comma          /opt/temma-project-web/bin/
+	cp    etc/apache.conf    /opt/temma-project-web/etc/
+	cp    etc/temma.php      /opt/temma-project-web/etc/
+	cp    etc/temma-full.php /opt/temma-project-web/etc/
+	cp -a etc/asynk          /opt/temma-project-web/etc/
+	cp -a templates/*        /opt/temma-project-web/templates/
+	cp    tests/*            /opt/temma-project-web/tests/
+	cp    www/index.php      /opt/temma-project-web/www/
+	cp    www/*.html         /opt/temma-project-web/www/
+	cp    www/.htaccess      /opt/temma-project-web/www/
+	cp    .htaccess          /opt/temma-project-web/
 	# manage composer.json
-	pushd /opt/temma-skel-web > /dev/null
+	pushd /opt/temma-project-web > /dev/null
 	sed "s/\"digicreon\/temma-lib\": \"[^\"]*\"/\"digicreon\/temma-lib\": \"$PKG_TAG\"/" composer.json > composer.json.tmp
 	mv composer.json.tmp composer.json
 	# commit tiles
@@ -71,25 +71,25 @@ else
 	popd > /dev/null
 fi
 
-# ########## temma-skel-api ##########
+# ########## temma-project-api ##########
 # check if the directory exists
-if [ ! -d /opt/temma-skel-api ]; then
-	echo "No directory '/opt/temma-skel-api' found."
+if [ ! -d /opt/temma-project-api ]; then
+	echo "No directory '/opt/temma-project-api' found."
 else
-	echo "== Update 'temma-skel-api'"
+	echo "== Update 'temma-project-api'"
 	# copy files
 	pushd /opt/Temma > /dev/null
-	cp    bin/comma              /opt/temma-skel-api/bin/
-	cp    etc/apache.conf        /opt/temma-skel-api/etc/
-	cp    etc/temma-mini-api.php /opt/temma-skel-api/etc/temma.php
-	cp    etc/temma-full.php     /opt/temma-skel-api/etc/
-	cp -a etc/asynk              /opt/temma-skel-api/etc/
-	cp    tests/*                /opt/temma-skel-api/tests/
-	cp    www/index.php          /opt/temma-skel-web/www/
-	cp    www/.htaccess          /opt/temma-skel-api/www/
-	cp    .htaccess              /opt/temma-skel-api/
+	cp    bin/comma              /opt/temma-project-api/bin/
+	cp    etc/apache.conf        /opt/temma-project-api/etc/
+	cp    etc/temma-api.php      /opt/temma-project-api/etc/temma.php
+	cp    etc/temma-full.php     /opt/temma-project-api/etc/
+	cp -a etc/asynk              /opt/temma-project-api/etc/
+	cp    tests/*                /opt/temma-project-api/tests/
+	cp    www/index.php          /opt/temma-project-api/www/
+	cp    www/.htaccess          /opt/temma-project-api/www/
+	cp    .htaccess              /opt/temma-project-api/
 	# manage composer.json
-	pushd /opt/temma-skel-api > /dev/null
+	pushd /opt/temma-project-api > /dev/null
 	sed "s/\"digicreon\/temma-lib\": \"[^\"]*\"/\"digicreon\/temma-lib\": \"$PKG_TAG\"/" composer.json > composer.json.tmp
 	mv composer.json.tmp composer.json
 	# commit tiles
