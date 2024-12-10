@@ -47,6 +47,7 @@ else
 	pushd /opt/Temma > /dev/null
 	cp    bin/comma          /opt/temma-project-web/bin/
 	cp    etc/apache.conf    /opt/temma-project-web/etc/
+	cp    etc/nginx.conf     /opt/temma-project-web/etc/
 	cp    etc/temma.php      /opt/temma-project-web/etc/
 	cp    etc/temma-full.php /opt/temma-project-web/etc/
 	cp -a etc/asynk          /opt/temma-project-web/etc/
@@ -81,6 +82,7 @@ else
 	pushd /opt/Temma > /dev/null
 	cp    bin/comma              /opt/temma-project-api/bin/
 	cp    etc/apache.conf        /opt/temma-project-api/etc/
+	cp    etc/nginx.conf         /opt/temma-project-api/etc/
 	cp    etc/temma-api.php      /opt/temma-project-api/etc/temma.php
 	cp    etc/temma-full.php     /opt/temma-project-api/etc/
 	cp -a etc/asynk              /opt/temma-project-api/etc/
