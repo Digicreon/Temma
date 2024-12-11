@@ -59,7 +59,7 @@ else
 	cp    .htaccess          /opt/temma-project-web/
 	# manage composer.json
 	pushd /opt/temma-project-web > /dev/null
-	sed "s/\"digicreon\/temma-lib\": \"[^\"]*\"/\"digicreon\/temma-lib\": \"$PKG_TAG\"/" composer.json > composer.json.tmp
+	sed "s/\"digicreon\/temma-lib\": \"[^\"]*\"/\"digicreon\/temma-lib\": \"^$PKG_TAG\"/" composer.json > composer.json.tmp
 	mv composer.json.tmp composer.json
 	# commit tiles
 	if [[ -n $(git status --porcelain) ]]; then
@@ -92,7 +92,7 @@ else
 	cp    .htaccess              /opt/temma-project-api/
 	# manage composer.json
 	pushd /opt/temma-project-api > /dev/null
-	sed "s/\"digicreon\/temma-lib\": \"[^\"]*\"/\"digicreon\/temma-lib\": \"$PKG_TAG\"/" composer.json > composer.json.tmp
+	sed "s/\"digicreon\/temma-lib\": \"[^\"]*\"/\"digicreon\/temma-lib\": \"^$PKG_TAG\"/" composer.json > composer.json.tmp
 	mv composer.json.tmp composer.json
 	# commit tiles
 	if [[ -n $(git status --porcelain) ]]; then
