@@ -110,7 +110,7 @@ class Debug extends \Temma\Web\Plugin {
 	 */
 	public function postplugin() {
 		$timer = $this['tµ__timer'];
-		$time = $timer->stop()->getTime();
+		$time = $timer ? $timer->stop()->getTime() : 0;
 		if (self::$_showBar) {
 			$html = $this->_generateHtml($time);
 			$this->_response->addAppendStream($html);
@@ -413,13 +413,15 @@ class Debug extends \Temma\Web\Plugin {
 				}
 				#tµ-toolbar {
 					position: fixed;
-					width: 100%;
 					height: 42px;
 					bottom: 0;
+					left: 0;
+					right: 0;
 					background: linear-gradient($colorDark, #034C9A);
 					color: #000;
 					font-family: Arial, sans-serif;
 					font-size: 13px;
+					margin: 0;
 					padding: 3px 0 0 40px;
 					z-index: 999999;
 				}
@@ -431,6 +433,7 @@ class Debug extends \Temma\Web\Plugin {
 					margin: 4px;/*4px 4px 0 4px;*/
 					padding: 0 6px 0 6px;
 					border: 1px solid $colorMedium;
+					height: 22px;
 				}
 				#tµ-toolbar button:hover {
 					background-color: $colorDark;
@@ -766,7 +769,7 @@ class Debug extends \Temma\Web\Plugin {
 		// toolbar
 		if (self::$_showBar) {
 			$html .= <<<BAR
-				"<div id="tµ-toolbar" class="_tµ-toolbar">
+				<div id="tµ-toolbar" class="_tµ-toolbar">
 			BAR;
 			if (self::$_showLogs) {
 				$html .= <<<BAR
@@ -813,7 +816,7 @@ class Debug extends \Temma\Web\Plugin {
 			if ($controllerName && $actionName)
 				$html .= "<span title='Executed controller' style='font-family: monospace;'>$controllerName::$actionName()</span>";
 			$html .= <<< BAR
-						<span style='color: #999;'>|</span>
+						<span style="color: #999;">|</span>
 						<span title="Execution time before template">
 			BAR;
 			if ($time < 1)
@@ -822,7 +825,7 @@ class Debug extends \Temma\Web\Plugin {
 				$html .= sprintf("%.02f s", $time);
 			$html .= <<<'BAR'
 						</span>
-						<span style='color: #999;'>|</span>
+						<span style="color: #999;">|</span>
 						<span title="Peak memory usage">
 			BAR;
 			$memory = memory_get_peak_usage(true);
@@ -839,20 +842,20 @@ class Debug extends \Temma\Web\Plugin {
 			$version = \Temma\Web\Framework::TEMMA_VERSION;
 			$html .= <<<BAR
 						</span>
-						<span style='color: #999;'>|</span>
-						<span title='Temma version'>
+						<span style="color: #999;">|</span>
+						<span title="Temma version">
 							<a href="https://github.com/Digicreon/Temma/releases/tag/$version" target="_blank" style="color: #ddd;">v$version</a>
 						</span>
 					</span>
 				</div>
 			BAR;
+			// icon
+			$html .= <<<'ICON'
+				<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAMAAAC7IEhfAAAAbFBMVEU0mNs0ltk0mNs0mNs0mNoAAAA0mNv///+Vv+e0z+xnquD3+/3z+PxAnN3L3/NkqeA3mdy91u+ZwuiEt+VsreJJn947mtz6/P7v9fzo8fni7fiixel4suNRod4/nNz4+/6uzOyRveZ9s+NZpN/WKhK5AAAABnRSTlPyKu2vrwBiI6u4AAAAtklEQVQ4y+3VyQ7CIBSFYRC4F2m10Hl0fP93NCUhpomWm6hd+a9YfAlhc2CKCwaRmOCK8R0Q2nEmgZRkjAa9I/UjaPWy+h084bLqYwjZXHnGNPPZ9cccEkwhRIKFcyX4tHPTCtwjavAdEc0fbgFzKnT+cO+iMCks1LrFKETs+hab+NXNbPtb+RLafNABjvllGC1YY+olDAVYwLNVeKVC/V04GVNtsj3E6EMqaFDQx15xGf8+JFcPmt4rL0aOUNEAAAAASUVORK5CYII="
+				style="position: fixed; width: 26px; height: 26px; left: 8px; bottom: 8px; cursor: pointer; z-index: 1000000;"
+				title="Close" onclick="tµIconToggle()" />
+			ICON;
 		}
-		// icon
-		$html .= <<<'ICON'
-			<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAMAAAC7IEhfAAAAbFBMVEU0mNs0ltk0mNs0mNs0mNoAAAA0mNv///+Vv+e0z+xnquD3+/3z+PxAnN3L3/NkqeA3mdy91u+ZwuiEt+VsreJJn947mtz6/P7v9fzo8fni7fiixel4suNRod4/nNz4+/6uzOyRveZ9s+NZpN/WKhK5AAAABnRSTlPyKu2vrwBiI6u4AAAAtklEQVQ4y+3VyQ7CIBSFYRC4F2m10Hl0fP93NCUhpomWm6hd+a9YfAlhc2CKCwaRmOCK8R0Q2nEmgZRkjAa9I/UjaPWy+h084bLqYwjZXHnGNPPZ9cccEkwhRIKFcyX4tHPTCtwjavAdEc0fbgFzKnT+cO+iMCks1LrFKETs+hab+NXNbPtb+RLafNABjvllGC1YY+olDAVYwLNVeKVC/V04GVNtsj3E6EMqaFDQx15xGf8+JFcPmt4rL0aOUNEAAAAASUVORK5CYII="
-			style="position: fixed; width: 26px; height: 26px; left: 8px; bottom: 8px; cursor: pointer; z-index: 1000000;"
-			title="Close" onclick="tµIconToggle()" />
-		ICON;
 		// check if the bar should be closed
 		$html .= <<<'JS'
 			<script>
