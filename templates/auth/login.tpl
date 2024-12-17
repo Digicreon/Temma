@@ -76,15 +76,15 @@
 	{* management of authentication statuses *}
 	{if $__authStatus}
 		<h4>
-			{if $authStatus == 'logout'}
+			{if $__authStatus == 'logout'}
 				You have been disconnected
-			{elseif $authStatus == 'email'}
+			{elseif $__authStatus == 'email'}
 				Invalid email address
-			{elseif $authStatus == 'tokenSent'}
+			{elseif $__authStatus == 'tokenSent'}
 				If the email address is valid, you will receive a connection link
-			{elseif $authStatus == 'badToken'}
+			{elseif $__authStatus == 'badToken'}
 				Expired connection token
-			{elseif $authStatus == 'robot'}
+			{elseif $__authStatus == 'robot'}
 				You have been detected as a robot, please try again
 			{else}
 				An error occurred
