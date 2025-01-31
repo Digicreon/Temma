@@ -49,7 +49,7 @@
 			// set the anti-spam hash
 			var loginTime = Date.now();
 			var timeDiff = loginTime - loadTime;
-			var hash = MD5(timeDiff + ":" + loginTime + ":" + email.value + ":" + window.navigator.userAgent);
+			var hash = MD5(timeDiff + ":" + loginTime + ":" + form.email.value + ":" + window.navigator.userAgent);
 			form.hash.value = timeDiff + "#" + loginTime + "#" + hash;
 			return (true);
 		}
