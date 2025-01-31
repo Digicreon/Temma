@@ -150,14 +150,19 @@ class Smarty extends \Temma\Web\View {
 	public function sendBody() : void {
 		print($this->_response->getPrependStream());
 		// cache management
-		if ($this->_isCacheable && ($dataSource = $this->_config->xtra('temma-cache', 'source')) &&
-		    isset($this->_dataSources[$dataSource]) && ($cache = $this->_dataSources[$dataSource])) {
+		$cache = null;
+		if ($this->_isCacheable &&
+		    ((($dataSource = $this->_config->xtra('temma-cache', 'source')) &&
+		      ($cache = $this->_dataSources[$dataSource] ?? null)) ||
+		     ($cache = $this->_dataSources['cache'] ?? null)
+		    )) {
 			// Smarty template rendering
 			$data = $this->_smarty->fetch($this->_template);
 			if (!empty($data)) {
 				// store the page in cache
 				$cacheVarName = $_SERVER['HTTP_HOST'] . ':' . $_SERVER['REQUEST_URI'];
-				$cache->setPrefix('temma-cache')->set($cacheVarName, $data)->setPrefix();
+				$cache->setPrefix('temma-cache')->set($cacheVarName, $data);
+				$cache->setPrefix();
 			}
 			// write the page to stdout
 			print($data);

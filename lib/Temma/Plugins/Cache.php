@@ -39,7 +39,7 @@ class Cache extends \Temma\Web\Plugin {
 			TµLog::log('Temma/Web', 'WARN', "The data source configured in cache configuration doesn't exist.");
 			return (self::EXEC_FORWARD);
 		}
-		// check if the cache ids disabled by a session variable
+		// check if the cache is disabled by a session variable
 		if (isset($cacheConf['sessionNoCache'])) {
 			if (!is_array($cacheConf['sessionNoCache']))
 				$cacheConf['sessionNoCache'] = [$cacheConf['sessionNoCache']];
