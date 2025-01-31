@@ -186,10 +186,10 @@ class Registry implements \Iterator, \ArrayAccess {
 	/* ********** DATA CHECK ********** */
 	/**
 	 * Check if a data exist, object-oriented syntax.
-	 * @param	string	$key	Index key.
+	 * @param	?string	$key	Index key.
 	 * @return	bool	True if the key was defined, false otherwise.
 	 */
-	public function isset(string $key) : bool {
+	public function isset(?string $key) : bool {
 		return (isset($this->_data[$key]));
 	}
 	/**
@@ -202,7 +202,7 @@ class Registry implements \Iterator, \ArrayAccess {
 	}
 	/**
 	 * Check if a data exist, array-like syntax.
-	 * @param	string	$key	Index key.
+	 * @param	mixed	$key	Index key.
 	 * @return	bool	True if the key was defined, false otherwise.
 	 */
 	public function offsetExists(mixed $key) : bool {
@@ -212,12 +212,14 @@ class Registry implements \Iterator, \ArrayAccess {
 	/* ********** DATA DELETION ********** */
 	/**
 	 * Remove a data from registry, object-oriented syntax.
-	 * @param	string	$key	Index key.
+	 * @param	?string	$key	Index key.
 	 * @return	\Temma\Utils\Registry	The current object.
 	 */
-	public function unset(string $key) : \Temma\Utils\Registry {
-		$this->_data[$key] = null;
-		unset($this->_data[$key]);
+	public function unset(?string $key) : \Temma\Utils\Registry {
+		if (!is_null($key)) {
+			$this->_data[$key] = null;
+			unset($this->_data[$key]);
+		}
 		return ($this);
 	}
 	/**
@@ -229,7 +231,7 @@ class Registry implements \Iterator, \ArrayAccess {
 	}
 	/**
 	 * Remove data from registry, array-like syntax.
-	 * @param	string	$key	Index key.
+	 * @param	mixed	$key	Index key.
 	 */
 	public function offsetUnset(mixed $key) : void {
 		$this->unset($key);
