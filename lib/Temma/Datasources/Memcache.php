@@ -407,9 +407,11 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 	 * @return	string	The generated salted prefix.
 	 */
 	protected function _getSaltedPrefix() : string {
+		$host = $_SERVER['HTTP_HOST'] ?? '';
+		$host = $host ? base_convert($host, 16, 36) : '';
 		// prefix management
 		if (empty($this->_prefix))
-			return ('');
+			return ($host);
 		// salt fetching
 		$saltKey = self::PREFIX_SALT_PREFIX . $this->_prefix;
 		if ($this->_enabled && $this->_memcache)
@@ -420,7 +422,7 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 			if ($this->_enabled && $this->_memcache)
 				$this->_memcache->set($saltKey, $salt, 0);
 		}
-		return ("[$salt" . $this->_prefix);
+		return ("$host#$salt" . $this->_prefix);
 	}
 }
 
