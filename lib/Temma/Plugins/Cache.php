@@ -80,7 +80,9 @@ class Cache extends \Temma\Web\Plugin {
 		if (!empty($data)) {
 			// the page was found in cache: send it to the client and quit
 			TµLog::log('Temma/Web', 'DEBUG', "Write from cache.");
+			print($this->_response->getPrependStream());
 			print($data);
+			print($this->_response->getAppendStream());
 			return (self::EXEC_QUIT);
 		}
 	}
