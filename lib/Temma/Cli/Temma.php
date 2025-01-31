@@ -101,7 +101,7 @@ class Temma extends \Temma\Web\Controller {
 			if (!copy($url, $tgzPath))
 				throw new \Exception("Unable to fetch source archive file ($url).");
 			// untar
-			$phar = new PharData($tgzPath);
+			$phar = new \PharData($tgzPath);
 			if (!$phar->extractTo($tmpPath))
 				throw new \Exception("Unable to uncompress archive '$tgzPath' to '$tmpPath'.");
 			/* Copie des arborescences. */
