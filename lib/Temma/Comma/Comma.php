@@ -88,7 +88,6 @@ class Comma {
 				throw $e;
 			exit(1);
 		}
-		exit(0);
 	}
 
 	/* ********** PRIVATE METHODS ********** */
