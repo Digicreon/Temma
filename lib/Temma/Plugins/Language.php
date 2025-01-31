@@ -70,17 +70,20 @@ class Language extends \Temma\Web\Plugin {
 		$newAction = array_shift($params);
 		$this->_loader->request->setAction($newAction);
 		$this->_loader->request->setParams($params);
-		/* Read the translation file. */
-		$langPath = $this->_loader->config->etcPath . "/lang/$currentLang";
-		try {
-			$langFile = TµSerializer::readFromPrefix($langPath);
-		} catch (TµIOException $ioe) {
-			$logLevel = ($currentLang == $defaultLanguage) ? 'NOTE' : 'WARN';
-			TµLog::log('Temma/Web', $logLevel, "Unable to read language file '$langPath'.");
-			$langFile = null;
+		/* Read the translation file if needed. */
+		$readTranslationFile = $this->_loader->config->xtra('language', 'readTranslationFile', true);
+		if ($readTranslationFile) {
+			$langPath = $this->_loader->config->etcPath . "/lang/$currentLang";
+			try {
+				$langFile = TµSerializer::readFromPrefix($langPath);
+			} catch (TµIOException $ioe) {
+				$logLevel = ($currentLang == $defaultLanguage) ? 'NOTE' : 'WARN';
+				TµLog::log('Temma/Web', $logLevel, "Unable to read language file '$langPath'.");
+				$langFile = null;
+			}
+			$this['l10n'] = $langFile;
 		}
 		$this['lang'] = $currentLang;
-		$this['l10n'] = $langFile;
 		// URL update
 		$url = $this['URL'];
 		if (substr($url, 0, strlen("/$currentLang")) == "/$currentLang") {
