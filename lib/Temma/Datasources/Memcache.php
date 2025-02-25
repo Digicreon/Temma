@@ -41,7 +41,7 @@ use \Temma\Base\Log as TµLog;
  */
 class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 	/** Constant : Prefix of the cache variables which contains the prefix salt. */
-	const PREFIX_SALT_PREFIX = '|_cache_salt';
+	const PREFIX_SALT_PREFIX = '__temma_salt__|';
 	/** Constant : Default Memcache port number. */
 	const DEFAULT_MEMCACHE_PORT = 11211;
 	/** Server connection configuration list. */
@@ -50,6 +50,8 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 	protected ?\Memcached $_memcache = null;
 	/** Default cache duration (24 hours). */
 	protected int $_defaultExpiration = 86400;
+	/** Super cache variable grouping prefix. */
+	protected string $_superPrefix = '';
 	/** Cache variable grouping prefix. */
 	protected string $_prefix = '';
 
@@ -65,19 +67,25 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 		    !($servers = mb_substr($dsn, mb_strlen('memcache://')))) {
 			throw new \Temma\Exceptions\Database("The DSN '$dsn' is not valid.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		}
-		$servers = explode(';', $servers);
-		$instance = new self($servers);
+		$chunks = explode('#', $servers);
+		$servers = explode(';', $chunks[0]);
+		$superPrefix = $chunks[1] ?? null;
+		$instance = new self($servers, $superPrefix);
 		return ($instance);
 	}
 	/**
 	 * Constructor. Connect to a Memcache server.
 	 * @param	array	$servers	List of server configuration data.
+	 * @param	?string	$superPrefix	(optional) Super-prefix, used to separate cache depending on virtual hosts.
+	 *					Use the current hostname if empty.
 	 * @throws	\Temma\Exceptions\Database	If the given server configuration is wrong or if the 'memcached' extension is not loaded.
 	 */
-	public function __construct(array $servers) {
+	public function __construct(array $servers, ?string $superPrefix=null) {
 		if (!extension_loaded('memcached')) {
 			throw new \Temma\Exceptions\Database("The 'memcached' PHP extension is not loaded.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		}
+		$superPrefix ??= $_SERVER['HTTP_HOST'] ?? '';
+		$this->_superPrefix = $superPrefix ? (hash('crc32', $superPrefix) . ']') : '';
 		foreach ($servers as &$server) {
 			if (!$server || is_array($server))
 				continue;
@@ -230,7 +238,7 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 		if (!$this->_enabled || empty($prefix))
 			return;
 		$this->connect();
-		$saltKey = self::PREFIX_SALT_PREFIX . "|$prefix|";
+		$saltKey = $this->_superPrefix . self::PREFIX_SALT_PREFIX . $prefix;
 		$salt = substr(hash('md5', time() . mt_rand()), 0, 8);
 		$this->_memcache->set($saltKey, $salt, 0);
 	}
@@ -348,8 +356,9 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 		if (!$this->_enabled)
 			return ([]);
 		$this->connect();
-		array_walk($keys, function(&$value, $key) {
-			$value = $this->_getSaltedPrefix() . $value;
+		$saltedPrefix = $this->_getSaltedPrefix();
+		array_walk($keys, function(&$value, $key) use ($saltedPrefix) {
+			$value = $saltedPrefix . $value;
 		});
 		$data = $this->_memcache->getMulti($keys);
 		if ($data === false && $this->_memcache->getResultCode() != \Memcached::RES_SUCCESS)
@@ -392,8 +401,9 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 			return (0);
 		$this->connect();
 		$values = [];
+		$saltedPrefix = $this->_getSaltedPrefix();
 		foreach ($data as $key => $value) {
-			$key = $this->_getSaltedPrefix() . $key;
+			$key = $saltedPrefix . $key;
 			$values[$key] = $value;
 		}
 		if ($this->_memcache->setMulti($values, $expire))
@@ -407,22 +417,20 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 	 * @return	string	The generated salted prefix.
 	 */
 	protected function _getSaltedPrefix() : string {
-		$host = $_SERVER['HTTP_HOST'] ?? '';
-		$host = $host ? base_convert($host, 16, 36) : '';
 		// prefix management
 		if (empty($this->_prefix))
-			return ($host);
+			return ($this->_superPrefix);
 		// salt fetching
-		$saltKey = self::PREFIX_SALT_PREFIX . $this->_prefix;
+		$saltKey = $this->_superPrefix . self::PREFIX_SALT_PREFIX . $this->_prefix;
 		if ($this->_enabled && $this->_memcache)
 			$salt = $this->_memcache->get($saltKey);
 		// salt generation if needed
 		if (!isset($salt) || !is_string($salt)) {
-			$salt = substr(hash('md5', time() . mt_rand()), 0, 8);
+			$salt = bin2hex(random_bytes(4));
 			if ($this->_enabled && $this->_memcache)
 				$this->_memcache->set($saltKey, $salt, 0);
 		}
-		return ("$host#$salt" . $this->_prefix);
+		return ($this->_superPrefix . $salt . $this->_prefix);
 	}
 }
 
