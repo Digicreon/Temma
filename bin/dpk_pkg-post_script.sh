@@ -61,13 +61,14 @@ else
 	pushd /opt/temma-project-web > /dev/null
 	sed "s/\"digicreon\/temma-lib\": \"[^\"]*\"/\"digicreon\/temma-lib\": \"^$PKG_TAG\"/" composer.json > composer.json.tmp
 	mv composer.json.tmp composer.json
-	# commit tiles
+	# commit files
 	if [[ -n $(git status --porcelain) ]]; then
 		git add .
 		git commit -m "Update from Temma main repository version '$PKG_TAG'."
 		git push
-		/opt/dispak/dpk pkg --tag=$PKG_TAG
 	fi
+	# create tag
+	/opt/dispak/dpk pkg --tag=$PKG_TAG
 	echo "   done"
 	popd > /dev/null
 fi
@@ -94,13 +95,14 @@ else
 	pushd /opt/temma-project-api > /dev/null
 	sed "s/\"digicreon\/temma-lib\": \"[^\"]*\"/\"digicreon\/temma-lib\": \"^$PKG_TAG\"/" composer.json > composer.json.tmp
 	mv composer.json.tmp composer.json
-	# commit tiles
+	# commit files
 	if [[ -n $(git status --porcelain) ]]; then
 		git add .
 		git commit -m "Update from Temma main repository version '$PKG_TAG'."
 		git push
-		/opt/Dispak/dpk pkg --tag=$PKG_TAG
 	fi
+	# create tag
+	/opt/Dispak/dpk pkg --tag=$PKG_TAG
 	echo "   done"
 	popd > /dev/null
 fi
