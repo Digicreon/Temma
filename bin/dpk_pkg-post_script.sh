@@ -68,7 +68,7 @@ else
 		git push
 	fi
 	# create tag
-	/opt/dispak/dpk pkg --tag=$PKG_TAG
+	/opt/Dispak/dpk pkg --tag=$PKG_TAG
 	echo "   done"
 	popd > /dev/null
 fi
