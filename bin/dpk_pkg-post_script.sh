@@ -25,14 +25,15 @@ else
 	pushd /opt/Temma > /dev/null
 	cp -a lib/*         /opt/temma-lib/lib/
 	popd > /dev/null
-	# commit tiles
+	# commit files
 	pushd /opt/temma-lib > /dev/null
 	if [[ -n $(git status --porcelain) ]]; then
 		git add .
 		git commit -m "Update from Temma main repository version '$PKG_TAG'."
 		git push
-		/opt/Dispak/dpk pkg --tag=$PKG_TAG
 	fi
+	# create tag
+	/opt/Dispak/dpk pkg --tag=$PKG_TAG
 	echo "   done"
 	popd > /dev/null
 fi
