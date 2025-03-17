@@ -59,7 +59,8 @@ class Language extends \Temma\Web\Plugin {
 				}
 			}
 			// redirection
-			$this->_redirect("/$defaultLanguage" . $_SERVER['REQUEST_URI']);
+			$uri = rtrim($_SERVER['REQUEST_URI'], '/');
+			$this->_redirect("/$defaultLanguage$uri");
 			return (self::EXEC_HALT);
 		}
 		/* The language was given as first URL chunk. */
@@ -86,10 +87,9 @@ class Language extends \Temma\Web\Plugin {
 		$this['lang'] = $currentLang;
 		// URL update
 		$url = $this['URL'];
-		if (substr($url, 0, strlen("/$currentLang")) == "/$currentLang") {
-			$url = trim(substr($url, strlen("/$currentLang")));
-			$url = empty($url) ? '/' : $url;
-			$this['URL'] = $url;
+		if (str_starts_with($url, "/$currentLang")) {
+			$url = trim(mb_substr($url, mb_strlen("/$currentLang")));
+			$this['URL'] = $url ?: '/';
 		}
 		$this['CONTROLLER'] = $newController;
 		$this['ACTION'] = $newAction;
