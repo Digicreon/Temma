@@ -258,7 +258,7 @@ class Auth extends \Temma\Web\Plugin {
 		$token = \Temma\Utils\BaseConvert::convertToSpecialBase($token, 16, 31);
 		$token = substr($token, 0, 12);
 		// store the token in database
-		TµLog::log('arkiv', 'DEBUG', "Token : '$token'");
+		TµLog::log('Temma/Web', 'DEBUG', "Token : '$token'");
 		$this->_tokenDao->create([
 			$this->_tokenFieldName      => hash('sha256', $token),
 			$this->_expirationFieldName => date('Y-m-d H:i:s', strtotime('+1 hour')),
