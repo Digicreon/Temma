@@ -268,34 +268,32 @@ class Api extends \Temma\Web\Plugin {
 		} else {
 			$params = [
 				'cache' => false,
-				'table' => 'AuthToken',
+				'table' => 'ApiKey',
 			];
-			if (isset($conf['apiKeyData'])) {
-				if (isset($conf['apiKeyData']['base']))
-					$params['base'] = $conf['apiKeyData']['base'];
-				if (isset($conf['apiKeyData']['table']))
-					$params['table'] = $conf['apiKeyData']['table'];
-				$params['fields'] = [];
-				if (isset($conf['apiKeyData']['public_key'])) {
-					$params['id'] = $conf['apiKeyData']['public_key'];
-					$params['fields'][$conf['apiKeyData']['public_key']] = 'public_key';
-				} else {
-					$params['id'] = 'public_key';
-					$params['fields'][] = 'public_key';
-				}
-				if (isset($conf['apiKeyData']['private_key']))
-					$params['fields'][$conf['apiKeyData']['private_key']] = 'private_key';
-				else
-					$params['fields'][] = 'private_key';
-				if (isset($conf['apiKeyData']['name']))
-					$params['fields'][$conf['apiKeyData']['name']] = 'name';
-				else
-					$params['fields'][] = 'name';
-				if (isset($conf['apiKeyData']['user_id']))
-					$params['fields'][$conf['apiKeyData']['user_id']] = 'user_id';
-				else
-					$params['fields'][] = 'user_id';
+			if (isset($conf['apiKeyData']['base']))
+				$params['base'] = $conf['apiKeyData']['base'];
+			if (isset($conf['apiKeyData']['table']))
+				$params['table'] = $conf['apiKeyData']['table'];
+			$params['fields'] = [];
+			if (isset($conf['apiKeyData']['public_key'])) {
+				$params['id'] = $conf['apiKeyData']['public_key'];
+				$params['fields'][$conf['apiKeyData']['public_key']] = 'public_key';
+			} else {
+				$params['id'] = 'public_key';
+				$params['fields'][] = 'public_key';
 			}
+			if (isset($conf['apiKeyData']['private_key']))
+				$params['fields'][$conf['apiKeyData']['private_key']] = 'private_key';
+			else
+				$params['fields'][] = 'private_key';
+			if (isset($conf['apiKeyData']['name']))
+				$params['fields'][$conf['apiKeyData']['name']] = 'name';
+			else
+				$params['fields'][] = 'name';
+			if (isset($conf['apiKeyData']['user_id']))
+				$params['fields'][$conf['apiKeyData']['user_id']] = 'user_id';
+			else
+				$params['fields'][] = 'user_id';
 			$this->_apiKeyDao = $this->_loadDao($params);
 		}
 	}
