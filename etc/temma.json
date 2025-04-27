@@ -3,7 +3,7 @@
 		"dataSources": {
 			"db": "mysql://user:passwd@localhost/mybase"
 		},
-		"rootController": "HomepageController"
+		"rootController": "Homepage"
 	},
 	"loglevels": "WARN",
 	"errorPages": "error404.html"

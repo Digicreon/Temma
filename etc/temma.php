@@ -15,7 +15,7 @@ return [
 			'db' => 'mysql://user:passwd@localhost/mybase',
 		],
 		// root controller
-		'rootController' => 'HomepageController',
+		'rootController' => 'Homepage',
 	],
 	// threshold for log messages
 	'loglevels' => 'WARN',
