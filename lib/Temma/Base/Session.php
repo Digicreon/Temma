@@ -331,7 +331,8 @@ class Session implements \ArrayAccess {
 			unset($from[$key]);
 		}
 		// data sync
-		$this->_storeData();
+		if ($list)
+			$this->_storeData();
 		return ($list);
 	}
 	/**
