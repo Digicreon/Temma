@@ -17,6 +17,20 @@ use \Temma\Exceptions\IO as TµIOException;
  */
 class ExtendedArray {
 	/**
+	 * Tell if an array has only scalar values (or is empty).
+	 * @param	?array	$array	The input array.
+	 * @return	bool	True if the array is empty or contains only scalar values.
+	 */
+	static public function hasOnlyScalarValues(?array $array) : bool {
+		if (!$array)
+			return (true);
+		foreach ($array as $value) {
+			if (!is_scalar($value))
+				return (false);
+		}
+		return (true);
+	}
+	/**
 	 * Merge two arrays.
 	 * For simple lists (numeric keys), act like array_merge_recursive().
 	 * For associative arrays (string keys), act like array_replace_recursive().
