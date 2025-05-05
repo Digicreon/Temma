@@ -11,6 +11,7 @@ namespace Temma\Utils;
 
 use \Temma\Base\Log as TµLog;
 use \Temma\Utils\Serializer as TµSerializer;
+use \Temma\Utils\ExtendedArray as TµExtendedArray;
 use \Temma\Utils\Ansi as TµAnsi;
 
 /**
@@ -245,7 +246,9 @@ class Dumper {
 		if (is_resource($data))
 			return (($this->_dumpResource)($data));
 		if (is_array($data)) {
-			if (!$this->_addToKnownList($data))
+			// manage recursion for arrays with more than 3 values or non scalar values
+			if (!(count($data) <= 3 && TµExtendedArray::hasOnlyScalarValues($data)) &&
+			    !$this->_addToKnownList($data))
 				return (($this->_dumpRecursion)());
 			$res = ($this->_dumpArrayStart)($data);
 			foreach ($data as $key => $value) {
