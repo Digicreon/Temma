@@ -127,6 +127,11 @@ class Comma {
 			'request'  => $this->_request,
 			'response' => $this->_response,
 		]);
+		// configure the loader with the defined aliases and prefixes
+		if (isset($this->_config->loaderAliases))
+			$this->_loader->setAliases($this->_config->loaderAliases);
+		if (isset($this->_config->loaderPrefixes))
+			$this->_loader->setPrefixes($this->_config->loaderPrefixes);
 	}
 	/** Creates the configuration. */
 	private function _manageConfiguration() : void {
