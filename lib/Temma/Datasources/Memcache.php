@@ -202,8 +202,11 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 		$origPrefix = $this->_prefix;
 		$origKey = $key;
 		$key = $this->_getSaltedPrefix() . $key;
-		if ($this->_memcache->get($key) === false && $this->_memcache->getResultCode() == \Memcached::RES_NOTFOUND)
-			return (false);
+		if ($this->_memcache->get($key) === false) {
+			$resultCode = $this->_memcache->getResultCode();
+			if ($resultCode == \Memcached::RES_NOTFOUND || $resultCode == 47)
+				return (false);
+		}
 		return (true);
 	}
 	/**
@@ -215,7 +218,7 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 			return;
 		$this->connect();
 		$key = $this->_getSaltedPrefix() . $key;
-		$this->_memcache?->delete($key, 0);
+		$this->_memcache->delete($key);
 	}
 	/**
 	 * Remove many cache variables at once.
