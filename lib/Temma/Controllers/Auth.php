@@ -127,6 +127,8 @@ class Auth extends \Temma\Web\Plugin {
 	private string $_expirationFieldName = 'expiration';
 	/** Name of the "user_id" field in the "AuthToken" table. */
 	private string $_userIdFieldName = 'user_id';
+	/** Redirection URL, used for most of operations. */
+	private string $_redirectUrl = '/auth/login';
 
 	/** Preplugin: check if the user is authenticated. */
 	public function preplugin() {
@@ -156,9 +158,14 @@ class Auth extends \Temma\Web\Plugin {
 		$this['currentUser'] = $user;
 		$this['currentUserId'] = $currentUserId;
 	}
+	/** Initialization. */
+	public function __wakeup() {
+		if ($this['lang'])
+			$this->_redirectUrl = '/' . $this['lang'] . $this->_redirectUrl;
+	}
 	/** Redirection of the root action. */
 	public function __invoke() {
-		return $this->_redirect('/auth/login');
+		return $this->_redirect($this->_redirectUrl);
 	}
 	/** Logout of the currently connected user. */
 	#[TµAuth(redirect: '/auth/login')]
@@ -169,7 +176,7 @@ class Auth extends \Temma\Web\Plugin {
 		if ($this['currentUser'])
 			$this->_session['__authStatus'] = 'logout';
 		// redirection
-		return $this->_redirect('/auth/login');
+		return $this->_redirect($this->_redirectUrl);
 	}
 	/**
 	 * Login page.
@@ -189,7 +196,7 @@ class Auth extends \Temma\Web\Plugin {
 	#[TµPost]
 	#[TµAuth(authenticated: false, redirect: '/')]
 	public function authentication() {
-		$this->_redirect('/auth/login');
+		$this->_redirect($this->_redirectUrl);
 		// get the configuration
 		$conf = $this->_config->xtra('security', 'auth');
 		// check email address
@@ -296,7 +303,7 @@ class Auth extends \Temma\Web\Plugin {
 		// check the user (hence the token)
 		if (!$currentUser) {
 			$this->_session['__authStatus'] = 'badToken';
-			return $this->_redirect('/auth/login');
+			return $this->_redirect($this->_redirectUrl);
 		}
 		// store the user identifier in session
 		$currentUserId = $currentUser['id'] ?? null;
