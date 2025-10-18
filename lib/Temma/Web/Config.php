@@ -106,6 +106,10 @@ class Config {
 	protected ?string $_webPath = null;
 	/** Name of the loader object. */
 	protected ?string $_loader = null;
+	/** Array of loader preloaded data. */
+	protected ?array $_loaderPreload = null;
+	/** Array of loader lazily loaded data. */
+	protected ?array $_loaderLazy = null;
 	/** Array of loader aliases. */
 	protected ?array $_loaderAliases = null;
 	/** Array of loader prefixes. */
@@ -295,6 +299,8 @@ class Config {
 		}
 
 		// definitions
+		$this->_loaderPreload = $ini['x-loader']['preload'] ?? null;
+		$this->_loaderLazy = $ini['x-loader']['lazy'] ?? null;
 		$this->_loaderAliases = $ini['x-loader']['aliases'] ?? null;
 		$this->_loaderPrefixes = $ini['x-loader']['prefixes'] ?? null;
 		$this->_logManager = $ini['application']['logManager'] ?? null;
