@@ -10,6 +10,36 @@
 namespace Temma\Base;
 
 use \Temma\Base\Log as TµLog;
+use \Temma\Exceptions\Loader as TµLoaderException;
+
+/**
+ * Class used to encapsulate a factory anonymous function.
+ * Factory anonymous functions are executed each time their corresponding key is fetched
+ * from the loader (while regular anonymous functions are executed once, and their returned
+ * values replace them in the loader).
+ */
+final class LoaderFactory {
+	/** Internal closure, used as a factory. */
+	public \Closure $closure;
+
+	/** Constructor. */
+	public function __construct(\Closure $closure) {
+		$this->closure = $closure;
+	}
+}
+
+/**
+ * Class used to encapsulate an anonymous function for lazily-générated objects.
+ */
+final class LoaderLazy {
+	/** Internal closure. */
+	public \Closure $closure;
+
+	/** Constructor. */
+	public function __construct(\Closure $closure) {
+		$this->closure = $closure;
+	}
+}
 
 /**
  * Dependency injection container.
@@ -76,8 +106,6 @@ use \Temma\Base\Log as TµLog;
 class Loader extends \Temma\Utils\Registry {
 	/** Builder function. */
 	protected /*?callable*/ $_builder = null;
-	/** Aliases. */
-	protected array $_aliases = [];
 	/** Prefixes. */
 	protected array $_prefixes = [];
 
@@ -101,42 +129,86 @@ class Loader extends \Temma\Utils\Registry {
 		return ($this);
 	}
 
-	/* ********** ALIASES AND PREFIXES ********** */
+	/* ********** LAZY, ALIASES AND PREFIXES ********** */
 	/**
-	 * Add an alias.
-	 * @param	string	$name	Name of the alias.
-	 * @param	?string	$class	Name of the aliased class. Could be null to remove the alias.
+	 * Add a lazily-loaded data.
+	 * @param	string	$key	Index key.
+	 * @param	mixed	$data	Value associated to the key.
+	 * @return	\Temma\Base\Loader	The current object.
 	 */
-	public function setAlias(string $name, ?string $class) : void {
-		if (!$class)
-			unset($this->_aliases[$name]);
-		else
-			$this->_aliases[$name] = $class;
+	public function setLazy(string $key, mixed $data=null) : \Temma\Base\Loader {
+		if (is_null($data)) {
+			if (($this->_data[$key] ?? null) instanceof LoaderLazy)
+				unset($this->_data[$key]);
+			return ($this);
+		}
+		// add the key
+		$this->_data[$key] = new LoaderLazy(function() use ($data) {
+			return ($data);
+		});
+		return ($this);
+	}
+	/**
+	 * Add an alias, or a list of aliases.
+	 * @param	string|array	$alias	If a string is given, it's the index key, and a value should be given.
+	 *					If an array is given, its key/value pairs are used to set loader's values,
+	 *					and the second parameter is not used.
+	 * @param	?string	$aliased	(optional) Name of the aliased element. Could be null to remove the alias.
+	 * @return	\Temma\Base\Loader	The current object.
+	 */
+	public function setAlias(string|array $alias, ?string $aliased=null) : \Temma\Base\Loader {
+		if (is_array($alias)) {
+			foreach ($alias as $aliasKey => $aliased) {
+				$this->setAlias($aliasKey, $aliased);
+			}
+			return ($this);
+		}
+		if (is_null($aliased)) {
+			// remove the previously created alias
+			if (($this->_data[$alias] ?? null) instanceof LoaderFactory)
+				unset($this->_data[$alias]);
+			return ($this);
+		}
+		// add the alias as a LoaderFactory-protected closure
+		$this->_data[$alias] = new LoaderFactory(function() use ($aliased) {
+			return $this->get($aliased);
+		});
+		return ($this);
 	}
 	/**
 	 * Add aliases.
 	 * @param	array	$aliases	Associative array of aliases.
+	 * @return	\Temma\Base\Loader	The current object.
 	 */
-	public function setAliases(array $aliases) : void {
-		$this->_aliases = array_merge($this->_aliases, $aliases);
+	public function setAliases(array $aliases) : \Temma\Base\Loader {
+		return ($this->setAlias($aliases));
 	}
 	/**
 	 * Add a prefix.
-	 * @param	string	$name	Name of the prefix.
-	 * @param	?string	$prefix	Prefixed namespace. Could be null to remove a prefix.
+	 * @param	string|array	$name	If a string is given, it's the name of the prefix, and a prefix should be given.
+	 *					If an array is given, its key/value pairs are used to set prefixes, and the
+	 *					second parameter is not used.
+	 * @param	?string		$prefix	Prefixed namespace. Could be null to remove a prefix.
+	 * @return	\Temma\Base\Loader	The current object.
 	 */
-	public function setPrefix(string $name, ?string $prefix) : void {
+	public function setPrefix(string|array $name, ?string $prefix=null) : \Temma\Base\Loader {
+		if (is_array($name)) {
+			$this->_prefixes = array_merge($this->_prefixes, $name);
+			return ($this);
+		}
 		if (!$prefix)
 			unset($this->_prefixes[$name]);
 		else
 			$this->_prefixes[$name] = $prefix;
+		return ($this);
 	}
 	/**
 	 * Add prefixes.
 	 * @param	array	$prefixes	Associative array of prefixes.
+	 * @return	\Temma\Base\Loader	The current object.
 	 */
-	public function setPrefixes(array $prefixes) : void {
-		$this->_prefixes = array_merge($this->_prefixes, $prefixes);
+	public function setPrefixes(array $prefixes) : \Temma\Base\Loader {
+		return ($this->setPrefix($prefixes));
 	}
 
 	/* ********** DATA WRITING ********** */
@@ -162,6 +234,24 @@ class Loader extends \Temma\Utils\Registry {
 			$this->_data[$key] = $data;
 		return ($this);
 	}
+	/**
+	 * Create a factory. A factory is a closure wich will be executed each time the value is requested
+	 * (not like plain closures which are executed once to set the value).
+	 * @param	\Closure	$closure	Closure to use as a factory.
+	 * @return	LoaderFactory	The protected closure.
+	 */
+	/*public function factory(\Closure $closure) : LoaderFactory {
+		return new LoaderFactory($closure);
+	}*/
+	/**
+	 * Create a factory. A factory is a closure wich will be executed each time the value is requested
+	 * (not like plain closures which are executed once to set the value).
+	 * @param	\Closure	$closure	Closure to use as a factory.
+	 * @return	LoaderFactory	The protected closure.
+	 */
+	static public function Factory(\Closure $closure) : LoaderFactory {
+		return new LoaderFactory($closure);
+	}
 
 	/* ********** DATA READING ********** */
 	/**
@@ -174,49 +264,48 @@ class Loader extends \Temma\Utils\Registry {
 		// special processing for Asynk
 		if ($key == 'asynk') {
 			return (new \Temma\Asynk\Client($this));
+		} else if ($key == '\Temma\Base\Loader' || $key == 'TµLoader') {
+			return ($this);
 		}
 		// key exists
 		if (isset($this->_data[$key])) {
-			if (is_callable($this->_data[$key]) && !$this->_data[$key] instanceof \Temma\Web\Controller)
-				$this->_data[$key] = $this->_data[$key]($this);
-			if (isset($this->_data[$key]))
+			if ($this->_data[$key] instanceof LoaderFactory) {
+				$closure = $this->_data[$key]->closure;
+				return ($this->_instanciate($closure, $default));
+			}
+			if ($this->_data[$key] instanceof LoaderLazy) {
+				$closure = $this->_data[$key]->closure;
+				$this->_data[$key] = $this->_instanciate($closure(), $default);
 				return ($this->_data[$key]);
+			}
+			if (is_callable($this->_data[$key]) && !$this->_data[$key] instanceof \Temma\Web\Controller) {
+				$this->_data[$key] = $this->_instanciate($this->_data[$key]);
+			}
+			if (isset($this->_data[$key])) {
+				return ($this->_data[$key]);
+			}
 		}
-		// check aliases and prefixes
-		$alias = null;
-		if (isset($this->_aliases[$key])) {
-			// get alias
-			$alias = $this->_aliases[$key];
-			// store in data
-			if ((is_callable($alias) && !$alias instanceof \Temma\Web\Controller) || is_string($alias)) {
+		// loop on prefixes
+		foreach ($this->_prefixes as $prefix => $value) {
+			if (!str_starts_with($key, $prefix) || !isset($value))
+				continue;
+			$shortKey = mb_substr($key, mb_strlen($prefix));
+			if (is_callable($value) && !$value instanceof \Temma\Web\Controller) {
 				// it's a callback, execute it
-				// it's a string, use it as an alias
-				$this->_data[$key] = $this->_instanciate($alias, $default);
+				$this->_data[$key] = $value($this, $shortKey);
 			} else {
-				// it's not a callback nor a string, use it as the associated value
-				$this->_data[$key] = $alias;
+				// it's hopefully a string
+				$this->_data[$key] = $this->_instanciate("$value$shortKey", $default);
 			}
-			// remove the alias
-			unset($this->_aliases[$key]);
-		} else {
-			// loop on prefixes
-			foreach ($this->_prefixes as $prefix => $value) {
-				if (!str_starts_with($key, $prefix) || !isset($value))
-					continue;
-				$shortKey = mb_substr($key, mb_strlen($prefix));
-				if (is_callable($value) && !$value instanceof \Temma\Web\Controller) {
-					// it's a callback, execute it
-					$this->_data[$key] = $value($this, $shortKey);
-				} else {
-					// it's hopefully a string
-					$this->_data[$key] = $this->_instanciate("$value$shortKey", $default);
-				}
-				if (isset($this->_data[$key]))
-					break;
-			}
+			if (isset($this->_data[$key]))
+				break;
 		}
-		if (isset($this->_data[$key]))
+		if (isset($this->_data[$key])) {
+			if ($this->_data[$key] instanceof LoaderFactory) {
+				return $this->get($this->_data[$key]);
+			}
 			return ($this->_data[$key]);
+		}
 		// instanciate the object
 		$this->_data[$key] = $this->_instanciate($key, $default);
 		return ($this->_data[$key]);
@@ -233,7 +322,55 @@ class Loader extends \Temma\Utils\Registry {
 		$result = null;
 		// callable
 		if (is_callable($obj) && !$obj instanceof \Temma\Web\Controller) {
-			$result = $obj($this);
+			try {
+				$rf = new \ReflectionFunction($obj);
+			} catch (\ReflectionException $re) {
+				try {
+					$rf = new \ReflectionMethod($obj);
+				} catch (\ReflectionException $re) {
+					$rf = null;
+				}
+			}
+			if ($rf) {
+				// management of attributes
+				$attributes = $rf->getAttributes(null, \ReflectionAttribute::IS_INSTANCEOF);
+				foreach ($attributes as $attribute) {
+					$attribute->newInstance();
+				}
+				// management of parameters
+				$params = $this->_extractFunctionParameters($rf);
+				if (!$params) {
+					// no parameter
+					$result = $obj();
+				} else {
+					// some parameters
+					$paramArray = [];
+					foreach ($params as $param) {
+						// search value
+						$value = null;
+						// loop on types to find the value
+						foreach ($param['types'] as $type) {
+							try {
+								if (($value = $this->get($type)))
+									break;
+							} catch (TµLoaderException $le) {
+							}
+						}
+						// no value fetched from the type, search from the parameter's name
+						if ($value === null) {
+							if (($val = $this->get($param['name'])) &&
+							    (!$param['types'] || self::checkType($val, $param['types'])))
+								$value = $val;
+						}
+						// check if the parameter is nullable
+						if ($value === null && !$param['nullable'])
+							throw new TµLoaderException("Bad parameter '\$" . $param['name'] . "'.", tµLoaderException::BAD_PARAM);
+						// prepare the parameter
+						$paramArray[$param['name']] = $value;
+					}
+					$result = call_user_func_array($obj, $paramArray);
+				}
+			}
 			if (isset($result))
 				return ($result);
 		}
@@ -245,19 +382,64 @@ class Loader extends \Temma\Utils\Registry {
 		if (is_subclass_of($obj, '\Temma\Dao\Dao') && isset($this->_data['controller']) && $this->_data['controller'] instanceof \Temma\Web\Controller) {
 			return ($this->_data['controller']->_loadDao($obj));
 		}
-		// controller
-		if (is_subclass_of($obj, '\Temma\Web\Controller')) {
-			// management of controller's attributes
-			$controllerReflection = new \ReflectionClass($obj);
-			$attributes = $controllerReflection->getAttributes(null, \ReflectionAttribute::IS_INSTANCEOF);
-			for ($parentClass = $controllerReflection->getParentClass(); $parentClass; $parentClass = $parentClass->getParentClass())
+		// object instanciation
+		try {
+			$rc = new \ReflectionClass($obj);
+			// check if abstract
+			if ($rc->isAbstract())
+				throw new TµLoaderException('Abastract class.', TµLoaderException::ABSTRACT_CLASS);
+			// management of object's attributes
+			$attributes = $rc->getAttributes(null, \ReflectionAttribute::IS_INSTANCEOF);
+			for ($parentClass = $rc->getParentClass(); $parentClass; $parentClass = $parentClass->getParentClass())
 				$attributes = array_merge($attributes, $parentClass->getAttributes(null, \ReflectionAttribute::IS_INSTANCEOF));
 			foreach ($attributes as $attribute) {
-				TµLog::log('Temma/Web', 'DEBUG', "Controller attribute '{$attribute->getName()}'.");
 				$attribute->newInstance();
 			}
-			// instanciation of the controller
-			return (new $obj($this, ($this->_data['parentController'] ?? $this->_data['controller'] ?? null)));
+			// special process for controllers
+			if (is_subclass_of($obj, '\Temma\Web\Controller')) {
+				return (new $obj($this, ($this->_data['parentController'] ?? $this->_data['controller'] ?? null)));
+			}
+			// management of the constructor
+			$constructor = $rc->getConstructor();
+			if (!$constructor) {
+				// no constructor
+				return (new $obj());
+			}
+			// get parameters
+			$params = $this->_extractFunctionParameters($constructor);
+			if (!$params) {
+				// no parameter
+				return (new $obj());
+			}
+			$paramArray = [];
+			foreach ($params as $param) {
+				// search value
+				$value = null;
+				// loop on types to find the value
+				$param['types'] ??= [];
+				foreach ($param['types'] as $type) {
+					try {
+						if (($val = $this->get($type)) && self::checkType($val, $type)) {
+							$value = $val;
+							break;
+						}
+					} catch (TµLoaderException $le) {
+					}
+				}
+				// no value fetched from the type, search from the parameter's name
+				if ($value === null &&
+				    ($val = $this->get($param['name'])) &&
+				    (!$param['types'] || self::checkType($val, $param['types']))) {
+					$value = $val;
+				}
+				// check if the parameter is nullable
+				if ($value === null && !$param['nullable'])
+					throw new TµLoaderException("Bad parameter '\$" . $param['name'] . "'.", TµLoaderException::BAD_PARAM);
+				// prepare the parameter
+				$paramArray[$param['name']] = $value;
+			}
+			return (new $obj(...$paramArray));
+		} catch (\ReflectionException $e) {
 		}
 		// call builder function
 		if (isset($this->_builder)) {
@@ -274,9 +456,112 @@ class Loader extends \Temma\Utils\Registry {
 		}
 		// if the default value is a callback, execute it
 		if (is_callable($default) && !$default instanceof \Temma\Web\Controller) {
-			$default = $default($this);
+			$default = $this->_instanciate($default);
 		}
 		return ($default);
+	}
+	/**
+	 * Returns the parameters list of a function/method.
+	 * @param	\ReflectionMethod|\ReflectionFunction	$rf	The reflection object created from the function/method.
+	 * @return	array	A list of associative arrays.
+	 */
+	private function _extractFunctionParameters(\ReflectionMethod|\ReflectionFunction $rf) : array {
+		$params = [];
+		foreach ($rf->getParameters() as $p) {
+			$param = [
+				'name' => $p->getName(),
+				'types' => null,
+				'nullable' => false,
+				'isVariadic' => $p->isVariadic(),
+				'hasDefault' => $p->isDefaultValueAvailable(),
+				'defaultValue' => $p->isDefaultValueAvailable() ? $p->getDefaultValue() : null,
+			];
+			$rt = $p->getType();
+			if ($rt === null) {
+				// noop
+			} else if ($rt instanceof \ReflectionUnionType) {
+				$param['types'] = [];
+				$nullable = false;
+				foreach ($rt->getTypes() as $tt) {
+					$param['types'][] = $tt->getName();
+					if ($tt->allowsNull() || ($tt->getName() == 'mixed'))
+						$param['nullable'] = true;
+				}
+			} else if ($rt->isBuiltin() || $rt instanceof \ReflectionNamedType) {
+				$param['types'] = [$rt->getName()];
+				$param['nullable'] = $rt->allowsNull() || ($rt->getName() == 'mixed');
+			} else if ($rt instanceof \ReflectionInstersectionType) {
+				throw new \Exception("Intersection de types.");
+			}
+			$params[] = $param;
+		}
+		return ($params);
+	}
+	/**
+	 * Tell if a variable is of the given type. The type might be complex (null|int|Foo).
+	 * @param	mixed		$value	The variable to check.
+	 * @param	string|array	$type	The type(s) to validate.
+	 * @return	bool	True if the type matches.
+	 */
+	static public function checkType(mixed $value, string|array $type) : bool {
+		if (is_array($type)) {
+			foreach ($type as $t) {
+				if (self::checkType($value, $t))
+					return (true);
+			}
+			return (false);
+		}
+		$type = trim($type);
+		// Nullable prefix ?T
+		if (str_starts_with($type, '?')) {
+			return ($value === null || self::checkType($value, substr($type, 1)));
+		}
+		// Union types: A|B|null
+		if (str_contains($type, '|')) {
+			foreach (explode('|', $type) as $part) {
+				if (self::checkType($value, trim($part)))
+					return (true);
+			}
+			return (false);
+		}
+		// Intersection types: A&B (objets uniquement)
+		if (str_contains($type, '&')) {
+			foreach (explode('&', $type) as $part) {
+				if (!self::checkType($value, trim($part)))
+					return (false);
+			}
+			return (true);
+		}
+		// scalars and pseudo-types
+		$t = strtolower($type);
+		switch ($t) {
+			case 'int':
+			case 'integer':  return (is_int($value));
+			case 'string':   return (is_string($value));
+			case 'bool':
+			case 'boolean':  return (is_bool($value));
+			case 'float':
+			case 'double':
+			case 'real':     return (is_float($value));
+			case 'array':    return (is_array($value));
+			case 'object':   return (is_object($value));
+			case 'callable': return (is_callable($value));
+			case 'iterable': return (is_iterable($value));
+			case 'resource': return (is_resource($value));
+			case 'null':     return (is_null($value));
+			case 'scalar':   return (is_scalar($value));     // int|float|string|bool
+			case 'numeric':  return (is_numeric($value));    // not a real PHP type
+			case 'mixed':    return (true);
+		}
+		// classes and interfaces
+		if (is_object($value)) {
+			return (is_a($value, $type));
+		}
+		// class-string
+		if (is_string($value) && (class_exists($value) || interface_exists($value) || enum_exists($value))) {
+			return (is_a($value, $type, true));
+		}
+		return (false);
 	}
 }
 
