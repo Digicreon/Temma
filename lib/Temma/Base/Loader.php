@@ -3,7 +3,7 @@
 /**
  * Loader
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2019-2023, Amaury Bouchard
+ * @copyright	© 2019-2025, Amaury Bouchard
  * @link	https://www.temma.net/documentation/loader
  */
 
@@ -12,19 +12,19 @@ namespace Temma\Base;
 use \Temma\Base\Log as TµLog;
 use \Temma\Exceptions\Loader as TµLoaderException;
 
+/* ********** WRAPPER CLASSES ********** */
 /**
  * Class used to encapsulate a factory anonymous function.
  * Factory anonymous functions are executed each time their corresponding key is fetched
  * from the loader (while regular anonymous functions are executed once, and their returned
  * values replace them in the loader).
  */
-final class LoaderFactory {
-	/** Internal closure, used as a factory. */
-	public \Closure $closure;
-
-	/** Constructor. */
-	public function __construct(\Closure $closure) {
-		$this->closure = $closure;
+final class LoaderDynamic {
+	/**
+	 * Constructor.
+	 * @param	\Closure	$closure	Internal closure, used as a factory.
+	 */
+	public function __construct(public readonly \Closure $closure) {
 	}
 }
 
@@ -32,14 +32,15 @@ final class LoaderFactory {
  * Class used to encapsulate an anonymous function for lazily-générated objects.
  */
 final class LoaderLazy {
-	/** Internal closure. */
-	public \Closure $closure;
-
-	/** Constructor. */
-	public function __construct(\Closure $closure) {
-		$this->closure = $closure;
+	/**
+	 * Constructor.
+	 * @param	\Closure	$closure	Internal closure.
+	 */
+	public function __construct(public readonly \Closure $closure) {
 	}
 }
+
+/* ********** DEPENDENCY INJECTION CONTAINER ********** */
 
 /**
  * Dependency injection container.
@@ -104,10 +105,12 @@ final class LoaderLazy {
  * </code>
  */
 class Loader extends \Temma\Utils\Registry {
-	/** Builder function. */
+	/** @var ?callable Builder callback. */
 	protected /*?callable*/ $_builder = null;
-	/** Prefixes. */
+	/** @var array<string,string> Prefix map. */
 	protected array $_prefixes = [];
+	/** Static cache for reflection parameter analysis */
+	private static array $_paramCache = [];
 
 	/* ********** CONSTRUCTION ********** */
 	/**
@@ -143,9 +146,7 @@ class Loader extends \Temma\Utils\Registry {
 			return ($this);
 		}
 		// add the key
-		$this->_data[$key] = new LoaderLazy(function() use ($data) {
-			return ($data);
-		});
+		$this->_data[$key] = new LoaderLazy(fn() => $data);
 		return ($this);
 	}
 	/**
@@ -165,14 +166,12 @@ class Loader extends \Temma\Utils\Registry {
 		}
 		if (is_null($aliased)) {
 			// remove the previously created alias
-			if (($this->_data[$alias] ?? null) instanceof LoaderFactory)
+			if (($this->_data[$alias] ?? null) instanceof LoaderDynamic)
 				unset($this->_data[$alias]);
 			return ($this);
 		}
-		// add the alias as a LoaderFactory-protected closure
-		$this->_data[$alias] = new LoaderFactory(function() use ($aliased) {
-			return $this->get($aliased);
-		});
+		// add the alias as a LoaderDynamic-protected closure
+		$this->_data[$alias] = new LoaderDynamic(fn() => $this->get($aliased));
 		return ($this);
 	}
 	/**
@@ -238,19 +237,10 @@ class Loader extends \Temma\Utils\Registry {
 	 * Create a factory. A factory is a closure wich will be executed each time the value is requested
 	 * (not like plain closures which are executed once to set the value).
 	 * @param	\Closure	$closure	Closure to use as a factory.
-	 * @return	LoaderFactory	The protected closure.
+	 * @return	LoaderDynamic	The protected closure.
 	 */
-	/*public function factory(\Closure $closure) : LoaderFactory {
-		return new LoaderFactory($closure);
-	}*/
-	/**
-	 * Create a factory. A factory is a closure wich will be executed each time the value is requested
-	 * (not like plain closures which are executed once to set the value).
-	 * @param	\Closure	$closure	Closure to use as a factory.
-	 * @return	LoaderFactory	The protected closure.
-	 */
-	static public function Factory(\Closure $closure) : LoaderFactory {
-		return new LoaderFactory($closure);
+	static public function dynamic(\Closure $closure) : LoaderDynamic {
+		return new LoaderDynamic($closure);
 	}
 
 	/* ********** DATA READING ********** */
@@ -261,29 +251,28 @@ class Loader extends \Temma\Utils\Registry {
 	 * @return	mixed	The associated value, or null.
 	 */
 	public function get(string $key, mixed $default=null) : mixed {
-		// special processing for Asynk
-		if ($key == 'asynk') {
+		// special cases (Asynk and TµLoader)
+		if ($key == 'asynk')
 			return (new \Temma\Asynk\Client($this));
-		} else if ($key == '\Temma\Base\Loader' || $key == 'TµLoader') {
+		if ($key == '\Temma\Base\Loader' || $key == 'TµLoader')
 			return ($this);
-		}
 		// key exists
 		if (isset($this->_data[$key])) {
-			if ($this->_data[$key] instanceof LoaderFactory) {
-				$closure = $this->_data[$key]->closure;
-				return ($this->_instanciate($closure, $default));
-			}
-			if ($this->_data[$key] instanceof LoaderLazy) {
-				$closure = $this->_data[$key]->closure;
-				$this->_data[$key] = $this->_instanciate($closure(), $default);
+			$item = $this->_data[$key];
+			// is it a factory (closure called each time the value is asked)?
+			if ($item instanceof LoaderDynamic)
+				return ($this->_instantiate($item->closure, $default));
+			// is it a lazily-generated value?
+			if ($item instanceof LoaderLazy) {
+				$this->_data[$key] = $this->_instantiate($item->closure(), $default);
 				return ($this->_data[$key]);
 			}
-			if (is_callable($this->_data[$key]) && !$this->_data[$key] instanceof \Temma\Web\Controller) {
-				$this->_data[$key] = $this->_instanciate($this->_data[$key]);
-			}
-			if (isset($this->_data[$key])) {
+			// is it a callable?
+			if (is_callable($item) && !$item instanceof \Temma\Web\Controller)
+				$this->_data[$key] = $this->_instantiate($this->_data[$key]);
+			// is the value still defined?
+			if (isset($this->_data[$key]))
 				return ($this->_data[$key]);
-			}
 		}
 		// loop on prefixes
 		foreach ($this->_prefixes as $prefix => $value) {
@@ -295,30 +284,34 @@ class Loader extends \Temma\Utils\Registry {
 				$this->_data[$key] = $value($this, $shortKey);
 			} else {
 				// it's hopefully a string
-				$this->_data[$key] = $this->_instanciate("$value$shortKey", $default);
+				$this->_data[$key] = $this->_instantiate("$value$shortKey", $default);
 			}
 			if (isset($this->_data[$key]))
 				break;
 		}
 		if (isset($this->_data[$key])) {
-			if ($this->_data[$key] instanceof LoaderFactory) {
-				return $this->get($this->_data[$key]);
+			$item = $this->_data[$key];
+			if ($item instanceof LoaderDynamic)
+				return ($this->_instantiate($item->closure, $default));
+			if ($item instanceof LoaderLazy) {
+				$this->_data[$key] = $this->_instantiate($item->closure(), $default);
+				return ($this->_data[$key]);
 			}
 			return ($this->_data[$key]);
 		}
-		// instanciate the object
-		$this->_data[$key] = $this->_instanciate($key, $default);
+		// instantiate the object
+		$this->_data[$key] = $this->_instantiate($key, $default);
 		return ($this->_data[$key]);
 	}
 
 	/* ********** PRIVATE METHODS ********** */
 	/**
-	 * Instanciate an object.
+	 * Instantiate an object.
 	 * @param	string|callable	$obj		Object name or callable value.
 	 * @param	mixed		$default	(optional) Default value that must be returned is the requested key doesn't exist.
 	 * @return	mixed	The associated value, or null.
 	 */
-	private function _instanciate(string|callable $obj, mixed $default=null) : mixed {
+	private function _instantiate(string|callable $obj, mixed $default=null) : mixed {
 		$result = null;
 		// callable
 		if (is_callable($obj) && !$obj instanceof \Temma\Web\Controller) {
@@ -456,7 +449,7 @@ class Loader extends \Temma\Utils\Registry {
 		}
 		// if the default value is a callback, execute it
 		if (is_callable($default) && !$default instanceof \Temma\Web\Controller) {
-			$default = $this->_instanciate($default);
+			$default = $this->_instantiate($default);
 		}
 		return ($default);
 	}
@@ -466,13 +459,19 @@ class Loader extends \Temma\Utils\Registry {
 	 * @return	array	A list of associative arrays.
 	 */
 	private function _extractFunctionParameters(\ReflectionMethod|\ReflectionFunction $rf) : array {
+		// manage cache
+		$id = $rf instanceof ReflectionMethod ?
+		      $rf->getDeclaringClass()->getName() . '::' . $rf->getName() :
+		      $rf->getName();
+		if (isset(self::$_paramCache[$id]))
+			return self::$_paramCache[$id];
+		// process parameters
 		$params = [];
 		foreach ($rf->getParameters() as $p) {
 			$param = [
 				'name' => $p->getName(),
-				'types' => null,
+				'types' => [],
 				'nullable' => false,
-				'isVariadic' => $p->isVariadic(),
 				'hasDefault' => $p->isDefaultValueAvailable(),
 				'defaultValue' => $p->isDefaultValueAvailable() ? $p->getDefaultValue() : null,
 			];
@@ -480,7 +479,6 @@ class Loader extends \Temma\Utils\Registry {
 			if ($rt === null) {
 				// noop
 			} else if ($rt instanceof \ReflectionUnionType) {
-				$param['types'] = [];
 				$nullable = false;
 				foreach ($rt->getTypes() as $tt) {
 					$param['types'][] = $tt->getName();
@@ -488,13 +486,14 @@ class Loader extends \Temma\Utils\Registry {
 						$param['nullable'] = true;
 				}
 			} else if ($rt->isBuiltin() || $rt instanceof \ReflectionNamedType) {
-				$param['types'] = [$rt->getName()];
+				$param['types'][] = $rt->getName();
 				$param['nullable'] = $rt->allowsNull() || ($rt->getName() == 'mixed');
-			} else if ($rt instanceof \ReflectionInstersectionType) {
-				throw new \Exception("Intersection de types.");
+			} else if ($rt instanceof \ReflectionIntersectionType) {
+				throw new TµLoaderException("Intersection types are not supported for autowiring.", TµLoaderException::UNSUPPORTED_TYPE);
 			}
 			$params[] = $param;
 		}
+		self::$_paramCache[$id] = $params;
 		return ($params);
 	}
 	/**
@@ -512,11 +511,11 @@ class Loader extends \Temma\Utils\Registry {
 			return (false);
 		}
 		$type = trim($type);
-		// Nullable prefix ?T
+		// nullable prefix: ?T
 		if (str_starts_with($type, '?')) {
 			return ($value === null || self::checkType($value, substr($type, 1)));
 		}
-		// Union types: A|B|null
+		// union type: null|A|B
 		if (str_contains($type, '|')) {
 			foreach (explode('|', $type) as $part) {
 				if (self::checkType($value, trim($part)))

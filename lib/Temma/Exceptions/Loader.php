@@ -16,5 +16,7 @@ class Loader extends \Exception {
 	const BAD_PARAM = 1;
 	/** Constant: The requested class is abstract. */
 	const ABSTRACT_CLASS = 2;
+	/** Constant: Unsupported type. */
+	const UNSUPPORTED_TYPE = 3;
 }
 
