@@ -120,10 +120,13 @@ class Framework {
 			exit();
 		} else if (($_SERVER['REQUEST_URI'] ?? null))
 			TµLog::log('Temma/Web', 'DEBUG', "Processing URL '" . $_SERVER['REQUEST_URI'] . "'.");
-		// connect to data sources
+		// connect to data sources and add them to the loader
 		$this->_dataSources = new \Temma\Utils\Registry();
 		foreach ($this->_config->dataSources as $name => $dsParam) {
-			$this->_dataSources[$name] = \Temma\Base\Datasource::metaFactory($dsParam);
+			$dataSource = \Temma\Base\Datasource::metaFactory($dsParam);
+			$this->_dataSources[$name] = $dataSource;
+			if (!in_array($name, ['config', 'request', 'response', 'temma', 'session', 'dataSources', 'controller']))
+				$this->_loader[$name] = $dataSource;
 		}
 		$this->_loader['dataSources'] = $this->_dataSources;
 		// get the session if needed

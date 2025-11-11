@@ -13,6 +13,7 @@ use \Temma\Base\Log as TµLog;
 use \Temma\Exceptions\Loader as TµLoaderException;
 
 /* ********** WRAPPER CLASSES ********** */
+
 /**
  * Class used to encapsulate a factory anonymous function.
  * Factory anonymous functions are executed each time their corresponding key is fetched
