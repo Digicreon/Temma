@@ -334,7 +334,7 @@ class Ansi {
 	/* ********** BASIC TEXT FUNCTIONS ********** */
 	/**
 	 * Returns the length of a string, counting only printable UTF-8 characters.
-	 * Tabs are couted for 8 characters.
+	 * Tabs are counted for 8 characters.
 	 * @param	?string	$string	Input string.
 	 * @return	int	The string length.
 	 */
