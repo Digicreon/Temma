@@ -133,6 +133,7 @@ class Redis extends \Temma\Base\Datasource {
 		if (!$this->_enabled)
 			return;
 		unset($this->_ndb);
+		$this->_ndb = null;
 		try {
 			$this->_ndb = new \Redis();
 			$this->_ndb->connect($this->_params['host'], (isset($this->_params['port']) ? $this->_params['port'] : null));
