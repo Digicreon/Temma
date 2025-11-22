@@ -117,6 +117,8 @@ use \Temma\Utils\Email as TµEmail;
  * ```
  */
 class Auth extends \Temma\Web\Plugin {
+	/** Constant: default maximum number of authentication attempts per hour. */
+	private const MAX_AUTH_ATTEMPTS_PER_HOUR = 5;
 	/** User DAO. */
 	private ?\Temma\Dao\Dao $_userDao = null;
 	/** Token DAO. */
@@ -201,11 +203,27 @@ class Auth extends \Temma\Web\Plugin {
 		$conf = $this->_config->xtra('security', 'auth');
 		// check email address
 		$email = trim($_POST['email'] ?? null);
-		if (!$email || filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+		if (!$email || filter_var($email, FILTER_VALIDATE_EMAIL) === false ||
+		    !checkdnsrr(explode('@', $email)[1], 'MX')) {
 			TµLog::log('Temma/App', 'DEBUG', "Invalid email address '$email'.");
 			$this->_session['__authStatus'] = 'email';
 			return (self::EXEC_HALT);
 		}
+		// check rate limit
+		$attempts = $this->_session['authAttempts'] ?? [];
+		$attemps['hour'] ??= '';
+		$attempts['nb'] ??= 0;
+		if ($attempts['hour'] != date('YmdH')) {
+			$attempts['hour'] = date('YmdH');
+		} else {
+			if ($attempts['nb'] > self::MAX_AUTH_ATTEMPTS_PER_HOUR) {
+				TµLog::log('Temma/App', 'DEBUG', "Reached maximum authentication attempts per hour for '$email'.");
+				$this->_session['__authStatus'] = 'attempts';
+				return (self::EXEC_HALT);
+			}
+			$attempts['nb']++;
+		}
+		$this->_session['authAttempts'] = $attempts;
 		// check hash (anti-robot system)
 		if (!($conf['robotCheckDisabled'] ?? false)) {
 			$hash = $_POST['hash'] ?? '';
@@ -308,6 +326,8 @@ class Auth extends \Temma\Web\Plugin {
 		// store the user identifier in session
 		$currentUserId = $currentUser['id'] ?? null;
 		$this->_session['currentUserId'] = $currentUserId;
+		// reset the rate limit
+		unset($this->_session['authAttempts']);
 		// redirection
 		$url = $this->_session['authRequestedUrl'];
 		unset($this->_session['authRequestedUrl']);

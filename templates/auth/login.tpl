@@ -86,6 +86,8 @@
 				Expired connection token
 			{elseif $__authStatus == 'robot'}
 				You have been detected as a robot, please try again
+			{elseif $__authStatus == 'attempts'}
+				Too many authentication attempts. Please try later.
 			{else}
 				An error occurred
 			{/if}
