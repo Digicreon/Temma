@@ -186,7 +186,7 @@ class DataFilter {
 	/** Constant: list of known types. */
 	const SUPPORTED_TYPES = [
 		'null', 'false', 'true', 'bool', 'int', 'float', 'string', 'email', 'url', 'enum', 'list', 'assoc',
-		'date', 'time', 'datetime', 'timestamp', 'uuid', 'isbn', 'ean',
+		'date', 'time', 'datetime', 'uuid', 'isbn', 'ean',
 		'ip', 'ipv4', 'ipv6', 'mac', 'port', 'slug', 'json', 'color', 'geo', 'phone',
 	];
 
