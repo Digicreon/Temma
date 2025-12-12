@@ -185,7 +185,7 @@ use \Temma\Exceptions\Application as TµApplicationException;
 class DataFilter {
 	/** Constant: list of known types. */
 	const SUPPORTED_TYPES = [
-		'null', 'false', 'true', 'bool', 'int', 'float', 'string', 'email', 'url', 'enum', 'list', 'assoc',
+		'null', 'false', 'true', 'bool', 'int', 'float', 'string', 'email', 'url', 'enum', 'array', 'list', 'assoc',
 		'date', 'time', 'datetime', 'uuid', 'isbn', 'ean',
 		'ip', 'ipv4', 'ipv6', 'mac', 'port', 'slug', 'json', 'color', 'geo', 'phone',
 	];
@@ -195,26 +195,76 @@ class DataFilter {
 	 * @param	mixed			$in		Input data.
 	 * @param	null|string|array	$contract	The contract. If set to null, the function act as a pass-through.
 	 * @param	bool			$strict		(optional) True to force strict type comparison.
+	 * @param	bool			$inline		(optional) Set to true if the call was inline (by recursion only).
 	 * @return	mixed	The cleaned data.
 	 * @throws	\Temma\Exceptions\IO		If the contract is not well formed (BAD_FORMAT).
 	 * @throws	\Temma\Exceptions\Application	If the input data doesn't respect the contract (API).
 	 */
-	static public function process(mixed $in, null|string|array $contract, bool $strict=false) : mixed {
+	static public function process(mixed $in, null|string|array $contract, bool $strict=false, bool $inline=false) : mixed {
 		// manage pass-thru
 		if ($contract === null || $contract === '')
 			return ($in);
 		/* *** management of string contract *** */
 		if (is_string($contract)) {
-			$chunks = str_getcsv($contract, ';');
-			$contract = [];
-			$contract['type'] = array_shift($chunks);
-			foreach ($chunks as $chunk) {
-				$data = explode(':', $chunk);
-				if (count($data) != 2)
-					continue;
-				$contract[trim($data[0])] = trim($data[1]);
+			$res = [];
+			if (($pos = mb_strpos($contract, ';')) === false) {
+				$res['type'] = trim($contract);
+			} else {
+				$res['type'] = trim(mb_substr($contract, 0, $pos));
+				$contract = mb_substr($contract, $pos + 1);
+				$len = mb_strlen($contract);
+				$labelFound = false;
+				$quoted = false;
+				$escaped= false;
+				$label = $value = '';
+				for ($i = 0; $i < $len; $i++) {
+					$char = mb_substr($contract, $i, 1);
+					if (!$labelFound) {
+						if ($char == ':') {
+							$labelFound = true;
+							$label = trim($label);
+							continue;
+						}
+						$label .= $char;
+						continue;
+					} else if (!$quoted) {
+						if ($char == '"') {
+							$quoted = true;
+							continue;
+						}
+						if ($char == ';') {
+							$res[$label] = trim($value);
+							$label = $value = '';
+							$labelFound = false;
+							continue;
+						}
+						$value .= $char;
+						continue;
+					} else { // quoted
+						if ($char == '"') {
+							if ($escaped) {
+								$value .= '"';
+								$escaped = false;
+								continue;
+							}
+							$quoted = false;
+							continue;
+						}
+						if ($char == '\\') {
+							if ($escaped) {
+								$current .= '\\';
+								$escapes = false;
+								continue;
+							}
+							$escaped = true;
+							continue;
+						}
+						$value .= $char;
+					}
+				}
+				$res[$label] = trim($value);
 			}
-			return (self::process($in, $contract, $strict));
+			return (self::process($in, $res/*$contract*/, $strict, true));
 		} else if (!is_array($contract)) {
 			throw new TµIOException("Bad contract.", TµIOException::BAD_FORMAT);
 		}
@@ -339,35 +389,23 @@ class DataFilter {
 		if (!is_null($contractSubcontract) && !is_string($contractSubcontract) && !is_array($contractSubcontract))
 			throw new TµIOException("Bad sub-contract type.", TµIOException::BAD_FORMAT);
 		/* *** check null value/contract *** */
-		// null value
-		if (is_null($in)) {
-			if ($contractDefault !== null)
-				return ($contractDefault);
-			if ($contractNullable)
-				return (null);
-		}
-		if (count($contract['type']) == 1 && $contractNullable) {
-			if ($in !== null)
-				throw new TµApplicationException("Data doesn't respect contract (should be null).", TµApplicationException::API);
-			return (null);
-		}
 		// loop on types
 		$lastException = null;
 		foreach ($contract['type'] as $contractType) {
 			try {
 				switch ($contractType) {
 					case 'null':
-						break;
+						return (self::_processNull($in));
 					case 'false':
-						return (self::_processFalse($in, $contractStrict, $contractDefault));
+						return (self::_processFalse($in, $inline, $contractStrict, $contractDefault));
 					case 'true':
-						return (self::_processTrue($in, $contractStrict, $contractDefault));
+						return (self::_processTrue($in, $inline, $contractStrict, $contractDefault));
 					case 'bool':
-						return (self::_processBool($in, $contractStrict, $contractDefault));
+						return (self::_processBool($in, $inline, $contractStrict, $contractDefault));
 					case 'int':
-						return (self::_processInt($in, $contractStrict, $contractDefault, $contractMin, $contractMax));
+						return (self::_processInt($in, $inline, $contractStrict, $contractDefault, $contractMin, $contractMax));
 					case 'float':
-						return (self::_processFloat($in, $contractStrict, $contractDefault, $contractMin, $contractMax));
+						return (self::_processFloat($in, $inline, $contractStrict, $contractDefault, $contractMin, $contractMax));
 					case 'string':
 						return (self::_processString($in, $contractStrict, $contractDefault, $contractMinLen, $contractMaxLen, $contractMask));
 					case 'email':
@@ -378,6 +416,8 @@ class DataFilter {
 						if (!$contractValues)
 							throw new TµIOException("Enum without values.", TµIOException::BAD_FORMAT);
 						return (self::_processEnum($in, $contractDefault, $contractValues));
+					case 'array':
+						return (self::_processArray($in, $contractStrict, $contractDefault));
 					case 'list':
 						return (self::_processList($in, $contractStrict, $contractDefault, $contractSubcontract));
 					case 'assoc':
@@ -395,7 +435,7 @@ class DataFilter {
 					case 'datetime':
 						$contractInFormat = $contractInFormat ?? 'Y-m-d H:i:s';
 						$contractOutFormat = $contractOutFormat ?? 'Y-m-d H:i:s';
-						return (self::_processDateTime($in, $contractStrict, $contractDefault, $contractMin, $contractMax, $contractInFormat, $contractOutFormat));
+						return (self::_processDateTime($in, $contractStrict, $contractInFormat, $contractOutFormat, $contractDefault, $contractMin, $contractMax));
 					case 'uuid':
 						return (self::_processUuid($in, $contractDefault));
 					case 'isbn':
@@ -437,17 +477,29 @@ class DataFilter {
 
 	/* ********** PRIVATE METHODS ********** */
 	/**
+	 * Process a null value.
+	 * @param	mixed	$in		Input value.
+	 * @return	null	Always null.
+	 * @throws	\Temma\Exceptions\Application	If the input data doesn't respect the contract (API).
+	 */
+	static private function _processNull(mixed $in) : null {
+		if ($in !== null)
+			throw new TµApplicationException("Value is not null.", TµApplicationException::API);
+		return (null);
+	}
+	/**
 	 * Process a false value.
 	 * @param	mixed	$in		Input value.
+	 * @param	bool	$inline		Inline contract.
 	 * @param	bool	$strict		Strictness.
 	 * @param	mixed	$default	(optional) Default value.
 	 * @return	bool	The filtered input value.
 	 * @throws	\Temma\Exceptions\Application	If the input data doesn't respect the contract (API).
 	 */
-	static private function _processFalse(mixed $in, bool $strict, mixed $default=null) : bool {
+	static private function _processFalse(mixed $in, bool $inline, bool $strict, mixed $default=null) : bool {
 		if (($strict && $in === false) || (!$strict && !$in))
 			return (false);
-		$in = $default;
+		$in = ($inline && $default === 'false') ? false : $default;
 		if (($strict && $in === false) || (!$strict && !$in))
 			return (false);
 		throw new TµApplicationException("Value is not false.", TµApplicationException::API);
@@ -455,15 +507,16 @@ class DataFilter {
 	/**
 	 * Process a true value.
 	 * @param	mixed	$in		Input value.
+	 * @param	bool	$inline		Inline contract.
 	 * @param	bool	$strict		Strictness.
 	 * @param	mixed	$default	(optional) Default value.
 	 * @return	bool	The filtered input value.
 	 * @throws	\Temma\Exceptions\Application	If the input data doesn't respect the contract (API).
 	 */
-	static private function _processTrue(mixed $in, bool $strict, mixed $default=null) : bool {
+	static private function _processTrue(mixed $in, bool $inline, bool $strict, mixed $default=null) : bool {
 		if (($strict && $in === true) || (!$strict && $in))
 			return (true);
-		$in = $default;
+		$in = ($inline && $default === 'true') ? true : $default;
 		if (($strict && $in === true) || (!$strict && $in))
 			return (true);
 		throw new TµApplicationException("Value is not true.", TµApplicationException::API);
@@ -471,16 +524,23 @@ class DataFilter {
 	/**
 	 * Process a boolean type.
 	 * @param	mixed	$in		Input value.
+	 * @param	bool	$inline		Inline contract.
 	 * @param	bool	$strict		Strictness.
 	 * @param	mixed	$default	(optional) Default value.
 	 * @return	bool	The filtered input value.
 	 * @throws	\Temma\Exceptions\Application	If the input data doesn't respect the contract (API).
 	 */
-	static private function _processBool(mixed $in, bool $strict, mixed $default=null) : bool {
+	static private function _processBool(mixed $in, bool $inline, bool $strict, mixed $default=null) : bool {
 		if (!$strict)
-			return ($in);
-		if ($in !== true && $in !== false)
-			$in = $default;
+			return ((bool)$in);
+		if (!is_bool($in)) {
+			if ($inline && $default === 'true')
+				$in = true;
+			else if ($inline && $default ==='false')
+				$in = false;
+			else
+				$in = $default;
+		}
 		if ($in === true || $in === false)
 			return ($in);
 		throw new TµApplicationException("Value is not boolean.", TµApplicationException::API);
@@ -488,6 +548,7 @@ class DataFilter {
 	/**
 	 * Process an integer type.
 	 * @param	mixed			$in		Input value.
+	 * @param	bool			$inline		Inline contract.
 	 * @param	bool			$strict		Strictness.
 	 * @param	mixed			$default	(optional) Default value.
 	 * @param	null|int|float|string	$min		(optional) Minimum value.
@@ -495,7 +556,7 @@ class DataFilter {
 	 * @return	int	The filtered input value.
 	 * @throws	\Temma\Exceptions\Application	If the input data doesn't respect the contract (API).
 	 */
-	static private function _processInt(mixed $in, bool $strict, mixed $default=null, null|int|float|string $min=null, null|int|float|string $max=null) : int {
+	static private function _processInt(mixed $in, bool $inline, bool $strict, mixed $default=null, null|int|float|string $min=null, null|int|float|string $max=null) : int {
 		try {
 			// converts booleans and floats
 			if (!$strict) {
@@ -504,6 +565,9 @@ class DataFilter {
 				else if (is_float($in))
 					$in = (int)$in;
 			}
+			// manage inline contracts
+			if ($inline && is_numeric($default))
+				$default = (int)$default;
 			// manage integer input
 			if (is_int($in)) {
 				if ($strict) {
@@ -552,13 +616,14 @@ class DataFilter {
 		} catch (TµApplicationException $e) {
 			if (is_null($default))
 				throw $e;
-			return (self::_processInt($default, $strict, null, $min, $max));
+			return (self::_processInt($default, $inline, $strict, null, $min, $max));
 		}
 		return ($in);
 	}
 	/**
 	 * Process a float type.
 	 * @param	mixed			$in		Input value.
+	 * @param	bool			$inline		Inline contract.
 	 * @param	bool			$strict		Strictness.
 	 * @param	mixed			$default	(optional) Default value.
 	 * @param	null|int|float|string	$min		(optional) Minimum value.
@@ -566,13 +631,16 @@ class DataFilter {
 	 * @return	float	The filtered input value.
 	 * @throws	\Temma\Exceptions\Application	If the input data doesn't respect the contract (API).
 	 */
-	static private function _processFloat(mixed $in, bool $strict, mixed $default=null, null|int|float|string $min=null, null|int|float|string $max=null) : float {
+	static private function _processFloat(mixed $in, bool $inline, bool $strict, mixed $default=null, null|int|float|string $min=null, null|int|float|string $max=null) : float {
 		try {
 			// converts booleans and integers
 			if (!$strict && is_bool($in))
 				$in = $in ? 1.0 : 0.0;
 			if (is_int($in))
 				$in = (float)$in;
+			// manage inline contract
+			if ($inline && is_numeric($default))
+				$default = (float)$default;
 			// manage float input
 			if (is_float($in)) {
 				if ($strict) {
@@ -653,7 +721,7 @@ class DataFilter {
 			}
 			if (is_numeric($minLen) && $len < $minLen)
 				throw new TµApplicationException("Data doesn't respect contract (string too short).", TµApplicationException::API);
-			if ($mask && !preg_match("/$mask/", $in, $matches))
+			if ($mask && !preg_match('{' . $mask . '}u', $in, $matches))
 				throw new TµApplicationException("Data doesn't respect contract (string doesn't match the given mask).", TµApplicationException::API);
 		} catch (TµApplicationException $e) {
 			if (is_null($default))
@@ -674,12 +742,12 @@ class DataFilter {
 		$options = [
 			'options' => [],
 		];
-		if (is_numeric($default))
+		if (is_string($default))
 			$options['options']['default'] = $default;
 		if (($in = filter_var($in, FILTER_VALIDATE_EMAIL, $options)) === false) {
 			throw new TµApplicationException("Data is not a valid email address.", TµApplicationException::API);
 		}
-		if ($mask && !preg_match("/$mask/", $in, $matches)) {
+		if ($mask && !preg_match('{' . $mask . '}u', $in, $matches)) {
 			if ($default === null)
 				throw new TµApplicationException("Data doesn't respect contract (email doesn't match the given mask).", TµApplicationException::API);
 			$in = $default;
@@ -712,7 +780,7 @@ class DataFilter {
 				throw new TµApplicationException("Data doesn't respect contract (URL too short).", TµApplicationException::API);
 			$in = $default;
 		}
-		if ($mask && !preg_match("/$mask/", $in, $matches)) {
+		if ($mask && !preg_match('{' . $mask . '}u', $in, $matches)) {
 			if ($default === null)
 				throw new TµApplicationException("Data doesn't respect contract (URL doesn't match the given mask).", TµApplicationException::API);
 			$in = $default;
@@ -733,6 +801,27 @@ class DataFilter {
 		if ($default !== null)
 			return ($default);
 		throw new TµApplicationException("Data doesn't respect contract (bad enum value '$in').", TµApplicationException::API);
+	}
+	/**
+	 * Process an array type.
+	 * @param	mixed	$in		Input value.
+	 * @param	bool	$strict		Strictness.
+	 * @param	mixed	$default	Default value.
+	 * @return	array	The filtered input value.
+	 * @throws	\Temma\Exceptions\Application	If the input data doesn't respect the contract (API).
+	 */
+	static private function _processArray(mixed $in, bool $strict, mixed $default) : array {
+		if (!is_array($in)) {
+			if ($strict) {
+				if ($default !== null && is_array($default))
+					return ($default);
+				throw new TµApplicationException("Data doesn't repect contract (not an array).", TµApplicationException::API);
+			}
+			if (is_null($in) && is_array($default))
+				return ($default);
+			$in = [$in];
+		}
+		return ($in);
 	}
 	/**
 	 * Process a list type.
@@ -854,10 +943,13 @@ class DataFilter {
 	static private function _processDateTime(mixed $in, bool $strict, string $inFormat, string $outFormat, ?string $default=null, ?string $min=null, ?string $max=null) : string {
 		// manage input value
 		$d = false;
-		if (is_int($in) || is_float($in) || is_numeric($in))
-			$d = new \DateTimeImmutable('U', $in);
-		else if (is_string($in))
+		if (is_int($in) || is_float($in) || is_numeric($in)) {
+			$d = \DateTimeImmutable::createFromFormat('U', $in);
+		} else if (is_string($in)) {
 			$d = \DateTimeImmutable::createFromFormat($inFormat, $in);
+			if ($strict && $d->format($inFormat) != $in)
+				throw new TµApplicationException("Data is not a valid date/time, or bad input format.", TµApplicationException::API);
+		}
 		if ($d === false) {
 			// manage default value
 			if ($default === null)
@@ -1121,45 +1213,46 @@ class DataFilter {
 		if (!is_string($in) || !preg_match('/^[-+]?([1-8]?\d(\.\d+)?|90(\.0+)?),\s*[-+]?(180(\.0+)?|((1[0-7]\d)|([1-9]?\d))(\.\d+)?)$/', $in)) {
 			if ($default !== null)
 				return ($default);
-			throw new TµApplicationException("Data is not a valid geo coordinates.", TµApplicationException::API);
+			throw new TµApplicationException("Data is not a valid geo coordinates string.", TµApplicationException::API);
 		}
-		// check format
 		list($lat, $lon) = array_map('trim', explode(',', $in));
-		$lat = filter_var($lat, FILTER_VALIDATE_FLOAT);
-		if ($lat === false || $lat < -90 || $lat > 90)
-			throw new TµApplicationException("Invalid latitude.", TµApplicationException::API);
-		$lon = filter_var($lon, FILTER_VALIDATE_FLOAT);
-		if ($lon === false || $lon < -180 || $lon > 180)
-			throw new TµApplicationException("Invalid longitude.", TµApplicationException::API);
-		// check min/max
-		if ($min || $max) {
+		$lat = (float)$lat;
+		$lon = (float)$lon;
+		// mini (south-west)
+		if ($min) {
 			if (is_string($min) && preg_match('/^[-+]?([1-8]?\d(\.\d+)?|90(\.0+)?),\s*[-+]?(180(\.0+)?|((1[0-7]\d)|([1-9]?\d))(\.\d+)?)$/', $min)) {
 				list($minLat, $minLon) = array_map('trim', explode(',', $min));
-				if ($lat > $minLat || $lon < $minLon) {
+				$minLat = (float)$minLat;
+				$minLon = (float)$minLon;
+				if ($lat < $minLat || $lon < $minLon) {
 					if ($strict) {
 						if ($default !== null)
 							return ($default);
-						throw new TµApplicationException("Data doesn't respect contract (geo coordinates out of bounds).", TµApplicationException::API);
+						throw new TµApplicationException("Data doesn't respect contract (geo coordinates too low).", TµApplicationException::API);
 					}
-					$lat = min($lat, $minLat);
+					$lat = max($lat, $minLat);
 					$lon = max($lon, $minLon);
 				}
 			}
+		}
+		// maxi (north-east)
+		if ($max) {
 			if (is_string($max) && preg_match('/^[-+]?([1-8]?\d(\.\d+)?|90(\.0+)?),\s*[-+]?(180(\.0+)?|((1[0-7]\d)|([1-9]?\d))(\.\d+)?)$/', $max)) {
 				list($maxLat, $maxLon) = array_map('trim', explode(',', $max));
-				if ($lat < $maxLat || $lon > $maxLon) {
+				$maxLat = (float)$maxLat;
+				$maxLon = (float)$maxLon;
+				if ($lat > $maxLat || $lon > $maxLon) {
 					if ($strict) {
 						if ($default !== null)
 							return ($default);
-						throw new TµApplicationException("Data doesn't respect contract (geo coordinates out of bounds).", TµApplicationException::API);
+						throw new TµApplicationException("Data doesn't respect contract (geo coordinates too high).", TµApplicationException::API);
 					}
-					$lat = max($lat, $maxLat);
+					$lat = min($lat, $maxLat);
 					$lon = min($lon, $maxLon);
 				}
 			}
-			$in = "$lat, $lon";
 		}
-		return ($in);
+		return "$lat, $lon";
 	}
 	/**
 	 * Process a phone number type.
@@ -1170,7 +1263,7 @@ class DataFilter {
 	 * @throws	\Temma\Exceptions\Application	If the input data doesn't respect the contract (API).
 	 */
 	static private function _processPhone(mixed $in, bool $strict, ?string $default=null) : string {
-		if (!is_string($in)) {
+		if (!is_string($in) && !is_numeric($in)) {
 			if ($default !== null)
 				return ($default);
 			throw new TµApplicationException("Data is not a valid phone number.", TµApplicationException::API);
