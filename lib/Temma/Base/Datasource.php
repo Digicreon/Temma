@@ -100,6 +100,8 @@ abstract class Datasource implements \ArrayAccess, \Countable {
 			return (\Temma\Datasources\Pushover::factory($dsn));
 		if (str_starts_with($dsn, 'discord://'))
 			return (\Temma\Datasources\Discord::factory($dsn));
+		if (str_starts_with($dsn, 'googlechat://'))
+			return (\Temma\Datasources\GoogleChat::factory($dsn));
 		if (str_starts_with($dsn, 'dummy://'))
 			return (\Temma\Datasources\Dummy::factory(''));
 		if (str_starts_with($dsn, 'env://')) {
