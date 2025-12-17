@@ -24,7 +24,7 @@ use \Temma\Base\Log as TµLog;
  * $gchat = \Temma\Datasources\GoogleChat::factory('gchat://WEBHOOK_URL');
  * $gchat = \Temma\Base\Datasource::factory('gchat://WEBHOOK_URL');
  * // where WEBHOOK_URL is the fetched webhook URL without the 'https://' part at its beginning.
- * // example: 'slack:/at.googleapis.com/v1/spaces/XXXXXXX/messages?key=YYYYYYY&token=ZZZZZZZ'
+ * // example: 'googlechat://chat.googleapis.com/v1/spaces/XXXXXXX/messages?key=YYYYYYY&token=ZZZZZZZ'
  *
  * // send a simple text message to the given channel
  * $gchat[''] = 'Text message';
@@ -35,6 +35,7 @@ use \Temma\Base\Log as TµLog;
  * // See https://developers.google.com/workspace/chat/format-messages
  * $gchat[''] = 'Text with *simple* _formatting_.';
  *
+<<<<<<< HEAD
  * // Send a rich notification, with a title, a subtitle a pictogram and/or an icon,
  * // and sections, and buttons.
  * // Authorized icons are: AIRPLANE, BOOKMARK, BUS, CAR, CLOCK, CONFIRMATION_NUMBER_ICON, DESCRIPTION, DOLLAR,
@@ -43,6 +44,14 @@ use \Temma\Base\Log as TµLog;
  * // TICKET, TRAIN, VIDEO_CAMERA, VIDEO_PLAY
  * // See https://developers.google.com/workspace/chat/format-messages#builtinicons
  * $gchat['] = [
+=======
+ * // Send a rich notification, with a title, a subtitle a pictogram and/or sections and buttons.
+ * // Possible icons (in sections) are: AIRPLANE, BOOKMARK, BUS, CAR, HORLOGE, CONFIRMATION_NUMBER_ICON,
+ * // DESCRIPTION, DOLLAR, E-MAIL, EVENT_SEAT, FLIGHT_ARRIVAL, FLIGHT_DEPARTURE, HOTEL, HOTEL_ROOM_TYPE,
+ * // INVITER, MAP_PIN, ABONNEMENT, MULTIPLE_PEOPLE, PERSONNE, TÉLÉPHONE, RESTAURANT_ICON, SHOPPING_CART,
+ * // STAR, STORE, TICKET, TRAIN, VIDEO_CAMERA, VIDEO_PLAY
+ * $gchat[''] = [
+>>>>>>> f99072b (Add Telegram data source.)
  *     'title'    => 'A title',
  *     'subtitle' => 'A subtitle',
  *     'picto'    => 'https://url of the picto',
@@ -138,7 +147,7 @@ class GoogleChat extends \Temma\Base\Datasource {
 	 * @param	string		$channel	Not used.
 	 * @param	string|array	$message	Text message, or an associative array with formatted message data.
 	 * @param	mixed		$options	Not used.
-	 * @return	bool	always true.
+	 * @return	bool	Always true.
 	 * @throws	\Exception	If an error occured.
 	 */
 	public function set(string $channel, mixed $message=null, mixed $options=null) : bool {
