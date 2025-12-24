@@ -259,7 +259,7 @@ class Loader extends \Temma\Utils\Registry {
 		if (is_null($closure)) {
 			// remove the previously created factory
 			$value = $this->_data[$key] ?? null;
-			if ($value instanceof LoaderDynamic && !($value instanceof LoaderAlias))
+			if ($value instanceof LoaderDynamic && !$value instanceof LoaderAlias)
 				unset($this->_data[$key]);
 			return ($this);
 		}
@@ -457,27 +457,32 @@ class Loader extends \Temma\Utils\Registry {
 	 */
 	private function _instantiateCallable(callable $obj) : mixed {
 		try {
-			$rf = new \ReflectionFunction($obj);
-		} catch (\ReflectionException $re) {
-			try {
+			// Detect the type of callable to create the correct Reflection object
+			if (is_array($obj)) {
+				// Array callable: [$objectOrClass, 'method']
+				$rf = new \ReflectionMethod($obj[0], $obj[1]);
+			} elseif (is_string($obj) && str_contains($obj, '::')) {
+				// String static call: "Class::method"
 				$rf = new \ReflectionMethod($obj);
-			} catch (\ReflectionException $re) {
-				$rf = null;
-			}
-		}
-		if ($rf) {
-			// management of attributes
-			$this->_triggerActiveAttributes($rf);
-			// management of parameters
-			$paramArray = $this->_resolveDependencies($rf);
-			if ($paramArray === null) {
-				// no parameter
-				return ($obj());
+			} elseif (is_object($obj) && !$obj instanceof \Closure) {
+				// Invokable object (has __invoke)
+				$rf = new \ReflectionMethod($obj, '__invoke');
 			} else {
-				return (call_user_func_array($obj, $paramArray));
+				// Standard function or Closure
+				$rf = new \ReflectionFunction($obj);
 			}
+		} catch (\ReflectionException $re) {
+			return (null);
 		}
-		return (null);
+		// management of attributes
+		$this->_triggerActiveAttributes($rf);
+		// management of parameters
+		$paramArray = $this->_resolveDependencies($rf);
+		if ($paramArray === null) {
+			// no parameter
+			return ($obj());
+		}
+		return (call_user_func_array($obj, $paramArray));
 	}
 	/**
 	 * Helper to instantiate a class via Reflection.
