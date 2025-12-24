@@ -18,5 +18,7 @@ class Loader extends \Exception {
 	const ABSTRACT_CLASS = 2;
 	/** Constant: Unsupported type. */
 	const UNSUPPORTED_TYPE = 3;
+	/** Constant: Circular dependency. */
+	const CIRCULAR_DEPENDENCY = 4;
 }
 

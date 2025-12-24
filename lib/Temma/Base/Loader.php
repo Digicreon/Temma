@@ -30,7 +30,7 @@ final class LoaderDynamic {
 }
 
 /**
- * Class used to encapsulate an anonymous function for lazily-générated objects.
+ * Class used to encapsulate an anonymous function for lazily-generated objects.
  */
 final class LoaderLazy {
 	/**
@@ -47,7 +47,7 @@ final class LoaderLazy {
  * Dependency injection container.
  *
  * Examples:
- * <code>
+ * ```php
  * // create a loader
  * $loader = new \Temma\Base\Loader();
  * // create a loader and set initial data
@@ -71,27 +71,33 @@ final class LoaderLazy {
  *
  * // define a builder function
  * $loader->setBuilder(function($loader, $key) {
- *     if (substr($key, -2) == 'Bo') {
- *         $classname = substr($key, 0, -2);
+ *     // instantiate objects depending on their suffix
+ *     if (str_ends_with($key, 'Bo')) {
+ *         // e.g. UserBo => \MyApp\Bo\User
+ *         $classname = mb_substr($key, 0, -2);
  *         return new \MyApp\Bo\$classname($loader);
- *     } else if (substr($key, -3) == 'Dao') {
- *         $classname = substr($key, 0, -3);
+ *     } else if (str_ends_with($key, 'Dao')) {
+ *         // e.g. UserDao => \MyApp\Dao\User
+ *         $classname = mb_substr($key, 0, -3);
  *         return new \MyApp\Dao\$classname($loader);
  *     }
  * });
  * // use the builder
- * $loader->userBo->addFriends();
+ * $loader->userBo->addFriends(12, 21);
  * $user = $loader->userDao->getFromId(17);
- * $card = $loader->cardDao->getFromCode('12ax37');
+ * $card = $loader->cardDao->getFromCode('12ax7');
  *
  * // create a loader, set its initial data, and define a builder
- * $loader = new \Temma\Base\Loader(['userBo' => $userBo], function($loader, $key) {
- *     return new $key($loader);
- * });
- * </code>
+ * $loader = new \Temma\Base\Loader(
+ *     ['userBo' => $userBo],
+ *     function($loader, $key) {
+ *         return new $key($loader);
+ *     }
+ * );
+ * ```
  *
  * It is also possible to create a child class with a defined builder:
- * <code>
+ * ```php
  * class MyLoader extends \Temma\Base\Loader {
  *     protected function builder(string $key) {
  *         $key = ucfirst($key);
@@ -102,16 +108,36 @@ final class LoaderLazy {
  * // dynamically creates an instance of UserDao
  * $user = $loader->userDao->getFromId(21);
  * // dynamically creates an instance of UserBo
- * $loader->userBo->addFriends();
- * </code>
+ * $loader->userBo->addFriends(12, 21);
+ * ```
+ *
+ * The loader supports autowiring:
+ * ```php
+ * class UserBo {
+ *     // $userDao is automatically injected when UserBo is instantiated
+ *     public function __construct(private UserDao $userDao) {
+ *     }
+ *     public function addFriends(int $fromId, int $toId) : void {
+ *         $from = $this->userDao->getFromId($fromId);
+ *         $to = $this->userDao->getFromId($toId);
+ *         if (!$from['canBeFriend'] || !$to['canBeFriend'])
+ *             throw new Exception("Users can't be friends.");
+ *         $this->userDao->setFriend($fromId, $toId);
+ *     }
+ * }
+ * $loader = new \Temma\Base\Loader(['userDao' => $userDao]);
+ * $loader->UserBo->addFriends(12, 21);
+ * ```
  */
 class Loader extends \Temma\Utils\Registry {
 	/** @var ?callable Builder callback. */
 	protected /*?callable*/ $_builder = null;
 	/** @var array<string,string> Prefix map. */
 	protected array $_prefixes = [];
-	/** Static cache for reflection parameter analysis */
+	/** Static cache for reflection parameter analysis. */
 	private static array $_paramCache = [];
+	/** Stack for circular dependency detection. */
+	private array $_loadingStack = [];
 
 	/* ********** CONSTRUCTION ********** */
 	/**
@@ -235,74 +261,88 @@ class Loader extends \Temma\Utils\Registry {
 		return ($this);
 	}
 	/**
-	 * Create a factory. A factory is a closure wich will be executed each time the value is requested
+	 * Create a factory. A factory is a closure which will be executed each time the value is requested
 	 * (not like plain closures which are executed once to set the value).
 	 * @param	\Closure	$closure	Closure to use as a factory.
 	 * @return	LoaderDynamic	The protected closure.
 	 */
 	static public function dynamic(\Closure $closure) : LoaderDynamic {
-		return new LoaderDynamic($closure);
+		return (new LoaderDynamic($closure));
 	}
 
 	/* ********** DATA READING ********** */
 	/**
 	 * Returns data from the loader.
-	 * @param	string	$key		Index key.
-	 * @param	mixed	$default	(optional) Default value that must be returned is the requested key doesn't exist.
+	 * @param	string	$key			Index key.
+	 * @param	mixed	$default		(optional) Default value that must be returned if the requested key doesn't exist.
+	 * @param	bool	$autoInstantiate	(optional) True to instantiate the object if it doesn't exist. False to return the default value.
 	 * @return	mixed	The associated value, or null.
 	 */
-	public function get(string $key, mixed $default=null) : mixed {
+	public function get(string $key, mixed $default=null, bool $autoInstantiate=true) : mixed {
 		// special cases (Asynk and TµLoader)
 		if ($key == 'asynk')
 			return (new \Temma\Asynk\Client($this));
 		if ($key == '\Temma\Base\Loader' || $key == 'TµLoader')
 			return ($this);
-		// key exists
-		if (isset($this->_data[$key])) {
-			$item = $this->_data[$key];
-			// is it a factory (closure called each time the value is asked)?
-			if ($item instanceof LoaderDynamic)
-				return ($this->_instantiate($item->closure, $default));
-			// is it a lazily-generated value?
-			if ($item instanceof LoaderLazy) {
-				$this->_data[$key] = $this->_instantiate($item->closure(), $default);
-				return ($this->_data[$key]);
-			}
-			// is it a callable?
-			if (is_callable($item) && !$item instanceof \Temma\Web\Controller)
-				$this->_data[$key] = $this->_instantiate($this->_data[$key]);
-			// is the value still defined?
-			if (isset($this->_data[$key]))
-				return ($this->_data[$key]);
+		// circular dependency check
+		if (isset($this->_loadingStack[$key])) {
+			throw new TµLoaderException("Circular dependency detected for key: '$key'.", TµLoaderException::CIRCULAR_DEPENDENCY);
 		}
-		// loop on prefixes
-		foreach ($this->_prefixes as $prefix => $value) {
-			if (!str_starts_with($key, $prefix) || !isset($value))
-				continue;
-			$shortKey = mb_substr($key, mb_strlen($prefix));
-			if (is_callable($value) && !$value instanceof \Temma\Web\Controller) {
-				// it's a callback, execute it
-				$this->_data[$key] = $value($this, $shortKey);
-			} else {
-				// it's hopefully a string
-				$this->_data[$key] = $this->_instantiate("$value$shortKey", $default);
+		$this->_loadingStack[$key] = true;
+		try {
+			// key exists
+			if (isset($this->_data[$key])) {
+				$item = $this->_data[$key];
+				// is it a factory (closure called each time the value is asked)?
+				if ($item instanceof LoaderDynamic)
+					return ($this->_instantiate($item->closure, $default));
+				// is it a lazily-generated value?
+				if ($item instanceof LoaderLazy) {
+					$this->_data[$key] = $this->_instantiate($item->closure(), $default);
+					return ($this->_data[$key]);
+				}
+				// is it a callable?
+				if (is_callable($item) && !$item instanceof \Temma\Web\Controller)
+					$this->_data[$key] = $this->_instantiate($this->_data[$key]);
+				// is the value still defined?
+				if (isset($this->_data[$key]))
+					return ($this->_data[$key]);
 			}
-			if (isset($this->_data[$key]))
-				break;
-		}
-		if (isset($this->_data[$key])) {
-			$item = $this->_data[$key];
-			if ($item instanceof LoaderDynamic)
-				return ($this->_instantiate($item->closure, $default));
-			if ($item instanceof LoaderLazy) {
-				$this->_data[$key] = $this->_instantiate($item->closure(), $default);
+			// loop on prefixes
+			foreach ($this->_prefixes as $prefix => $value) {
+				if (!str_starts_with($key, $prefix) || !isset($value))
+					continue;
+				$shortKey = mb_substr($key, mb_strlen($prefix));
+				if (is_callable($value) && !$value instanceof \Temma\Web\Controller) {
+					// it's a callback, execute it
+					$this->_data[$key] = $value($this, $shortKey);
+				} else {
+					// it's hopefully a string
+					$this->_data[$key] = $this->_instantiate("$value$shortKey", $default);
+				}
+				if (isset($this->_data[$key]))
+					break;
+			}
+			if (isset($this->_data[$key])) {
+				$item = $this->_data[$key];
+				if ($item instanceof LoaderDynamic)
+					return ($this->_instantiate($item->closure, $default));
+				if ($item instanceof LoaderLazy) {
+					$this->_data[$key] = $this->_instantiate($item->closure(), $default);
+					return ($this->_data[$key]);
+				}
 				return ($this->_data[$key]);
 			}
+			// check if auto-instantiation is requested
+			if (!$autoInstantiate)
+				return ($default);
+			// instantiate the object
+			$this->_data[$key] = $this->_instantiate($key, $default);
 			return ($this->_data[$key]);
+		} finally {
+			// remove the key from the circular dependency stack
+			unset($this->_loadingStack[$key]);
 		}
-		// instantiate the object
-		$this->_data[$key] = $this->_instantiate($key, $default);
-		return ($this->_data[$key]);
 	}
 
 	/* ********** PRIVATE METHODS ********** */
@@ -312,128 +352,27 @@ class Loader extends \Temma\Utils\Registry {
 	 * @param	mixed		$default	(optional) Default value that must be returned is the requested key doesn't exist.
 	 * @return	mixed	The associated value, or null.
 	 */
-	private function _instantiate(string|callable $obj, mixed $default=null) : mixed {
-		$result = null;
+	private function _instantiate(string|callable|object $obj, mixed $default=null) : mixed {
 		// callable
 		if (is_callable($obj) && !$obj instanceof \Temma\Web\Controller) {
-			try {
-				$rf = new \ReflectionFunction($obj);
-			} catch (\ReflectionException $re) {
-				try {
-					$rf = new \ReflectionMethod($obj);
-				} catch (\ReflectionException $re) {
-					$rf = null;
-				}
-			}
-			if ($rf) {
-				// management of attributes
-				$attributes = $rf->getAttributes(null, \ReflectionAttribute::IS_INSTANCEOF);
-				foreach ($attributes as $attribute) {
-					$attribute->newInstance();
-				}
-				// management of parameters
-				$params = $this->_extractFunctionParameters($rf);
-				if (!$params) {
-					// no parameter
-					$result = $obj();
-				} else {
-					// some parameters
-					$paramArray = [];
-					foreach ($params as $param) {
-						// search value
-						$value = null;
-						// loop on types to find the value
-						foreach ($param['types'] as $type) {
-							try {
-								if (($value = $this->get($type)))
-									break;
-							} catch (TµLoaderException $le) {
-							}
-						}
-						// no value fetched from the type, search from the parameter's name
-						if ($value === null) {
-							if (($val = $this->get($param['name'])) &&
-							    (!$param['types'] || self::checkType($val, $param['types'])))
-								$value = $val;
-						}
-						// check if the parameter is nullable
-						if ($value === null && !$param['nullable'])
-							throw new TµLoaderException("Bad parameter '\$" . $param['name'] . "'.", tµLoaderException::BAD_PARAM);
-						// prepare the parameter
-						$paramArray[$param['name']] = $value;
-					}
-					$result = call_user_func_array($obj, $paramArray);
-				}
-			}
+			$result = $this->_instantiateCallable($obj);
 			if (isset($result))
 				return ($result);
 		}
 		// loadable
-		if (($interfaces = @class_implements($obj)) && isset($interfaces['Temma\Base\Loadable'])) {
+		if (is_string($obj) && ($interfaces = @class_implements($obj)) && isset($interfaces[\Temma\Base\Loadable::class])) {
 			return (new $obj($this));
 		}
 		// DAO
-		if (is_subclass_of($obj, '\Temma\Dao\Dao') && isset($this->_data['controller']) && $this->_data['controller'] instanceof \Temma\Web\Controller) {
+		if (is_string($obj) && is_subclass_of($obj, \Temma\Dao\Dao::class) &&
+		    isset($this->_data['controller']) && $this->_data['controller'] instanceof \Temma\Web\Controller) {
 			return ($this->_data['controller']->_loadDao($obj));
 		}
-		// object instanciation
-		try {
-			$rc = new \ReflectionClass($obj);
-			// check if abstract
-			if ($rc->isAbstract())
-				throw new TµLoaderException('Abastract class.', TµLoaderException::ABSTRACT_CLASS);
-			// management of object's attributes
-			$attributes = $rc->getAttributes(null, \ReflectionAttribute::IS_INSTANCEOF);
-			for ($parentClass = $rc->getParentClass(); $parentClass; $parentClass = $parentClass->getParentClass())
-				$attributes = array_merge($attributes, $parentClass->getAttributes(null, \ReflectionAttribute::IS_INSTANCEOF));
-			foreach ($attributes as $attribute) {
-				$attribute->newInstance();
-			}
-			// special process for controllers
-			if (is_subclass_of($obj, '\Temma\Web\Controller')) {
-				return (new $obj($this, ($this->_data['parentController'] ?? $this->_data['controller'] ?? null)));
-			}
-			// management of the constructor
-			$constructor = $rc->getConstructor();
-			if (!$constructor) {
-				// no constructor
-				return (new $obj());
-			}
-			// get parameters
-			$params = $this->_extractFunctionParameters($constructor);
-			if (!$params) {
-				// no parameter
-				return (new $obj());
-			}
-			$paramArray = [];
-			foreach ($params as $param) {
-				// search value
-				$value = null;
-				// loop on types to find the value
-				$param['types'] ??= [];
-				foreach ($param['types'] as $type) {
-					try {
-						if (($val = $this->get($type)) && self::checkType($val, $type)) {
-							$value = $val;
-							break;
-						}
-					} catch (TµLoaderException $le) {
-					}
-				}
-				// no value fetched from the type, search from the parameter's name
-				if ($value === null &&
-				    ($val = $this->get($param['name'])) &&
-				    (!$param['types'] || self::checkType($val, $param['types']))) {
-					$value = $val;
-				}
-				// check if the parameter is nullable
-				if ($value === null && !$param['nullable'])
-					throw new TµLoaderException("Bad parameter '\$" . $param['name'] . "'.", TµLoaderException::BAD_PARAM);
-				// prepare the parameter
-				$paramArray[$param['name']] = $value;
-			}
-			return (new $obj(...$paramArray));
-		} catch (\ReflectionException $e) {
+		// object instantiation
+		if ((is_string($obj) && class_exists($obj)) || is_object($obj)) {
+			$result = $this->_instantiateClass($obj);
+			if (isset($result))
+				return ($result);
 		}
 		// call builder function
 		if (isset($this->_builder)) {
@@ -455,42 +394,201 @@ class Loader extends \Temma\Utils\Registry {
 		return ($default);
 	}
 	/**
+	 * Helper to instantiate a callable (Closure or function).
+	 * @param	callable	$obj	The callable to instantiate.
+	 * @return	mixed	The result of the callable execution, or null on error.
+	 */
+	private function _instantiateCallable(callable $obj) : mixed {
+		try {
+			$rf = new \ReflectionFunction($obj);
+		} catch (\ReflectionException $re) {
+			try {
+				$rf = new \ReflectionMethod($obj);
+			} catch (\ReflectionException $re) {
+				$rf = null;
+			}
+		}
+		if ($rf) {
+			// management of attributes
+			$this->_triggerActiveAttributes($rf);
+			// management of parameters
+			$paramArray = $this->_resolveDependencies($rf);
+			if ($paramArray === null) {
+				// no parameter
+				return ($obj());
+			} else {
+				return (call_user_func_array($obj, $paramArray));
+			}
+		}
+		return (null);
+	}
+	/**
+	 * Helper to instantiate a class via Reflection.
+	 * @param	string|object	$obj	Class name or object instance.
+	 * @return	mixed	The instantiated object or null on error.
+	 */
+	private function _instantiateClass(string|object $obj) : mixed {
+		try {
+			$rc = new \ReflectionClass($obj);
+			// check if abstract
+			if ($rc->isAbstract())
+				throw new TµLoaderException('Abastract class.', TµLoaderException::ABSTRACT_CLASS);
+			// management of object's attributes
+			$this->_triggerActiveAttributes($rc);
+			// special process for controllers
+			if ($rc->isSubclassOf(\Temma\Web\Controller::class)) {
+				return (new ($rc->getName())($this, ($this->_data['parentController'] ?? $this->_data['controller'] ?? null)));
+			}
+			// management of the constructor
+			$constructor = $rc->getConstructor();
+			if (!$constructor) {
+				// no constructor
+				$className = $rc->getName();
+				return (new $className());
+			}
+			// get parameters
+			$paramArray = $this->_resolveDependencies($constructor);
+			$className = $rc->getName();
+			if ($paramArray === null) {
+				// no parameter
+				return (new $className());
+			}
+			return (new $className(...$paramArray));
+		} catch (\ReflectionException $e) {
+			return (null);
+		}
+	}
+	/**
+	 * Resolves parameters for dependencies.
+	 * @param	\ReflectionFunction|\ReflectionMethod	$rf	Reflection object.
+	 * @return	?array	Associative array of parameters (name => value), or null if no parameters.
+	 */
+	private function _resolveDependencies(\ReflectionFunction|\ReflectionMethod $rf) : ?array {
+		$params = $this->_extractFunctionParameters($rf);
+		if (!$params)
+			return (null);
+		// process parameters
+		$paramArray = [];
+		foreach ($params as $param) {
+			$value = null;
+			$param['types'] ??= [];
+			// Try explicitly defined type (without auto-instantiation).
+			// Scalar types are not processed ($param['types'] is an empty array).
+			foreach ($param['types'] as $type) {
+				$val = $this->get($type, null, false);
+				if ($val !== null && self::checkType($val, $type)) {
+					$value = $val;
+					break;
+				}
+			}
+			// Try parameter name (without auto-instantiation).
+			// This is valid for scalars (e.g. dependency injection of a config parameter named 'apiKey').
+			if ($value === null) {
+				$val = $this->get($param['name'], null, false);
+				if ($val !== null && (!$param['types'] || self::checkType($val, $param['types'])))
+					$value = $val;
+			}
+			// Fallback: try type with auto-instantiation. Skip this for scalars too.
+			$instantiationError = null;
+			if ($value === null) {
+				foreach ($param['types'] as $type) {
+					try {
+						// call get() with auto-instantiation enabled
+						$val = $this->get($type, null, true);
+						if ($val !== null && self::checkType($val, $type)) {
+							$value = $val;
+							break;
+						}
+					} catch (TµLoaderException $le) {
+						// we keep the error in case of total failure
+						$instantiationError = $le;
+					}
+				}
+			}
+			// use default value if nothing found
+			if ($value === null && $param['hasDefault'])
+				$value = $param['defaultValue'];
+			// check if the parameter is nullable
+			if ($value === null && !$param['nullable'])
+				throw new TµLoaderException("Unable to resolve parameter '\$" . $param['name'] . "'.", TµLoaderException::BAD_PARAM, $instantiationError);
+			// prepare the parameter
+			$paramArray[$param['name']] = $value;
+		}
+		return ($paramArray);
+	}
+	/**
+	 * Trigger active attributes for a reflection object.
+	 * @param	\ReflectionClass|\ReflectionFunction|\ReflectionMethod	$ref	Reflection object.
+	 */
+	private function _triggerActiveAttributes(\ReflectionClass|\ReflectionFunction|\ReflectionMethod $ref) : void {
+		$attributes = $ref->getAttributes(\Temma\Web\Attribute::class, \ReflectionAttribute::IS_INSTANCEOF);
+		if ($ref instanceof \ReflectionClass) {
+			for ($parent = $ref->getParentClass(); $parent; $parent = $parent->getParentClass()) {
+				$parentAttributes = $parent->getAttributes(\Temma\Web\Attribute::class, \ReflectionAttribute::IS_INSTANCEOF);
+				$attributes = array_merge($attributes, $parentAttributes);
+			}
+		}
+		foreach ($attributes as $attribute) {
+			$attribute->newInstance();
+		}
+	}
+	/**
 	 * Returns the parameters list of a function/method.
 	 * @param	\ReflectionMethod|\ReflectionFunction	$rf	The reflection object created from the function/method.
 	 * @return	array	A list of associative arrays.
 	 */
 	private function _extractFunctionParameters(\ReflectionMethod|\ReflectionFunction $rf) : array {
-		// manage cache
-		$id = $rf instanceof ReflectionMethod ?
-		      $rf->getDeclaringClass()->getName() . '::' . $rf->getName() :
-		      $rf->getName();
+		// manage cache key generation
+		if ($rf instanceof \ReflectionMethod) {
+			$id = $rf->getDeclaringClass()->getName() . '::' . $rf->getName();
+		} else {
+			// for closures, getName() returns "{closure}", causing collisions. We add file/line info.
+			$id = $rf->getName();
+			if ($id === '{closure}')
+				$id .= ':' . $rf->getFileName() . ':' . $rf->getStartLine();
+		}
+		// check cache
 		if (isset(self::$_paramCache[$id]))
-			return self::$_paramCache[$id];
+			return (self::$_paramCache[$id]);
+		// list of scalar types that should not be looked up in the loader (as types) nor instantiated
+		static $scalars = [
+			'void'     => true, 'never'    => true,
+			'null'     => true,
+			'false'    => true, 'true'     => true,
+			'bool'     => true, 'boolean'  => true,
+			'int'      => true, 'integer'  => true,
+			'float'    => true, 'double'   => true,
+			'string'   => true,
+			'array'    => true, 'iterable' => true,
+			'object'   => true, 'callable' => true,
+			'resource' => true,
+			'mixed'    => true,
+		];
 		// process parameters
 		$params = [];
 		foreach ($rf->getParameters() as $p) {
 			$param = [
-				'name' => $p->getName(),
-				'types' => [],
-				'nullable' => false,
-				'hasDefault' => $p->isDefaultValueAvailable(),
+				'name'         => $p->getName(),
+				'types'        => [],
+				'nullable'     => $p->allowsNull(),
+				'hasDefault'   => $p->isDefaultValueAvailable(),
 				'defaultValue' => $p->isDefaultValueAvailable() ? $p->getDefaultValue() : null,
 			];
 			$rt = $p->getType();
 			if ($rt === null) {
 				// noop
 			} else if ($rt instanceof \ReflectionUnionType) {
-				$nullable = false;
 				foreach ($rt->getTypes() as $tt) {
-					$param['types'][] = $tt->getName();
-					if ($tt->allowsNull() || ($tt->getName() == 'mixed'))
-						$param['nullable'] = true;
+					// don't keep the type if it's a scalar
+					if (!isset($scalars[$tt->getName()]))
+						$param['types'][] = $tt->getName();
 				}
-			} else if ($rt->isBuiltin() || $rt instanceof \ReflectionNamedType) {
-				$param['types'][] = $rt->getName();
-				$param['nullable'] = $rt->allowsNull() || ($rt->getName() == 'mixed');
+			} else if ($rt instanceof \ReflectionNamedType) {
+				// don't keep the type if it's a scalar
+				if (!isset($scalars[$rt->getName()]))
+					$param['types'][] = $rt->getName();
 			} else if ($rt instanceof \ReflectionIntersectionType) {
-				throw new TµLoaderException("Intersection types are not supported for autowiring.", TµLoaderException::UNSUPPORTED_TYPE);
+				throw new TµLoaderException("Intersection types are not supported by autowiring.", TµLoaderException::UNSUPPORTED_TYPE);
 			}
 			$params[] = $param;
 		}
@@ -524,7 +622,7 @@ class Loader extends \Temma\Utils\Registry {
 			}
 			return (false);
 		}
-		// Intersection types: A&B (objets uniquement)
+		// Intersection types: A&B (objects only)
 		if (str_contains($type, '&')) {
 			foreach (explode('&', $type) as $part) {
 				if (!self::checkType($value, trim($part)))
@@ -549,8 +647,8 @@ class Loader extends \Temma\Utils\Registry {
 			case 'iterable': return (is_iterable($value));
 			case 'resource': return (is_resource($value));
 			case 'null':     return (is_null($value));
-			case 'scalar':   return (is_scalar($value));     // int|float|string|bool
-			case 'numeric':  return (is_numeric($value));    // not a real PHP type
+			case 'scalar':   return (is_scalar($value));
+			case 'numeric':  return (is_numeric($value));
 			case 'mixed':    return (true);
 		}
 		// classes and interfaces
