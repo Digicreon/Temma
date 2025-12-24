@@ -102,15 +102,13 @@ class Framework {
 				'temma'    => $this,
 			]);
 		}
-		// configure the loader with the defined configuration (preload, lazy, aliases and prefixes)
+		// configure the loader with the defined configuration (preload, aliases and prefixes)
 		if (isset($this->_config->loaderPreload))
 			$this->_loader->set($this->_config->loaderPreload);
-		if (isset($this->_config->loaderLazy))
-			$this->_loader->setLazy($this->_config->loaderLazy);
 		if (isset($this->_config->loaderAliases))
-			$this->_loader->setAliases($this->_config->loaderAliases);
+			$this->_loader->alias($this->_config->loaderAliases);
 		if (isset($this->_config->loaderPrefixes))
-			$this->_loader->setPrefixes($this->_config->loaderPrefixes);
+			$this->_loader->prefix($this->_config->loaderPrefixes);
 		// initialization of the log system
 		$this->_configureLog();
 		// check the requested URL and log it

@@ -20,7 +20,7 @@ use \Temma\Exceptions\Loader as TµLoaderException;
  * from the loader (while regular anonymous functions are executed once, and their returned
  * values replace them in the loader).
  */
-final class LoaderDynamic {
+class LoaderDynamic {
 	/**
 	 * Constructor.
 	 * @param	\Closure	$closure	Internal closure, used as a factory.
@@ -28,17 +28,10 @@ final class LoaderDynamic {
 	public function __construct(public readonly \Closure $closure) {
 	}
 }
-
 /**
- * Class used to encapsulate an anonymous function for lazily-generated objects.
+ * Class used to make the difference between aliases and factories.
  */
-final class LoaderLazy {
-	/**
-	 * Constructor.
-	 * @param	\Closure	$closure	Internal closure.
-	 */
-	public function __construct(public readonly \Closure $closure) {
-	}
+class LoaderAlias extends LoaderDynamic {
 }
 
 /* ********** DEPENDENCY INJECTION CONTAINER ********** */
@@ -56,19 +49,128 @@ final class LoaderLazy {
  *     'cardBo'          => $cardBo,
  *     '\MyApp\MainCtrl' => new \MyApp\MainCtrl(),
  * ]);
+ * ```
  *
+ * Read stored values:
+ * ```php
  * // use the loader with an object-oriented syntax
  * $user = $loader->userBo->getFromId(12);
+ *
  * // use the loader with an array-like syntax
  * $loader['\MyApp\MainCtrl']->startCountDown();
  *
- * // define a callback to create an object later on the fly
+ * // explicit retrieval, with a given default value
+ * $value = $loader->get('user', $defaultUser);
+ * ```
+ *
+ * Add values in the loader:
+ * ```php
+ * // using object-oriented syntax
+ * $loader->walletBo = new \MyApp\WalletBo();
+ *
+ * // using array-like syntax
+ * $loader['walletBo'] = $walletBo;
+ *
+ * // using explicit syntax
+ * $loader->set('walletBo', $walletBo);
+ *
+ * // add multiple values at once
+ * $loader->set([
+ *     'walletBo' => $walletBo,
+ *     'userDao'  => new UserDao(),
+ * ]);
+ * ```
+ *
+ * Lazy instantiation:
+ * ```php
+ * // Define a callback to create an object later on the fly.
+ * // The closure will be executed once, and the result will be stored.
  * $loader->userDao = function($loader) {
  *     return new \MyApp\UserDao($loader->db);
  * };
+ *
  * // use the callback transparently
  * $loader->userDao->createUser('John Rambo');
+ * ```
  *
+ * Dynamic instantiation:
+ * ```php
+ * // Define a dynamic value.
+ * // The closure will be executed each time the object is requested.
+ * $loader->dynamic('time', function() {
+ *     return time();
+ * });
+ * // display the current time
+ * print($loader->time);
+ *
+ * // define multiple dynamic values at once
+ * $loader->dynamic([
+ *     'time' => fn() => time(),
+ *     'user' => function() use ($loader) {
+ *         return $loader->userDao->getLastUser();
+ *     },
+ * ]);
+ * ```
+ *
+ * Aliases:
+ * ```php
+ * // Define an alias.
+ * // The aliased element will be returned.
+ * $loader->alias('UserService', 'UserBo');
+ *
+ * // define multiple aliases at once
+ * $loader->alias([
+ *     'UserService'   => 'UserBo',
+ *     'WalletService' => 'WalletBo',
+ * ]);
+ * ```
+ *
+ * Autowiring:
+ * ```php
+ * class UserBo {
+ *     // $userDao is automatically injected when UserBo is instantiated.
+ *     // If there is no 'UserDao' value in the loader, it will be instantiated on the fly.
+ *     public function __construct(private UserDao $userDao) {
+ *     }
+ *     public function addFriends(int $fromId, int $toId) : void {
+ *         $from = $this->userDao->getFromId($fromId);
+ *         $to = $this->userDao->getFromId($toId);
+ *         if (!$from['canBeFriend'] || !$to['canBeFriend'])
+ *             throw new Exception("Users can't be friends.");
+ *         $this->userDao->setFriend($fromId, $toId);
+ *     }
+ * }
+ * $loader = new \Temma\Base\Loader(['UserDao' => $userDao]);
+ * $loader->UserBo->addFriends(12, 21);
+ * ```
+ *
+ * Prefixes:
+ * ```php
+ * // define a prefix
+ * $loader->prefix('App', '\App\Source\Global');
+ *
+ * // use the prefix
+ * $object = $loader->AppUser;
+ * // is equivalent to
+ * $object = $loader['\App\Source\GlobalUser'];
+ *
+ * // another prefix
+ * $loader->prefix('Ctrl', '\App\Controllers\\');
+ *
+ * // use the prefix
+ * $object = $loader->CtrlUser;
+ * // is equivalent to
+ * $object = $loader['\App\Controllers\User'];
+ *
+ * // define multiple prefixes at once
+ * $loader->prefix([
+ *     'App'  => '\App\Source\Global',
+ *     'Ctrl' => '\App\Controllers\\',
+ * ]);
+ * ```
+ *
+ * Builder:
+ * ```php
  * // define a builder function
  * $loader->setBuilder(function($loader, $key) {
  *     // instantiate objects depending on their suffix
@@ -94,10 +196,8 @@ final class LoaderLazy {
  *         return new $key($loader);
  *     }
  * );
- * ```
  *
- * It is also possible to create a child class with a defined builder:
- * ```php
+ * // It is also possible to create a child class with a defined builder:
  * class MyLoader extends \Temma\Base\Loader {
  *     protected function builder(string $key) {
  *         $key = ucfirst($key);
@@ -109,24 +209,6 @@ final class LoaderLazy {
  * $user = $loader->userDao->getFromId(21);
  * // dynamically creates an instance of UserBo
  * $loader->userBo->addFriends(12, 21);
- * ```
- *
- * The loader supports autowiring:
- * ```php
- * class UserBo {
- *     // $userDao is automatically injected when UserBo is instantiated
- *     public function __construct(private UserDao $userDao) {
- *     }
- *     public function addFriends(int $fromId, int $toId) : void {
- *         $from = $this->userDao->getFromId($fromId);
- *         $to = $this->userDao->getFromId($toId);
- *         if (!$from['canBeFriend'] || !$to['canBeFriend'])
- *             throw new Exception("Users can't be friends.");
- *         $this->userDao->setFriend($fromId, $toId);
- *     }
- * }
- * $loader = new \Temma\Base\Loader(['userDao' => $userDao]);
- * $loader->UserBo->addFriends(12, 21);
  * ```
  */
 class Loader extends \Temma\Utils\Registry {
@@ -159,21 +241,30 @@ class Loader extends \Temma\Utils\Registry {
 		return ($this);
 	}
 
-	/* ********** LAZY, ALIASES AND PREFIXES ********** */
+	/* ********** FACTORIES, ALIASES AND PREFIXES ********** */
 	/**
-	 * Add a lazily-loaded data.
-	 * @param	string	$key	Index key.
-	 * @param	mixed	$data	Value associated to the key.
+	 * Add a dynamic parameter (factory pattern), or a list of dynamic parameters.
+	 * The closure will be executed each time the data is requested.
+	 * @param	string|array	$key		Index key, or associative array of keys and closures.
+	 * @param	?\Closure	$closure	(optional) Closure to use as a factory. Could be null to remove the factory.
 	 * @return	\Temma\Base\Loader	The current object.
 	 */
-	public function setLazy(string $key, mixed $data=null) : \Temma\Base\Loader {
-		if (is_null($data)) {
-			if (($this->_data[$key] ?? null) instanceof LoaderLazy)
+	public function dynamic(string|array $key, ?\Closure $closure=null) : \Temma\Base\Loader {
+		if (is_array($key)) {
+			foreach ($key as $dynKey => $closure) {
+				$this->dynamic($dynKey, $closure);
+			}
+			return ($this);
+		}
+		if (is_null($closure)) {
+			// remove the previously created factory
+			$value = $this->_data[$key] ?? null;
+			if ($value instanceof LoaderDynamic && !($value instanceof LoaderAlias))
 				unset($this->_data[$key]);
 			return ($this);
 		}
-		// add the key
-		$this->_data[$key] = new LoaderLazy(fn() => $data);
+		// add the factory as a LoaderDynamic-protected closure
+		$this->_data[$key] = new LoaderDynamic($closure);
 		return ($this);
 	}
 	/**
@@ -184,40 +275,32 @@ class Loader extends \Temma\Utils\Registry {
 	 * @param	?string	$aliased	(optional) Name of the aliased element. Could be null to remove the alias.
 	 * @return	\Temma\Base\Loader	The current object.
 	 */
-	public function setAlias(string|array $alias, ?string $aliased=null) : \Temma\Base\Loader {
+	public function alias(string|array $alias, ?string $aliased=null) : \Temma\Base\Loader {
 		if (is_array($alias)) {
 			foreach ($alias as $aliasKey => $aliased) {
-				$this->setAlias($aliasKey, $aliased);
+				$this->alias($aliasKey, $aliased);
 			}
 			return ($this);
 		}
 		if (is_null($aliased)) {
 			// remove the previously created alias
-			if (($this->_data[$alias] ?? null) instanceof LoaderDynamic)
+			if (($this->_data[$alias] ?? null) instanceof LoaderAlias)
 				unset($this->_data[$alias]);
 			return ($this);
 		}
 		// add the alias as a LoaderDynamic-protected closure
-		$this->_data[$alias] = new LoaderDynamic(fn() => $this->get($aliased));
+		$this->_data[$alias] = new LoaderAlias(fn() => $this->get($aliased));
 		return ($this);
 	}
 	/**
-	 * Add aliases.
-	 * @param	array	$aliases	Associative array of aliases.
-	 * @return	\Temma\Base\Loader	The current object.
-	 */
-	public function setAliases(array $aliases) : \Temma\Base\Loader {
-		return ($this->setAlias($aliases));
-	}
-	/**
-	 * Add a prefix.
+	 * Add a prefix, or a list of prefixes.
 	 * @param	string|array	$name	If a string is given, it's the name of the prefix, and a prefix should be given.
 	 *					If an array is given, its key/value pairs are used to set prefixes, and the
 	 *					second parameter is not used.
 	 * @param	?string		$prefix	Prefixed namespace. Could be null to remove a prefix.
 	 * @return	\Temma\Base\Loader	The current object.
 	 */
-	public function setPrefix(string|array $name, ?string $prefix=null) : \Temma\Base\Loader {
+	public function prefix(string|array $name, ?string $prefix=null) : \Temma\Base\Loader {
 		if (is_array($name)) {
 			$this->_prefixes = array_merge($this->_prefixes, $name);
 			return ($this);
@@ -227,14 +310,6 @@ class Loader extends \Temma\Utils\Registry {
 		else
 			$this->_prefixes[$name] = $prefix;
 		return ($this);
-	}
-	/**
-	 * Add prefixes.
-	 * @param	array	$prefixes	Associative array of prefixes.
-	 * @return	\Temma\Base\Loader	The current object.
-	 */
-	public function setPrefixes(array $prefixes) : \Temma\Base\Loader {
-		return ($this->setPrefix($prefixes));
 	}
 
 	/* ********** DATA WRITING ********** */
@@ -259,15 +334,6 @@ class Loader extends \Temma\Utils\Registry {
 		else
 			$this->_data[$key] = $data;
 		return ($this);
-	}
-	/**
-	 * Create a factory. A factory is a closure which will be executed each time the value is requested
-	 * (not like plain closures which are executed once to set the value).
-	 * @param	\Closure	$closure	Closure to use as a factory.
-	 * @return	LoaderDynamic	The protected closure.
-	 */
-	static public function dynamic(\Closure $closure) : LoaderDynamic {
-		return (new LoaderDynamic($closure));
 	}
 
 	/* ********** DATA READING ********** */
@@ -296,11 +362,6 @@ class Loader extends \Temma\Utils\Registry {
 				// is it a factory (closure called each time the value is asked)?
 				if ($item instanceof LoaderDynamic)
 					return ($this->_instantiate($item->closure, $default));
-				// is it a lazily-generated value?
-				if ($item instanceof LoaderLazy) {
-					$this->_data[$key] = $this->_instantiate($item->closure(), $default);
-					return ($this->_data[$key]);
-				}
 				// is it a callable?
 				if (is_callable($item) && !$item instanceof \Temma\Web\Controller)
 					$this->_data[$key] = $this->_instantiate($this->_data[$key]);
@@ -327,10 +388,6 @@ class Loader extends \Temma\Utils\Registry {
 				$item = $this->_data[$key];
 				if ($item instanceof LoaderDynamic)
 					return ($this->_instantiate($item->closure, $default));
-				if ($item instanceof LoaderLazy) {
-					$this->_data[$key] = $this->_instantiate($item->closure(), $default);
-					return ($this->_data[$key]);
-				}
 				return ($this->_data[$key]);
 			}
 			// check if auto-instantiation is requested
@@ -432,7 +489,7 @@ class Loader extends \Temma\Utils\Registry {
 			$rc = new \ReflectionClass($obj);
 			// check if abstract
 			if ($rc->isAbstract())
-				throw new TµLoaderException('Abastract class.', TµLoaderException::ABSTRACT_CLASS);
+				throw new TµLoaderException('Abstract class.', TµLoaderException::ABSTRACT_CLASS);
 			// management of object's attributes
 			$this->_triggerActiveAttributes($rc);
 			// special process for controllers
