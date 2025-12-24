@@ -294,7 +294,7 @@ class Controller implements \ArrayAccess {
 	final public function _subProcess(string $controller, ?string $action=null, ?array $parameters=null) : ?int {
 		TµLog::log('Temma/Web', 'DEBUG', "Subprocess of '$controller'::'$action'.");
 		// checks
-		if (!is_subclass_of($controller, \Temma\Web\Controller::class)) {
+		if (!is_subclass_of($controller, '\Temma\Web\Controller')) {
 			TµLog::log('Temma/Web', 'ERROR', "Sub-controller '$controller' doesn't exist.");
 			throw new TµHttpException("Unable to find controller '$controller'.", 404);
 		}
