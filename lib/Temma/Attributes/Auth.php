@@ -90,31 +90,42 @@ class Auth extends \Temma\Web\Attribute {
 	 * @param	?string			$redirect	(optional) Redirection URL used if there is an authentication problem (instead of throwing an exception).
 	 * @param	?string			$redirectVar	(optional) Name of the template variable which contains the redirection URL.
 	 * @param	bool			$storeUrl	(optional) Tell if the requested URL must be stored in the "authRequestedUrl" session variable. (default value: false)
+	 */
+	public function __construct(
+		protected null|string|array $role=null,
+		protected null|string|array $service=null,
+	        protected ?bool $authenticated=true,
+		protected ?string $redirect=null,
+		protected ?string $redirectVar=null,
+		protected bool $storeUrl=false,
+	) {
+	}
+	/**
+	 * Processing of the attribute.
+	 * @param	\Reflector	$context	Context of the element on which the attribute is applied
+	 *						(ReflectionClass, ReflectionMethod or ReflectionFunction).
 	 * @throws	\Temma\Exceptions\Application	If the user is not authorized.
 	 * @throws	\Temma\Exceptions\FlowHalt	If the user is not authorized and a redirect URL has been given.
 	 */
-	public function __construct(null|string|array $role=null, null|string|array $service=null,
-	                            ?bool $authenticated=true, ?string $redirect=null, ?string $redirectVar=null, bool $storeUrl=false) {
-		global $temma;
-
+	public function apply(\Reflector $context) : void {
 		$authError = null;
 		$authErrorData = null;
 		try {
-			$authVariable = $this->_getConfig()->xtra('security', 'authVariable', 'currentUser');
+			$authVariable = $this->_config->xtra('security', 'authVariable', 'currentUser');
 			// check authentication
-			if ($authenticated === true && !($this[$authVariable]['id'] ?? false)) {
+			if ($this->authenticated === true && !($this[$authVariable]['id'] ?? false)) {
 				$authError = 'not_authenticated';
 				TµLog::log('Temma/Web', 'WARN', "User is not authenticated (while an authenticated user is expected).");
 				throw new TµApplicationException("User is not authenticated.", TµApplicationException::AUTHENTICATION);
 			}
-			if ($authenticated === false && ($this[$authVariable]['id'] ?? false)) {
+			if ($this->authenticated === false && ($this[$authVariable]['id'] ?? false)) {
 				$authError = 'authenticated';
 				TµLog::log('Temma/Web', 'WARN', "User is authenticated (while a unauthenticated user is expected).");
 				throw new TµApplicationException("User is authenticated.", TµApplicationException::AUTHENTICATION);
 			}
 			// check roles
-			if ($role) {
-				$authRoles = is_array($role) ? $role : [$role];
+			if ($this->role) {
+				$authRoles = is_array($this->role) ? $this->role : [$this->role];
 				$userRoles = $this[$authVariable]['roles'] ?? [];
 				$found = false;
 				foreach ($authRoles as $role) {
@@ -141,8 +152,8 @@ class Auth extends \Temma\Web\Attribute {
 				}
 			}
 			// check services
-			if ($service) {
-				$authServices = is_array($service) ? $service : [$service];
+			if ($this->service) {
+				$authServices = is_array($this->service) ? $this->service : [$this->service];
 				$userServices = $this[$authVariable]['services'] ?? [];
 				$found = false;
 				foreach ($authServices as $service) {
@@ -170,18 +181,18 @@ class Auth extends \Temma\Web\Attribute {
 			}
 		} catch (TµApplicationException $e) {
 			// store URL
-			if ($storeUrl && $temma)
-				$temma->getSession()->set('authRequestedUrl', $this['URL']);
+			if ($this->storeUrl)
+				$this->_session->set('authRequestedUrl', $this['URL']);
 			// manage redirection URL
-			$url = $redirect ?:                                             // direct URL
-			       $this[$redirectVar] ?:                                   // template variable
-			       $this->_getConfig()->xtra('security', 'authRedirect') ?: // specific configuration
-			       $this->_getConfig()->xtra('security', 'redirect');       // general configuration
+			$url = $this->redirect ?:                                  // direct URL
+			       $this[$this->redirectVar] ?                         // template variable
+			       $this->_config->xtra('security', 'authRedirect') ?: // specific configuration
+			       $this->_config->xtra('security', 'redirect');       // general configuration
 			if ($url) {
 				TµLog::log('Temma/Web', 'DEBUG', "Redirecting to '$url'.");
-				$this->_getSession()['__authError'] = $authError;
+				$this->_session['__authError'] = $authError;
 				if ($authErrorData)
-					$this->_getSession()['__authErrorData'] = $authErrorData;
+					$this->_session['__authErrorData'] = $authErrorData;
 				$this->_redirect($url);
 				throw new \Temma\Exceptions\FlowHalt();
 			}

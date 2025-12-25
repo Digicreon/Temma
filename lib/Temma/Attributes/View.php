@@ -51,8 +51,17 @@ class View extends \Temma\Web\Attribute {
 	 *						If left empty (or set to null), use the default view as configured in the 'temma.json' configuration file.
 	 *						If set to false, disable the processing of the view.
 	 */
-	public function __construct(null|false|string $view=null) {
-		$this->_getResponse()->setView($view);
+	public function __construct(
+		protected null|false|string $view=null,
+	) {
+	}
+	/**
+	 * Processing of the attribute.
+	 * @param	\Reflector	$context	Context of the element on which the attribute is applied
+	 *						(ReflectionClass, ReflectionMethod or ReflectionFunction).
+	 */
+	public function apply(\Reflector $context) : void {
+		$this->_response->setView($this->view);
 	}
 }
 

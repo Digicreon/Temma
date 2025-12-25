@@ -33,15 +33,17 @@ use \Temma\Exceptions\Application as TµApplicationException;
 #[\Attribute(\Attribute::TARGET_CLASS | \Attribute::TARGET_METHOD)]
 class Post extends \Temma\Web\Attribute {
 	/**
-	 * Constructor.
+	 * Processing of the attribute.
+	 * @param	\Reflector	$context	Context of the element on which the attribute is applied
+	 *						(ReflectionClass, ReflectionMethod or ReflectionFunction).
 	 * @throws	\Temma\Exceptions\Application	If a method other than POST is used.
 	 * @throws 	\Temma\Exceptions\FlowHalt	If a redirection is defined.
 	 */
-	public function __construct() {
+	public function apply(\Reflector $context) : void {
 		if ($_SERVER['REQUEST_METHOD'] == 'POST')
 			return;
-		$url = $this->_getConfig()->xtra('security', 'methodRedirect') ?:
-		       $this->_getConfig()->xtra('security', 'redirect');
+		$url = $this->_config->xtra('security', 'methodRedirect') ?:
+		       $this->_config->xtra('security', 'redirect');
 		if ($url) {
 			TµLog::log('Temma/Web', 'DEBUG', "Redirecting to '$url'.");
 			$this->_redirect($url);

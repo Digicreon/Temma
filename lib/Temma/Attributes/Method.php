@@ -42,26 +42,37 @@ class Method extends \Temma\Web\Attribute {
 	 * @param	null|string|array	$forbidden	(optional) Forbidden method(s).
 	 * @param	?string			$redirect	(optional) Redirection URL if a forbidden (or not authorized) method is used.
 	 * @param	?string			$redirectVar	(optional) Name of the template variable which contains the redirection URL.
+	 */
+	public function __construct(
+		protected null|string|array $allowed=null,
+		protected null|string|array $forbidden=null,
+		protected ?string $redirect=null,
+		protected ?string $redirectVar=null,
+	) {
+	}
+	/**
+	 * Processing of the attribute.
+	 * @param	\Reflector	$context	Context of the element on which the attribute is applied
+	 *						(ReflectionClass, ReflectionMethod or ReflectionFunction).
 	 * @throws	\Temma\Exceptions\Application	If a forbidden (or not authorized) method is used.
 	 */
-	public function __construct(null|string|array $allowed=null, null|string|array $forbidden=null,
-	                            ?string $redirect=null, ?string $redirectVar=null) {
+	public function apply(\Reflector $context) : void {
 		try {
-			if ($forbidden) {
-				if (is_string($forbidden))
-					$forbidden = [$forbidden];
-				foreach ($forbidden as $method) {
+			if ($this->forbidden) {
+				if (is_string($this->forbidden))
+					$this->forbidden = [$this->forbidden];
+				foreach ($this->forbidden as $method) {
 					if (strtoupper($method) === $_SERVER['REQUEST_METHOD']) {
 						TµLog::log('Temma/Web', 'WARN', "Unauthorized method '{$_SERVER['REQUEST_METHOD']}'.");
 						throw new TµApplicationException("Unauthorized method '{$_SERVER['REQUEST_METHOD']}'.", TµApplicationException::UNAUTHORIZED);
 					}
 				}
 			}
-			if (!$allowed)
+			if (!$this->allowed)
 				return;
-			if (is_string($allowed))
-				$allowed = [$allowed];
-			foreach ($allowed as $method) {
+			if (is_string($this->allowed))
+				$this->allowed = [$this->allowed];
+			foreach ($this->allowed as $method) {
 				if (strtoupper($method) === $_SERVER['REQUEST_METHOD'])
 					return;
 			}
@@ -69,10 +80,10 @@ class Method extends \Temma\Web\Attribute {
 			throw new TµApplicationException("Invalid method '{$_SERVER['REQUEST_METHOD']}'.", TµApplicationException::UNAUTHORIZED);
 		} catch (TµApplicationException $e) {
 			// manage redirection URL
-			$url = $redirect ?:                                               // direct URL
-			       $this[$redirectVar] ?:                                     // template variable
-			       $this->_getConfig()->xtra('security', 'methodRedirect') ?: // specific configuration
-			       $this->_getConfig()->xtra('security', 'redirect');         // general configuration
+			$url = $this->redirect ?:                                    // direct URL
+			       $this[$this->redirectVar] ?:                          // template variable
+			       $this->_config->xtra('security', 'methodRedirect') ?: // specific configuration
+			       $this->_config->xtra('security', 'redirect');         // general configuration
 			if ($url) {
 				TµLog::log('Temma/Web', 'DEBUG', "Redirecting to '$url'.");
 				$this->_redirect($url);

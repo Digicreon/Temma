@@ -591,7 +591,12 @@ class Loader extends \Temma\Utils\Registry {
 			}
 		}
 		foreach ($attributes as $attribute) {
-			$attribute->newInstance();
+			// instantiate the attribute
+			$instance = $attribute->newInstance();
+			// initialize the attribute
+			$instance->init($this);
+			// apply the attribute
+			$instance->apply($ref);
 		}
 	}
 	/**

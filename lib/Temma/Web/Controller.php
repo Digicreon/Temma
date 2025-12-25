@@ -356,7 +356,12 @@ class Controller implements \ArrayAccess {
 		$attributes = $actionReflection->getAttributes(\Temma\Web\Attribute::class, \ReflectionAttribute::IS_INSTANCEOF);
 		foreach ($attributes as $attribute) {
 			TµLog::log('Temma/Web', 'DEBUG', "Action attribute '{$attribute->getName()}'.");
-			$attribute->newInstance();
+			// instantiate the attribute
+			$instance = $attribute->newInstance();
+			// initialize the attribute
+			$instance->init($this->_loader);
+			// apply the attribute
+			$instance->apply($actionReflection);
 		}
 
 		/* ********** execution ********** */

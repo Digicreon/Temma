@@ -113,17 +113,36 @@ class Referer extends \Temma\Web\Attribute {
 	 * @param	bool			$urlConfig	(optional) True to use the 'refererUrl' key of the 'x-security' extended configuration.
 	 * @param	?string			$redirect	(optional) Redirection URL used if the referer is not authorized.
 	 * @param	?string			$redirectVar	(optional) Name of the template variable which contains the redirection URL.
+	 */
+	public function __construct(
+		protected null|bool|string|array $domain=null,
+		protected null|string|array $domainSuffix=null,
+		protected ?string $domainRegex=null,
+		protected ?string $domainVar=null,
+		protected  bool $domainConfig=false,
+		protected null|bool|string $https=null,
+		protected null|string|array $path=null,
+		protected null|string|array $pathPrefix=null,
+		protected  null|string|array $pathSuffix=null,
+		protected ?string $pathRegex=null,
+		protected ?string$pathVar=null,
+		protected bool $pathConfig=false,
+		protected null|bool|string|array $url=null,
+		protected ?string $urlRegex=null,
+		protected ?string $urlVar=null,
+		protected bool $urlConfig=false,
+		protected ?string $redirect=null,
+		protected ?string $redirectVar=null,
+	) {
+	}
+	/**
+	 * Processing of the attribute.
+	 * @param	\Reflector	$context	Context of the element on which the attribute is applied
+	 *						(ReflectionClass, ReflectionMethod or ReflectionFunction).
 	 * @throws	\Temma\Exceptions\Application	If the referer is not authorized.
 	 * @throws	\Temma\Exceptions\FlowHalt	If the user is not authorized and a redirect URL has been given.
 	 */
-	public function __construct(null|bool|string|array $domain=null, null|string|array $domainSuffix=null,
-	                            ?string $domainRegex=null, ?string $domainVar=null, bool $domainConfig=false,
-	                            null|bool|string $https=null, null|string|array $path=null,
-	                            null|string|array $pathPrefix=null, null|string|array $pathSuffix=null,
-	                            ?string $pathRegex=null, ?string$pathVar=null, bool $pathConfig=false,
-	                            null|bool|string|array $url=null, ?string $urlRegex=null,
-	                            ?string $urlVar=null, bool $urlConfig=false,
-	                            ?string $redirect=null, ?string $redirectVar=null) {
+	public function apply(\Reflector $context) : void {
 		try {
 			// check referer
 			if (!($_SERVER['HTTP_REFERER'] ?? false) ||
@@ -132,15 +151,15 @@ class Referer extends \Temma\Web\Attribute {
 				throw new TµApplicationException("No HTTP referer.", TµApplicationException::UNAUTHORIZED);
 			}
 			// check HTTPS
-			if ($https === true && $ref['scheme'] != 'https') {
+			if ($this->https === true && $ref['scheme'] != 'https') {
 				TµLog::log('Temma/Web', 'WARN', "Not HTTPS scheme.");
 				throw new TµApplicationException("Hot HTTPS scheme.", TµApplicationException::UNAUTHORIZED);
 			}
-			if ($https === false && $ref['scheme'] != 'http') {
+			if ($this->https === false && $ref['scheme'] != 'http') {
 				TµLog::log('Temma/Web', 'WARN', "Not HTTP scheme.");
 				throw new TµApplicationException("Hot HTTP scheme.", TµApplicationException::UNAUTHORIZED);
 			}
-			if ($https === 'same') {
+			if ($this->https === 'same') {
 				$secure = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off') ? true : false;
 				if (($ref['scheme'] == 'https' && !$secure) ||
 				    ($ref['scheme'] == 'http' && $secure)) {
@@ -150,20 +169,20 @@ class Referer extends \Temma\Web\Attribute {
 			}
 			// check domain
 			$checkDomains = [];
-			if ($domain === true)
+			if ($this->domain === true)
 				$checkDomains[] = $_SERVER['SERVER_NAME'];
-			if (is_string($domain))
-				$checkDomains[] = $domain;
-			else if (is_array($domain))
-				$checkDomains = $domain;
-			if ($domainVar) {
-				if (is_string($this[$domainVar]))
-					$checkDomains[] = $this[$domainVar];
-				else if (is_array($this[$domainVar]))
-					$checkDomains = array_merge($checkDomains, $this[$domainVar]);
+			if (is_string($this->domain))
+				$checkDomains[] = $this->domain;
+			else if (is_array($this->domain))
+				$checkDomains = $this->domain;
+			if ($this->domainVar) {
+				if (is_string($this[$this->domainVar]))
+					$checkDomains[] = $this[$this->domainVar];
+				else if (is_array($this[$this->domainVar]))
+					$checkDomains = array_merge($checkDomains, $this[$this->domainVar]);
 			}
-			if ($domainConfig) {
-				$conf = $this->_getConfig()->xtra('security', 'refererDomain');
+			if ($this->domainConfig) {
+				$conf = $this->_config->xtra('security', 'refererDomain');
 			if (is_string($conf))
 					$checkDomains[] = $conf;
 				else if (is_array($conf))
@@ -183,8 +202,8 @@ class Referer extends \Temma\Web\Attribute {
 				}
 			}
 			// check domain suffix
-			if ($domainSuffix) {
-				$checkDomains = is_array($domainSuffix) ? $domainSuffix : [$domainSuffix];
+			if ($this->domainSuffix) {
+				$checkDomains = is_array($this->domainSuffix) ? $this->domainSuffix : [$this->domainSuffix];
 				$found = false;
 				foreach ($checkDomains as $domain) {
 					if (str_ends_with($ref['host'], $domain)) {
@@ -198,24 +217,24 @@ class Referer extends \Temma\Web\Attribute {
 				}
 			}
 			// check domain regex
-			if ($domainRegex && preg_match($domainRegex, $ref['host']) === false) {
+			if ($this->domainRegex && preg_match($this->domainRegex, $ref['host']) === false) {
 				TµLog::log('Temma/Web', 'WARN', "Domain doesn't match regex.");
 				throw new TµApplicationException("Domain doesn't match regex.", TµApplicationException::UNAUTHORIZED);
 			}
 			// check URL
 			$checkUrl = [];
-			if (is_string($url))
-				$checkUrl[] = $url;
-			else if (is_array($url))
-				$checkUrl = $url;
-			if ($urlVar) {
-				if (is_string($this[$urlVar]))
-					$checkUrl[] = $this[$urlVar];
-				else if (is_array($this[$urlVar]))
-					$checkUrl = array_merge($checkUrl, $this[$urlVar]);
+			if (is_string($this->url))
+				$checkUrl[] = $this->url;
+			else if (is_array($this->url))
+				$checkUrl = $this->url;
+			if ($this->urlVar) {
+				if (is_string($this[$this->urlVar]))
+					$checkUrl[] = $this[$this->urlVar];
+				else if (is_array($this[$this->urlVar]))
+					$checkUrl = array_merge($checkUrl, $this[$this->urlVar]);
 			}
-			if ($urlConfig) {
-				$conf = $this->_getConfig()->xtra('security', 'refererUrl');
+			if ($this->urlConfig) {
+				$conf = $this->_config->xtra('security', 'refererUrl');
 				if (is_string($conf))
 					$checkUrl[] = $conf;
 				else if (is_array($conf))
@@ -235,24 +254,24 @@ class Referer extends \Temma\Web\Attribute {
 				}
 			}
 			// check URL regex
-			if ($urlRegex && preg_match($urlRegex, $_SERVER['HTTP_REFERER']) === false) {
+			if ($this->urlRegex && preg_match($this->urlRegex, $_SERVER['HTTP_REFERER']) === false) {
 				TµLog::log('Temma/Web', 'WARN', "Referer URL doesn't match regex.");
 				throw new TµApplicationException("Referer URL doesn't match regex.", TµApplicationException::UNAUTHORIZED);
 			}
 			// check path
 			$checkPath = [];
-			if (is_string($path))
-				$checkPath[] = $path;
-			else if (is_array($path))
-				$checkPath = $path;
-			if ($pathVar) {
-				if (is_string($this[$pathVar]))
-					$checkPath[] = $this[$pathVar];
-				else if (is_array($this[$pathVar]))
-					$checkPath = array_merge($checkPath, $this[$pathVar]);
+			if (is_string($this->path))
+				$checkPath[] = $this->path;
+			else if (is_array($this->path))
+				$checkPath = $this->path;
+			if ($this->pathVar) {
+				if (is_string($this[$this->pathVar]))
+					$checkPath[] = $this[$this->pathVar];
+				else if (is_array($this[$this->pathVar]))
+					$checkPath = array_merge($checkPath, $this[$this->pathVar]);
 			}
-			if ($pathConfig) {
-				$conf = $this->_getConfig()->xtra('security', 'refererPath');
+			if ($this->pathConfig) {
+				$conf = $this->_config->xtra('security', 'refererPath');
 				if (is_string($conf))
 					$checkPath[] = $conf;
 				else if (is_array($conf))
@@ -272,8 +291,8 @@ class Referer extends \Temma\Web\Attribute {
 				}
 			}
 			// check path prefix
-			if ($pathPrefix) {
-				$checkPath = is_array($pathPrefix) ? $pathPrefix : [$pathPrefix];
+			if ($this->pathPrefix) {
+				$checkPath = is_array($this->pathPrefix) ? $this->pathPrefix : [$this->pathPrefix];
 				$found = false;
 				foreach ($checkPath as $path) {
 					if (str_starts_with($ref['path'], $path)) {
@@ -287,8 +306,8 @@ class Referer extends \Temma\Web\Attribute {
 				}
 			}
 			// check path suffix
-			if ($pathSuffix) {
-				$checkPath = is_array($pathSuffix) ? $pathSuffix : [$pathSuffix];
+			if ($this->pathSuffix) {
+				$checkPath = is_array($this->pathSuffix) ? $this->pathSuffix : [$this->pathSuffix];
 				$found = false;
 				foreach ($checkPath as $path) {
 					if (str_ends_with($ref['path'], $path)) {
@@ -302,16 +321,16 @@ class Referer extends \Temma\Web\Attribute {
 				}
 			}
 			// check path regex
-			if ($pathRegex && preg_match($pathRegex, $ref['path']) === false) {
+			if ($this->pathRegex && preg_match($this->pathRegex, $ref['path']) === false) {
 				TµLog::log('Temma/Web', 'WARN', "Path doesn't match regex.");
 				throw new TµApplicationException("Path doesn't match regex.", TµApplicationException::UNAUTHORIZED);
 			}
 		} catch (TµApplicationException $e) {
 			// manage redirection URL
-			$url = $redirect ?:                                                // direct URL
-			       $this[$redirectVar] ?:                                      // template variable
-			       $this->_getConfig()->xtra('security', 'refererRedirect') ?: // specific configuration
-			       $this->_getConfig()->xtra('security', 'redirect');          // general configuration
+			$url = $this->redirect ?:                                     // direct URL
+			       $this[$this->redirectVar] ?:                           // template variable
+			       $this->_config->xtra('security', 'refererRedirect') ?: // specific configuration
+			       $this->_config->xtra('security', 'redirect');          // general configuration
 			if ($url) {
 				TµLog::log('Temma/Web', 'DEBUG', "Redirecting to '$url'.");
 				$this->_redirect($url);
