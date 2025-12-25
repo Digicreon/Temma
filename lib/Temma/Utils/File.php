@@ -132,5 +132,19 @@ class File {
 		// remove directory
                 rmdir($path);
         }
+	/**
+	 * Check if a path is absolute (Unix or Windows).
+	 * @param	string	$path	Path to check.
+	 * @return	bool	True if the path is absolute.
+	 */
+	static private function isAbsolute(string $path) : bool {
+		if (!$path)
+			return (false);
+		return (
+			$path[0] === '/' ||        // Unix root
+			$path[0] === '\\' ||       // Windows root
+			($path[1] ?? null) === ':' // Windows drive letter
+		);
+	}
 }
 

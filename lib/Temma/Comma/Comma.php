@@ -106,7 +106,10 @@ class Comma {
 	private function _loadDatasources() : void {
 		$dataSources = new \Temma\Utils\Registry();
 		foreach ($this->_config->dataSources as $name => $dsParam) {
-			$dataSources[$name] = \Temma\Base\Datasource::metaFactory($dsParam);
+			$dataSource = \Temma\Base\Datasource::metaFactory($dsParam);
+			$dataSources[$name] = $dataSource;
+			if (!in_array($name, ['config', 'request', 'response', 'temma', 'session', 'dataSources', 'controller']))
+				$this->_loader[$name] = $dataSource;
 		}
 		$this->_loader['dataSources'] = $dataSources;
 	}
@@ -128,10 +131,12 @@ class Comma {
 			'response' => $this->_response,
 		]);
 		// configure the loader with the defined aliases and prefixes
+		if (isset($this->_config->loaderPreload))
+			$this->_loader->set($this->_config->loaderPreload);
 		if (isset($this->_config->loaderAliases))
-			$this->_loader->setAliases($this->_config->loaderAliases);
+			$this->_loader->alias($this->_config->loaderAliases);
 		if (isset($this->_config->loaderPrefixes))
-			$this->_loader->setPrefixes($this->_config->loaderPrefixes);
+			$this->_loader->prefix($this->_config->loaderPrefixes);
 	}
 	/** Creates the configuration. */
 	private function _manageConfiguration() : void {

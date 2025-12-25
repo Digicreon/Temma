@@ -46,13 +46,23 @@ class Redirect extends \Temma\Web\Attribute {
 	 * Constructor.
 	 * @param	?string	$url	(optional) Redirection URL.
 	 * @param	?string	$var	(optional) Name of the template variable which contains the redirection URL.
+	 */
+	public function __construct(
+		protected ?string $url=null,
+		protected ?string $var=null,
+	) {
+	}
+	/**
+	 * Processing of the attribute.
+	 * @param	\Reflector	$context	Context of the element on which the attribute is applied
+	 *						(ReflectionClass, ReflectionMethod or ReflectionFunction).
 	 * @throws	\Temma\Exceptions\Flow		When a redirection URL has been defined.
 	 * @throws	\Temma\Exceptions\Application	If no redirection URL has been defined.
 	 */
-	public function __construct(?string $url=null, ?string $var=null) {
-		$url = $url ?:                                            // direct URL
-		       $this[$var] ?:                                     // template variable
-		       $this->_getConfig()->xtra('security', 'redirect'); // configuration
+	public function apply(\Reflector $context) : void {
+		$url = $this->url ?:                                 // direct URL
+		       $this[$this->var] ?:                          // template variable
+		       $this->_config->xtra('security', 'redirect'); // configuration
 		if ($url) {
 			TµLog::log('Temma/Web', 'DEBUG', "Redirecting to '$url'.");
 			$this->_redirect($url);

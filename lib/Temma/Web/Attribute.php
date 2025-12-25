@@ -19,6 +19,40 @@ use \Temma\Exceptions\Application as TµApplicationException;
  * @see	\Temma\Web\Controller
  */
 abstract class Attribute implements \ArrayAccess {
+	/** Loader. */
+	protected ?\Temma\Base\Loader $_loader = null;
+	/** Config. */
+	protected ?\Temma\Web\Config $_config = null;
+	/** Request. */
+	protected ?\Temma\Web\Request $_request = null;
+	/** Response. */
+	protected ?\Temma\Web\Response $_response = null;
+	/** Session. */
+	protected ?\Temma\Base\Session $_session = null;
+
+	/* ********** INITIALIZATION AND PROCESSING ********** */
+	/**
+	 * Initialization of the attribute.
+	 * This methode should be called by the framework only.
+	 * @param	?\Temma\Base\Loader	$loader	Dependency injection component.
+	 */
+	public function init(?\Temma\Base\Loader $loader) : void {
+		if (!$loader)
+			return;
+		$this->_loader = $loader;
+		$this->_config = $loader->config;
+		$this->_request = $loader->request;
+		$this->_response = $loader->response;
+		$this->_session = $loader->session;
+	}
+	/**
+	 * Processing of the attribute.
+	 * @param	\Reflector	$context	Context of the element on which the attribute is applied
+	 *						(ReflectionClass, ReflectionMethod or ReflectionFunction).
+	 */
+	public function apply(\Reflector $context) : void {
+	}
+
 	/* ********** METHODS CALLABLE BY THE CHILDREN OBJECTS ********** */
 	/**
 	 * Magical method which returns the requested data source.
@@ -26,8 +60,7 @@ abstract class Attribute implements \ArrayAccess {
 	 * @return	\Temma\Base\Datasource	Data source object, or null if the source is not set.
 	 */
 	final public function __get(string $dataSource) : ?\Temma\Base\Datasource {
-		global $temma;
-		return ($temma->getLoader()->dataSources[$dataSource] ?? null);
+		return ($this->_loader?->dataSources[$dataSource] ?? null);
 	}
 	/**
 	 * Magical method used to know if a data source exists.
@@ -35,56 +68,14 @@ abstract class Attribute implements \ArrayAccess {
 	 * @return	bool	True if the data source exists.
 	 */
 	final public function __isset(string $dataSource) : bool {
-		global $temma;
-		return (isset($temma->getLoader()->dataSources[$dataSource]));
-	}
-	/**
-	 * Returns the loader object.
-	 * @return	\Temma\Base\Loader	The loader object.
-	 */
-	final protected function _getLoader() : \Temma\Base\Loader {
-		global $temma;
-		return ($temma->getLoader());
-	}
-	/**
-	 * Returns the session object.
-	 * @return	\Temma\Base\Session	The session object.
-	 */
-	final protected function _getSession() : \Temma\Base\Session {
-		global $temma;
-		return ($temma->getLoader()->session);
-	}
-	/**
-	 * Returns the configuration object.
-	 * @return	\Temma\Web\Config	The configuration object.
-	 */
-	final protected function _getConfig() : \Temma\Web\Config {
-		global $temma;
-		return ($temma->getLoader()->config);
-	}
-	/**
-	 * Returns the request object.
-	 * @return	\Temma\Web\Request	The request object.
-	 */
-	final protected function _getRequest() : \Temma\Web\Request {
-		global $temma;
-		return ($temma->getLoader()->request);
-	}
-	/**
-	 * Returns the response object.
-	 * @return	\Temma\Web\Response	The response object.
-	 */
-	final protected function _getResponse() : \Temma\Web\Response {
-		global $temma;
-		return ($temma->getLoader()->response);
+		return (isset($this->_loader?->dataSources[$dataSource]));
 	}
 	/**
 	 * Method used to raise en HTTP error (403, 404, 500, ...).
 	 * @param	int	$code	The HTTP error code.
 	 */
 	final protected function _httpError(int $code) : void {
-		global $temma;
-		$temma->getLoader()->response->setHttpError($code);
+		$this->_response?->setHttpError($code);
 	}
 	/**
 	 * Method used to tell the HTTP return code (like the httpError() method,
@@ -92,8 +83,7 @@ abstract class Attribute implements \ArrayAccess {
 	 * @param	int	$code	The HTTP return code.
 	 */
 	final protected function _httpCode(int $code) :void {
-		global $temma;
-		$temma->getLoader()->response->setHttpCode($code);
+		$this->_response?->setHttpCode($code);
 	}
 	/**
 	 * Returns the configured HTTP error.
@@ -101,32 +91,28 @@ abstract class Attribute implements \ArrayAccess {
 	 *			if no error was configured.
 	 */
 	final protected function _getHttpError() : ?int {
-		global $temma;
-		return ($temma->getLoader()->response->getHttpError());
+		return ($this->_response?->getHttpError());
 	}
 	/**
 	 * Returns the configured HTTP return code.
 	 * @return	int	The configured return code, or null if no code was configured.
 	 */
 	final protected function _getHttpCode() : ?int {
-		global $temma;
-		return ($temma->getLoader()->response->getHttpCode());
+		return ($this->_response?->getHttpCode());
 	}
 	/**
 	 * Define an HTTP redirection (302).
 	 * @param	?string	$url	Redirection URL, or null to remove the redirection.
 	 */
 	final protected function _redirect(?string $url) : void {
-		global $temma;
-		$temma->getLoader()->response->setRedirection($url);
+		$this->_response?->setRedirection($url);
 	}
 	/**
 	 * Define an HTTP redirection (301).
 	 * @param	string	$url	Redirection URL.
 	 */
 	final protected function _redirect301(string $url) : void {
-		global $temma;
-		$temma->getLoader()->response->setRedirection($url, true);
+		$this->_response?->setRedirection($url, true);
 	}
 	/**
 	 * Define the view to use.
@@ -134,8 +120,7 @@ abstract class Attribute implements \ArrayAccess {
 	 * @return	\Temma\Web\Attribute	The current object.
 	 */
 	final protected function _view(string $view) : \Temma\Web\Attribute {
-		global $temma;
-		$temma->getLoader()->response->setView($view);
+		$this->_response?->setView($view);
 		return ($this);
 	}
 	/**
@@ -144,8 +129,7 @@ abstract class Attribute implements \ArrayAccess {
 	 * @return	\Temma\Web\Attribute	The current object.
 	 */
 	final protected function _template(string $template) : \Temma\Web\Attribute {
-		global $temma;
-		$temma->getLoader()->response->setTemplate($template);
+		$this->_response?->setTemplate($template);
 		return ($this);
 	}
 	/**
@@ -154,8 +138,7 @@ abstract class Attribute implements \ArrayAccess {
 	 * @return	\Temma\Web\Attribute	The current object.
 	 */
 	final protected function _templatePrefix(string $prefix) : \Temma\Web\Attribute {
-		global $temma;
-		$temma->getLoader()->response->setTemplatePrefix($prefix);
+		$this->_response?->setTemplatePrefix($prefix);
 		return ($this);
 	}
 
@@ -166,8 +149,8 @@ abstract class Attribute implements \ArrayAccess {
 	 * @param       mixed   $value  Associated value.
 	 */
 	final public function offsetSet(mixed $name, mixed $value) : void {
-		global $temma;
-		$temma->getLoader()->response[$name] = $value;
+		if ($this->_response)
+			$this->_response[$name] = $value;
 	}
 	/**
 	 * Return a template variable, array-like syntax.
@@ -175,16 +158,15 @@ abstract class Attribute implements \ArrayAccess {
 	 * @return      mixed   The template variable's data or null if it doesn't exist.
 	 */
 	public function offsetGet(mixed $name) : mixed {
-		global $temma;
-		return ($temma->getLoader()->response[$name] ?? null);
+		return ($this->_response[$name] ?? null);
 	}
 	/**
 	 * Remove a template variable.
 	 * @param       string  $name   Name of the variable.
 	 */
 	public function offsetUnset(mixed $name) : void {
-		global $temma;
-		unset($temma->getLoader()->response[$name]);
+		if ($this->_response)
+			unset($this->_response[$name]);
 	}
 	/**
 	 * Tell if a template variable exists.
@@ -192,8 +174,9 @@ abstract class Attribute implements \ArrayAccess {
 	 * @return      bool    True if the variable was defined, false otherwise.
 	 */
 	public function offsetExists(mixed $name) : bool {
-		global $temma;
-		return (isset($temma->getLoader()->response[$name]));
+		if (!$this->_response)
+			return (false);
+		return (isset($this->_response[$name]));
 	}
 }
 

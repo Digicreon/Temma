@@ -65,11 +65,21 @@ class Template extends \Temma\Web\Attribute {
 	 * @param	?string	$prefix		(optional) Prefix to the used template's path.
 	 *					If set to null, reset the prefix.
 	 */
-	public function __construct(?string $template='', ?string $prefix='') {
-		if ($template !== '')
-			$this->_getResponse()->setTemplate($template);
-		if ($prefix !== '')
-			$this->_getResponse()->setTemplatePrefix($prefix);
+	public function __construct(
+		protected ?string $template='',
+		protected ?string $prefix='',
+	) {
+	}
+	/**
+	 * Processing of the attribute.
+	 * @param	\Reflector	$context	Context of the element on which the attribute is applied
+	 *						(ReflectionClass, ReflectionMethod or ReflectionFunction).
+	 */
+	public function apply(\Reflector $context) : void {
+		if ($this->template !== '')
+			$this->_response->setTemplate($this->template);
+		if ($this->prefix !== '')
+			$this->_response->setTemplatePrefix($this->prefix);
 	}
 }
 
