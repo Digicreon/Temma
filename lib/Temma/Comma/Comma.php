@@ -106,7 +106,10 @@ class Comma {
 	private function _loadDatasources() : void {
 		$dataSources = new \Temma\Utils\Registry();
 		foreach ($this->_config->dataSources as $name => $dsParam) {
-			$dataSources[$name] = \Temma\Base\Datasource::metaFactory($dsParam);
+			$dataSource = \Temma\Base\Datasource::metaFactory($dsParam);
+			$dataSources[$name] = $dataSource;
+			if (!in_array($name, ['config', 'request', 'response', 'temma', 'session', 'dataSources', 'controller']))
+				$this->_loader[$name] = $dataSource;
 		}
 		$this->_loader['dataSources'] = $dataSources;
 	}
