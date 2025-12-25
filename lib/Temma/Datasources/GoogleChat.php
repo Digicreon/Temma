@@ -35,11 +35,12 @@ use \Temma\Base\Log as TµLog;
  * // See https://developers.google.com/workspace/chat/format-messages
  * $gchat[''] = 'Text with *simple* _formatting_.';
  *
- * // Send a rich notification, with a title, a subtitle a pictogram and/or sections and buttons.
+ * // Send a rich notification, with a title, a subtitle, a pictogram and/or icons, sections and buttons.
  * // Possible icons (in sections) are: AIRPLANE, BOOKMARK, BUS, CAR, HORLOGE, CONFIRMATION_NUMBER_ICON,
  * // DESCRIPTION, DOLLAR, E-MAIL, EVENT_SEAT, FLIGHT_ARRIVAL, FLIGHT_DEPARTURE, HOTEL, HOTEL_ROOM_TYPE,
- * // INVITER, MAP_PIN, ABONNEMENT, MULTIPLE_PEOPLE, PERSONNE, TÉLÉPHONE, RESTAURANT_ICON, SHOPPING_CART,
+ * // INVITER, MAP_PIN, MEMBERSHIP, MULTIPLE_PEOPLE, PERSONNE, TÉLÉPHONE, RESTAURANT_ICON, SHOPPING_CART,
  * // STAR, STORE, TICKET, TRAIN, VIDEO_CAMERA, VIDEO_PLAY
+ * // See https://developers.google.com/workspace/chat/format-messages#builtinicons
  * $gchat[''] = [
  *     'title'    => 'A title',
  *     'subtitle' => 'A subtitle',
