@@ -87,7 +87,7 @@ class Autoload {
 				// convert the subname into a path
 				$file = $prefixPath . DIRECTORY_SEPARATOR . $relativeClass . '.php';
 				// check if the prefix is absolute or relative
-				if (TµFile::isAbsolutePath($prefixPath)) {
+				if (TµFile::isAbsolute($prefixPath)) {
 					// check if the file exists directly
 					if (file_exists($file)) {
 						require($file);
