@@ -187,7 +187,7 @@ class DataFilter {
 	const SUPPORTED_TYPES = [
 		'null', 'false', 'true', 'bool', 'int', 'float', 'string', 'email', 'url', 'enum', 'array', 'list', 'assoc',
 		'date', 'time', 'datetime', 'uuid', 'isbn', 'ean',
-		'ip', 'ipv4', 'ipv6', 'mac', 'port', 'slug', 'json', 'color', 'geo', 'phone',
+		'ip', 'ipv4', 'ipv6', 'mac', 'port', 'slug', 'json', 'base64', 'color', 'geo', 'phone',
 	];
 
 	/**
@@ -455,7 +455,9 @@ class DataFilter {
 					case 'slug':
 						return (self::_processSlug($in, $contractStrict, $contractDefault));
 					case 'json':
-						return (self::_processJson($in, $contractDefault));
+						return (self::_processJson($in, $contractDefault, $contractSubcontract));
+					case 'base64':
+						return (self::_processBase64($in, $contractDefault));
 					case 'color':
 						return (self::_processColor($in, $contractDefault));
 					case 'geo':
@@ -1169,18 +1171,44 @@ class DataFilter {
 	}
 	/**
 	 * Process a JSON string type.
-	 * @param	mixed	$in		Input value.
-	 * @param	?string	$default	(optional) Default value.
+	 * @param	mixed			$in		Input value.
+	 * @param	?string			$default	(optional) Default value.
+	 * @param	null|string|array	$contract	(optional) Contract to validate the JSON content.
 	 * @return	string	The filtered input value.
 	 * @throws	\Temma\Exceptions\Application	If the input data doesn't respect the contract (API).
 	 */
-	static private function _processJson(mixed $in, ?string $default=null) : string {
+	static private function _processJson(mixed $in, ?string $default=null, null|string|array $contract=null) : string {
 		if (!is_string($in) || json_validate($in) === false) {
 			if ($default !== null)
 				return (json_encode($default));
 			throw new TµApplicationException("Data is not a valid JSON string.", TµApplicationException::API);
 		}
-		return ($in);
+		if (!$contract)
+			return ($in);
+		// validate the JSON content using the given contract
+		try {
+			$data = json_decode($in, true);
+			$data = self::process($data, $contract);
+			return (json_encode($data));
+		} catch (TµApplicationException $e) {
+			if ($default !== null)
+				return (json_encode($default));
+			throw $e;
+		}
+	}
+	/**
+	 * Process a base64 string type.
+	 * @param	mixed	$in		Input value.
+	 * @param	?string	$default	(optional) Default value.
+	 * @return	string	The filtered input value.
+	 * @throws	\Temma\Exceptions\Application	If the input data doesn't respect the contract (API).
+	 */
+	static private function _processBase64(mixed $in, ?string $default=null) : string {
+		if (is_string($in) && preg_match('/^[a-zA-Z0-9+\/]+={0,2}$/', $in) && (strlen($in) % 4) === 0)
+			return ($in);
+		if ($default !== null)
+			return ($default);
+		throw new TµApplicationException("Data is not a valid base64 string.", TµApplicationException::API);
 	}
 	/**
 	 * Process a hex color type.
