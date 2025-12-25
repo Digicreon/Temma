@@ -8,6 +8,8 @@
 
 namespace Temma\Base;
 
+use \Temma\Utils\File as TµFile;
+
 /**
  * Autoloading management object.
  *
@@ -85,7 +87,7 @@ class Autoload {
 				// convert the subname into a path
 				$file = $prefixPath . DIRECTORY_SEPARATOR . $relativeClass . '.php';
 				// check if the prefix is absolute or relative
-				if (self::_isAbsolutePath($prefixPath)) {
+				if (TµFile::isAbsolutePath($prefixPath)) {
 					// check if the file exists directly
 					if (file_exists($file)) {
 						require($file);
@@ -141,20 +143,6 @@ class Autoload {
 				self::$_includePaths[] = rtrim($pathChunk, '/\\');
 			}
 		}
-	}
-
-	/* ********** PRIVATE METHODS ********** */
-	/**
-	 * Helper to check if a path is absolute (Unix or Windows).
-	 * @param	string	$path	Path to check.
-	 * @return	bool	True if the path is absolute.
-	 */
-	static private function _isAbsolutePath(string $path) : bool {
-		return (
-			$path[0] === '/' ||        // Unix root
-			$path[0] === '\\' ||       // Windows root
-			($path[1] ?? null) === ':' // Windows drive letter
-		);
 	}
 }
 
