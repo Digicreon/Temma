@@ -457,7 +457,7 @@ class DataFilter {
 					case 'json':
 						return (self::_processJson($in, $contractDefault, $contractSubcontract));
 					case 'base64':
-						return (self::_processBase64($in, $contractDefault));
+						return (self::_processBase64($in, $contractStrict, $contractDefault));
 					case 'color':
 						return (self::_processColor($in, $contractDefault));
 					case 'geo':
@@ -866,6 +866,7 @@ class DataFilter {
 			throw new TµApplicationException("Data doesn't repect contract (not an array).", TµApplicationException::API);
 		}
 		$out = [];
+		$foundWildcard = false;
 		foreach ($contractKeys as $k => $v) {
 			$key = null;
 			$subcontract = [
@@ -878,6 +879,10 @@ class DataFilter {
 			} else {
 				$key = $k;
 				$subcontract = $v;
+			}
+			if ($key === '...' || $key === '…') {
+				$foundWildcard = true;
+				continue;
 			}
 			if (str_ends_with($key, '?')) {
 				if (is_array($subcontract)) {
@@ -893,10 +898,25 @@ class DataFilter {
 			if (!array_key_exists($key, $in)) {
 				if (($subcontract['mandatory'] ?? true) === false)
 					continue;
-				throw new TµApplicationException("Data doesn't respect contract (mandatory key).", TµApplicationException::API);
+				throw new TµApplicationException("Data doesn't respect contract (mandatory key '$key').", TµApplicationException::API);
 			}
 			$res = self::process(($in[$key] ?? null), $subcontract, $strict);
 			$out[$key] = $res;
+		}
+		// manage "..." (wildcard)
+		if ($foundWildcard) {
+			// copy all extra keys
+			$extra = array_diff_key($in, $out);
+			foreach ($extra as $k => $v) {
+				$out[$k] = $v;
+			}
+		} else if ($strict) {
+			// check for extra keys
+			$extra = array_diff_key($in, $out);
+			if (!empty($extra)) {
+				$extraStr = implode(', ', array_keys($extra));
+				throw new TµApplicationException("Data doesn't respect contract (extra keys '$extraStr').", TµApplicationException::API);
+			}
 		}
 		return ($out);
 	}
@@ -1199,13 +1219,22 @@ class DataFilter {
 	/**
 	 * Process a base64 string type.
 	 * @param	mixed	$in		Input value.
+	 * @param	bool	$strict		Strictness.
 	 * @param	?string	$default	(optional) Default value.
 	 * @return	string	The filtered input value.
 	 * @throws	\Temma\Exceptions\Application	If the input data doesn't respect the contract (API).
 	 */
-	static private function _processBase64(mixed $in, ?string $default=null) : string {
-		if (is_string($in) && preg_match('/^[a-zA-Z0-9+\/]+={0,2}$/', $in) && (strlen($in) % 4) === 0)
-			return ($in);
+	static private function _processBase64(mixed $in, bool $strict, ?string $default=null) : string {
+		if (is_string($in)) {
+			if (!$strict) {
+				if (preg_match('/^[a-zA-Z0-9+\/]+={0,2}$/', $in) && (strlen($in) % 4) === 0)
+					return ($in);
+			} else {
+				$decoded = base64_decode($in, true);
+				if ($decoded !== false && base64_encode($decoded) === $in)
+					return ($in);
+			}
+		}
 		if ($default !== null)
 			return ($default);
 		throw new TµApplicationException("Data is not a valid base64 string.", TµApplicationException::API);

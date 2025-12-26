@@ -9,7 +9,9 @@
 namespace Temma\Web;
 
 use \Temma\Base\Log as TµLog;
+use \Temma\Utils\DataFilter as TµDataFilter;
 use \Temma\Exceptions\Framework as TµFrameworkException;
+use \Temma\Exceptions\Application as TµApplicationException;
 
 /**
  * Object use to manage HTTP requests.
@@ -206,5 +208,51 @@ class Request {
 	public function setParam(int $index, string $value) : void {
 		$this->_params[$index] = $value;
 	}
-}
 
+	/* ***************** VALIDATION *************** */
+	/**
+	 * Validate parameters.
+	 * @param	null|string|array	$parameters	(optional) Associative array of parameters to check, or string for raw payload check.
+	 * @param	?string			$type		(optional) Type of check ('GET', 'POST'). If null, checks both if data exists.
+	 * @param	bool			$strict		(optional) True to use strict matching. False by default.
+	 * @param	null|string|array	$json		(optional) JSON contract to check the payload.
+	 * @throws	\Temma\Exceptions\Application	If the parameters are not valid.
+	 */
+	public function validate(
+		null|string|array $parameters=null,
+		?string $type=null,
+		bool $strict=false,
+		null|string|array $json=null,
+	) : void {
+		$type = strtoupper($type ?? '');
+		$checkGet = ($type === 'GET' || ($type === '' && !empty($_GET)));
+		$checkPost = ($type === 'POST' || ($type === '' && !empty($_POST)));
+		// check GET parameters
+		if ($checkGet && is_array($parameters)) {
+			$_GET = TµDataFilter::process($_GET, ['type' => 'assoc', 'keys' => $parameters], $strict);
+		}
+		// check POST parameters
+		if ($checkPost) {
+			if (!$json && is_array($parameters)) {
+				// standard POST parameters check
+				$_POST = TµDataFilter::process($_POST, ['type' => 'assoc', 'keys' => $parameters], $strict);
+			} else {
+				$rawBody = file_get_contents('php://input');
+				if (is_string($parameters)) {
+					// raw body check
+					TµDataFilter::process($rawBody, $parameters, $strict);
+				} else if ($json) {
+					// JSON check
+					$data = json_decode($rawBody, true);
+					if (json_last_error() !== JSON_ERROR_NONE) {
+						TµLog::log('Temma/Web', 'WARN', "Invalid JSON payload.");
+						throw new TµApplicationException("Invalid JSON payload.", TµApplicationException::API);
+					}
+					TµDataFilter::process($data, $json, $strict);
+				} else {
+					throw new TµApplicationException("Invalid parameters.", TµApplicationException::API);
+				}
+			}
+		}
+	}
+}
