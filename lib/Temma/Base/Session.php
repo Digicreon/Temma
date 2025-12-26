@@ -108,6 +108,15 @@ class Session implements \ArrayAccess {
 			$this->_cache = clone $cache;
 		// if the cache is not active, use the standard PHP session engine
 		if (!isset($this->_cache) && session_status() == PHP_SESSION_NONE) {
+			$params = session_get_cookie_params();
+			session_set_cookie_params([
+				'lifetime' => $params['lifetime'],
+				'path'     => $params['path'],
+				'domain'   => $params['domain'],
+				'secure'   => (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off') ? true : false,
+				'httponly' => true,
+				'samesite' => 'Lax',
+			]);
 			session_start();
 			return;
 		}
