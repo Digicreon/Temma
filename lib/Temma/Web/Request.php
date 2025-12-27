@@ -17,6 +17,7 @@ use \Temma\Exceptions\Application as TµApplicationException;
  * Object use to manage HTTP requests.
  */
 class Request {
+	/* ********** REQUEST PROPERTIES ********** */
 	/** PathInfo data. */
 	private string $_pathInfo;
 	/** HTTP method of the request. */
@@ -29,6 +30,24 @@ class Request {
 	private ?array $_params = null;
 	/** Path from the site root. */
 	private string $_sitePath;
+
+	/* ********** PAYLOAD PROPERTIES ********** */
+	/** Raw payload content. */
+	private ?string $_rawPayload = null;
+	/** Raw payload fetched state. */
+	private bool $_rawPayloadFetched = false;
+	/** JSON payload content. */
+	private mixed $_jsonPayload = null;
+	/** JSON payload fetched state. */
+	private bool $_jsonPayloadFetched = false;
+	/** JSON payload validity state. */
+	private bool $_jsonPayloadValid = false;
+	/** Base64 payload content. */
+	private ?string $_base64Payload = null;
+	/** Base64 payload fetched state. */
+	private bool $_base64PayloadFetched = false;
+	/** Base64 payload validity state. */
+	private bool $_base64PayloadValid = false;
 
 	/**
 	 * Constructor.
@@ -209,6 +228,75 @@ class Request {
 		$this->_params[$index] = $value;
 	}
 
+	/* ********** PAYLOAD METHODS ********** */
+	/**
+	 * Returns the raw payload.
+	 * @return	?string	The raw payload, or null if empty.
+	 */
+	public function getRawPayload() : ?string {
+		if ($this->_rawPayloadFetched)
+			return ($this->_rawPayload);
+		$this->_rawPayload = file_get_contents('php://input');
+		if ($this->_rawPayload === false || $this->_rawPayload === '')
+			$this->_rawPayload = null;
+		$this->_rawPayloadFetched = true;
+		return ($this->_rawPayload);
+	}
+	/**
+	 * Returns the JSON payload.
+	 * @return	mixed	The JSON payload, or null if empty.
+	 * @throws	\Temma\Exceptions\Application	If the payload is not a valid JSON stream.
+	 */
+	public function getJsonPayload() : mixed {
+		if ($this->_jsonPayloadFetched) {
+			if ($this->_jsonPayloadValid)
+				return ($this->_jsonPayload);
+			throw new TµApplicationException("Invalid JSON payload.", TµApplicationException::API);
+		}
+		$this->_jsonPayloadFetched = true;
+		$raw = $this->getRawPayload();
+		if ($raw === null) {
+			$this->_jsonPayload = null;
+			$this->_jsonPayloadValid = true;
+			return (null);
+		}
+		try {
+			$this->_jsonPayload = TµDataFilter::process($raw, 'json', false);
+		} catch (\Exception $e) {
+			TµLog::log('Temma/Web', 'WARN', "Invalid JSON payload.");
+			throw new TµApplicationException("Invalid JSON payload.", TµApplicationException::API);
+		}
+		$this->_jsonPayloadValid = true;
+		return ($this->_jsonPayload);
+	}
+	/**
+	 * Returns the Base64 payload.
+	 * @return	?string	The Base64 payload, or null if empty.
+	 * @throws	\Temma\Exceptions\Application	If the payload is not a valid Base64 stream.
+	 */
+	public function getBase64Payload() : ?string {
+		if ($this->_base64PayloadFetched) {
+			if ($this->_base64PayloadValid)
+				return ($this->_base64Payload);
+			throw new TµApplicationException("Invalid Base64 payload.", TµApplicationException::API);
+		}
+		$this->_base64PayloadFetched = true;
+		$raw = $this->getRawPayload();
+		if ($raw === null) {
+			$this->_base64Payload = null;
+			$this->_base64PayloadValid = true;
+			return (null);
+		}
+		try {
+			$this->_base64Payload = TµDataFilter::process($raw, 'base64', false);
+		} catch (\Exception $e) {
+			TµLog::log('Temma/Web', 'WARN', "Invalid Base64 payload.");
+			throw new TµApplicationException("Invalid Base64 payload.", TµApplicationException::API);
+		}
+		$this->_base64PayloadValid = true;
+		return ($this->_base64Payload);
+	}
+
 	/* ***************** VALIDATION *************** */
 	/**
 	 * Validate parameters.
@@ -237,18 +325,21 @@ class Request {
 				// standard POST parameters check
 				$_POST = TµDataFilter::process($_POST, ['type' => 'assoc', 'keys' => $parameters], $strict);
 			} else {
-				$rawBody = file_get_contents('php://input');
+				$this->getRawPayload();
 				if (is_string($parameters)) {
 					// raw body check
-					TµDataFilter::process($rawBody, $parameters, $strict);
+					// $parameters contains the type (e.g. 'int' or 'base64')
+					$res = TµDataFilter::process($this->_rawPayload, $parameters, $strict);
+					// check if it was a base64 check
+					if (str_starts_with($parameters, 'base64')) {
+						$this->_base64Payload = $res;
+						$this->_base64PayloadFetched = true;
+					}
 				} else if ($json) {
 					// JSON check
-					$data = json_decode($rawBody, true);
-					if (json_last_error() !== JSON_ERROR_NONE) {
-						TµLog::log('Temma/Web', 'WARN', "Invalid JSON payload.");
-						throw new TµApplicationException("Invalid JSON payload.", TµApplicationException::API);
-					}
-					TµDataFilter::process($data, $json, $strict);
+					$data = $this->getJsonPayload();
+					// validate the decoded JSON with the contract
+					$this->_jsonPayload = TµDataFilter::process($data, $json, $strict);
 				} else {
 					throw new TµApplicationException("Invalid parameters.", TµApplicationException::API);
 				}
