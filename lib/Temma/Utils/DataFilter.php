@@ -187,7 +187,7 @@ class DataFilter {
 	const SUPPORTED_TYPES = [
 		'null', 'false', 'true', 'bool', 'int', 'float', 'string', 'email', 'url', 'enum', 'array', 'list', 'assoc',
 		'date', 'time', 'datetime', 'uuid', 'isbn', 'ean',
-		'ip', 'ipv4', 'ipv6', 'mac', 'port', 'slug', 'json', 'base64', 'color', 'geo', 'phone',
+		'ip', 'ipv4', 'ipv6', 'mac', 'port', 'slug', 'json', 'base64', 'mimetype', 'color', 'geo', 'phone',
 	];
 
 	/**
@@ -388,6 +388,16 @@ class DataFilter {
 		$contractSubcontract = $contract['contract'] ?? null;
 		if (!is_null($contractSubcontract) && !is_string($contractSubcontract) && !is_array($contractSubcontract))
 			throw new TµIOException("Bad sub-contract type.", TµIOException::BAD_FORMAT);
+		// mime
+		$contractMime = null;
+		if (isset($contract['mime'])) {
+			if (is_string($contract['mime']))
+				$contractMime = array_map('trim', explode(',', $contract['mime']));
+			else if (is_array($contract['mime']))
+				$contractMime = $contract['mime'];
+			else
+				throw new TµIOException("Bad contract 'mime' parameter.", TµIOException::BAD_FORMAT);
+		}
 		/* *** check null value/contract *** */
 		// loop on types
 		$lastException = null;
@@ -455,9 +465,13 @@ class DataFilter {
 					case 'slug':
 						return (self::_processSlug($in, $contractStrict, $contractDefault));
 					case 'json':
-						return (self::_processJson($in, $contractDefault, $contractSubcontract));
+						return (self::_processJson($in, $contractStrict, $contractDefault, $contractSubcontract));
 					case 'base64':
-						return (self::_processBase64($in, $contractStrict, $contractDefault));
+						return (self::_processBase64($in, $contractStrict, $contractDefault, $contractMime));
+					case 'mimetype':
+						if (!$contractMime)
+							throw new TµIOException("Mimetype without mime parameter.", TµIOException::BAD_FORMAT);
+						return (self::_processMimeType($in, $contractStrict, $contractDefault, $contractMime));
 					case 'color':
 						return (self::_processColor($in, $contractDefault));
 					case 'geo':
@@ -1192,27 +1206,33 @@ class DataFilter {
 	/**
 	 * Process a JSON string type.
 	 * @param	mixed			$in		Input value.
+	 * @param	bool			$strict		Strictness.
 	 * @param	?string			$default	(optional) Default value.
 	 * @param	null|string|array	$contract	(optional) Contract to validate the JSON content.
-	 * @return	string	The filtered input value.
+	 * @return	mixed	The decoded input value.
 	 * @throws	\Temma\Exceptions\Application	If the input data doesn't respect the contract (API).
 	 */
-	static private function _processJson(mixed $in, ?string $default=null, null|string|array $contract=null) : string {
-		if (!is_string($in) || json_validate($in) === false) {
+	static private function _processJson(mixed $in, bool $strict, ?string $default=null, null|string|array $contract=null) : mixed {
+		if (!is_string($in)) {
 			if ($default !== null)
-				return (json_encode($default));
+				return (self::_processJson($default, $strict, null, $contract));
+			throw new TµApplicationException("Data is not a valid JSON string.", TµApplicationException::API);
+		}
+		// decode
+		$data = json_decode($in, true);
+		if (json_last_error() !== JSON_ERROR_NONE) {
+			if ($default !== null)
+				return (self::_processJson($default, $strict, null, $contract));
 			throw new TµApplicationException("Data is not a valid JSON string.", TµApplicationException::API);
 		}
 		if (!$contract)
-			return ($in);
+			return ($data);
 		// validate the JSON content using the given contract
 		try {
-			$data = json_decode($in, true);
-			$data = self::process($data, $contract);
-			return (json_encode($data));
+			return (self::process($data, $contract, $strict));
 		} catch (TµApplicationException $e) {
 			if ($default !== null)
-				return (json_encode($default));
+				return (self::_processJson($default, $strict, null, $contract));
 			throw $e;
 		}
 	}
@@ -1221,23 +1241,72 @@ class DataFilter {
 	 * @param	mixed	$in		Input value.
 	 * @param	bool	$strict		Strictness.
 	 * @param	?string	$default	(optional) Default value.
+	 * @param	?array	$mime		(optional) List of allowed MIME types.
 	 * @return	string	The filtered input value.
 	 * @throws	\Temma\Exceptions\Application	If the input data doesn't respect the contract (API).
 	 */
-	static private function _processBase64(mixed $in, bool $strict, ?string $default=null) : string {
-		if (is_string($in)) {
-			if (!$strict) {
-				if (preg_match('/^[a-zA-Z0-9+\/]+={0,2}$/', $in) && (strlen($in) % 4) === 0)
-					return ($in);
-			} else {
-				$decoded = base64_decode($in, true);
-				if ($decoded !== false && base64_encode($decoded) === $in)
-					return ($in);
+	static private function _processBase64(mixed $in, bool $strict, ?string $default=null, ?array $mime=null) : string {
+		if (!is_string($in)) {
+			if ($default !== null)
+				return (self::_processBase64($default, $strict, null, $mime));
+			throw new TµApplicationException("Data is not a valid base64 string.", TµApplicationException::API);
+		}
+		// decode
+		$decoded = base64_decode($in, true);
+		if ($decoded === false) {
+			if ($default !== null)
+				return (self::_processBase64($default, $strict, null, $mime));
+			throw new TµApplicationException("Data is not a valid base64 string.", TµApplicationException::API);
+		}
+		// strict check: re-encode and compare
+		if ($strict && base64_encode($decoded) !== $in) {
+			if ($default !== null)
+				return (self::_processBase64($default, $strict, null, $mime));
+			throw new TµApplicationException("Data is not a valid base64 string.", TµApplicationException::API);
+		}
+		// check MIME type
+		if ($mime) {
+			try {
+				return (self::_processMimeType($decoded, $strict, null, $mime));
+			} catch (TµApplicationException $e) {
+				if ($default !== null)
+					return (self::_processBase64($default, $strict, null, $mime));
+				throw $e;
 			}
 		}
-		if ($default !== null)
-			return ($default);
-		throw new TµApplicationException("Data is not a valid base64 string.", TµApplicationException::API);
+		return ($decoded);
+	}
+	/**
+	 * Process a MIME type check.
+	 * @param	mixed	$in		Input value.
+	 * @param	bool	$strict		Strictness.
+	 * @param	?string	$default	Default value.
+	 * @param	array	$mime		List of allowed MIME types.
+	 * @return	string	The filtered input value.
+	 * @throws	\Temma\Exceptions\Application	If the input data doesn't respect the contract (API).
+	 */
+	static private function _processMimeType(mixed $in, bool $strict, ?string $default=null, array $mime) : string {
+		if (!is_string($in)) {
+			if ($default !== null)
+				return (self::_processMimeType($default, $strict, null, $mime));
+			throw new TµApplicationException("Data is not a string.", TµApplicationException::API);
+		}
+		$finfo = new \finfo(FILEINFO_MIME_TYPE);
+		$type = $finfo->buffer($in);
+		$found = false;
+		foreach ($mime as $m) {
+			$m = trim($m);
+			if ($type === $m || str_starts_with($type, "$m/")) {
+				$found = true;
+				break;
+			}
+		}
+		if (!$found) {
+			if ($default !== null)
+				return (self::_processMimeType($default, $strict, null, $mime));
+			throw new TµApplicationException("Data doesn't respect contract (bad MIME type '$type').", TµApplicationException::API);
+		}
+		return ($in);
 	}
 	/**
 	 * Process a hex color type.
