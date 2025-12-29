@@ -1214,11 +1214,11 @@ class DataFilter {
 	 * Process a JSON string type.
 	 * @param	mixed			$in		Input value.
 	 * @param	bool			$strict		Strictness.
-	 * @param	?string	$default	(optional) Default value.
+	 * @param	?string			$default	(optional) Default value.
 	 * @param	null|string|array	$contract	(optional) DataFilter contract.
-	 * @param	?int	$minLen		(optional) Minimum length of the JSON string.
-	 * @param	?int	$maxLen		(optional) Maximum length of the JSON string.
-	 * @return	mixed	The decoded object/array.
+	 * @param	?int			$minLen		(optional) Minimum length of the JSON string.
+	 * @param	?int			$maxLen		(optional) Maximum length of the JSON string.
+	 * @return	mixed			The decoded object/array.
 	 * @throws	\Temma\Exceptions\Application	If the input data doesn't respect the contract (API).
 	 */
 	static private function _processJson(mixed $in, bool $strict, ?string $default=null, null|string|array $contract=null, ?int $minLen=null, ?int $maxLen=null) : mixed {
@@ -1354,7 +1354,7 @@ class DataFilter {
 	static private function _processColor(mixed $in, ?string $default=null) : string {
 		if (!is_string($in) || !preg_match('/^#?(?:[0-9a-f]{3}){1,2}$/i', $in)) {
 			if ($default !== null)
-				return ($default);
+				return (self::_processColor($default));
 			throw new TµApplicationException("Data is not a valid hex color.", TµApplicationException::API);
 		}
 		if (mb_substr($in, 0, 1) != '#')
@@ -1374,7 +1374,7 @@ class DataFilter {
 	static private function _processGeo(mixed $in, bool $strict, ?string $default=null, ?string $min=null, ?string $max=null) : string {
 		if (!is_string($in) || !preg_match('/^[-+]?([1-8]?\d(\.\d+)?|90(\.0+)?),\s*[-+]?(180(\.0+)?|((1[0-7]\d)|([1-9]?\d))(\.\d+)?)$/', $in)) {
 			if ($default !== null)
-				return ($default);
+				return (self::_processGeo($default, $strict, null, $min, $max));
 			throw new TµApplicationException("Data is not a valid geo coordinates string.", TµApplicationException::API);
 		}
 		list($lat, $lon) = array_map('trim', explode(',', $in));
@@ -1389,7 +1389,7 @@ class DataFilter {
 				if ($lat < $minLat || $lon < $minLon) {
 					if ($strict) {
 						if ($default !== null)
-							return ($default);
+							return (self::_processGeo($default, $strict, null, $min, $max));
 						throw new TµApplicationException("Data doesn't respect contract (geo coordinates too low).", TµApplicationException::API);
 					}
 					$lat = max($lat, $minLat);
@@ -1406,7 +1406,7 @@ class DataFilter {
 				if ($lat > $maxLat || $lon > $maxLon) {
 					if ($strict) {
 						if ($default !== null)
-							return ($default);
+							return (self::_processGeo($default, $strict, null, $min, $max));
 						throw new TµApplicationException("Data doesn't respect contract (geo coordinates too high).", TµApplicationException::API);
 					}
 					$lat = min($lat, $maxLat);
@@ -1427,7 +1427,7 @@ class DataFilter {
 	static private function _processPhone(mixed $in, bool $strict, ?string $default=null) : string {
 		if (!is_string($in) && !is_numeric($in)) {
 			if ($default !== null)
-				return ($default);
+				return (self::_processPhone($default, $strict, null));
 			throw new TµApplicationException("Data is not a valid phone number.", TµApplicationException::API);
 		}
 		$clean = str_replace([' ', '-', '.', '(', ')'], '', trim($in));
@@ -1435,7 +1435,7 @@ class DataFilter {
 		    !preg_match('/^\+\d{1,15}$/', $clean) &&
 		    !preg_match('/^\d{1,15}$/', $clean)) {
 			if ($default !== null)
-				return ($default);
+				return (self::_processPhone($default, $strict, null));
 			throw new TµApplicationException("Data is not a valid phone number.", TµApplicationException::API);
 		}
 		if ($strict)
