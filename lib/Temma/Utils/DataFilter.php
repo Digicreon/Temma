@@ -345,18 +345,12 @@ class DataFilter {
 			throw new TµIOException("Bad contract 'outFormat' parameter.", TµIOException::BAD_FORMAT);
 		// minimum length
 		$contractMinLen = null;
-		if (isset($contract['minlen'])) {
-			if (!is_numeric($contract['minlen']))
-				throw new TµIOException("Bad contract 'minlen' parameter.", TµIOException::BAD_FORMAT);
-			$contractMinLen = $contract['minlen'];
-		}
+		if (isset($contract['minLen']))
+			$contractMinLen = self::_parseLength($contract['minLen']);
 		// maximum length
 		$contractMaxLen = null;
-		if (isset($contract['maxlen'])) {
-			if (!is_numeric($contract['maxlen']))
-				throw new TµIOException("Bad contract 'maxlen' parameter.", TµIOException::BAD_FORMAT);
-			$contractMaxLen = $contract['maxlen'];
-		}
+		if (isset($contract['maxLen']))
+			$contractMaxLen = self::_parseLength($contract['maxLen']);
 		// mask
 		$contractMask = null;
 		if (isset($contract['mask'])) {
@@ -398,6 +392,7 @@ class DataFilter {
 			else
 				throw new TµIOException("Bad contract 'mime' parameter.", TµIOException::BAD_FORMAT);
 		}
+
 		/* *** check null value/contract *** */
 		// loop on types
 		$lastException = null;
@@ -427,9 +422,8 @@ class DataFilter {
 							throw new TµIOException("Enum without values.", TµIOException::BAD_FORMAT);
 						return (self::_processEnum($in, $contractDefault, $contractValues));
 					case 'array':
-						return (self::_processArray($in, $contractStrict, $contractDefault));
 					case 'list':
-						return (self::_processList($in, $contractStrict, $contractDefault, $contractSubcontract));
+						return (self::_processList($in, $contractStrict, $contractDefault, $contractMinLen, $contractMaxLen, $contractSubcontract));
 					case 'assoc':
 						if (!$contractKeys)
 							throw new TµIOException("Associative array without sub-keys contract.", TµIOException::BAD_FORMAT);
@@ -465,13 +459,11 @@ class DataFilter {
 					case 'slug':
 						return (self::_processSlug($in, $contractStrict, $contractDefault));
 					case 'json':
-						return (self::_processJson($in, $contractStrict, $contractDefault, $contractSubcontract));
+						return (self::_processJson($in, $contractStrict, $contractDefault, $contractSubcontract, $contractMinLen, $contractMaxLen));
 					case 'base64':
-						return (self::_processBase64($in, $contractStrict, $contractDefault, $contractMime));
-					case 'mimetype':
-						if (!$contractMime)
-							throw new TµIOException("Mimetype without mime parameter.", TµIOException::BAD_FORMAT);
-						return (self::_processMimeType($in, $contractStrict, $contractDefault, $contractMime));
+						return (self::_processBase64($in, $contractStrict, $contractDefault, $contractMime, $contractMinLen, $contractMaxLen));
+					case 'binary':
+						return (self::_processBinary($in, $contractStrict, $contractDefault, $contractMinLen, $contractMaxLen));
 					case 'color':
 						return (self::_processColor($in, $contractDefault));
 					case 'geo':
@@ -493,6 +485,33 @@ class DataFilter {
 
 	/* ********** PRIVATE METHODS ********** */
 	/**
+	 * Parse a length string (e.g. '10M', '5K').
+	 * @param	mixed	$size	The size string.
+	 * @return	int	The parsed size in bytes.
+	 */
+	static private function _parseLength(mixed $len) : int {
+		if (is_int($len) || ctype_digit($len))
+			return ($len);
+		if (!is_string($len))
+			throw new TµIOException("Bad contract 'minLen/maxLen' parameter.", TµIOException::BAD_FORMAT);
+		$len = trim($len);
+		$last = mb_strtolower(mb_substr($len, -1));
+		$len = mb_substr($len, 0, -1);
+		if (!ctype_digit($len))
+			throw new TµIOException("Bad contract 'minLen/maxLen' parameter.", TµIOException::BAD_FORMAT);
+		switch ($last) {
+			case 'k': $len *= 1024; break;
+			case 'm': $len *= 1024 * 1024; break;
+			case 'g': $len *= 1024 * 1024 * 1024; break;
+			case 't': $len *= 1024 * 1024 * 1024 * 1024; break;
+			case 'p': $len *= 1024 * 1024 * 1024 * 1024 * 1024; break;
+			case 'e': $len *= 1024 * 1024 * 1024 * 1024 * 1024 * 1024; break;
+			default: throw new TµIOException("Bad contract 'minLen/maxLen' parameter.", TµIOException::BAD_FORMAT);
+		}
+		return ($len);
+	}
+
+	/**
 	 * Process a null value.
 	 * @param	mixed	$in		Input value.
 	 * @return	null	Always null.
@@ -500,7 +519,7 @@ class DataFilter {
 	 */
 	static private function _processNull(mixed $in) : null {
 		if ($in !== null)
-			throw new TµApplicationException("Value is not null.", TµApplicationException::API);
+			throw new TµApplicationException("Data is not null.", TµApplicationException::API);
 		return (null);
 	}
 	/**
@@ -518,7 +537,7 @@ class DataFilter {
 		$in = ($inline && $default === 'false') ? false : $default;
 		if (($strict && $in === false) || (!$strict && !$in))
 			return (false);
-		throw new TµApplicationException("Value is not false.", TµApplicationException::API);
+		throw new TµApplicationException("Data is not false.", TµApplicationException::API);
 	}
 	/**
 	 * Process a true value.
@@ -535,7 +554,7 @@ class DataFilter {
 		$in = ($inline && $default === 'true') ? true : $default;
 		if (($strict && $in === true) || (!$strict && $in))
 			return (true);
-		throw new TµApplicationException("Value is not true.", TµApplicationException::API);
+		throw new TµApplicationException("Data is not true.", TµApplicationException::API);
 	}
 	/**
 	 * Process a boolean type.
@@ -559,7 +578,7 @@ class DataFilter {
 		}
 		if ($in === true || $in === false)
 			return ($in);
-		throw new TµApplicationException("Value is not boolean.", TµApplicationException::API);
+		throw new TµApplicationException("Data is not boolean.", TµApplicationException::API);
 	}
 	/**
 	 * Process an integer type.
@@ -630,9 +649,9 @@ class DataFilter {
 					$in = min($in, (int)$max);
 			}
 		} catch (TµApplicationException $e) {
-			if (is_null($default))
-				throw $e;
-			return (self::_processInt($default, $inline, $strict, null, $min, $max));
+			if ($default !== null)
+				return (self::_processInt($default, $inline, $strict, null, $min, $max));
+			throw $e;
 		}
 		return ($in);
 	}
@@ -671,7 +690,7 @@ class DataFilter {
 				}
 				return ($in);
 			}
-			// strict mod and not a float: try the default value
+			// strict mode and not a float: try the default value
 			if ($strict) {
 				$in = $default;
 				if (!is_float($in))
@@ -690,9 +709,8 @@ class DataFilter {
 				if (is_numeric($max))
 					$options['options']['max_range'] = $max;
 			}
-			if (($in = filter_var($in, FILTER_VALIDATE_FLOAT, $options)) === false) {
+			if (($in = filter_var($in, FILTER_VALIDATE_FLOAT, $options)) === false)
 				throw new TµApplicationException("Data doesn't respect contract (can't cast to float).", TµApplicationException::API);
-			}
 			if (!$strict) {
 				if (is_numeric($min))
 					$in = max($in, (float)$min);
@@ -740,9 +758,9 @@ class DataFilter {
 			if ($mask && !preg_match('{' . $mask . '}u', $in, $matches))
 				throw new TµApplicationException("Data doesn't respect contract (string doesn't match the given mask).", TµApplicationException::API);
 		} catch (TµApplicationException $e) {
-			if (is_null($default))
-				throw $e;
-			return (self::_processString($default, $strict, null, $minLen, $maxLen));
+			if ($default !== null)
+				return (self::_processString($default, $strict, null, $minLen, $maxLen, $mask));
+			throw $e;
 		}
 		return ($in);
 	}
@@ -764,9 +782,9 @@ class DataFilter {
 			throw new TµApplicationException("Data is not a valid email address.", TµApplicationException::API);
 		}
 		if ($mask && !preg_match('{' . $mask . '}u', $in, $matches)) {
-			if ($default === null)
-				throw new TµApplicationException("Data doesn't respect contract (email doesn't match the given mask).", TµApplicationException::API);
-			$in = $default;
+			if ($default !== null)
+				return (self::_processEmail($default, null, $mask));
+			throw new TµApplicationException("Data doesn't respect contract (email doesn't match the given mask).", TµApplicationException::API);
 		}
 		return ($in);
 	}
@@ -792,14 +810,14 @@ class DataFilter {
 			throw new TµApplicationException("Data is not a valid URL.", TµApplicationException::API);
 		}
 		if (is_numeric($minLen) && mb_strlen($in) < $minLen) {
-			if ($default === null)
-				throw new TµApplicationException("Data doesn't respect contract (URL too short).", TµApplicationException::API);
-			$in = $default;
+			if ($default !== null)
+				return (self::_processUrl($default, null, $minLen, $maxLen, $mask));
+			throw new TµApplicationException("Data doesn't respect contract (URL too short).", TµApplicationException::API);
 		}
 		if ($mask && !preg_match('{' . $mask . '}u', $in, $matches)) {
-			if ($default === null)
-				throw new TµApplicationException("Data doesn't respect contract (URL doesn't match the given mask).", TµApplicationException::API);
-			$in = $default;
+			if ($default !== null)
+				return (self::_processUrl($default, null, $minLen, $maxLen, $mask));
+			throw new TµApplicationException("Data doesn't respect contract (URL doesn't match the given mask).", TµApplicationException::API);
 		}
 		return ($in);
 	}
@@ -815,54 +833,43 @@ class DataFilter {
 		if (in_array($in, $values))
 			return ($in);
 		if ($default !== null)
-			return ($default);
+			return (self::_processEnum($default, null, $values));
 		throw new TµApplicationException("Data doesn't respect contract (bad enum value '$in').", TµApplicationException::API);
-	}
-	/**
-	 * Process an array type.
-	 * @param	mixed	$in		Input value.
-	 * @param	bool	$strict		Strictness.
-	 * @param	mixed	$default	Default value.
-	 * @return	array	The filtered input value.
-	 * @throws	\Temma\Exceptions\Application	If the input data doesn't respect the contract (API).
-	 */
-	static private function _processArray(mixed $in, bool $strict, mixed $default) : array {
-		if (!is_array($in)) {
-			if ($strict) {
-				if ($default !== null && is_array($default))
-					return ($default);
-				throw new TµApplicationException("Data doesn't repect contract (not an array).", TµApplicationException::API);
-			}
-			if (is_null($in) && is_array($default))
-				return ($default);
-			$in = [$in];
-		}
-		return ($in);
 	}
 	/**
 	 * Process a list type.
 	 * @param	mixed			$in		Input value.
 	 * @param	bool			$strict		Strictness.
 	 * @param	mixed			$default	Default value.
+	 * @param	?int			$minLen		(optional) Minimum length of the list.
+	 * @param	?int			$maxLen		(optional) Maximum length of the list.
 	 * @param	null|string|array	$subcontract	Sub-contract.
 	 * @return	array	The filtered input value.
 	 * @throws	\Temma\Exceptions\Application	If the input data doesn't respect the contract (API).
 	 */
-	static private function _processList(mixed $in, bool $strict, mixed $default, null|string|array $subcontract) : array {
+	static private function _processList(mixed $in, bool $strict, mixed $default, ?int $minLen=null, ?int $maxLen=null, null|string|array $subcontract=null) : array {
 		if (!is_array($in)) {
 			if ($default !== null)
-				return ($default);
-			throw new TµApplicationException("Data doesn't repect contract (not a list).", TµApplicationException::API);
+				return (self::_processList($default, $strict, null, $minLen, $maxLen, $subcontract));
+			throw new TµApplicationException("Data doesn't respect contract (not a list).", TµApplicationException::API);
+		}
+		// check size
+		if ($minLen || $maxLen) {
+			$count = count($in);
+			if (($minLen && $count < $minLen) || ($maxLen && $count > $maxLen)) {
+				if ($default !== null)
+					return (self::_processList($default, $strict, null, $minLen, $maxLen, $subcontract));
+				throw new TµApplicationException("Data size doesn't respect the contract.", TµApplicationException::API);
+			}
 		}
 		if ($subcontract === null)
 			return ($in);
-		$out = [];
-		foreach ($in as $k => $v) {
-			$res = self::process($v, $subcontract, $strict);
-			if (!is_null($res) || ($subcontract == 'null' || $subcontract[0] == '?'))
-				$out[] = $res;
+		foreach ($in as $k => &$v) {
+			if (!is_int($k))
+				throw new TµApplicationException("Data doesn't respect contract (not a list).", TµApplicationException::API);
+			$v = self::process($v, $subcontract, $strict);
 		}
-		return ($out);
+		return ($in);
 	}
 	/**
 	 * Process an associative array type.
@@ -876,8 +883,8 @@ class DataFilter {
 	static private function _processAssoc(mixed $in, bool $strict, mixed $default, array $contractKeys) : array {
 		if (!is_array($in)) {
 			if ($default !== null)
-				return ($default);
-			throw new TµApplicationException("Data doesn't repect contract (not an array).", TµApplicationException::API);
+				return (self::_processAssoc($default, $strict, null, $contractKeys));
+			throw new TµApplicationException("Data doesn't respect contract (not an array).", TµApplicationException::API);
 		}
 		$out = [];
 		$foundWildcard = false;
@@ -1002,7 +1009,7 @@ class DataFilter {
 				if (!$strict)
 					$d = $dMin;
 				else if ($default !== null)
-					return ($default);
+					return (self::_processDateTime($default, $strict, $inFormat, $outFormat, null, $min, $max));
 				else
 					throw new TµApplicationException("Data doesn't respect contract (date/time too early).", TµApplicationException::API);
 			}
@@ -1014,7 +1021,7 @@ class DataFilter {
 				if (!$strict)
 					$d = $dMax;
 				else if ($default !== null)
-					return ($default);
+					return (self::_processDateTime($default, $strict, $inFormat, $outFormat, null, $min, $max));
 				else
 					throw new TµApplicationException("Data doesn't respect contract (date/time too late).", TµApplicationException::API);
 			}
@@ -1032,7 +1039,7 @@ class DataFilter {
 		if (is_string($in) && preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $in))
 			return strtolower($in);
 		if ($default !== null && is_string($default) && preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $default))
-			return ($default);
+			return (self::_processUuid($default));
 		throw new TµApplicationException("Data is not a valid UUID.", TµApplicationException::API);
 	}
 	/**
@@ -1045,14 +1052,14 @@ class DataFilter {
 	static private function _processIsbn(mixed $in, ?string $default=null) : string {
 		if (!is_string($in)) {
 			if ($default !== null)
-				return ($default);
+				return (self::_processIsbn($default));
 			throw new TµApplicationException("Data is not a valid ISBN.", TµApplicationException::API);
 		}
 		$in = preg_replace('/[^0-9X]/', '', strtoupper($in));
-		$len = strlen($in);
+		$len = mb_strlen($in);
 		if ($len != 10 && $len != 13) {
 			if ($default !== null)
-				return ($default);
+				return (self::_processIsbn($default));
 			throw new TµApplicationException("Data is not a valid ISBN.", TµApplicationException::API);
 		}
 		if ($len == 10) {
@@ -1063,7 +1070,7 @@ class DataFilter {
 			$check = ($check == 10) ? 'X' : (string)$check;
 			if (mb_substr($in, 9, 1) != $check) {
 				if ($default !== null)
-					return ($default);
+					return (self::_processIsbn($default));
 				throw new TµApplicationException("Data is not a valid ISBN-10.", TµApplicationException::API);
 			}
 		} else {
@@ -1073,7 +1080,7 @@ class DataFilter {
 			$check = (10 - ($sum % 10)) % 10;
 			if (mb_substr($in, 12, 1) != $check) {
 				if ($default !== null)
-					return ($default);
+					return (self::_processIsbn($default));
 				throw new TµApplicationException("Data is not a valid ISBN-13.", TµApplicationException::API);
 			}
 		}
@@ -1089,14 +1096,14 @@ class DataFilter {
 	static private function _processEan(mixed $in, ?string $default=null) : string {
 		if (!is_string($in) && !is_int($in)) {
 			if ($default !== null)
-				return ($default);
+				return (self::_processEan($default));
 			throw new TµApplicationException("Data is not a valid EAN.", TµApplicationException::API);
 		}
 		$in = preg_replace('/[^0-9]/', '', (string)$in);
 		$len = strlen($in);
 		if ($len != 8 && $len != 13) {
 			if ($default !== null)
-				return ($default);
+				return (self::_processEan($default));
 			throw new TµApplicationException("Data is not a valid EAN.", TµApplicationException::API);
 		}
 		$sum = 0;
@@ -1105,7 +1112,7 @@ class DataFilter {
 		$check = (10 - ($sum % 10)) % 10;
 		if (mb_substr($in, ($len - 1), 1) != $check) {
 			if ($default !== null)
-				return ($default);
+				return (self::_processEan($default));
 			throw new TµApplicationException("Data is not a valid EAN.", TµApplicationException::API);
 		}
 		return ($in);
@@ -1121,8 +1128,8 @@ class DataFilter {
 		if (is_string($in) && filter_var($in, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 | FILTER_FLAG_IPV6))
 			return ($in);
 		if ($default !== null)
-			return ($default);
-		throw new TµApplicationException("Data is not a valid IPv4 address.", TµApplicationException::API);
+			return (self::_processIp($default));
+		throw new TµApplicationException("Data is not a valid IP address.", TµApplicationException::API);
 	}
 	/**
 	 * Process an IPv4 type.
@@ -1135,7 +1142,7 @@ class DataFilter {
 		if (is_string($in) && filter_var($in, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4))
 			return ($in);
 		if ($default !== null)
-			return ($default);
+			return (self::_processIpv4($default));
 		throw new TµApplicationException("Data is not a valid IPv4 address.", TµApplicationException::API);
 	}
 	/**
@@ -1149,7 +1156,7 @@ class DataFilter {
 		if (is_string($in) && filter_var($in, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6))
 		return ($in);
 		if ($default !== null)
-			return ($default);
+			return (self::_processIpv6($default));
 		throw new TµApplicationException("Data is not a valid IPv6 address.", TµApplicationException::API);
 	}
 	/**
@@ -1163,7 +1170,7 @@ class DataFilter {
 		if (is_string($in) && filter_var($in, FILTER_VALIDATE_MAC))
 			return ($in);
 		if ($default !== null)
-			return ($default);
+			return (self::_processMac($default));
 		throw new TµApplicationException("Data is not a valid MAC address.", TµApplicationException::API);
 	}
 	/**
@@ -1192,13 +1199,13 @@ class DataFilter {
 	static private function _processSlug(mixed $in, bool $strict, ?string $default=null) : string {
 		if (!is_string($in) || !$in) {
 			if ($default !== null)
-				return (\Temma\Utils\Text::urlize($default));
+				return (self::_processSlug($default, $strict));
 			throw new TµApplicationException("Data is not a valid slug.", TµApplicationException::API);
 		}
 		$slug = \Temma\Utils\Text::urlize($in);
 		if ($strict && $in != $slug) {
 			if ($default !== null)
-				return (\Temma\Utils\Text::urlize($default));
+				return (self::_processSlug($default, $strict));
 			throw new TµApplicationException("Data is not a valid slug.", TµApplicationException::API);
 		}
 		return ($slug);
@@ -1207,22 +1214,33 @@ class DataFilter {
 	 * Process a JSON string type.
 	 * @param	mixed			$in		Input value.
 	 * @param	bool			$strict		Strictness.
-	 * @param	?string			$default	(optional) Default value.
-	 * @param	null|string|array	$contract	(optional) Contract to validate the JSON content.
-	 * @return	mixed	The decoded input value.
+	 * @param	?string	$default	(optional) Default value.
+	 * @param	null|string|array	$contract	(optional) DataFilter contract.
+	 * @param	?int	$minLen		(optional) Minimum length of the JSON string.
+	 * @param	?int	$maxLen		(optional) Maximum length of the JSON string.
+	 * @return	mixed	The decoded object/array.
 	 * @throws	\Temma\Exceptions\Application	If the input data doesn't respect the contract (API).
 	 */
-	static private function _processJson(mixed $in, bool $strict, ?string $default=null, null|string|array $contract=null) : mixed {
-		if (!is_string($in)) {
+	static private function _processJson(mixed $in, bool $strict, ?string $default=null, null|string|array $contract=null, ?int $minLen=null, ?int $maxLen=null) : mixed {
+		if (!is_string($in) || !$in) {
 			if ($default !== null)
-				return (self::_processJson($default, $strict, null, $contract));
+				return (self::_processJson($default, $strict, null, $contract, $minLen, $maxLen));
 			throw new TµApplicationException("Data is not a valid JSON string.", TµApplicationException::API);
+		}
+		// check size
+		if ($minLen || $maxLen) {
+			$len = mb_strlen($in, 'ascii');
+			if (($minLen && $len < $minLen) || ($maxLen && $len > $maxLen)) {
+				if ($default !== null)
+					return (self::_processJson($default, $strict, null, $contract, $minLen, $maxLen));
+				throw new TµApplicationException("JSON data size doesn't respect minLen/maxLen.", TµApplicationException::API);
+			}
 		}
 		// decode
 		$data = json_decode($in, true);
 		if (json_last_error() !== JSON_ERROR_NONE) {
 			if ($default !== null)
-				return (self::_processJson($default, $strict, null, $contract));
+				return (self::_processJson($default, $strict, null, $contract, $minLen, $maxLen));
 			throw new TµApplicationException("Data is not a valid JSON string.", TµApplicationException::API);
 		}
 		if (!$contract)
@@ -1232,7 +1250,7 @@ class DataFilter {
 			return (self::process($data, $contract, $strict));
 		} catch (TµApplicationException $e) {
 			if ($default !== null)
-				return (self::_processJson($default, $strict, null, $contract));
+				return (self::_processJson($default, $strict, null, $contract, $minLen, $maxLen));
 			throw $e;
 		}
 	}
@@ -1242,69 +1260,87 @@ class DataFilter {
 	 * @param	bool	$strict		Strictness.
 	 * @param	?string	$default	(optional) Default value.
 	 * @param	?array	$mime		(optional) List of allowed MIME types.
+	 * @param	?int	$minLen		(optional) Minimum length.
+	 * @param	?int	$maxLen		(optional) Maximum length.
 	 * @return	string	The filtered input value.
 	 * @throws	\Temma\Exceptions\Application	If the input data doesn't respect the contract (API).
 	 */
-	static private function _processBase64(mixed $in, bool $strict, ?string $default=null, ?array $mime=null) : string {
-		if (!is_string($in)) {
+	static private function _processBase64(mixed $in, bool $strict, ?string $default=null, ?array $mime=null, ?int $minLen=null, ?int $maxLen=null) : string {
+		if (!is_string($in) || !$in || ($decoded = base64_decode($in, true)) === false) {
 			if ($default !== null)
-				return (self::_processBase64($default, $strict, null, $mime));
+				return (self::_processBase64($default, $strict, null, $mime, $minLen, $maxLen));
 			throw new TµApplicationException("Data is not a valid base64 string.", TµApplicationException::API);
 		}
-		// decode
-		$decoded = base64_decode($in, true);
-		if ($decoded === false) {
-			if ($default !== null)
-				return (self::_processBase64($default, $strict, null, $mime));
-			throw new TµApplicationException("Data is not a valid base64 string.", TµApplicationException::API);
+		// check size
+		if ($minLen || $maxLen) {
+			$len = mb_strlen($decoded, 'ascii');
+			if (($minLen && $len < $minLen) || ($maxLen && $len > $maxLen)) {
+				if ($default !== null)
+					return (self::_processBase64($default, $strict, null, $mime, $minLen, $maxLen));
+				throw new TµApplicationException("Data size doesn't respect the contract.", TµApplicationException::API);
+			}
 		}
 		// strict check: re-encode and compare
 		if ($strict && base64_encode($decoded) !== $in) {
 			if ($default !== null)
-				return (self::_processBase64($default, $strict, null, $mime));
+				return (self::_processBase64($default, $strict, null, $mime, $minLen, $maxLen));
 			throw new TµApplicationException("Data is not a valid base64 string.", TµApplicationException::API);
 		}
 		// check MIME type
 		if ($mime) {
 			try {
-				return (self::_processMimeType($decoded, $strict, null, $mime));
+				return (self::_processBinary($decoded, $strict, null, $mime, null, null));
 			} catch (TµApplicationException $e) {
 				if ($default !== null)
-					return (self::_processBase64($default, $strict, null, $mime));
+					return (self::_processBase64($default, $strict, null, $mime, $minLen, $maxLen));
 				throw $e;
 			}
 		}
 		return ($decoded);
 	}
 	/**
-	 * Process a MIME type check.
+	 * Process a binary type.
 	 * @param	mixed	$in		Input value.
 	 * @param	bool	$strict		Strictness.
 	 * @param	?string	$default	Default value.
-	 * @param	array	$mime		List of allowed MIME types.
+	 * @param	?array	$mime		(optional)List of allowed MIME types.
+	 * @param	?int	$minLen		(optional) Minimum length.
+	 * @param	?int	$maxLen		(optional) Maximum length.
 	 * @return	string	The filtered input value.
 	 * @throws	\Temma\Exceptions\Application	If the input data doesn't respect the contract (API).
 	 */
-	static private function _processMimeType(mixed $in, bool $strict, ?string $default=null, array $mime) : string {
+	static private function _processBinary(mixed $in, bool $strict, ?string $default=null, ?array $mime=null, ?int $minLen=null, ?int $maxLen=null) : string {
 		if (!is_string($in)) {
 			if ($default !== null)
-				return (self::_processMimeType($default, $strict, null, $mime));
+				return (self::_processBinary($default, $strict, null, $mime, $minLen, $maxLen));
 			throw new TµApplicationException("Data is not a string.", TµApplicationException::API);
 		}
-		$finfo = new \finfo(FILEINFO_MIME_TYPE);
-		$type = $finfo->buffer($in);
-		$found = false;
-		foreach ($mime as $m) {
-			$m = trim($m);
-			if ($type === $m || str_starts_with($type, "$m/")) {
-				$found = true;
-				break;
+		// check size
+		if ($minLen || $maxLen) {
+			$len = mb_strlen($in, 'ascii');
+			if (($minLen && $len < $minLen) || ($maxLen && $len > $maxLen)) {
+				if ($default !== null)
+					return (self::_processBinary($default, $strict, null, $mime, $minLen, $maxLen));
+				throw new TµApplicationException("Data size doesn't respect the contract.", TµApplicationException::API);
 			}
 		}
-		if (!$found) {
-			if ($default !== null)
-				return (self::_processMimeType($default, $strict, null, $mime));
-			throw new TµApplicationException("Data doesn't respect contract (bad MIME type '$type').", TµApplicationException::API);
+		// check MIME type
+		if ($mime) {
+			$finfo = new \finfo(FILEINFO_MIME_TYPE);
+			$type = $finfo->buffer($in);
+			$found = false;
+			foreach ($mime as $m) {
+				$m = trim($m);
+				if ($type === $m || str_starts_with($type, "$m/")) {
+					$found = true;
+					break;
+				}
+			}
+			if (!$found) {
+				if ($default !== null)
+					return (self::_processBinary($default, $strict, null, $mime, $minLen, $maxLen));
+				throw new TµApplicationException("Data doesn't respect contract (bad MIME type '$type').", TµApplicationException::API);
+			}
 		}
 		return ($in);
 	}
