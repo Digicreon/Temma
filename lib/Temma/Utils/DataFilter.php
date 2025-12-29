@@ -187,7 +187,7 @@ class DataFilter {
 	const SUPPORTED_TYPES = [
 		'null', 'false', 'true', 'bool', 'int', 'float', 'string', 'email', 'url', 'enum', 'array', 'list', 'assoc',
 		'date', 'time', 'datetime', 'uuid', 'isbn', 'ean',
-		'ip', 'ipv4', 'ipv6', 'mac', 'port', 'slug', 'json', 'base64', 'mimetype', 'color', 'geo', 'phone',
+		'ip', 'ipv4', 'ipv6', 'mac', 'port', 'slug', 'json', 'base64', 'binary', 'color', 'geo', 'phone',
 	];
 
 	/**
@@ -392,8 +392,6 @@ class DataFilter {
 			else
 				throw new TµIOException("Bad contract 'mime' parameter.", TµIOException::BAD_FORMAT);
 		}
-
-		/* *** check null value/contract *** */
 		// loop on types
 		$lastException = null;
 		foreach ($contract['type'] as $contractType) {
@@ -463,7 +461,7 @@ class DataFilter {
 					case 'base64':
 						return (self::_processBase64($in, $contractStrict, $contractDefault, $contractMime, $contractMinLen, $contractMaxLen));
 					case 'binary':
-						return (self::_processBinary($in, $contractStrict, $contractDefault, $contractMinLen, $contractMaxLen));
+						return (self::_processBinary($in, $contractStrict, $contractDefault, $contractMime, $contractMinLen, $contractMaxLen));
 					case 'color':
 						return (self::_processColor($in, $contractDefault));
 					case 'geo':
