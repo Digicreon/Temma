@@ -31,24 +31,6 @@ class Request {
 	/** Path from the site root. */
 	private string $_sitePath;
 
-	/* ********** PAYLOAD PROPERTIES ********** */
-	/** Raw payload content. */
-	private ?string $_rawPayload = null;
-	/** Raw payload fetched state. */
-	private bool $_rawPayloadFetched = false;
-	/** JSON payload content. */
-	private mixed $_jsonPayload = null;
-	/** JSON payload fetched state. */
-	private bool $_jsonPayloadFetched = false;
-	/** JSON payload validity state. */
-	private bool $_jsonPayloadValid = false;
-	/** Base64 payload content. */
-	private ?string $_base64Payload = null;
-	/** Base64 payload fetched state. */
-	private bool $_base64PayloadFetched = false;
-	/** Base64 payload validity state. */
-	private bool $_base64PayloadValid = false;
-
 	/**
 	 * Constructor.
 	 * @param	null|bool|string	$setUri	(optional) Path to use to extract the execution elements (controller, action, parameters),
@@ -228,120 +210,133 @@ class Request {
 		$this->_params[$index] = $value;
 	}
 
-	/* ********** PAYLOAD METHODS ********** */
-	/**
-	 * Returns the raw payload.
-	 * @return	?string	The raw payload, or null if empty.
-	 */
-	public function getRawPayload() : ?string {
-		if ($this->_rawPayloadFetched)
-			return ($this->_rawPayload);
-		$this->_rawPayload = file_get_contents('php://input');
-		if ($this->_rawPayload === false || $this->_rawPayload === '')
-			$this->_rawPayload = null;
-		$this->_rawPayloadFetched = true;
-		return ($this->_rawPayload);
-	}
-	/**
-	 * Returns the JSON payload.
-	 * @return	mixed	The JSON payload, or null if empty.
-	 * @throws	\Temma\Exceptions\Application	If the payload is not a valid JSON stream.
-	 */
-	public function getJsonPayload() : mixed {
-		if ($this->_jsonPayloadFetched) {
-			if ($this->_jsonPayloadValid)
-				return ($this->_jsonPayload);
-			throw new TµApplicationException("Invalid JSON payload.", TµApplicationException::API);
-		}
-		$this->_jsonPayloadFetched = true;
-		$raw = $this->getRawPayload();
-		if ($raw === null) {
-			$this->_jsonPayload = null;
-			$this->_jsonPayloadValid = true;
-			return (null);
-		}
-		try {
-			$this->_jsonPayload = TµDataFilter::process($raw, 'json', false);
-		} catch (\Exception $e) {
-			TµLog::log('Temma/Web', 'WARN', "Invalid JSON payload.");
-			throw new TµApplicationException("Invalid JSON payload.", TµApplicationException::API);
-		}
-		$this->_jsonPayloadValid = true;
-		return ($this->_jsonPayload);
-	}
-	/**
-	 * Returns the Base64 payload.
-	 * @return	?string	The Base64 payload, or null if empty.
-	 * @throws	\Temma\Exceptions\Application	If the payload is not a valid Base64 stream.
-	 */
-	public function getBase64Payload() : ?string {
-		if ($this->_base64PayloadFetched) {
-			if ($this->_base64PayloadValid)
-				return ($this->_base64Payload);
-			throw new TµApplicationException("Invalid Base64 payload.", TµApplicationException::API);
-		}
-		$this->_base64PayloadFetched = true;
-		$raw = $this->getRawPayload();
-		if ($raw === null) {
-			$this->_base64Payload = null;
-			$this->_base64PayloadValid = true;
-			return (null);
-		}
-		try {
-			$this->_base64Payload = TµDataFilter::process($raw, 'base64', false);
-		} catch (\Exception $e) {
-			TµLog::log('Temma/Web', 'WARN', "Invalid Base64 payload.");
-			throw new TµApplicationException("Invalid Base64 payload.", TµApplicationException::API);
-		}
-		$this->_base64PayloadValid = true;
-		return ($this->_base64Payload);
-	}
-
 	/* ***************** VALIDATION *************** */
 	/**
-	 * Validate parameters.
-	 * @param	null|string|array	$parameters	(optional) Associative array of parameters to check, or string for raw payload check.
-	 * @param	?string			$type		(optional) Type of check ('GET', 'POST'). If null, checks both if data exists.
-	 * @param	bool			$strict		(optional) True to use strict matching. False by default.
-	 * @param	null|string|array	$json		(optional) JSON contract to check the payload.
+	 * Validate parameters (GET and POST).
+	 * @param	array	$params	Contract to validate the parameters.
+	 * @param	?string	$source	(optional) Source of the parameters ('GET', 'POST'). If null, checks both.
+	 * @param	bool	$strict	(optional) True to use strict matching. False by default.
 	 * @throws	\Temma\Exceptions\Application	If the parameters are not valid.
 	 */
-	public function validate(
-		null|string|array $parameters=null,
-		?string $type=null,
-		bool $strict=false,
-		null|string|array $json=null,
-	) : void {
-		$type = strtoupper($type ?? '');
-		$checkGet = ($type === 'GET' || ($type === '' && !empty($_GET)));
-		$checkPost = ($type === 'POST' || ($type === '' && !empty($_POST)));
-		// check GET parameters
-		if ($checkGet && is_array($parameters)) {
-			$_GET = TµDataFilter::process($_GET, ['type' => 'assoc', 'keys' => $parameters], $strict);
-		}
-		// check POST parameters
-		if ($checkPost) {
-			if (!$json && is_array($parameters)) {
-				// standard POST parameters check
-				$_POST = TµDataFilter::process($_POST, ['type' => 'assoc', 'keys' => $parameters], $strict);
+	public function validateParams(array $params, ?string $source=null, bool $strict=false) : void {
+		$source = strtoupper($source ?? '');
+		$checkGet = ($source === 'GET' || ($source === '' && !empty($_GET)));
+		$checkPost = ($source === 'POST' || ($source === '' && !empty($_POST)));
+		// optimize contract
+		$contract = [
+			'type' => 'assoc',
+			'keys' => $params,
+		];
+		// validate
+		if ($checkGet)
+			$_GET = TµDataFilter::process($_GET, $contract, $strict);
+		if ($checkPost)
+			$_POST = TµDataFilter::process($_POST, $contract, $strict);
+	}
+	/**
+	 * Validate the request payload.
+	 * @param	mixed	$contract	Contract to validate the payload.
+	 * @param	bool	$strict		(optional) True to use strict matching. False by default.
+	 * @return	mixed	The validated data.
+	 * @throws	\Temma\Exceptions\Application	If the payload is not valid.
+	 */
+	public function validatePayload(mixed $contract, bool $strict=false) : mixed {
+		$inputSource = (php_sapi_name() === 'cli') ? 'php://stdin' : 'php://input';
+		$input = file_get_contents($inputSource);
+		return (TµDataFilter::process($input, $contract, $strict));
+	}
+	/**
+	 * Validate uploaded files.
+	 * @param	array	$contract	Contract to validate the files.
+	 * @param	bool	$strict		(optional) True to use strict matching. False by default.
+	 * @throws	\Temma\Exceptions\Application	If the files are not valid.
+	 */
+	public function validateFiles(array $contract, bool $strict=false) : void {
+		// process each contract key
+		$hasWildcard = false;
+		$wildcardContract = null;
+		$contractKeys = [];
+		foreach ($contract as $key => $subcontract) {
+			// check for wildcard (as key or as value in indexed array)
+			if ($key === '...' || $key === '…') {
+				$hasWildcard = true;
+				$wildcardContract = ($subcontract !== '...' && $subcontract !== '…') ? $subcontract : null;
+				continue;
+			}
+			if ($subcontract === '...' || $subcontract === '…') {
+				$hasWildcard = true;
+				continue;
+			}
+			// check for optional suffix
+			$optional = false;
+			if (str_ends_with($key, '?')) {
+				$optional = true;
+				$key = mb_substr($key, 0, -1);
+			}
+			// store the key (for later use)
+			$contractKeys[$key] = true;
+			// check if file exists
+			if (!isset($_FILES[$key])) {
+				if (!$optional)
+					throw new TµApplicationException("Mandatory file '$key' is missing.", TµApplicationException::API);
+				continue;
+			}
+			// check for single file or multiple files
+			if (!is_array($_FILES[$key]['name'])) {
+				// handle single file
+				$content = file_get_contents($_FILES[$key]['tmp_name']);
+				$result = TµDataFilter::process($content, $subcontract, $strict);
+				// update MIME type in $_FILES
+				if (isset($result['mime']))
+					$_FILES[$key]['type'] = $result['mime'];
 			} else {
-				$this->getRawPayload();
-				if (is_string($parameters)) {
-					// raw body check
-					// $parameters contains the type (e.g. 'int' or 'base64')
-					$res = TµDataFilter::process($this->_rawPayload, $parameters, $strict);
-					// check if it was a base64 check
-					if (str_starts_with($parameters, 'base64')) {
-						$this->_base64Payload = $res;
-						$this->_base64PayloadFetched = true;
-					}
-				} else if ($json) {
-					// JSON check
-					$data = $this->getJsonPayload();
-					// validate the decoded JSON with the contract
-					$this->_jsonPayload = TµDataFilter::process($data, $json, $strict);
+				// handle multiple files (array)
+				foreach ($_FILES[$key]['name'] as $i => $name) {
+					$content = file_get_contents($_FILES[$key]['tmp_name'][$i]);
+					$result = TµDataFilter::process($content, $subcontract, $strict);
+					// update MIME type in $_FILES
+					if (isset($result['mime']))
+						$_FILES[$key]['type'][$i] = $result['mime'];
+				}
+			}
+		}
+		// handle extra files
+		if ($hasWildcard && $wildcardContract) {
+			// validate extra files with wildcard contract
+			foreach (array_keys($_FILES) as $fileKey) {
+				if (isset($contractKeys[$fileKey]))
+					continue;
+				// validate extra file
+				if (!is_array($_FILES[$fileKey]['name'])) {
+					$content = file_get_contents($_FILES[$fileKey]['tmp_name']);
+					$result = TµDataFilter::process($content, $wildcardContract, $strict);
+					if (isset($result['mime']))
+						$_FILES[$fileKey]['type'] = $result['mime'];
 				} else {
-					throw new TµApplicationException("Invalid parameters.", TµApplicationException::API);
+					foreach ($_FILES[$fileKey]['name'] as $i => $name) {
+						$content = file_get_contents($_FILES[$fileKey]['tmp_name'][$i]);
+						$result = TµDataFilter::process($content, $wildcardContract, $strict);
+						if (isset($result['mime']))
+							$_FILES[$fileKey]['type'][$i] = $result['mime'];
+					}
+				}
+			}
+		} else if (!$hasWildcard) {
+			if ($strict) {
+				// strict mode: throw exception on extra files
+				$extraFiles = [];
+				$fileKeys = array_keys($_FILES);
+				foreach ($fileKeys as $fileKey) {
+					if (!isset($contractKeys[$fileKey]))
+						$extraFiles[] = $fileKey;
+				}
+				if ($extraFiles)
+					throw new TµApplicationException("Extra file(s) '" . implode("', '", $extraFiles) . "' are not allowed.", TµApplicationException::API);
+			} else {
+				// non-strict mode: remove extra files
+				foreach (array_keys($_FILES) as $fileKey) {
+					if (!isset($contractKeys[$fileKey]))
+						unset($_FILES[$fileKey]);
 				}
 			}
 		}
