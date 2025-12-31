@@ -461,10 +461,10 @@ class Loader extends \Temma\Utils\Registry {
 			if (is_array($obj)) {
 				// Array callable: [$objectOrClass, 'method']
 				$rf = new \ReflectionMethod($obj[0], $obj[1]);
-			} elseif (is_string($obj) && str_contains($obj, '::')) {
+			} else if (is_string($obj) && str_contains($obj, '::')) {
 				// String static call: "Class::method"
 				$rf = new \ReflectionMethod($obj);
-			} elseif (is_object($obj) && !$obj instanceof \Closure) {
+			} else if (is_object($obj) && !$obj instanceof \Closure) {
 				// Invokable object (has __invoke)
 				$rf = new \ReflectionMethod($obj, '__invoke');
 			} else {
