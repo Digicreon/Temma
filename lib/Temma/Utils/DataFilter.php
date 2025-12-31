@@ -273,9 +273,13 @@ class DataFilter {
 		if (array_key_exists('type', $contract) &&
 		    ($contract['type'] === null || $contract['type'] === ''))
 			return ($in);
-		// check type not empty
-		if (!isset($contract['type']) || empty($contract['type']))
-			throw new TµIOException("Empty contract type.", TµIOException::BAD_FORMAT);
+		// assume "assoc" contract if no type is defined
+		if (!isset($contract['type']) || empty($contract['type'])) {
+			$contract = [
+				'type' => 'assoc',
+				'keys' => $contract,
+			];
+		}
 		// process type as a string, and search for null type
 		$contractNullable = false;
 		$contractStrict = $strict;
@@ -392,6 +396,16 @@ class DataFilter {
 			else
 				throw new TµIOException("Bad contract 'mime' parameter.", TµIOException::BAD_FORMAT);
 		}
+		// charset
+		$contractCharset = null;
+		if (isset($contract['charset'])) {
+			if (is_string($contract['charset']))
+				$contractCharset = array_map('trim', explode(',', $contract['charset']));
+			else if (is_array($contract['charset']))
+				$contractCharset = $contract['charset'];
+			else
+				throw new TµIOException("Bad contract 'charset' parameter.", TµIOException::BAD_FORMAT);
+		}
 		// loop on types
 		$lastException = null;
 		foreach ($contract['type'] as $contractType) {
@@ -410,7 +424,7 @@ class DataFilter {
 					case 'float':
 						return (self::_processFloat($in, $inline, $contractStrict, $contractDefault, $contractMin, $contractMax));
 					case 'string':
-						return (self::_processString($in, $contractStrict, $contractDefault, $contractMinLen, $contractMaxLen, $contractMask));
+						return (self::_processString($in, $contractStrict, $contractDefault, $contractMinLen, $contractMaxLen, $contractMask, $contractCharset));
 					case 'email':
 						return (self::_processEmail($in, $contractDefault, $contractMask));
 					case 'url':
@@ -461,7 +475,7 @@ class DataFilter {
 					case 'base64':
 						return (self::_processBase64($in, $contractStrict, $contractDefault, $contractMime, $contractMinLen, $contractMaxLen));
 					case 'binary':
-						return (self::_processBinary($in, $contractStrict, $contractDefault, $contractMime, $contractMinLen, $contractMaxLen));
+						return (self::_processBinary($in, $contractStrict, $contractDefault, $contractMime, $contractMinLen, $contractMaxLen, $contractCharset));
 					case 'color':
 						return (self::_processColor($in, $contractDefault));
 					case 'geo':
@@ -730,10 +744,11 @@ class DataFilter {
 	 * @param	null|int|float|string	$minLen		(optional) Minimum length.
 	 * @param	null|int|float|string	$maxLen		(optional) Maximum length.
 	 * @param	?string			$mask		(optional) Regex mask.
+	 * @param	?array			$charset	(optional) List of accepted charsets (first = target).
 	 * @return	string	The filtered input value.
 	 * @throws	\Temma\Exceptions\Application	If the input data doesn't respect the contract (API).
 	 */
-	static private function _processString(mixed $in, bool $strict, mixed $default=null, null|int|float|string $minLen=null, null|int|float|string $maxLen=null, ?string $mask=null) : string {
+	static private function _processString(mixed $in, bool $strict, mixed $default=null, null|int|float|string $minLen=null, null|int|float|string $maxLen=null, ?string $mask=null, ?array $charset=null) : string {
 		try {
 			$len = is_string($in) ? mb_strlen($in) : 0;
 			if ($strict) {
@@ -753,11 +768,31 @@ class DataFilter {
 			}
 			if (is_numeric($minLen) && $len < $minLen)
 				throw new TµApplicationException("Data doesn't respect contract (string too short).", TµApplicationException::API);
+			// charset validation/conversion
+			if ($charset) {
+				$detectedCharset = mb_detect_encoding($in, mb_detect_order(), true);
+				if ($detectedCharset) {
+					$targetCharset = $charset[0]; // first = target
+					$detectedLower = strtolower($detectedCharset);
+					$foundCharset = false;
+					foreach ($charset as $acceptedCharset) {
+						if ($detectedLower === strtolower($acceptedCharset)) {
+							$foundCharset = true;
+							break;
+						}
+					}
+					if (!$foundCharset) {
+						if ($strict)
+							throw new TµApplicationException("Data doesn't respect contract (charset mismatch: expected one of [" . implode(', ', $charset) . "], got '$detectedCharset').", TµApplicationException::API);
+						$in = mb_convert_encoding($in, $targetCharset, $detectedCharset);
+					}
+				}
+			}
 			if ($mask && !preg_match('{' . $mask . '}u', $in, $matches))
 				throw new TµApplicationException("Data doesn't respect contract (string doesn't match the given mask).", TµApplicationException::API);
 		} catch (TµApplicationException $e) {
 			if ($default !== null)
-				return (self::_processString($default, $strict, null, $minLen, $maxLen, $mask));
+				return (self::_processString($default, $strict, null, $minLen, $maxLen, $mask, $charset));
 			throw $e;
 		}
 		return ($in);
@@ -886,6 +921,7 @@ class DataFilter {
 		}
 		$out = [];
 		$foundWildcard = false;
+		$wildcardContract = null;
 		foreach ($contractKeys as $k => $v) {
 			$key = null;
 			$subcontract = [
@@ -901,6 +937,7 @@ class DataFilter {
 			}
 			if ($key === '...' || $key === '…') {
 				$foundWildcard = true;
+				$wildcardContract = $subcontract;
 				continue;
 			}
 			if (str_ends_with($key, '?')) {
@@ -924,10 +961,16 @@ class DataFilter {
 		}
 		// manage "..." (wildcard)
 		if ($foundWildcard) {
-			// copy all extra keys
+			// process extra keys with wildcard contract
 			$extra = array_diff_key($in, $out);
 			foreach ($extra as $k => $v) {
-				$out[$k] = $v;
+				if ($wildcardContract) {
+					// validate extra key with contract
+					$out[$k] = self::process($v, $wildcardContract, $strict);
+				} else {
+					// no contract: just copy
+					$out[$k] = $v;
+				}
 			}
 		} else if ($strict) {
 			// check for extra keys
@@ -1304,43 +1347,89 @@ class DataFilter {
 	 * @param	?array	$mime		(optional)List of allowed MIME types.
 	 * @param	?int	$minLen		(optional) Minimum length.
 	 * @param	?int	$maxLen		(optional) Maximum length.
-	 * @return	string	The filtered input value.
+	 * @param	?array	$charset	(optional) List of accepted charsets (first = target).
+	 * @return	array	Associative array with 'binary', 'mime', and 'charset' keys.
 	 * @throws	\Temma\Exceptions\Application	If the input data doesn't respect the contract (API).
 	 */
-	static private function _processBinary(mixed $in, bool $strict, ?string $default=null, ?array $mime=null, ?int $minLen=null, ?int $maxLen=null) : string {
+	static private function _processBinary(mixed $in, bool $strict, ?string $default=null, ?array $mime=null, ?int $minLen=null, ?int $maxLen=null, ?array $charset=null) : array {
 		if (!is_string($in)) {
 			if ($default !== null)
-				return (self::_processBinary($default, $strict, null, $mime, $minLen, $maxLen));
+				return (self::_processBinary($default, $strict, null, $mime, $minLen, $maxLen, $charset));
 			throw new TµApplicationException("Data is not a string.", TµApplicationException::API);
+		}
+		// check for empty buffer
+		if (empty($in)) {
+			if ($default !== null)
+				return (self::_processBinary($default, $strict, null, $mime, $minLen, $maxLen, $charset));
+			throw new TµApplicationException("Binary data is empty.", TµApplicationException::API);
 		}
 		// check size
 		if ($minLen || $maxLen) {
 			$len = mb_strlen($in, 'ascii');
 			if (($minLen && $len < $minLen) || ($maxLen && $len > $maxLen)) {
 				if ($default !== null)
-					return (self::_processBinary($default, $strict, null, $mime, $minLen, $maxLen));
+					return (self::_processBinary($default, $strict, null, $mime, $minLen, $maxLen, $charset));
 				throw new TµApplicationException("Data size doesn't respect the contract.", TµApplicationException::API);
 			}
 		}
-		// check MIME type
+		// detect MIME type and charset
+		$finfo = new \finfo(FILEINFO_MIME);
+		$mimeInfo = $finfo->buffer($in);
+		if ($mimeInfo === false) {
+			// finfo failed, check if a MIME validation was requested
+			if ($mime)
+				throw new TµApplicationException("Unable to detect MIME type.", TµApplicationException::API);
+			// no MIME validation requested
+			return [
+				'binary'  => $in,
+				'mime'    => null,
+				'charset' => null,
+			];
+		}
+		$parts = explode(';', $mimeInfo);
+		$detectedMime = trim($parts[0]);
+		$detectedCharset = null;
+		if (isset($parts[1]) && str_contains($parts[1], 'charset='))
+			$detectedCharset = trim(str_replace('charset=', '', $parts[1]));
+		// check MIME type constraint
 		if ($mime) {
-			$finfo = new \finfo(FILEINFO_MIME_TYPE);
-			$type = $finfo->buffer($in);
 			$found = false;
 			foreach ($mime as $m) {
 				$m = trim($m);
-				if ($type === $m || str_starts_with($type, "$m/")) {
+				if ($detectedMime === $m || str_starts_with($detectedMime, "$m/")) {
 					$found = true;
 					break;
 				}
 			}
 			if (!$found) {
 				if ($default !== null)
-					return (self::_processBinary($default, $strict, null, $mime, $minLen, $maxLen));
-				throw new TµApplicationException("Data doesn't respect contract (bad MIME type '$type').", TµApplicationException::API);
+					return (self::_processBinary($default, $strict, null, $mime, $minLen, $maxLen, $charset));
+				throw new TµApplicationException("Data doesn't respect contract (bad MIME type '$detectedMime').", TµApplicationException::API);
 			}
 		}
-		return ($in);
+		// charset validation/conversion
+		if ($charset && $detectedCharset) {
+			$targetCharset = $charset[0]; // first = target
+			$detectedLower = strtolower($detectedCharset);
+			$foundCharset = false;
+			foreach ($charset as $acceptedCharset) {
+				if ($detectedLower === strtolower($acceptedCharset)) {
+					$foundCharset = true;
+					break;
+				}
+			}
+			if (!$foundCharset) {
+				if ($strict)
+					throw new TµApplicationException("Data doesn't respect contract (charset mismatch: expected one of [" . implode(', ', $charset) . "], got '$detectedCharset').", TµApplicationException::API);
+				$in = mb_convert_encoding($in, $targetCharset, $detectedCharset);
+				$detectedCharset = $targetCharset;
+			}
+		}
+		return ([
+			'binary'  => $in,
+			'mime'    => $detectedMime,
+			'charset' => $detectedCharset,
+		]);
 	}
 	/**
 	 * Process a hex color type.
