@@ -935,11 +935,17 @@ class DataFilter {
 				$key = $k;
 				$subcontract = $v;
 			}
+			// check for wildcard (as key or as value in indexed array)
 			if ($key === '...' || $key === '…') {
 				$foundWildcard = true;
-				$wildcardContract = $subcontract;
+				$wildcardContract = ($subcontract !== '...' && $subcontract !== '…') ? $subcontract : null;
 				continue;
 			}
+			if ($subcontract === '...' || $subcontract === '…') {
+				$foundWildcard = true;
+				continue;
+			}
+			// check for optional key
 			if (str_ends_with($key, '?')) {
 				if (is_array($subcontract)) {
 					$subcontract['mandatory'] = false;
@@ -951,11 +957,13 @@ class DataFilter {
 				}
 				$key = mb_substr($key, 0, -1);
 			}
+			// check for mandatory key
 			if (!array_key_exists($key, $in)) {
 				if (($subcontract['mandatory'] ?? true) === false)
 					continue;
 				throw new TµApplicationException("Data doesn't respect contract (mandatory key '$key').", TµApplicationException::API);
 			}
+			// process key
 			$res = self::process(($in[$key] ?? null), $subcontract, $strict);
 			$out[$key] = $res;
 		}
