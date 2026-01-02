@@ -402,74 +402,6 @@ class Loader extends \Temma\Utils\Registry {
 		}
 	}
 
-	/* ********** UTILITY METHOD ********** */
-		/**
-	 * Tell if a variable is of the given type. The type might be complex (null|int|Foo).
-	 * @param	mixed		$value	The variable to check.
-	 * @param	string|array	$type	The type(s) to validate.
-	 * @return	bool	True if the type matches.
-	 */
-	static public function checkType(mixed $value, string|array $type) : bool {
-		if (is_array($type)) {
-			foreach ($type as $t) {
-				if (self::checkType($value, $t))
-					return (true);
-			}
-			return (false);
-		}
-		$type = trim($type);
-		// nullable prefix: ?T
-		if (str_starts_with($type, '?')) {
-			return ($value === null || self::checkType($value, substr($type, 1)));
-		}
-		// union type: null|A|B
-		if (str_contains($type, '|')) {
-			foreach (explode('|', $type) as $part) {
-				if (self::checkType($value, trim($part)))
-					return (true);
-			}
-			return (false);
-		}
-		// Intersection types: A&B (objects only)
-		if (str_contains($type, '&')) {
-			foreach (explode('&', $type) as $part) {
-				if (!self::checkType($value, trim($part)))
-					return (false);
-			}
-			return (true);
-		}
-		// scalars and pseudo-types
-		$t = strtolower($type);
-		switch ($t) {
-			case 'int':
-			case 'integer':  return (is_int($value));
-			case 'string':   return (is_string($value));
-			case 'bool':
-			case 'boolean':  return (is_bool($value));
-			case 'float':
-			case 'double':
-			case 'real':     return (is_float($value));
-			case 'array':    return (is_array($value));
-			case 'object':   return (is_object($value));
-			case 'callable': return (is_callable($value));
-			case 'iterable': return (is_iterable($value));
-			case 'resource': return (is_resource($value));
-			case 'null':     return (is_null($value));
-			case 'scalar':   return (is_scalar($value));
-			case 'numeric':  return (is_numeric($value));
-			case 'mixed':    return (true);
-		}
-		// classes and interfaces
-		if (is_object($value)) {
-			return (is_a($value, $type));
-		}
-		// class-string
-		if (is_string($value) && (class_exists($value) || interface_exists($value) || enum_exists($value))) {
-			return (is_a($value, $type, true));
-		}
-		return (false);
-	}
-
 	/* ********** PRIVATE METHODS ********** */
 	/**
 	 * Instantiate an object.
@@ -606,7 +538,7 @@ class Loader extends \Temma\Utils\Registry {
 			// Scalar types are not processed ($param['types'] is an empty array).
 			foreach ($param['types'] as $type) {
 				$val = $this->get($type, null, false);
-				if ($val !== null && self::checkType($val, $type)) {
+				if ($val !== null && is_a($val, $type)) {
 					$value = $val;
 					break;
 				}
@@ -615,8 +547,18 @@ class Loader extends \Temma\Utils\Registry {
 			// This is valid for scalars (e.g. dependency injection of a config parameter named 'apiKey').
 			if ($value === null) {
 				$val = $this->get($param['name'], null, false);
-				if ($val !== null && (!$param['types'] || self::checkType($val, $param['types'])))
-					$value = $val;
+				if ($val !== null) {
+					if (!$param['types']) {
+						$value = $val;
+					} else {
+						foreach ($param['types'] as $type) {
+							if (is_a($val, $type)) {
+								$value = $val;
+								break;
+							}
+						}
+					}
+				}
 			}
 			// Fallback: try type with auto-instantiation. Skip this for scalars too.
 			$instantiationError = null;
@@ -625,7 +567,7 @@ class Loader extends \Temma\Utils\Registry {
 					try {
 						// call get() with auto-instantiation enabled
 						$val = $this->get($type, null, true);
-						if ($val !== null && self::checkType($val, $type)) {
+						if ($val !== null && is_a($val, $type)) {
 							$value = $val;
 							break;
 						}
