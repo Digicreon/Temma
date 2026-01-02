@@ -3,7 +3,7 @@
 /**
  * Loader
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2019-2025, Amaury Bouchard
+ * @copyright	© 2019-2026, Amaury Bouchard
  * @link	https://www.temma.net/documentation/loader
  */
 
@@ -402,6 +402,74 @@ class Loader extends \Temma\Utils\Registry {
 		}
 	}
 
+	/* ********** UTILITY METHOD ********** */
+		/**
+	 * Tell if a variable is of the given type. The type might be complex (null|int|Foo).
+	 * @param	mixed		$value	The variable to check.
+	 * @param	string|array	$type	The type(s) to validate.
+	 * @return	bool	True if the type matches.
+	 */
+	static public function checkType(mixed $value, string|array $type) : bool {
+		if (is_array($type)) {
+			foreach ($type as $t) {
+				if (self::checkType($value, $t))
+					return (true);
+			}
+			return (false);
+		}
+		$type = trim($type);
+		// nullable prefix: ?T
+		if (str_starts_with($type, '?')) {
+			return ($value === null || self::checkType($value, substr($type, 1)));
+		}
+		// union type: null|A|B
+		if (str_contains($type, '|')) {
+			foreach (explode('|', $type) as $part) {
+				if (self::checkType($value, trim($part)))
+					return (true);
+			}
+			return (false);
+		}
+		// Intersection types: A&B (objects only)
+		if (str_contains($type, '&')) {
+			foreach (explode('&', $type) as $part) {
+				if (!self::checkType($value, trim($part)))
+					return (false);
+			}
+			return (true);
+		}
+		// scalars and pseudo-types
+		$t = strtolower($type);
+		switch ($t) {
+			case 'int':
+			case 'integer':  return (is_int($value));
+			case 'string':   return (is_string($value));
+			case 'bool':
+			case 'boolean':  return (is_bool($value));
+			case 'float':
+			case 'double':
+			case 'real':     return (is_float($value));
+			case 'array':    return (is_array($value));
+			case 'object':   return (is_object($value));
+			case 'callable': return (is_callable($value));
+			case 'iterable': return (is_iterable($value));
+			case 'resource': return (is_resource($value));
+			case 'null':     return (is_null($value));
+			case 'scalar':   return (is_scalar($value));
+			case 'numeric':  return (is_numeric($value));
+			case 'mixed':    return (true);
+		}
+		// classes and interfaces
+		if (is_object($value)) {
+			return (is_a($value, $type));
+		}
+		// class-string
+		if (is_string($value) && (class_exists($value) || interface_exists($value) || enum_exists($value))) {
+			return (is_a($value, $type, true));
+		}
+		return (false);
+	}
+
 	/* ********** PRIVATE METHODS ********** */
 	/**
 	 * Instantiate an object.
@@ -580,16 +648,34 @@ class Loader extends \Temma\Utils\Registry {
 	}
 	/**
 	 * Trigger active attributes for a reflection object.
+	 * Attributes are processed only for controllers (class or methods).
 	 * @param	\ReflectionClass|\ReflectionFunction|\ReflectionMethod	$ref	Reflection object.
 	 */
 	private function _triggerActiveAttributes(\ReflectionClass|\ReflectionFunction|\ReflectionMethod $ref) : void {
+		// retrieve the class name
+		if ($ref instanceof \ReflectionClass) {
+			// get object name
+			$class = $ref->getName();
+		} else if ($ref instanceof \ReflectionMethod) {
+			// get the declaring object name
+			$class = $ref->getDeclaringClass()->getName();
+		} else {
+			// function (=closure) can't be a controller
+			return;
+		}
+		// check if the class is a controller
+		if (!is_subclass_of($class, \Temma\Web\Controller::class))
+			return;
+		// fetch the attributes
 		$attributes = $ref->getAttributes(\Temma\Web\Attribute::class, \ReflectionAttribute::IS_INSTANCEOF);
 		if ($ref instanceof \ReflectionClass) {
+			// for objects (not methods nor functions), check parent classes attributes
 			for ($parent = $ref->getParentClass(); $parent; $parent = $parent->getParentClass()) {
 				$parentAttributes = $parent->getAttributes(\Temma\Web\Attribute::class, \ReflectionAttribute::IS_INSTANCEOF);
 				$attributes = array_merge($attributes, $parentAttributes);
 			}
 		}
+		// process the attributes
 		foreach ($attributes as $attribute) {
 			// instantiate the attribute
 			$instance = $attribute->newInstance();
@@ -661,72 +747,6 @@ class Loader extends \Temma\Utils\Registry {
 		}
 		self::$_paramCache[$id] = $params;
 		return ($params);
-	}
-	/**
-	 * Tell if a variable is of the given type. The type might be complex (null|int|Foo).
-	 * @param	mixed		$value	The variable to check.
-	 * @param	string|array	$type	The type(s) to validate.
-	 * @return	bool	True if the type matches.
-	 */
-	static public function checkType(mixed $value, string|array $type) : bool {
-		if (is_array($type)) {
-			foreach ($type as $t) {
-				if (self::checkType($value, $t))
-					return (true);
-			}
-			return (false);
-		}
-		$type = trim($type);
-		// nullable prefix: ?T
-		if (str_starts_with($type, '?')) {
-			return ($value === null || self::checkType($value, substr($type, 1)));
-		}
-		// union type: null|A|B
-		if (str_contains($type, '|')) {
-			foreach (explode('|', $type) as $part) {
-				if (self::checkType($value, trim($part)))
-					return (true);
-			}
-			return (false);
-		}
-		// Intersection types: A&B (objects only)
-		if (str_contains($type, '&')) {
-			foreach (explode('&', $type) as $part) {
-				if (!self::checkType($value, trim($part)))
-					return (false);
-			}
-			return (true);
-		}
-		// scalars and pseudo-types
-		$t = strtolower($type);
-		switch ($t) {
-			case 'int':
-			case 'integer':  return (is_int($value));
-			case 'string':   return (is_string($value));
-			case 'bool':
-			case 'boolean':  return (is_bool($value));
-			case 'float':
-			case 'double':
-			case 'real':     return (is_float($value));
-			case 'array':    return (is_array($value));
-			case 'object':   return (is_object($value));
-			case 'callable': return (is_callable($value));
-			case 'iterable': return (is_iterable($value));
-			case 'resource': return (is_resource($value));
-			case 'null':     return (is_null($value));
-			case 'scalar':   return (is_scalar($value));
-			case 'numeric':  return (is_numeric($value));
-			case 'mixed':    return (true);
-		}
-		// classes and interfaces
-		if (is_object($value)) {
-			return (is_a($value, $type));
-		}
-		// class-string
-		if (is_string($value) && (class_exists($value) || interface_exists($value) || enum_exists($value))) {
-			return (is_a($value, $type, true));
-		}
-		return (false);
 	}
 }
 
