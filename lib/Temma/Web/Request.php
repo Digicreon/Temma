@@ -3,7 +3,7 @@
 /**
  * Request
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2007-2023, Amaury Bouchard
+ * @copyright	© 2007-2026, Amaury Bouchard
  */
 
 namespace Temma\Web;

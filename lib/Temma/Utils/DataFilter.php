@@ -3,7 +3,7 @@
 /**
  * DataFilter
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2020-2023, Amaury Bouchard
+ * @copyright	© 2020-2026, Amaury Bouchard
  * @link	https://www.temma.net/documentation/helper-datafilter
  */
 
@@ -38,7 +38,6 @@ use \Temma\Exceptions\Application as TµApplicationException;
  *	'?float'
  *	'?string'
  *	'?list'
- *	'?array'
  *
  * * Multiple types
  *	'null|int|string'
