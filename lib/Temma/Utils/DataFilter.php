@@ -731,7 +731,7 @@ class DataFilter {
 		} catch (TµApplicationException $e) {
 			if (is_null($default))
 				throw $e;
-			return (self::_processFloat($default, $strict, null, $min, $max));
+			return (self::_processFloat($default, $inline, $strict, null, $min, $max));
 		}
 		return ($in);
 	}
@@ -857,11 +857,11 @@ class DataFilter {
 	 * Process an enumeration type.
 	 * @param	mixed	$in		Input value.
 	 * @param	?string	$default	(optional) Default value.
-	 * @param	array	$values		(optional) Possible values.
+	 * @param	array	$values		Possible values.
 	 * @return	string	The filtered input value.
 	 * @throws	\Temma\Exceptions\Application	If the input data doesn't respect the contract (API).
 	 */
-	static private function _processEnum(mixed $in, ?string $default=null, array $values=null) : string {
+	static private function _processEnum(mixed $in, ?string $default=null, array $values) : string {
 		if (in_array($in, $values))
 			return ($in);
 		if ($default !== null)
@@ -1046,7 +1046,7 @@ class DataFilter {
 			if ($default === null)
 				throw new TµApplicationException("Data is not a valid date/time, or bad input format.", TµApplicationException::API);
 			if (is_int($default) || is_float($default) || is_numeric($default))
-				$d = new \DateTimeImmutable('U', $default);
+				$d = \DateTimeImmutable::createFromFormat('U', $default);
 			else
 				$d = \DateTimeImmutable::createFromFormat($inFormat, $default);
 		}
@@ -1337,7 +1337,10 @@ class DataFilter {
 		// check MIME type
 		if ($mime) {
 			try {
-				return (self::_processBinary($decoded, $strict, null, $mime, null, null));
+				$data = self::_processBinary($decoded, $strict, null, $mime, null, null);
+				if (isset($data['binary']))
+					return ($data['binary']);
+				throw new TµApplicationException("Data is not a valid binary string.", TµApplicationException::API);
 			} catch (TµApplicationException $e) {
 				if ($default !== null)
 					return (self::_processBase64($default, $strict, null, $mime, $minLen, $maxLen));

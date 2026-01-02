@@ -438,7 +438,7 @@ class Loader extends \Temma\Utils\Registry {
 			if (isset($result))
 				return ($result);
 		}
-		// call loader's builder method
+		// call loader's builder method (from child class)
 		if (method_exists($this, 'builder')) {
 			$result = $this->builder($obj);
 			if (isset($result))
