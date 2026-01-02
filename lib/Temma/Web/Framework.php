@@ -3,7 +3,7 @@
 /**
  * Framework
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2007-2023, Amaury Bouchard
+ * @copyright	© 2007-2026, Amaury Bouchard
  */
 
 namespace Temma\Web;
@@ -381,27 +381,23 @@ class Framework {
 			TµLog::disable();
 			return;
 		}
-		// checked if a log file was set
+		// check if a log file was set
 		if ($logPath)
 			TµLog::setLogFile($logPath);
-		// check is a log manager was set
+		// check if a log manager was set
 		if ($logManager) {
 			if (is_string($logManager))
 				$logManager = [$logManager];
 			foreach ($logManager as $managerName) {
 				// check if the object exists and implements the right interface
 				try {
-					$reflect = new \ReflectionClass($managerName);
-					if (!$reflect->implementsInterface('\Temma\Web\LogManager'))
+					$manager = $this->_loader->get($managerName);
+					if (!is_a($manager, '\Temma\Web\LogManager'))
 						throw new TµFrameworkException("Log manager '$managerName' doesn't implements \Temma\Web\LogManager interface.", TµFrameworkException::CONFIG);
-					if ($reflect->implementsInterface('\Temma\Base\Loadable'))
-						$manager = new $managerName($this->_loader);
-					else
-						$manager = new $managerName();
 					TµLog::addCallback(function($traceId, $text, $priority, $class) use ($manager) {
 						return $manager->log($traceId, $text, $priority, $class);
 					});
-				} catch (\ReflectionException $re) {
+				} catch (\Throwable $re) {
 					throw new TµFrameworkException("Log manager '$managerName' doesn't exist.", TµFrameworkException::CONFIG);
 				}
 			}
@@ -486,8 +482,8 @@ class Framework {
 			TµLog::log('Temma/Web', 'INFO', "No controller found, use the default controller.");
 			$this->_objectControllerName = $this->_config->defaultController;
 			if (empty($this->_objectControllerName)) {
-				TµLog::log('Temma/Wen', 'ERROR', "No defined controller.");
-				throw new TµHttpException("No defifned controller.", 404);
+				TµLog::log('Temma/Web', 'ERROR', "No defined controller.");
+				throw new TµHttpException("No defined controller.", 404);
 			}
 		}
 		// if the controller object's name doesn't start with a backslash, prepend the default namespace
