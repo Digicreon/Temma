@@ -185,7 +185,7 @@ class Auth extends \Temma\Web\Attribute {
 				$this->_session->set('authRequestedUrl', $this['URL']);
 			// manage redirection URL
 			$url = $this->redirect ?:                                  // direct URL
-			       $this[$this->redirectVar] ?                         // template variable
+			       $this[$this->redirectVar] ?:                        // template variable
 			       $this->_config->xtra('security', 'authRedirect') ?: // specific configuration
 			       $this->_config->xtra('security', 'redirect');       // general configuration
 			if ($url) {

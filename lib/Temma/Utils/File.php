@@ -137,7 +137,7 @@ class File {
 	 * @param	string	$path	Path to check.
 	 * @return	bool	True if the path is absolute.
 	 */
-	static private function isAbsolute(string $path) : bool {
+	static public function isAbsolute(string $path) : bool {
 		if (!$path)
 			return (false);
 		return (

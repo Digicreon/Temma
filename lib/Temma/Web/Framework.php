@@ -395,7 +395,7 @@ class Framework {
 					if (!is_a($manager, '\Temma\Web\LogManager'))
 						throw new TµFrameworkException("Log manager '$managerName' doesn't implements \Temma\Web\LogManager interface.", TµFrameworkException::CONFIG);
 					TµLog::addCallback(function($traceId, $text, $priority, $class) use ($manager) {
-						return $manager->log($traceId, $text, $priority, $class);
+						$manager->log($traceId, $text, $priority, $class);
 					});
 				} catch (\Throwable $re) {
 					throw new TµFrameworkException("Log manager '$managerName' doesn't exist.", TµFrameworkException::CONFIG);

@@ -211,7 +211,7 @@ class Auth extends \Temma\Web\Plugin {
 		}
 		// check rate limit
 		$attempts = $this->_session['authAttempts'] ?? [];
-		$attemps['hour'] ??= '';
+		$attempts['hour'] ??= '';
 		$attempts['nb'] ??= 0;
 		if ($attempts['hour'] != date('YmdH')) {
 			$attempts['hour'] = date('YmdH');

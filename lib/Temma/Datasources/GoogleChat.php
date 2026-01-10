@@ -237,7 +237,7 @@ class GoogleChat extends \Temma\Base\Datasource {
 		curl_close($curl);
 		$json = json_decode($result, true);
 		if (is_null($json))
-			throw new \Temma\Exceptions\Database("Bad Google Chat response:\n$result", \Temma\Esceptions\Database::FUNDAMENTAL);
+			throw new \Temma\Exceptions\Database("Bad Google Chat response:\n$result", \Temma\Exceptions\Database::FUNDAMENTAL);
 		if (isset($json['error'])) {
 			print("$result\n");
 			throw new \Temma\Exceptions\Database("Bad Google Chat response '" . $json['error']['message'] . "' (" . $json['error']['code'] . ").", \Temma\Exceptions\Database::FUNDAMENTAL);

@@ -251,8 +251,8 @@ class DataFilter {
 						}
 						if ($char == '\\') {
 							if ($escaped) {
-								$current .= '\\';
-								$escapes = false;
+								$value .= '\\';
+								$escaped = false;
 								continue;
 							}
 							$escaped = true;
@@ -497,7 +497,7 @@ class DataFilter {
 	/* ********** PRIVATE METHODS ********** */
 	/**
 	 * Parse a length string (e.g. '10M', '5K').
-	 * @param	mixed	$size	The size string.
+	 * @param	mixed	$len	The size string.
 	 * @return	int	The parsed size in bytes.
 	 */
 	static private function _parseLength(mixed $len) : int {
@@ -1021,17 +1021,17 @@ class DataFilter {
 	}
 	/**
 	 * Process a datetime type.
-	 * @param	mixed	$in		Input value.
-	 * @param	bool	$strict		Strictness.
-	 * @param	string	$inFormat	Input format.
-	 * @param	string	$outFormat	Output format.
-	 * @param	?string	$default	(optional) Default value.
-	 * @param	?string	$min		(optional) Minimum value.
-	 * @param	?string	$max		(optional) Maximum value.
+	 * @param	mixed			$in		Input value.
+	 * @param	bool			$strict		Strictness.
+	 * @param	string			$inFormat	Input format.
+	 * @param	string			$outFormat	Output format.
+	 * @param	null|int|float|string	$default	(optional) Default value.
+	 * @param	?string			$min		(optional) Minimum value.
+	 * @param	?string			$max		(optional) Maximum value.
 	 * @return	string	The filtered input value.
 	 * @throws	\Temma\Exceptions\Application	If the input data doesn't respect the contract (API).
 	 */
-	static private function _processDateTime(mixed $in, bool $strict, string $inFormat, string $outFormat, ?string $default=null, ?string $min=null, ?string $max=null) : string {
+	static private function _processDateTime(mixed $in, bool $strict, string $inFormat, string $outFormat, null|int|float|string $default=null, ?string $min=null, ?string $max=null) : string {
 		// manage input value
 		$d = false;
 		if (is_int($in) || is_float($in) || is_numeric($in)) {
@@ -1224,6 +1224,7 @@ class DataFilter {
 	/**
 	 * Process a port type.
 	 * @param	mixed	$in		Input value.
+	 * @param	bool	$inline		Inline contract.
 	 * @param	bool	$strict		Strictness.
 	 * @param	?int	$default	(optional) Default value.
 	 * @param	?int	$min		(optional) Minimum value.
@@ -1231,10 +1232,10 @@ class DataFilter {
 	 * @return	int	The filtered input value.
 	 * @throws	\Temma\Exceptions\Application	If the input data doesn't respect the contract (API).
 	 */
-	static private function _processPort(mixed $in, bool $strict, ?int $default=null, ?int $min=null, ?int $max=null) : int {
+	static private function _processPort(mixed $in, bool $inline, bool $strict, ?int $default=null, ?int $min=null, ?int $max=null) : int {
 		$min ??= 1;
 		$max = min(($max ?? 65535), 65535);
-		return (self::_processInt($in, $strict, $default, $min, $max));
+		return (self::_processInt($in, $inline, $strict, $default, $min, $max));
 	}
 	/**
 	 * Process a slug type.
