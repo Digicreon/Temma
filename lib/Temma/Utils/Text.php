@@ -428,5 +428,28 @@ class Text {
 			$txt = mb_convert_case($txt, MB_CASE_LOWER);
 		return ($txt);
 	}
+	/**
+	 * Check if two MIME types are compatibles.
+	 * Both MIME types must have the same upper/lower-case.
+	 * @param	string|array	$mime1	First MIME type.
+	 *					String in the form "image/png", "image/*" or "image".
+	 *					Array in the form ['image', 'png'], ['image', '*'] or ['image'].
+	 * @param	string|array	$mime2	Second MIME type.
+	 * @return	bool	True if the MIME types are compatible.
+	 */
+	static function mimeTypesMatch(string|array $mime1, string|array $mime2) : bool {
+		if (is_string($mime1))
+			$mime1 = explode('/', $mime1);
+		$mime1[1] ??= '*';
+		if (is_string($mime2))
+			$mime2 = explode('/', $mime2);
+		$mime2[1] ??= '*';
+		if (($mime1[0] == $mime2[0] && $mime1[1] == $mime2[1]) ||
+		    ($mime1[0] == $mime2[0] && ($mime1[1] == '*' || $mime2[1] == '*')) ||
+		    ($mime1[0] == '*' && $mime1[1] == '*') ||
+		    ($mime2[0] == '*' && $mime2[1] == '*'))
+			return (true);
+		return (false);
+	}
 }
 
