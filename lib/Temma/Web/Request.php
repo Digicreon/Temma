@@ -18,6 +18,8 @@ use \Temma\Exceptions\Application as TµApplicationException;
  */
 class Request {
 	/* ********** REQUEST PROPERTIES ********** */
+	/** Accepted formats ("Accept" HTTP header). */
+	private ?array $_acceptedFormats = null;
 	/** PathInfo data. */
 	private string $_pathInfo;
 	/** HTTP method of the request. */
@@ -96,7 +98,7 @@ class Request {
 		$this->_action = array_shift($chunkedUri);
 		// remaining elements are action's parameters
 		$this->_params = $chunkedUri;
-		/* Extraction of the path from the site root. */
+		// extraction of the path from the site root
 		$this->_sitePath = dirname($_SERVER['SCRIPT_NAME']);
 	}
 
@@ -107,6 +109,38 @@ class Request {
 	 */
 	public function isAjax() : bool {
 		return (strtolower($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') === 'xmlhttprequest');
+	}
+	/**
+	 * Returns the list of accepted formats.
+	 * @return	array	The list of accepted formats.
+	 */
+	public function getAcceptedFormats() : array {
+		if (is_null($this->_acceptedFormats)) {
+			// extraction of the Accept HTTP header value
+			$this->_acceptedFormats = array_map(function($format) {
+				return (trim(explode(';', $format)[0]));
+			}, explode(',', ($_SERVER['HTTP_ACCEPT'] ?? '')));
+			if (!strcasecmp(($_SERVER['HTTP_X_REQUESTED_WITH'] ?? ''), 'XMLHttpRequest')) {
+				array_unshift($this->_acceptedFormats, 'application/json');
+				$this->_acceptedFormats = array_unique($this->_acceptedFormats);
+			}
+		}
+		return ($this->_acceptedFormats);
+	}
+	/**
+	 * Tell if a content-type is accepted by the client browser.
+	 * @param	string	$requestedFormat	The requested format (in the form "image/png" or "image").
+	 * @return	bool	True if the requested format is supported.
+	 */
+	public function isAcceptedFormat(string $requestedFormat) : bool {
+		$requestedFormat = explode('/', $requestedFormat);
+		$requestedFormat[1] ??= '*';
+		$acceptedFormats = $this->getAcceptedFormats();
+		foreach ($acceptedFormats as $acceptedFormat) {
+			if (\Temma\Utils\Text::mimeTypesMatch($requestedFormat, $acceptedFormat))
+				return (true);
+		}
+		return (false);
 	}
 	/**
 	 * Returns the pathInfo.
