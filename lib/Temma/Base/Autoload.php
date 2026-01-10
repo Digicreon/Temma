@@ -55,13 +55,16 @@ class Autoload {
 
 	/**
 	 * Starts the autoloader.
-	 * @param	null|string|array	$path	(optional) Include path, or list of include paths, or associative array of namespaces associated to paths.
+	 * @param	null|string|array	$path		(optional) Include path, or list of include paths, or associative array of namespaces associated to paths.
+	 * @param	null|string|array	$globalPath	(optional) Global include path(s).
 	 */
-	static public function autoload(null|string|array $path=null) : void {
+	static public function autoload(null|string|array $path=null, null|string|array $globalPath=null) : void {
 		// autoloader init
 		spl_autoload_register([get_called_class(), 'load'], true, true);
 		if ($path)
 			self::addIncludePath($path);
+		if ($globalPath)
+			self::addGlobalIncludePath($globalPath);
 	}
 	/**
 	 * Loads a class, an interface or a trait.
@@ -123,7 +126,7 @@ class Autoload {
 			require($realPath);
 	}
 	/**
-	 * Add include path(s).
+	 * Add include path(s) used to load objects with the autoloader.
 	 * @param	string|array	$path	Include path, or list of include paths, or associative array of namespaces associated to paths.
 	 * @throws	\Exception	If the parameter is not valid.
 	 */
@@ -142,6 +145,21 @@ class Autoload {
 				// it's a global include path
 				self::$_includePaths[] = rtrim($pathChunk, '/\\');
 			}
+		}
+	}
+	/**
+	 * Add global include path(s) that will be available to all PHP source code.
+	 * @param	string|array	$path	Include path, or list of include paths, or associative array of namespaces associated to paths.
+	 * @throws	\Exception	If the parameter is not valid.
+	 */
+	static public function addGlobalIncludePath(string|array $path) : void {
+		if (is_string($path))
+			$path = [$path];
+		foreach ($path as $pathChunk) {
+			$pathChunk = trim($pathChunk);
+			if (empty($pathChunk))
+				continue;
+			set_include_path($pathChunk . PATH_SEPARATOR . get_include_path());
 		}
 	}
 }
