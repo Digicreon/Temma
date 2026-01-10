@@ -410,23 +410,30 @@ class Loader extends \Temma\Utils\Registry {
 	 * @return	mixed	The associated value, or null.
 	 */
 	private function _instantiate(string|callable|object $obj, mixed $default=null) : mixed {
+		// string parameter
+		if (is_string($obj)) {
+			// loadable
+			if (is_subclass_of($obj, \Temma\Base\Loadable::class))
+				return (new $obj($this));
+			// DAO
+			if (is_subclass_of($obj, \Temma\Dao\Dao::class) &&
+			    isset($this->_data['controller']) && $this->_data['controller'] instanceof \Temma\Web\Controller)
+				return ($this->_data['controller']->_loadDao($obj));
+			// class existence
+			if (class_exists($obj)) {
+				$result = $this->_instantiateClass($obj);
+				if (isset($result))
+					return ($result);
+			}
+		}
 		// callable
 		if (is_callable($obj) && !$obj instanceof \Temma\Web\Controller) {
 			$result = $this->_instantiateCallable($obj);
 			if (isset($result))
 				return ($result);
 		}
-		// loadable
-		if (is_string($obj) && ($interfaces = @class_implements($obj)) && isset($interfaces[\Temma\Base\Loadable::class])) {
-			return (new $obj($this));
-		}
-		// DAO
-		if (is_string($obj) && is_subclass_of($obj, \Temma\Dao\Dao::class) &&
-		    isset($this->_data['controller']) && $this->_data['controller'] instanceof \Temma\Web\Controller) {
-			return ($this->_data['controller']->_loadDao($obj));
-		}
 		// object instantiation
-		if ((is_string($obj) && class_exists($obj)) || is_object($obj)) {
+		if (is_object($obj)) {
 			$result = $this->_instantiateClass($obj);
 			if (isset($result))
 				return ($result);
