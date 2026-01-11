@@ -292,6 +292,14 @@ class Loader extends \Temma\Utils\Registry {
 		$this->_data[$alias] = new LoaderAlias(fn() => $this->get($aliased));
 		return ($this);
 	}
+	/** Alias to alias() for backward compatibility. */
+	public function setAlias(string $alias, ?string $aliased=null) : void {
+		$this->alias($alias, $aliased);
+	}
+	/** Alias to alias() for backward compatiblity. */
+	public function setAliases(array $aliases) : void {
+		$this->alias($aliases);
+	}
 	/**
 	 * Add a prefix, or a list of prefixes.
 	 * @param	string|array	$name	If a string is given, it's the name of the prefix, and a prefix should be given.
@@ -310,6 +318,14 @@ class Loader extends \Temma\Utils\Registry {
 		else
 			$this->_prefixes[$name] = $prefix;
 		return ($this);
+	}
+	/** Alias to prefix() for backward compatibility. */
+	public function setPrefix(string $name, ?string $prefix=null) : void {
+		$this->prefix($name, $prefix);
+	}
+	/** Alias to prefix() for backward compatibility. */
+	public function setPrefixes(array $prefixes) : void {
+		$this->prefix($prefixes);
 	}
 
 	/* ********** DATA WRITING ********** */
@@ -350,6 +366,8 @@ class Loader extends \Temma\Utils\Registry {
 			return (new \Temma\Asynk\Client($this));
 		if ($key == '\Temma\Base\Loader' || $key == 'TµLoader')
 			return ($this);
+		// normalize
+		$key = ltrim($key, '\\');
 		// circular dependency check
 		if (isset($this->_loadingStack[$key])) {
 			throw new TµLoaderException("Circular dependency detected for key: '$key'.", TµLoaderException::CIRCULAR_DEPENDENCY);
@@ -378,8 +396,10 @@ class Loader extends \Temma\Utils\Registry {
 					// it's a callback, execute it
 					$this->_data[$key] = $value($this, $shortKey);
 				} else {
-					// it's hopefully a string
-					$this->_data[$key] = $this->_instantiate("$value$shortKey", $default);
+					// an alias is created and used
+					$aliased = "$value\\$shortKey";
+					$this->alias($key, $aliased);
+					return ($this->get($aliased));
 				}
 				if (isset($this->_data[$key]))
 					break;
