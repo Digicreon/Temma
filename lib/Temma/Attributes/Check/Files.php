@@ -43,12 +43,14 @@ class Files extends \Temma\Web\Attribute {
 	 * @param	bool	$strict		(optional) True to use strict matching. False by default.
 	 * @param	?string	$redirect	(optional) Redirection URL used if the check fails.
 	 * @param	?string	$redirectVar	(optional) Name of the template variable which contains the redirection URL.
+	 * @param	?string	$flashVar	(optional) Name of the session flash variable which will contain the invalid GET variable in case of redirection.
 	 */
 	public function __construct(
 		protected array $contract,
 		protected bool $strict=false,
 		protected ?string $redirect=null,
 		protected ?string $redirectVar=null,
+		protected ?string $flashVar=null,
 	) {
 	}
 	/**
@@ -68,6 +70,8 @@ class Files extends \Temma\Web\Attribute {
 			       $this->_config->xtra('security', 'redirect');   // general configuration
 			if ($url) {
 				TµLog::log('Temma/Web', 'DEBUG', "Redirecting to '$url'.");
+				if ($this->flashVar)
+					$this->getSession()['__' . $this->flashVar] = $_FILES;
 				$this->_redirect($url);
 				throw new TµFlowHalt();
 			}
