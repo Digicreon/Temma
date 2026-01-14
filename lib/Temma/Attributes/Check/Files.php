@@ -71,7 +71,7 @@ class Files extends \Temma\Web\Attribute {
 			if ($url) {
 				TµLog::log('Temma/Web', 'DEBUG', "Redirecting to '$url'.");
 				if ($this->flashVar)
-					$this->getSession()['__' . $this->flashVar] = $_FILES;
+					$this->_session['__' . $this->flashVar] = $_FILES;
 				$this->_redirect($url);
 				throw new TµFlowHalt();
 			}

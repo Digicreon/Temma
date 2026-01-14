@@ -77,7 +77,7 @@ class Payload extends \Temma\Web\Attribute {
 			if ($url) {
 				TµLog::log('Temma/Web', 'DEBUG', "Redirecting to '$url'.");
 				if ($this->flashVar)
-					$this->getSession()['__' . $this->flashVar] = true;
+					$this->_session['__' . $this->flashVar] = true;
 				$this->_redirect($url);
 				throw new TµFlowHalt();
 			}

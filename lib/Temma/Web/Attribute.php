@@ -82,7 +82,7 @@ abstract class Attribute implements \ArrayAccess {
 	 * but without raising an error).
 	 * @param	int	$code	The HTTP return code.
 	 */
-	final protected function _httpCode(int $code) :void {
+	final protected function _httpCode(int $code) : void {
 		$this->_response?->setHttpCode($code);
 	}
 	/**

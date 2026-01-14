@@ -75,7 +75,7 @@ class Post extends \Temma\Web\Attribute {
 			if ($url) {
 				TµLog::log('Temma/Web', 'DEBUG', "Redirecting to '$url'.");
 				if ($this->flashVar)
-					$this->getSession()['__' . $this->flashVar] = $_GET;
+					$this->_session['__' . $this->flashVar] = $_POST;
 				$this->_redirect($url);
 				throw new TµFlowHalt();
 			}
