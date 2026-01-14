@@ -236,9 +236,13 @@ class Loader extends \Temma\Utils\Registry {
 	 * @param	callable	$builder	Builder function.
 	 * @return	\Temma\Base\Loader	The current object.
 	 */
-	public function setBuilder(callable $builder) : \Temma\Base\Loader {
+	public function builder(callable $builder) : \Temma\Base\Loader {
 		$this->_builder = $builder;
 		return ($this);
+	}
+	/** Alias to builder() for backward compatbility. */
+	public function setBuilder(callable $builder) : \Temma\Base\Loader {
+		return $this->builder($builder);
 	}
 
 	/* ********** FACTORIES, ALIASES AND PREFIXES ********** */
@@ -316,7 +320,7 @@ class Loader extends \Temma\Utils\Registry {
 		if (!$prefix)
 			unset($this->_prefixes[$name]);
 		else
-			$this->_prefixes[$name] = $prefix;
+			$this->_prefixes[$name] = rtrim($prefix, '\\');
 		return ($this);
 	}
 	/** Alias to prefix() for backward compatibility. */
