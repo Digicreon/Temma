@@ -33,7 +33,7 @@ if [ ! -e autoloader.php ]; then
 
 // Temma autoloader
 require_once('/opt/Temma/lib/Temma/Base/Autoload.php');
-\Temma\Base\Autoload::autoload(globalPath: '/opt/Temma/lib');
+\Temma\Base\Autoload::autoload(phpPath: '/opt/Temma/lib');
 
 // Composer autoloader
 if (file_exists('/opt/Temma/vendor/autoload.php'))
