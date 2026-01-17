@@ -185,13 +185,13 @@ class Dao {
 	public function tableExists(?string $tableName=null) : bool {
 		$dbName = $this->getDatabaseName();
 		$tableName = $tableName ?: $this->_tableName;
-		$sql = "SELECT COUNT(*) AS nbr
+		$sql = "SELECT COUNT(*) AS cnt
 		        FROM information_schema.TABLES
 		        WHERE TABLE_SCHEMA = " . $this->_db->quote($dbName) . "
 		          AND TABLE_TYPE = 'BASE TABLE'
 		          AND TABLE_NAME = " . $this->_db->quote($tableName);
-		$result = $this->_db->queryOne($sql);
-		return ((bool)$result['nbr']);
+		$count = $this->_db->queryOne($sql, 'cnt');
+		return ((bool)$count);
 	}
 
 	/* ********** CRITERIA ********** */
@@ -345,10 +345,10 @@ class Dao {
 	 * @param	null|array|\Temma\Dao\Criteria	$criteria	(optional) Search criteria or an associative array of fields and their search values. Null to take all records. (default: null)
 	 * @param	null|false|string|array		$sort		(optional) Sort data. Null for natural sort, false for random sort.
 	 * @param	?int				$limitOffset	(optional) Offset of the first returned record. (default: 0).
-	 * @param	?int				$nbrLimit	(optional) Maximum number of records to return. Null for no limit. (default: null)
+	 * @param	?int				$limit		(optional) Maximum number of records to return. Null for no limit. (default: null)
 	 * @return	array	List of associative arrays, indexed by the primary key (if defined).
 	 */
-	public function search(null|array|\Temma\Dao\Criteria $criteria=null, null|false|string|array $sort=null, ?int $limitOffset=null, ?int $nbrLimit=null) : array {
+	public function search(null|array|\Temma\Dao\Criteria $criteria=null, null|false|string|array $sort=null, ?int $limitOffset=null, ?int $limit=null) : array {
 		$cacheVarName = '__dao:' . $this->_dbName . ':' . $this->_tableName . ':count';
 		$sql = 'SELECT ' . $this->_getFieldsString() . ' FROM ' .
 			(!$this->_dbName ? '' : ('`' . $this->_dbName . '`.')) . '`' . $this->_tableName . '`';
@@ -364,10 +364,10 @@ class Dao {
 				$sql .= ' WHERE ' . $where;
 		}
 		$sql .= $this->_getSortString($sort);
-		if (!is_null($limitOffset) && !is_null($nbrLimit))
-			$sql .= " LIMIT $limitOffset, $nbrLimit";
-		else if (!is_null($nbrLimit))
-			$sql .= " LIMIT $nbrLimit";
+		if (!is_null($limitOffset) && !is_null($limit))
+			$sql .= " LIMIT $limitOffset, $limit";
+		else if (!is_null($limit))
+			$sql .= " LIMIT $limit";
 		else if (!is_null($limitOffset))
 			$sql .= " OFFSET $limitOffset";
 		// on cherche la donnée en cache

@@ -174,8 +174,12 @@ class Request {
 	 * Returns parameters count.
 	 * @return	int	The count.
 	 */
-	public function getNbrParams() : int {
+	public function getParamCount() : int {
 		return (is_array($this->_params) ? count($this->_params) : 0);
+	}
+	/** Alias of getParamCount() for backward compatibility. */
+	public function getNbrParams() : int {
+		return ($this->getParamCount());
 	}
 	/**
 	 * Returns action parameters.

@@ -87,31 +87,31 @@ class Term {
 	}
 	/**
 	 * Move the cursor up.
-	 * @param	int	$nbrLines	(optional) Number of lines to move up. Default to 1.
+	 * @param	int	$rows	(optional) Number of lines to move up. Default to 1.
 	 */
-	static public function moveCursorUp(int $nbrLines=1) : void {
-		print("\e[{$nbrLines}A");
+	static public function moveCursorUp(int $rows=1) : void {
+		print("\e[{$rows}A");
 	}
 	/**
 	 * Move the cursor down.
-	 * @param	int	$nbrLines	(optional) Number of lines to move down. Default to 1.
+	 * @param	int	$rows	(optional) Number of lines to move down. Default to 1.
 	 */
-	static public function moveCursorDown(int $nbrLines=1) : void {
-		print("\e[{$nbrLines}B");
+	static public function moveCursorDown(int $rows=1) : void {
+		print("\e[{$rows}B");
 	}
 	/**
 	 * Move the cursor right.
-	 * @param	int	$nbrColumns	(optional) Number of columns to move right. Default to 1.
+	 * @param	int	$columns	(optional) Number of columns to move right. Default to 1.
 	 */
-	static public function moveCursorRight(int $nbrColumns=1) : void {
-		print("\e[{$nbrColumns}C");
+	static public function moveCursorRight(int $columns=1) : void {
+		print("\e[{$columns}C");
 	}
 	/**
 	 * Move the cursor left.
-	 * @param	int	$nbrColumns	(optional) Number of columns to move left. Default to 1.
+	 * @param	int	$columns	(optional) Number of columns to move left. Default to 1.
 	 */
-	static public function moveCursorLeft(int $nbrColumns=1) : void {
-		print("\e[{$nbrColumns}D");
+	static public function moveCursorLeft(int $columns=1) : void {
+		print("\e[{$columns}D");
 	}
 	/** Save cursor position, in order to restore it later (with restoreCursor() method). */
 	static public function saveCursor() : void {

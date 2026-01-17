@@ -36,8 +36,8 @@ use \Temma\Exceptions\Database as TµDatabaseException;
  *     // simple request
  *     $db->exec("DELETE FROM Bar");
  *     // request which fetch one line of data
- *     $result = $db->queryOne("SELECT COUNT(*) AS nbr FROM Foo");
- *     print($result['nbr']);
+ *     $result = $db->queryOne("SELECT COUNT(*) AS cnt FROM Foo");
+ *     print($result['cnt']);
  *     // request which fetch many lines of data
  *     $result = $db->queryAll("SELECT id, name FROM Foo");
  *     // display results
@@ -481,10 +481,10 @@ class Sql extends \Temma\Base\Datasource {
 	public function count() : int {
 		if (!$this->_enabled)
 			return (0);
-		$sql = "SELECT COUNT(*) AS nbr
+		$sql = "SELECT COUNT(*) AS cnt
 		        FROM TemmaData";
 		$res = $this->queryOne($sql);
-		return ($res['nbr']);
+		return ($res['cnt']);
 	}
 
 	/* ********** STANDARD REQUESTS ********** */
@@ -496,11 +496,11 @@ class Sql extends \Temma\Base\Datasource {
 	public function isSet(string $key) : bool {
 		if (!$this->_enabled)
 			return (false);
-		$sql = "SELECT COUNT(*) AS nbr
+		$sql = "SELECT COUNT(*) AS cnt
 		        FROM TemmaData
 		        WHERE key = " . $this->quote($key);
 		$res = $this->queryOne($sql);
-		return ($res['nbr'] != 0);
+		return ($res['cnt'] != 0);
 	}
 	/**
 	 * Remove a key.

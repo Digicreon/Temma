@@ -151,7 +151,7 @@ class AsynkDao implements \Temma\Base\Loadable {
 			/* MySQL storage */
 			// reserve the task
 			$token = bin2hex(random_bytes(4));
-			$nbr = $this->_dao->update(
+			$count = $this->_dao->update(
 				$this->_dao->criteria()->equal('id', $taskId)
 				                       ->equal('status', 'waiting'),
 				[
@@ -159,7 +159,7 @@ class AsynkDao implements \Temma\Base\Loadable {
 					'status' => 'processing',
 				],
 			);
-			if (!$nbr)
+			if (!$count)
 				return (null);
 			// fetch the reserved task
 			$task = $this->_dao->get($taskId);
@@ -204,7 +204,7 @@ class AsynkDao implements \Temma\Base\Loadable {
 		if ($this->_dao) {
 			// reserve a task
 			$token = bin2hex(random_bytes(8));
-			$nbr = $this->_dao->update(
+			$count = $this->_dao->update(
 				$this->_dao->criteria()->equal('token', null)
 				                       ->equal('status', 'waiting'),
 				[
@@ -214,14 +214,14 @@ class AsynkDao implements \Temma\Base\Loadable {
 				sort: 'id',
 				limit: 1,
 			);
-			if (!$nbr)
+			if (!$count)
 				return (null);
 			// get the task
 			$result = $this->_dao->search(
 				$this->_dao->criteria()->equal('token', $token),
 				sort: 'id',
 				limitOffset: 0,
-				nbrLimit: 1,
+				limit: 1,
 			);
 			$task = $result ? current($result) : null;
 			if (($task['data'] ?? null))
