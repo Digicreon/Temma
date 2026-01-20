@@ -3,7 +3,7 @@
 /**
  * View
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2023, Amaury Bouchard
+ * @copyright	© 2023-2026, Amaury Bouchard
  * @link	https://www.temma.net/documentation/helper-attr_view
  */
 
@@ -16,41 +16,73 @@ use \Temma\Base\Log as TµLog;
  *
  * Examples:
  * - Tell Temma to use the \Temma\Views\Json view on all actions of a controller:
+ * ```
  * use \Temma\Attributes\View as TµView;
  *
  * #[TµView('\Temma\Views\Json')]
  * class SomeController extends \Temma\Web\Controller {
  *     public function someAction() { }
  * }
+ * ```
  *
  * - The same, but only for one action of the controller:
+ * ```
  * use \Temma\Attributes\View as TµView;
  *
  * class SomeController extends \Temma\Web\Controller {
  *     #[TµView('\Temma\Views\Json')]
  *     public function someAction() { }
  * }
+ * ```
  * 
  * - The same (written differently):
+ * ```
  * #[TµView(\Temma\Views\Json::class)]
+ * ```
  *
  * - The same (telling to use Temma's standard Json view):
+ * ```
  * #[TµView('~Json')]
+ * ```
  *
  * - Tell Temma to use the standard RSS view:
+ * ```
  * #[TµView('~Rss')]
+ * ```
  *
  * - Reset to the default view (as configured in the 'temma.json' configuration file):
+ * ```
  * #[TµView]
+ * ```
+ *
+ * - Add content negociation:
+ * ```
+ * #[TµView(negotiation: true)]
+ * ```
+ *
+ * - Add content negociation for specific content types:
+ * ```
+ * #[TµView(negotiation: 'html, json, csv')]
  */
 #[\Attribute(\Attribute::TARGET_CLASS | \Attribute::TARGET_METHOD | \Attribute::IS_REPEATABLE)]
 class View extends \Temma\Web\Attribute {
+	/** Constant: MIME type aliases. */
+	const MIME_ALIASES = [
+		'html'     => 'text/html',
+		'xhtml'    => 'application/xhtml+xml',
+		'json'     => 'application/json',
+		'rss'      => 'application/rss+xml',
+		'csv'      => 'text/csv',
+		'calendar' => 'text/calendar',
+	];
 	/** Constant: map MIME types to view objects. */
 	const MIME_TO_VIEW = [
-		'application/json'    => '\Temma\Views\Json',
-		'application/rss+xml' => '\Temma\Views\Rss',
-		'text/csv'            => '\Temma\Views\Csv',
-		'text/calendar'       => '\Temma\Views\ICal',
+		'text/html'             => '\Temma\Views\Smarty',
+		'application/xhtml+xml' => '\Temma\Views\Smarty',
+		'application/json'      => '\Temma\Views\Json',
+		'application/rss+xml'   => '\Temma\Views\Rss',
+		'text/csv'              => '\Temma\Views\Csv',
+		'text/calendar'         => '\Temma\Views\ICal',
 	];
 
 	/**
@@ -59,7 +91,7 @@ class View extends \Temma\Web\Attribute {
 	 *							If left empty (or set to null), use the default view as configured
 	 *							in the 'temma.json' configuration file.
 	 *							If set to false, disable the processing of the view.
-	 * @param	null|bool|string|array	$adaptative	(optional) Content negotiation option. Not used if set to null or false.
+	 * @param	null|bool|string|array	$negotiation	(optional) Content negotiation option. Not used if set to null or false.
 	 *							If set to true, manage JSON/RSS/CSV/iCal view from Accept HTTP header.
 	 *							String: a comma-separated list accepted values in the Accept HTTP header.
 	 *							Array: a list of accepted values in the Accept HTTP header.
@@ -68,7 +100,7 @@ class View extends \Temma\Web\Attribute {
 	 */
 	public function __construct(
 		protected null|false|string $view=null,
-		protected null|bool|string|array $adaptative=null,
+		protected null|bool|string|array $negotiation=null,
 	) {
 	}
 	/**
@@ -77,19 +109,19 @@ class View extends \Temma\Web\Attribute {
 	 *						(ReflectionClass, ReflectionMethod or ReflectionFunction).
 	 */
 	public function apply(\Reflector $context) : void {
-		if ($this->adaptative) {
-			if ($this->adaptative === true) {
-				// try automatic adaptative view
-				if ($this->_manageAutomaticAdaptativeView())
+		if ($this->negotiation) {
+			if ($this->negotiation === true) {
+				// try automatic content negotiation
+				if ($this->_manageAutomaticNegotiatedView())
 					return;
-			} else if (is_string($this->adaptative)) {
+			} else if (is_string($this->negotiation)) {
 				// convert to array
-				$this->adaptative = array_map(function($item) {
+				$this->negotiation = array_map(function($item) {
 					return (trim($item));
-				}, explode(',', $this->adaptative));
+				}, explode(',', $this->negotiation));
 			}
-			if (is_array($this->adaptative)) {
-				if ($this->_manageArrayAdaptativeView($this->adaptative))
+			if (is_array($this->negotiation)) {
+				if ($this->_manageArrayNegotiatedView($this->negotiation))
 					return;
 			}
 		}
@@ -99,10 +131,10 @@ class View extends \Temma\Web\Attribute {
 
 	/* ********** PRIVATE METHODS ********** */
 	/**
-	 * Manage automatic adaptative view.
+	 * Manage automatic content negotiation.
 	 * @return	bool	True if the view has been modified.
 	 */
-	private function _manageAutomaticAdaptativeView() : bool {
+	private function _manageAutomaticNegotiatedView() : bool {
 		$acceptedFormats = $this->_request->getAcceptedFormats();
 		foreach ($acceptedFormats as $acceptedFormat) {
 			if ($acceptedFormat == 'text/html')
@@ -117,18 +149,25 @@ class View extends \Temma\Web\Attribute {
 		return (false);
 	}
 	/**
-	 * Manage adptative view configured from an array.
-	 * @param	array	$config	Cofiguration.
+	 * Manage content negotiation configured from an array.
+	 * @param	array	$config	Configuration.
 	 * @return	bool	True if the view has been modified.
 	 */
-	private function _manageArrayAdaptativeView(array $config) : bool {
+	private function _manageArrayNegotiatedView(array $config) : bool {
 		// reformat the configuration
 		$newConfig = [];
 		foreach ($config as $key => $value) {
+			// manage associative array
 			if (!is_int($key)) {
+				// manage aliases
+				$key = self::MIME_ALIASES[$key] ?? $key;
+				// add to final configuration
 				$newConfig[$key] = $value;
 				continue;
 			}
+			// manage aliases
+			$value = self::MIME_ALIASES[$value] ?? $value;
+			// add to final configuration if the MIME type is known
 			if (isset(self::MIME_TO_VIEW[$value]))
 				$newConfig[$value] = self::MIME_TO_VIEW[$value];
 		}
