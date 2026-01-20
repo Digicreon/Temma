@@ -3,7 +3,7 @@
 /**
  * Memcache
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2009-2024, Amaury Bouchard
+ * @copyright	© 2009-2026, Amaury Bouchard
  * @link	https://www.temma.net/documentation/datasource-memcache
  */
 

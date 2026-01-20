@@ -3,7 +3,7 @@
 /**
  * Auth
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2023, Amaury Bouchard
+ * @copyright	© 2023-2026, Amaury Bouchard
  * @link	https://www.temma.net/documentation/helper-attr_auth
  */
 

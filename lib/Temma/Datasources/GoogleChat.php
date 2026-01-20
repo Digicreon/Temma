@@ -3,7 +3,7 @@
 /**
  * GoogleChat
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2025, Amaury Bouchard
+ * @copyright	© 2025-2026, Amaury Bouchard
  * @link	https://www.temma.net/documentation/datasource-googlechat
  */
 

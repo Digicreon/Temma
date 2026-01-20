@@ -3,7 +3,7 @@
 /**
  * Text
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2011-2019, Amaury Bouchard
+ * @copyright	© 2011-2026, Amaury Bouchard
  * @link	https://www.temma.net/documentation/helper-text
  */
 
