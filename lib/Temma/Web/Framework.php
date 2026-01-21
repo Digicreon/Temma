@@ -669,7 +669,7 @@ class Framework {
 			if (empty($template)) {
 				$controller = $this->_controllerName ? $this->_controllerName : $this->_objectControllerName;
 				$action = $this->_actionName ? $this->_actionName : self::CONTROLLERS_PROXY_ACTION;
-				$template = $controller . '/' . $action . self::TEMPLATE_EXTENSION;
+				$template = ltrim($controller, '\\') . '/' . $action . self::TEMPLATE_EXTENSION;
 			}
 			$templatePrefix = trim(($this->_response->getTemplatePrefix() ?? ''), '/');
 			if (!empty($templatePrefix))
