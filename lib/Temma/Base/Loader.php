@@ -209,7 +209,7 @@ class LoaderAlias extends LoaderDynamic {
  * $user = $loader->userDao->getFromId(21);
  * // dynamically creates an instance of UserBo
  * $loader->userBo->addFriends(12, 21);
- * ```
+ * ``
  */
 class Loader extends \Temma\Utils\Registry {
 	/** @var ?callable Builder callback. */
@@ -236,13 +236,9 @@ class Loader extends \Temma\Utils\Registry {
 	 * @param	callable	$builder	Builder function.
 	 * @return	\Temma\Base\Loader	The current object.
 	 */
-	public function builder(callable $builder) : \Temma\Base\Loader {
+	public function setBuilder(callable $builder) : \Temma\Base\Loader {
 		$this->_builder = $builder;
 		return ($this);
-	}
-	/** Alias to builder() for backward compatbility. */
-	public function setBuilder(callable $builder) : \Temma\Base\Loader {
-		return $this->builder($builder);
 	}
 
 	/* ********** FACTORIES, ALIASES AND PREFIXES ********** */
@@ -419,6 +415,8 @@ class Loader extends \Temma\Utils\Registry {
 				return ($default);
 			// instantiate the object
 			$this->_data[$key] = $this->_instantiate($key, $default);
+			if ($this->_data[$key] === null)
+				TµLog::log('Temma/Base', 'WARN', "Unable to instantiate '" . (string)$key . "'.");
 			return ($this->_data[$key]);
 		} finally {
 			// remove the key from the circular dependency stack
