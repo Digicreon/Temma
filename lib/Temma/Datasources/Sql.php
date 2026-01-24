@@ -383,46 +383,93 @@ class Sql extends \Temma\Base\Datasource {
 	 *					Buffered requests are not executed, until a normal request
 	 *					is executed. In this case, the buffered requests are
 	 *					executed first (FIFO ordering). (default value: false)
+	 * @param	array	$parameters	(optional) Array of parameters.
 	 * @return	int	The number of modified lines, or 0 if the request is buffered.
 	 * @throws	\Temma\Exceptions\Database	If something went wrong.
 	 */
-	public function exec(string $sql, bool $buffered=false) : int {
+	public function exec(string $sql, bool $buffered=false, ?array $parameters=null) : int {
 		TµLog::log('Temma/Base', 'DEBUG', "SQL query: $sql");
 		if (!$this->_enabled)
 			return (0);
-		/*
-		 * Add the new request to the list of buffered requests.
-		 * If the new request is buffered, it is not processed for now.
-		 * If the new request is not buffered, it will be processed
-		 * after the buffered requests.
-		 */
-		$this->_bufferedRequests[] = $sql;
+		if ($parameters) {
+			$buffered = false;
+		} else {
+			/*
+			 * Add the new request to the list of buffered requests.
+			 * If the new request is buffered, it is not processed for now.
+			 * If the new request is not buffered, it will be processed
+			 * after the buffered requests.
+			 */
+			$this->_bufferedRequests[] = $sql;
+		}
 		if ($buffered)
 			return (0);
 		$this->connect();
-		$lineCount = $this->_execBufferedRequests();
-		return ($lineCount);
+		// process buffered requests
+		$lineCount = $this->execBufferedRequests();
+		if (!$parameters)
+			return ($lineCount);
+		// prepare the request
+		try {
+			$statement = $this->_db->prepare($sql);
+		} catch (\PDOException $pe) {
+			TµLog::log('Temma/Base', 'ERROR', 'Database prepare error: ' . $pe->getMessage());
+			throw new TµDatabaseException($pe->getMessage(), TµDatabaseException::QUERY);
+		}
+		if ($statement === false) {
+			$errStr = 'Database prepare error: ' . $this->getError();
+			TµLog::log('Temma/Base', 'ERROR', $errStr);
+			throw new TµDatabaseException($errStr, TµDatabaseException::QUERY);
+		}
+		// execute the request
+		if (!$statement->execute($parameters)) {
+			$err = $statement->errorCode();
+			throw new TµDatabaseException($err, TµDatabaseException::QUERY);
+		}
+		return ($statement->rowCount());
 	}
 	/**
 	 * Execute an SQL request and fetch one line of data.
 	 * @param	string	$sql		The SQL request.
 	 * @param	?string	$valueField	(optional) Name of the field whose value will be returned.
+	 * @param	?array	$parameters	(optional) Array of parameters.
 	 * @return	mixed	An associative array which contains the line of data, or the value which field's name has been given as parameter.
 	 * @throws	\Temma\Exceptions\Database	If something went wrong.
 	 */
-	public function queryOne(string $sql, ?string $valueField=null) : mixed {
+	public function queryOne(string $sql, ?string $valueField=null, ?array $parameters=null) : mixed {
 		TµLog::log('Temma/Base', 'DEBUG', "SQL query: $sql");
 		if (!$this->_enabled)
 			return ($valueField ? null : []);
 		$this->connect();
 		// execute waiting buffered requests
-		$this->_execBufferedRequests();
+		$this->execBufferedRequests();
 		// execute the query
-		$result = $this->_db->query($sql);
-		if ($result === false) {
-			$errStr = 'Database request error: ' . $this->getError();
-			TµLog::log('Temma/Base', 'ERROR', $errStr);
-			throw new TµDatabaseException($errStr, TµDatabaseException::QUERY);
+		if (!$parameters) {
+			// direct execution
+			$result = $this->_db->query($sql);
+			if ($result === false) {
+				$errStr = 'Database request error: ' . $this->getError();
+				TµLog::log('Temma/Base', 'ERROR', $errStr);
+				throw new TµDatabaseException($errStr, TµDatabaseException::QUERY);
+			}
+		} else {
+			// prepare the query
+			try {
+				$result = $this->_db->prepare($sql);
+			} catch (\PDOException $pe) {
+				TµLog::log('Temma/Base', 'ERROR', 'Database prepare error: ' . $pe->getMessage());
+				throw new TµDatabaseException($pe->getMessage(), TµDatabaseException::QUERY);
+			}
+			if ($result === false) {
+				$errStr = 'Database prepare error: ' . $this->getError();
+				TµLog::log('Temma/Base', 'ERROR', $errStr);
+				throw new TµDatabaseException($errStr, TµDatabaseException::QUERY);
+			}
+			// execute the query
+			if (!$result->execute($parameters)) {
+				$err = $result->errorCode();
+				throw new TµDatabaseException($err, TµDatabaseException::QUERY);
+			}
 		}
 		$line = $result->fetch(\PDO::FETCH_ASSOC);
 		$result = null;
@@ -436,131 +483,46 @@ class Sql extends \Temma\Base\Datasource {
 	 * @param	string	$sql		The SQL request.
 	 * @param	?string	$keyField	(optional) Name of the field that must be used as the key for each record.
 	 * @param	?string	$valueField	(optional) Name of the field that will be used as value for each record.
+	 * @param	?array	$parameters	(optional) Array of parameters.
 	 * @return	array	An array of associative arrays, or an array of values.
 	 * @throws	\Temma\Exceptions\Database	If something went wrong.
 	 */
-	public function queryAll(string $sql, ?string $keyField=null, ?string $valueField=null) : array {
+	public function queryAll(string $sql, ?string $keyField=null, ?string $valueField=null, ?array $parameters=null) : array {
 		TµLog::log('Temma/Base', 'DEBUG', "SQL query: $sql");
 		if (!$this->_enabled)
 			return ([]);
 		$this->connect();
-		$result = $this->_db->query($sql);
-		if ($result === false) {
-			$errStr = 'Database request error: ' . $this->getError();
-			TµLog::log('Temma/Base', 'ERROR', $errStr);
-			throw new TµDatabaseException($errStr, TµDatabaseException::QUERY);
+		// execute waiting buffered requests
+		$this->execBufferedRequests();
+		// execute the query
+		if (!$parameters) {
+			$result = $this->_db->query($sql);
+			if ($result === false) {
+				$errStr = 'Database request error: ' . $this->getError();
+				TµLog::log('Temma/Base', 'ERROR', $errStr);
+				throw new TµDatabaseException($errStr, TµDatabaseException::QUERY);
+			}
+		} else {
+			// prepare the query
+			try {
+				$result = $this->_db->prepare($sql);
+			} catch (\PDOException $pe) {
+				TµLog::log('Temma/Base', 'ERROR', 'Database prepare error: ' . $pe->getMessage());
+				throw new TµDatabaseException($pe->getMessage(), TµDatabaseException::QUERY);
+			}
+			if ($result === false) {
+				$errStr = 'Database prepare error: ' . $this->getError();
+				TµLog::log('Temma/Base', 'ERROR', $errStr);
+				throw new TµDatabaseException($errStr, TµDatabaseException::QUERY);
+			}
+			// execute the query
+			if (!$result->execute($parameters)) {
+				$err = $result->errorCode();
+				throw new TµDatabaseException($err, TµDatabaseException::QUERY);
+			}
 		}
 		$lines = $result->fetchAll(\PDO::FETCH_ASSOC);
-		if ($keyField || $valueField)
-			$lines = array_column($lines, $valueField, $keyField);
-		return ($lines);
-	}
-	/**
-	 * Execute a parameterized SQL request without fetching data.
-	 * The request is always unbuffered (all waiting buffered requests are executed).
-	 * @param	string	$sql		The SQL request.
-	 * @param	array	$parameters	(optional) Array of parameters.
-	 * @return	int	The number of modified lines.
-	 * @throws	\Temma\Exceptions\Database	If something went wrong.
-	 */
-	public function execParams(string $sql, ?array $parameters=null) : int {
-		TµLog::log('Temma/Base', 'DEBUG', "SQL query: $sql");
-		if (!$this->_enabled)
-			return (0);
-		$this->connect();
-		// process buffered requests
-		$this->_execBufferedRequests();
-		// prepare the request
-		try {
-			$dbStatement = $this->_db->prepare($sql);
-		} catch (\PDOException $pe) {
-			TµLog::log('Temma/Base', 'ERROR', 'Database prepare error: ' . $pe->getMessage());
-			throw new TµDatabaseException($pe->getMessage(), TµDatabaseException::QUERY);
-		}
-		if ($dbStatement === false) {
-			$errStr = 'Database prepare error: ' . $this->getError();
-			TµLog::log('Temma/Base', 'ERROR', $errStr);
-			throw new TµDatabaseException($errStr, TµDatabaseException::QUERY);
-		}
-		// execute the request
-		if (!$dbStatement->execute($parameters)) {
-			$err = $dbStatement->errorCode();
-			throw new TµDatabaseException($err, TµDatabaseException::QUERY);
-		}
-		return ($dbStatement->rowCount());
-	}
-	/**
-	 * Execute a parameterized SQL request and fetch one line of data.
-	 * @param	string	$sql		The SQL request.
-	 * @param	?array	$parameters	(optional) Array of parameters.
-	 * @param	?string	$valueField	(optional) Name of the field whose value will be returned.
-	 * @return	mixed	An associative array which contains the line of data, or the value which field's name has been given as parameter.
-	 * @throws	\Temma\Exceptions\Database	If something went wrong.
-	 */
-	public function queryOneParams(string $sql, ?array $parameters=null, ?string $valueField=null) : mixed {
-		TµLog::log('Temma/Base', 'DEBUG', "SQL query: $sql");
-		if (!$this->_enabled)
-			return ($valueField ? null : []);
-		$this->connect();
-		// execute waiting buffered requests
-		$this->_execBufferedRequests();
-		// prepare the query
-		try {
-			$dbStatement = $this->_db->prepare($sql);
-		} catch (\PDOException $pe) {
-			TµLog::log('Temma/Base', 'ERROR', 'Database prepare error: ' . $pe->getMessage());
-			throw new TµDatabaseException($pe->getMessage(), TµDatabaseException::QUERY);
-		}
-		if ($dbStatement === false) {
-			$errStr = 'Database prepare error: ' . $this->getError();
-			TµLog::log('Temma/Base', 'ERROR', $errStr);
-			throw new TµDatabaseException($errStr, TµDatabaseException::QUERY);
-		}
-		// execute the query
-		if (!$dbStatement->execute($parameters)) {
-			$err = $dbStatement->errorCode();
-			throw new TµDatabaseException($err, TµDatabaseException::QUERY);
-		}
-		$line = $dbStatement->fetch(\PDO::FETCH_ASSOC);
-		$line = is_array($line) ? $line : [];
-		if ($valueField)
-			return ($line[$valueField] ?? null);
-		return ($line);
-	}
-	/**
-	 * Execute an parameterized SQL request and fetch all lines of returned data.
-	 * @param	string	$sql		The SQL request.
-	 * @param	?array	$parameters	(optional) Array of parameters.
-	 * @param	?string	$keyField	(optional) Name of the field that must be used as the key for each record.
-	 * @param	?string	$valueField	(optional) Name of the field that will be used as value for each record.
-	 * @return	array	An array of associative arrays, or an array of values.
-	 * @throws	\Temma\Exceptions\Database	If something went wrong.
-	 */
-	public function queryAllParams(string $sql, ?array $parameters=null, ?string $keyField=null, ?string $valueField=null) : array {
-		TµLog::log('Temma/Base', 'DEBUG', "SQL query: $sql");
-		if (!$this->_enabled)
-			return ([]);
-		$this->connect();
-		// execute waiting buffered requests
-		$this->_execBufferedRequests();
-		// prepare the query
-		try {
-			$dbStatement = $this->_db->prepare($sql);
-		} catch (\PDOException $pe) {
-			TµLog::log('Temma/Base', 'ERROR', 'Database prepare error: ' . $pe->getMessage());
-			throw new TµDatabaseException($pe->getMessage(), TµDatabaseException::QUERY);
-		}
-		if ($dbStatement === false) {
-			$errStr = 'Database prepare error: ' . $this->getError();
-			TµLog::log('Temma/Base', 'ERROR', $errStr);
-			throw new TµDatabaseException($errStr, TµDatabaseException::QUERY);
-		}
-		// execute the query
-		if (!$dbStatement->execute($parameters)) {
-			$err = $dbStatement->errorCode();
-			throw new TµDatabaseException($err, TµDatabaseException::QUERY);
-		}
-		$lines = $dbStatement->fetchAll(\PDO::FETCH_ASSOC);
+		$result = null;
 		if ($keyField || $valueField)
 			$lines = array_column($lines, $valueField, $keyField);
 		return ($lines);
@@ -577,11 +539,11 @@ class Sql extends \Temma\Base\Datasource {
 		return ((int)$this->_db->lastInsertId());
 	}
 	/**
-	 * PRIVATE METHOD. Execute all waiting buffered requests.
+	 * Execute all waiting buffered requests.
 	 * @return	int	The number of modified lines of the last buffered request.
 	 * @throws	\Temma\Exceptions\Database	If something went wrong.
 	 */
-	private function _execBufferedRequests() : int {
+	public function execBufferedRequests() : int {
 		$lineCount = 0;
 		foreach ($this->_bufferedRequests as $request) {
 			$lineCount = $this->_db->exec($request);
