@@ -9,6 +9,8 @@
 
 namespace Temma\Utils;
 
+use \Temma\Exceptions\IO as TµIOException;
+
 /**
  * Text management object.
  */
@@ -437,7 +439,7 @@ class Text {
 	 * @param	string|array	$mime2	Second MIME type.
 	 * @return	bool	True if the MIME types are compatible.
 	 */
-	static function mimeTypesMatch(string|array $mime1, string|array $mime2) : bool {
+	static public function mimeTypesMatch(string|array $mime1, string|array $mime2) : bool {
 		if (is_string($mime1))
 			$mime1 = explode('/', $mime1);
 		$mime1[1] ??= '*';
@@ -450,6 +452,38 @@ class Text {
 		    ($mime2[0] == '*' && $mime2[1] == '*'))
 			return (true);
 		return (false);
+	}
+	/**
+	 * Parse a sze string (e.g. '10M', '5K').
+	 * @param	mixed	$len	The size string.
+	 * @param	int	$base	(optional) The desired base. (default: 1024)
+	 * @return	?int	The parsed size in bytes, or null if it received null.
+	 * @throws	\Temma\Exceptions\IO	If the string is not valid.
+	 */
+	static public function parseSize(mixed $len, int $base=1024) : ?int {
+		if (is_null($len))
+			return (null);
+		if (is_float($len))
+			return ((int)$len);
+		if (is_int($len) || ctype_digit($len))
+			return ($len);
+		if (!is_string($len))
+			throw new TµIOException("Bad size string format.", TµIOException::BAD_FORMAT);
+		$len = trim($len);
+		$last = mb_strtolower(mb_substr($len, -1));
+		$len = rtrim(mb_substr($len, 0, -1));
+		if (!ctype_digit($len))
+			throw new TµIOException("Bad size string format.", TµIOException::BAD_FORMAT);
+		switch ($last) {
+			case 'k': $len *= $base; break;
+			case 'm': $len *= ($base ** 2); break;
+			case 'g': $len *= ($base ** 3); break;
+			case 't': $len *= ($base ** 4); break;
+			case 'p': $len *= ($base ** 5); break;
+			case 'e': $len *= ($base ** 6); break;
+			default: throw new TµIOException("Bad size string format.", TµIOException::BAD_FORMAT);
+		}
+		return ($len);
 	}
 }
 
