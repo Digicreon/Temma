@@ -252,7 +252,8 @@ class Request {
 	/**
 	 * Validate actions parameters.
 	 * @param	array	$contracts	List of contracts (one contract per validated parameter).
-	 *					On unstrict validation, 
+	 *					On unstrict validation, the number of contracts might be different than
+	 *					the number of parameters.
 	 * @param	bool	$strict		(optional) True to use strict matching. False by default.
 	 * @throws	\Temma\Exceptions\Application	If the parameters are not valid.
 	 */
