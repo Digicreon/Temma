@@ -251,25 +251,28 @@ class Request {
 	/* ***************** VALIDATION *************** */
 	/**
 	 * Validate parameters (GET and POST).
-	 * @param	array	$params	Contract to validate the parameters.
-	 * @param	?string	$source	(optional) Source of the parameters ('GET', 'POST'). If null, checks both.
+	 * @param	string|array	$params	Contract to validate the parameters (name of the defined validation contract,
+	 *					name of the validation object, or associative array of keys with associated contracts).
+	 * @param	?string		$source	(optional) Source of the parameters ('GET', 'POST'). If null, checks both.
 	 * @param	bool	$strict	(optional) True to use strict matching. False by default.
 	 * @throws	\Temma\Exceptions\Application	If the parameters are not valid.
 	 */
-	public function validateParams(array $params, ?string $source=null, bool $strict=false) : void {
+	public function validateParams(string|array $params, ?string $source=null, bool $strict=false) : void {
 		$source = strtoupper($source ?? '');
 		$checkGet = ($source === 'GET' || ($source === '' && !empty($_GET)));
 		$checkPost = ($source === 'POST' || ($source === '' && !empty($_POST)));
 		// optimize contract
-		$contract = [
-			'type' => 'assoc',
-			'keys' => $params,
-		];
+		if (is_array($params)) {
+			$params = [
+				'type' => 'assoc',
+				'keys' => $params,
+			];
+		}
 		// validate
 		if ($checkGet)
-			$_GET = TµDataFilter::process($_GET, $contract, $strict);
+			$_GET = TµDataFilter::process($_GET, $params, $strict);
 		if ($checkPost)
-			$_POST = TµDataFilter::process($_POST, $contract, $strict);
+			$_POST = TµDataFilter::process($_POST, $params, $strict);
 	}
 	/**
 	 * Validate the request payload.

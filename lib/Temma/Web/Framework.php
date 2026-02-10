@@ -102,6 +102,8 @@ class Framework {
 				'temma'    => $this,
 			]);
 		}
+		// inject the loader into the DataFilter
+		\Temma\Utils\Validation\DataFilter::setLoader($this->_loader);
 		// configure the loader with the defined configuration (preload, aliases and prefixes)
 		if (isset($this->_config->loaderPreload))
 			$this->_loader->set($this->_config->loaderPreload);
