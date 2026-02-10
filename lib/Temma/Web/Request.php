@@ -251,20 +251,20 @@ class Request {
 	/* ***************** VALIDATION *************** */
 	/**
 	 * Validate actions parameters.
-	 * @param	string|array	$icontract	Contract to validate the parameters (name of the defined validation contract,
-	 *						name of the validation object, or associative attary of keys with associated contracts).
-	 * @param	\Reflector	$context	Context of the method.
+	 * @param	array	$contracts	List of contracts (one contract per validated parameter).
+	 *					On unstrict validation, 
+	 * @param	bool	$strict		(optional) True to use strict matching. False by default.
 	 * @throws	\Temma\Exceptions\Application	If the parameters are not valid.
 	 */
-	public function validateParams(string|array $contract, bool $strict=false) : void {
-		if (is_array($contract)) {
-			$contract = [
-				'type' => 'assoc',
-				'keys' => $contract,
-			];
-		}
+	public function validateParams(array $contracts, bool $strict=false) : void {
 		$params = $this->getParams();
-		$params = TµDataFilter::process($params, $contract, $strict);
+		$paramsCount = count($params);
+		$contractsCount = count($contracts);
+		if ($strict && $paramsCount != $contractsCount)
+			throw new TµApplicationException("Bad number of parameters.", TµApplicationException::BAD_PARAM);
+		for ($i = 0; $i < $paramsCount && $i < $contractsCount; $i++) {
+			$params[$i] = TµDataFilter::process($params[$i], $contracts[$i], $strict);
+		}
 		$this->setParams($params);
 	}
 	/**

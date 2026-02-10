@@ -23,22 +23,16 @@ use \Temma\Exceptions\FlowHalt as TµFlowHalt;
  * use \Temma\Attributes\Check\Params as TµCheckParams;
  *
  * class User extends \Temma\Web\Controller {
- *     // the first parameter is an integer
+ *     // the first parameter is an integer greater or equal than 18
  *     // the second parameter is an enum ('member' or admin')
- *     #[TµCheckParams(['int', 'enum; values: member, admin'])]
- *     public function addUser(int $parentId, string $type) {
- *         // ...
- *     }
- *
- *     // use the 'userType' contract declared in the configuration file
- *     #[TµCheckParams('userType')]
- *     public function changeUserType(int $id, string $type) {
+ *     #[TµCheckParams(['int; min: 18', 'enum; values: member, admin'])]
+ *     public function addUser(int $age, string $type) {
  *         // ...
  *     }
  *
  *     // the first parameter is an int, the second an hexa color
  *     // with strict validation
- *     #[TµCheckParams(['color'], strict: true)]
+ *     #[TµCheckParams(['~int', 'color'], strict: true)]
  *     public function setColor(int $id, string $color) {
  *         // ...
  *     }
@@ -48,14 +42,14 @@ use \Temma\Exceptions\FlowHalt as TµFlowHalt;
 class Params extends \Temma\Web\Attribute {
 	/**
 	 * Constructor.
-	 * @param	array	$parameters	Associative array of parameters to check.
+	 * @param	array	$contracts	List of contracts (one contract per validated parameter).
 	 * @param	bool	$strict		(optional) True to use strict matching. False by default.
 	 * @param	?string	$redirect	(optional) Redirection URL used if the check fails.
 	 * @param	?string	$redirectVar	(optional) Name of the template variable which contains the redirection URL.
 	 * @param	?string	$flashVar	(optional) Name of the session flash variable which will contain the invalid GET variable in case of redirection.
 	 */
 	public function __construct(
-		protected array $parameters,
+		protected array $contracts,
 		protected bool $strict=false,
 		protected ?string $redirect=null,
 		protected ?string $redirectVar=null,
@@ -71,7 +65,7 @@ class Params extends \Temma\Web\Attribute {
 	 */
 	public function apply(\Reflector $context) : void {
 		try {
-			$this->_request->validateParams($this->parameters, $this->strict);
+			$this->_request->validateParams($this->contracts, $this->strict);
 		} catch (TµApplicationException $e) {
 			// manage redirection URL
 			$url = $this->redirect ?:                              // direct URL
@@ -89,3 +83,4 @@ class Params extends \Temma\Web\Attribute {
 		}
 	}
 }
+
