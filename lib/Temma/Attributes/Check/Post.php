@@ -66,7 +66,7 @@ class Post extends \Temma\Web\Attribute {
 	 */
 	public function apply(\Reflector $context) : void {
 		try {
-			$this->_request->validateParams($this->parameters, 'POST', $this->strict);
+			$this->_request->validateInput($this->parameters, 'POST', $this->strict);
 		} catch (TµApplicationException $e) {
 			// manage redirection URL
 			$url = $this->redirect ?:                              // direct URL

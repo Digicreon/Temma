@@ -250,14 +250,32 @@ class Request {
 
 	/* ***************** VALIDATION *************** */
 	/**
-	 * Validate parameters (GET and POST).
+	 * Validate actions parameters.
+	 * @param	string|array	$icontract	Contract to validate the parameters (name of the defined validation contract,
+	 *						name of the validation object, or associative attary of keys with associated contracts).
+	 * @param	\Reflector	$context	Context of the method.
+	 * @throws	\Temma\Exceptions\Application	If the parameters are not valid.
+	 */
+	public function validateParams(string|array $contract, bool $strict=false) : void {
+		if (is_array($contract)) {
+			$contract = [
+				'type' => 'assoc',
+				'keys' => $contract,
+			];
+		}
+		$params = $this->getParams();
+		$params = TµDataFilter::process($params, $contract, $strict);
+		$this->setParams($params);
+	}
+	/**
+	 * Validate GET and POST input.
 	 * @param	string|array	$params	Contract to validate the parameters (name of the defined validation contract,
 	 *					name of the validation object, or associative array of keys with associated contracts).
 	 * @param	?string		$source	(optional) Source of the parameters ('GET', 'POST'). If null, checks both.
 	 * @param	bool	$strict	(optional) True to use strict matching. False by default.
 	 * @throws	\Temma\Exceptions\Application	If the parameters are not valid.
 	 */
-	public function validateParams(string|array $params, ?string $source=null, bool $strict=false) : void {
+	public function validateInput(string|array $params, ?string $source=null, bool $strict=false) : void {
 		$source = strtoupper($source ?? '');
 		$checkGet = ($source === 'GET' || ($source === '' && !empty($_GET)));
 		$checkPost = ($source === 'POST' || ($source === '' && !empty($_POST)));

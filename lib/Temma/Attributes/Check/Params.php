@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Get
+ * Params
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2026, Amaury Bouchard
  * @link	https://www.temma.net/documentation/helper-attr_check_get
@@ -14,33 +14,38 @@ use \Temma\Exceptions\Application as TµApplicationException;
 use \Temma\Exceptions\FlowHalt as TµFlowHalt;
 
 /**
- * Attribute used to validate GET parameters.
+ * Attribute used to validate action parameters.
  *
- * This attribute can be used on a controller class (applied to all methods) or on a specific action.
+ * This attribute can be used on a specific action.
  *
  * Examples:
  * ```php
- * use \Temma\Attributes\Check\Get as TµCheckGet;
+ * use \Temma\Attributes\Check\Params as TµCheckParams;
  *
- * // check for an "id" parameter (integer between 5 and 128)
- * #[TµCheckGet(['id' => 'int; min: 5; max: 128'])]
+ * class User extends \Temma\Web\Controller {
+ *     // the first parameter is an integer
+ *     // the second parameter is an enum ('member' or admin')
+ *     #[TµCheckParams(['int', 'enum; values: member, admin'])]
+ *     public function addUser(int $parentId, string $type) {
+ *         // ...
+ *     }
  *
- * // check for a "name" parameter (string), a "mail" parameter (email), and an optional "balance" parameter (float)
- * #[TµCheckGet([
- *     'name'     => 'string',
- *     'mail'     => 'email',
- *     'balance?' => 'float'
- * ])]
- * ```
+ *     // use the 'userType' contract declared in the configuration file
+ *     #[TµCheckParams('userType')]
+ *     public function changeUserType(int $id, string $type) {
+ *         // ...
+ *     }
  *
- * // definition of a redirection URL if validation fails
- * #[TµCheckGet(['id' => 'int; min: 5; max: 128'], redirect: '/error')]
- *
- * // definition of a redirection URL (from a template variable) if validation fails
- * #[TµCheckGet(['id' => 'int; min: 5; max: 128'], redirectVar: 'redirectUrl')]
+ *     // the first parameter is an int, the second an hexa color
+ *     // with strict validation
+ *     #[TµCheckParams(['color'], strict: true)]
+ *     public function setColor(int $id, string $color) {
+ *         // ...
+ *     }
+ * }
  */
-#[\Attribute(\Attribute::TARGET_CLASS | \Attribute::TARGET_METHOD | \Attribute::IS_REPEATABLE)]
-class Get extends \Temma\Web\Attribute {
+#[\Attribute(\Attribute::TARGET_METHOD | \Attribute::IS_REPEATABLE)]
+class Params extends \Temma\Web\Attribute {
 	/**
 	 * Constructor.
 	 * @param	array	$parameters	Associative array of parameters to check.
@@ -66,7 +71,7 @@ class Get extends \Temma\Web\Attribute {
 	 */
 	public function apply(\Reflector $context) : void {
 		try {
-			$this->_request->validateInput($this->parameters, 'GET', $this->strict);
+			$this->_request->validateParams($this->parameters, $this->strict);
 		} catch (TµApplicationException $e) {
 			// manage redirection URL
 			$url = $this->redirect ?:                              // direct URL
