@@ -31,6 +31,7 @@ class ListValidator implements Validator {
 		$minLen = TµText::parseSize($contract['minLen'] ?? null);
 		$maxLen = TµText::parseSize($contract['maxLen'] ?? null);
 		$subcontract = $contract['contract'] ?? null;
+		$values = $contract['values'] ?? null;
 		// check data
 		if (!is_array($data))
 			return $this->_processDefault($contract, "Data doesn't respect contract (not a list).");
@@ -45,12 +46,50 @@ class ListValidator implements Validator {
 			if (($minLen && $count < $minLen))
 				return $this->_processDefault($contract, "Data size doesn't respect the contract (list too short).");
 		}
+		// check values from specific types
+		if ($values) {
+			if (is_string($values))
+				$values = str_getcsv($values, ',', '"', '\\');
+			else if (!is_array($values))
+				throw new TµApplicationException("Bad contract 'values' parameter.", TµApplicationException::API);
+                        $truncate = null; // if the list must be truncated: index of the first element to remove
+                        $global = false; // if true, the rest of the list will accepted as is
+			foreach ($data as $k => &$v) {
+				if (!is_int($k))
+					return $this->_processDefault($contract, "Data doesn't respect contract (not a list).");
+                                if (!array_key_exists($k, $values)) {
+                                        if ($strict)
+                                            return $this->_processDefault($contract, "Data doesn't respect contract (bad number of elements in list).");
+                                        $truncate = $k;
+                                        break;
+                                }
+				$sub = trim($values[$k]);
+                                if ($sub == '...') {
+                                        $global = true;
+                                        break;
+                                }
+				try {
+					$v = TµDataFilter::process($v, $sub, $strict);
+				} catch (TµApplicationException $t) {
+					return $this->_processDefault($contract, "Data doesn't respect contract (bad value for element {$k}).");
+				}
+			}
+                        if ($strict && !$global && count($data) != count($values))
+                            return $this->_processDefault($contract, "Data doesn't respect contract (bad number of elements in list).");
+                        if (!is_null($truncate))
+                                $data = array_slice($data, 0, $truncate);
+			return ($data);
+		}
 		if ($subcontract === null)
 			return ($data);
 		foreach ($data as $k => &$v) {
 			if (!is_int($k))
 				return $this->_processDefault($contract, "Data doesn't respect contract (not a list).");
-			$v = TµDataFilter::process($v, $subcontract, $strict);
+                        try {
+				$v = TµDataFilter::process($v, $subcontract, $strict);
+			} catch (TµApplicationException $t) {
+				return $this->_processDefault($contract, "Data doesn't respect contract (bad value for element {$k}).");
+			}
 		}
 		return ($data);
 	}

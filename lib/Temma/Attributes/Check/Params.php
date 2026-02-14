@@ -42,14 +42,15 @@ use \Temma\Exceptions\FlowHalt as TµFlowHalt;
 class Params extends \Temma\Web\Attribute {
 	/**
 	 * Constructor.
-	 * @param	array	$contracts	List of contracts (one contract per validated parameter).
-	 * @param	bool	$strict		(optional) True to use strict matching. False by default.
-	 * @param	?string	$redirect	(optional) Redirection URL used if the check fails.
-	 * @param	?string	$redirectVar	(optional) Name of the template variable which contains the redirection URL.
-	 * @param	?string	$flashVar	(optional) Name of the session flash variable which will contain the invalid GET variable in case of redirection.
+	 * @param	string|array	$contract	Name of the contract defined in the configuration file, or name of the validation object,
+	 *						or a list of contracts (one contract per validated parameter).
+	 * @param	bool		$strict		(optional) True to use strict matching. False by default.
+	 * @param	?string		$redirect	(optional) Redirection URL used if the check fails.
+	 * @param	?string		$redirectVar	(optional) Name of the template variable which contains the redirection URL.
+	 * @param	?string		$flashVar	(optional) Name of the session flash variable which will contain the invalid GET variable in case of redirection.
 	 */
 	public function __construct(
-		protected array $contracts,
+		protected string|array $contract,
 		protected bool $strict=false,
 		protected ?string $redirect=null,
 		protected ?string $redirectVar=null,
@@ -65,7 +66,7 @@ class Params extends \Temma\Web\Attribute {
 	 */
 	public function apply(\Reflector $context) : void {
 		try {
-			$this->_request->validateParams($this->contracts, $this->strict);
+			$this->_request->validateParams($this->contract, $this->strict);
 		} catch (TµApplicationException $e) {
 			// manage redirection URL
 			$url = $this->redirect ?:                              // direct URL
