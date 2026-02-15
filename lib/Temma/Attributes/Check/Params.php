@@ -16,7 +16,7 @@ use \Temma\Exceptions\FlowHalt as TµFlowHalt;
 /**
  * Attribute used to validate action parameters.
  *
- * This attribute can be used on a specific action.
+ * This attribute can be used on a controller class (applied to all methods) or on a specific action.
  *
  * Examples:
  * ```php
@@ -38,7 +38,7 @@ use \Temma\Exceptions\FlowHalt as TµFlowHalt;
  *     }
  * }
  */
-#[\Attribute(\Attribute::TARGET_METHOD | \Attribute::IS_REPEATABLE)]
+#[\Attribute(\Attribute::TARGET_CLASS | \Attribute::TARGET_METHOD | \Attribute::IS_REPEATABLE)]
 class Params extends \Temma\Web\Attribute {
 	/**
 	 * Constructor.
@@ -75,7 +75,7 @@ class Params extends \Temma\Web\Attribute {
 			if ($url) {
 				TµLog::log('Temma/Web', 'DEBUG', "Redirecting to '$url'.");
 				if ($this->flashVar)
-					$this->_session['__' . $this->flashVar] = $_GET;
+					$this->_session['__' . $this->flashVar] = $this->_request->getParams();
 				$this->_redirect($url);
 				throw new TµFlowHalt();
 			}
