@@ -71,6 +71,10 @@ return [
 		'googleId'          => 'azeazeaez',
 		'googleAnalyticsId' => 'azeazeazeaze',
 	],
+	'validationTypes' => [
+		'user'      => '\App\Validators\User',
+		'siteColor' => 'enum; values: red, magenta, rose, pink',
+	],
 	'x-homepage' => [
 		'title'       => 'Site title',
 		'description' => 'Site description',

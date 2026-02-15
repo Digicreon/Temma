@@ -292,6 +292,11 @@ class Config {
 		// check for the need of loading the sessions
 		if (isset($ini['application']['enableSessions']) && $ini['application']['enableSessions'] === false)
 			$this->_enableSessions = false;
+
+		// register DataFilter aliases
+		if (isset($ini['validationTypes']) && is_array($ini['validationTypes']))
+			\Temma\Utils\Validation\DataFilter::registerAlias($ini['validationTypes']);
+
 		// define the session name
 		$this->_sessionName = ($ini['application']['sessionName'] ?? null) ?: self::SESSION_NAME;
 		// define the data source that stores the sessions

@@ -53,7 +53,7 @@ else
 	cp    etc/temma-full.php /opt/temma-project-web/etc/
 	cp -a etc/asynk          /opt/temma-project-web/etc/
 	cp -a templates/*        /opt/temma-project-web/templates/
-	cp    tests/*            /opt/temma-project-web/tests/
+	cp    tests/autoload.php /opt/temma-project-web/tests/
 	cp    www/index.php      /opt/temma-project-web/www/
 	cp    www/*.html         /opt/temma-project-web/www/
 	cp    www/.htaccess      /opt/temma-project-web/www/

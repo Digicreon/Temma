@@ -1,52 +1,49 @@
 <?php
 
 /**
- * Payload
+ * Params
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2026, Amaury Bouchard
- * @link	https://www.temma.net/documentation/helper-attr_check_payload
+ * @link	https://www.temma.net/documentation/helper-attr_check_get
  */
 
 namespace Temma\Attributes\Check;
 
 use \Temma\Base\Log as TµLog;
-use \Temma\Exceptions\IO as TµIOException;
+use \Temma\Exceptions\Application as TµApplicationException;
 use \Temma\Exceptions\FlowHalt as TµFlowHalt;
 
 /**
- * Attribute used to validate request payload.
+ * Attribute used to validate action parameters.
  *
  * This attribute can be used on a controller class (applied to all methods) or on a specific action.
  *
  * Examples:
  * ```php
- * use \Temma\Attributes\Check\Payload as TµCheckPayload;
+ * use \Temma\Attributes\Check\Params as TµCheckParams;
  *
- * // check for a raw payload (int greater or equal to 3)
- * #[TµCheckPayload('int; min: 3')]
+ * class User extends \Temma\Web\Controller {
+ *     // the first parameter is an integer greater or equal than 18
+ *     // the second parameter is an enum ('member' or admin')
+ *     #[TµCheckParams(['int; min: 18', 'enum; values: member, admin'])]
+ *     public function addUser(int $age, string $type) {
+ *         // ...
+ *     }
  *
- * // check for a JSON payload
- * #[TµCheckPayload([
- *     'type' => 'assoc',
- *     'keys' => [
- *         'int'   => 'int',
- *         'name?' => 'string',
- *     ]
- * ])]
- * ```
- *
- * // definition of a redirection URL if validation fails
- * #[TµCheckPayload('int; min: 3', redirect: '/error')]
- *
- * // definition of a redirection URL (from a template variable) if validation fails
- * #[TµCheckPayload('int; min: 3', redirectVar: 'redirectUrl')]
+ *     // the first parameter is an int, the second an hexa color
+ *     // with strict validation
+ *     #[TµCheckParams(['~int', 'color'], strict: true)]
+ *     public function setColor(int $id, string $color) {
+ *         // ...
+ *     }
+ * }
  */
 #[\Attribute(\Attribute::TARGET_CLASS | \Attribute::TARGET_METHOD | \Attribute::IS_REPEATABLE)]
-class Payload extends \Temma\Web\Attribute {
+class Params extends \Temma\Web\Attribute {
 	/**
 	 * Constructor.
 	 * @param	string|array	$contract	Name of the contract defined in the configuration file, or name of the validation object,
-	 *						or validation contract to check the payload.
+	 *						or a list of contracts (one contract per validated parameter).
 	 * @param	bool		$strict		(optional) True to use strict matching. False by default.
 	 * @param	?string		$redirect	(optional) Redirection URL used if the check fails.
 	 * @param	?string		$redirectVar	(optional) Name of the template variable which contains the redirection URL.
@@ -64,12 +61,12 @@ class Payload extends \Temma\Web\Attribute {
 	 * Processing of the attribute.
 	 * @param	\Reflector	$context	Context of the element on which the attribute is applied
 	 *						(ReflectionClass, ReflectionMethod or ReflectionFunction).
-	 * @throws	\Temma\Exceptions\Application	If the payload is not valid.
-	 * @throws	\Temma\Exceptions\FlowHalt	If the valid is not valid and a redirect URL has been given.
+	 * @throws	\Temma\Exceptions\Application	If the parameters are not valid.
+	 * @throws	\Temma\Exceptions\FlowHalt	If the parameters are not valid and a redirect URL has been given.
 	 */
 	public function apply(\Reflector $context) : void {
 		try {
-			$this->_request->validatePayload($this->contract, $this->strict);
+			$this->_request->validateParams($this->contract, $this->strict);
 		} catch (TµApplicationException $e) {
 			// manage redirection URL
 			$url = $this->redirect ?:                              // direct URL
@@ -78,7 +75,7 @@ class Payload extends \Temma\Web\Attribute {
 			if ($url) {
 				TµLog::log('Temma/Web', 'DEBUG', "Redirecting to '$url'.");
 				if ($this->flashVar)
-					$this->_session['__' . $this->flashVar] = true;
+					$this->_session['__' . $this->flashVar] = $this->_request->getParams();
 				$this->_redirect($url);
 				throw new TµFlowHalt();
 			}
@@ -87,3 +84,4 @@ class Payload extends \Temma\Web\Attribute {
 		}
 	}
 }
+

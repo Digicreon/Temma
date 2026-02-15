@@ -250,21 +250,45 @@ class Request {
 
 	/* ***************** VALIDATION *************** */
 	/**
-	 * Validate parameters (GET and POST).
-	 * @param	array	$params	Contract to validate the parameters.
-	 * @param	?string	$source	(optional) Source of the parameters ('GET', 'POST'). If null, checks both.
-	 * @param	bool	$strict	(optional) True to use strict matching. False by default.
+	 * Validate action parameters.
+	 * @param	null|string|array	$contract	Contract to validate the parameters: name of the contract defined in the configuration file,
+	 *							or name of the validation object, or list of contracts (one contract per validated parameter).
+	 * @param	bool			$strict		(optional) True to use strict matching. False by default.
+	 * @throws	\Temma\Exceptions\IO		If the contracts are not valid.
 	 * @throws	\Temma\Exceptions\Application	If the parameters are not valid.
 	 */
-	public function validateParams(array $params, ?string $source=null, bool $strict=false) : void {
+	public function validateParams(null|string|array $contract, bool $strict=false) : void {
+		if (is_array($contract)) {
+			$contract = [
+				'type'   => 'list',
+				'values' => $contract,
+			];
+		}
+		$params = $this->getParams();
+		$params = TµDataFilter::process($params, $contract, $strict);
+		$this->setParams($params);
+	}
+	/**
+	 * Validate GET and POST input.
+	 * @param	null|string|array	$contract	Contract to validate the parameters: name of the contract defined in the configuration file,
+	 *							or name of the validation object, or associative array (parameter names as keys,
+	 *							with associated contracts).
+	 * @param	?string			$source	(optional) Source of the parameters ('GET', 'POST'). If null, checks both.
+	 * @param	bool	$strict	(optional) True to use strict matching. False by default.
+	 * @throws	\Temma\Exceptions\Application	If the parameters are not valid.
+	 * @see		https://www.temma.net/en/documentation/helper-datafilter
+	 */
+	public function validateInput(null|string|array $contract, ?string $source=null, bool $strict=false) : void {
 		$source = strtoupper($source ?? '');
 		$checkGet = ($source === 'GET' || ($source === '' && !empty($_GET)));
 		$checkPost = ($source === 'POST' || ($source === '' && !empty($_POST)));
 		// optimize contract
-		$contract = [
-			'type' => 'assoc',
-			'keys' => $params,
-		];
+		if (is_array($contract)) {
+			$contract = [
+				'type' => 'assoc',
+				'keys' => $contract,
+			];
+		}
 		// validate
 		if ($checkGet)
 			$_GET = TµDataFilter::process($_GET, $contract, $strict);
@@ -273,12 +297,14 @@ class Request {
 	}
 	/**
 	 * Validate the request payload.
-	 * @param	mixed	$contract	Contract to validate the payload.
-	 * @param	bool	$strict		(optional) True to use strict matching. False by default.
+	 * @param	null|string|array	$contract	Contract to validate the payload: name of the contract defined in the configuration file,
+	 *							or name of the validation object, or contract definition (as needed by the DataFilter object).
+	 * @param	bool			$strict		(optional) True to use strict matching. False by default.
 	 * @return	mixed	The validated data.
 	 * @throws	\Temma\Exceptions\Application	If the payload is not valid.
+	 * @see		https://www.temma.net/en/documentation/helper-datafilter
 	 */
-	public function validatePayload(mixed $contract, bool $strict=false) : mixed {
+	public function validatePayload(null|string|array $contract, bool $strict=false) : mixed {
 		$inputSource = (php_sapi_name() === 'cli') ? 'php://stdin' : 'php://input';
 		$input = file_get_contents($inputSource);
 		return (TµDataFilter::process($input, $contract, $strict));
