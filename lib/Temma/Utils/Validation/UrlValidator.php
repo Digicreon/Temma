@@ -30,6 +30,7 @@ class UrlValidator implements Validator {
 		$minLen = TµText::parseSize($contract['minLen'] ?? null);
 		$maxLen = TµText::parseSize($contract['maxLen'] ?? null);
 		$mask = $contract['mask'] ?? null;
+		$scheme = $contract['scheme'] ?? null;
 		$strict = $contract['strict'];
 		// checks
 		if (!is_string($data))
@@ -47,6 +48,30 @@ class UrlValidator implements Validator {
 		// process
 		if (($data = filter_var($data, FILTER_VALIDATE_URL)) === false)
 			return $this->_processDefault($contract, "Data is not a valid URL.");
+		// check other parameters
+		$enableParams = ['scheme', 'host', 'domain', 'port', 'user', 'pass', 'path', 'query', 'fragment'];
+		$checkParams = [];
+		foreach ($enableParams as $param) {
+			if (isset($contract[$param]))
+				$checkParams[$param] = array_map('trim', explode(',', $contract[$param]));
+		}
+		if ($checkParams) {
+			// extract data from URL
+			$urlData = parse_url($data);
+			if ($urlData === false)
+				return $this->_processDefault($contract, "Data is not a valid URL.");
+			$urlData['domain'] = $urlData['host'] ?? null;
+			if (isset($urlData['host']) &&
+			    ($pos = mb_strrpos($urlData['host'], '.')) !== false &&
+			    ($pos = mb_strrpos($urlData['host'], '.', $pos)) !== false)
+				$urlData['domain'] = mb_substr($urlData['host'], $pos + 1);
+			// check
+			foreach ($checkParams as $param => $subContract) {
+				$val = $urlData[$param] ?? null;
+				if (!in_array($val, $subContract))
+					return $this->_processDefault($contract, "Data doesn't respect contract (bad URL $param).");
+			}
+		}
 		return ($data);
 	}
 	/** Manage default value. */
