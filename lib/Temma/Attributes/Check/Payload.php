@@ -10,7 +10,7 @@
 namespace Temma\Attributes\Check;
 
 use \Temma\Base\Log as TµLog;
-use \Temma\Exceptions\Application as TµApplicationException;
+use \Temma\Exceptions\IO as TµIOException;
 use \Temma\Exceptions\FlowHalt as TµFlowHalt;
 
 /**
@@ -45,14 +45,15 @@ use \Temma\Exceptions\FlowHalt as TµFlowHalt;
 class Payload extends \Temma\Web\Attribute {
 	/**
 	 * Constructor.
-	 * @param	mixed	$contract	Contract to check the payload.
-	 * @param	bool	$strict		(optional) True to use strict matching. False by default.
-	 * @param	?string	$redirect	(optional) Redirection URL used if the check fails.
-	 * @param	?string	$redirectVar	(optional) Name of the template variable which contains the redirection URL.
-	 * @param	?string	$flashVar	(optional) Name of the session flash variable which will contain the invalid GET variable in case of redirection.
+	 * @param	string|array	$contract	Name of the contract defined in the configuration file, or name of the validation object,
+	 *						or validation contract to check the payload.
+	 * @param	bool		$strict		(optional) True to use strict matching. False by default.
+	 * @param	?string		$redirect	(optional) Redirection URL used if the check fails.
+	 * @param	?string		$redirectVar	(optional) Name of the template variable which contains the redirection URL.
+	 * @param	?string		$flashVar	(optional) Name of the session flash variable which will contain the invalid GET variable in case of redirection.
 	 */
 	public function __construct(
-		protected mixed $contract,
+		protected string|array $contract,
 		protected bool $strict=false,
 		protected ?string $redirect=null,
 		protected ?string $redirectVar=null,
