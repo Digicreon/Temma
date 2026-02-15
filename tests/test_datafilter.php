@@ -741,6 +741,41 @@ $tests = [
 		'expect' => true,
 	],
 	[
+		'url; scheme: http', 'http://www.toto.com/',
+		'strict' => false,
+		'expect' => true,
+	],
+	[
+		'url; scheme: http, https', 'https://www.toto.com/',
+		'strict' => false,
+		'expect' => true,
+	],
+	[
+		'url; scheme: http', 'ftp://login@server.com/path',
+		'strict' => false,
+		'expect' => 'app',
+	],
+	[
+		'url; scheme: http, ftp, sftp', 'ftp://login@server.com/path',
+		'strict' => false,
+		'expect' => true,
+	],
+	[
+		'url; host: server.com; path: /path', 'ftp://login@server.com/path',
+		'strict' => false,
+		'expect' => true,
+	],
+	[
+		'url; port: 8080, 8888; path: /, /foo', 'https://toto.com:8888/foo',
+		'strict' => false,
+		'expect' => true,
+	],
+	[
+		'url; fragment: toto, titi', 'https://toto.com:8888/foo#titi',
+		'strict' => false,
+		'expect' => true,
+	],
+	[
 		'url; default: https://www.toto.com/', 'aaa',
 		'strict' => false,
 		'expect' => true,
@@ -782,6 +817,42 @@ $tests = [
 		'strict' => false,
 		'expect' => true,
 		'res' => '123e4567-e89b-12d3-a456-426614174003',
+	],
+	'hash',
+	[
+		'hash; algo: md5', md5('abc'),
+		'strict' => false,
+		'expect' => true,
+	],
+	[
+		'hash; algo: md5, sha1', sha1('abc'),
+		'strict' => false,
+		'expect' => true,
+	],
+	[
+		'hash; algo: aaa', sha1('abc'),
+		'strict' => false,
+		'expect' => 'io',
+	],
+	[
+		'hash; algo: md5, sha1, sha224, sha256, sha384, crc32', hash('sha3-512', 'tralala'),
+		'strict' => false,
+		'expect' => 'app',
+	],
+	[
+		'hash; algo: md5, sha1, sha224, sha256, sha384, crc32, sha3-512', hash('sha3-512', 'tralala'),
+		'strict' => false,
+		'expect' => true,
+	],
+	[
+		[
+			'type'   => 'hash',
+			'algo'   => ['md5', 'sha1', 'sha224', 'sha256', 'sha384', 'crc32', 'sha3-224', 'sha3-256', 'sha3-384', 'sha3-512'],
+			'source' => 'tralala',
+		],
+		hash('sha3-512', 'tralala'),
+		'strict' => false,
+		'expect' => true,
 	],
 	'binary',
 	[
@@ -1885,10 +1956,13 @@ $tests = [
 ];
 
 $count = 1;
+$mustBreak = false;
 foreach ($tests as $test) {
 	if (is_null($test))
 		break;
 	if (is_string($test)) {
+		if ($mustBreak)
+			break;
 		print(TµAnsi::bold("$test\n"));
 		$count = 1;
 		continue;
@@ -1933,6 +2007,8 @@ foreach ($tests as $test) {
 	if (($test['dump'] ?? false)) {
 		var_dump($res);
 	}
+	if (!$status)
+		$mustBreak = true;
 	$count++;
 }
 

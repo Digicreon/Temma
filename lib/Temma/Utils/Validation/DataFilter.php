@@ -54,6 +54,11 @@ class DataFilter {
 		'color'    => \Temma\Utils\Validation\ColorValidator::class,
 		'geo'      => \Temma\Utils\Validation\GeoValidator::class,
 		'phone'    => \Temma\Utils\Validation\PhoneValidator::class,
+		'hash'     => \Temma\Utils\Validation\HashValidator::class,
+		'md5'      => ['type' => \Temma\Utils\Validation\HashValidator::class, 'algo' => 'md5'],
+		'sha1'     => ['type' => \Temma\Utils\Validation\HashValidator::class, 'algo' => 'sha1'],
+		'sha256'   => ['type' => \Temma\Utils\Validation\HashValidator::class, 'algo' => 'shai256'],
+		'sha512'   => ['type' => \Temma\Utils\Validation\HashValidator::class, 'algo' => 'sha512'],
 	];
 
 	/**
