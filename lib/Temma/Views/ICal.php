@@ -29,7 +29,8 @@ class ICal extends \Temma\Web\View {
 
 	/** Init. */
 	public function init() : void {
-		$this->_ical = $this->_response->getData('ical');
+		$this->_ical = $this->_response->getData('@output') ??
+		               $this->_response->getData('ical');
 		$this->_filename = $this->_response->getData('filename');
 	}
 	/** Write HTTP headers. */

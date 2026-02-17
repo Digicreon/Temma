@@ -8,6 +8,8 @@
 
 namespace Temma\Views;
 
+use \Temma\Utils\Validation\DataFilter as TµDataFilter;
+
 /**
  * View for INI export.
  *
@@ -30,8 +32,13 @@ class Ini extends \Temma\Web\View {
 
 	/** Init. */
 	public function init() : void {
-		$this->_data = $this->_response->getData('data');
+		$this->_data = $this->_response->getData('@output') ??
+		               $this->_response->getData('data');
 		$this->_filename = $this->_response->getData('filename');
+		// data validation
+		$validationContract = $this->_response->getValidationContract();
+		if ($validationContract)
+			$this->_data = TµDataFilter::process($this->_data, $validationContract);
 	}
 	/** Write HTTP headers. */
 	public function sendHeaders(?array $headers=null) : void {

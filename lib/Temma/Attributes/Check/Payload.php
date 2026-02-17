@@ -10,7 +10,7 @@
 namespace Temma\Attributes\Check;
 
 use \Temma\Base\Log as TµLog;
-use \Temma\Exceptions\IO as TµIOException;
+use \Temma\Exceptions\Application as TµApplicationException;
 use \Temma\Exceptions\FlowHalt as TµFlowHalt;
 
 /**

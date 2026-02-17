@@ -36,6 +36,8 @@ class Response implements \ArrayAccess {
 	private string $_prependStream = '';
 	/** Appended response stream. */
 	private string $_appendStream = '';
+	/** Validation contract. */
+	private null|string|array $_validationContract = null;
 
 	/**
 	 * Constructor.
@@ -149,6 +151,14 @@ class Response implements \ArrayAccess {
 		$this->_appendStream .= $stream;
 	}
 	/**
+	 * Set the contract used to validate output data.
+	 * @param	null|string|array	$contract	Name of the contract defined in the configuration file,
+	 *							or name of the validation object, or the contract definition.
+	 */
+	public function setValidationContract(null|string|array $contract) : void {
+		$this->_validationContract = $contract;
+	}
+	/**
 	 * Add a template variable, array-like syntax.
 	 * @param	mixed	$name	Data name.
 	 * @param	mixed	$value	Data value.
@@ -243,7 +253,8 @@ class Response implements \ArrayAccess {
 			return ($this->_data[$key]);
 		if (is_callable($default))
 			$default = $default($callbackParam);
-		$this[$key] = $default;
+		if ($default !== null)
+			$this[$key] = $default;
 		return ($default);
 	}
 	/**
@@ -259,6 +270,13 @@ class Response implements \ArrayAccess {
 	 */
 	public function getAppendStream() : string {
 		return($this->_appendStream);
+	}
+	/**
+	 * Returns the defined validation contract.
+	 * @return	null|string|array	The defined contract.
+	 */
+	public function getValidationContract() : null|string|array {
+		return ($this->_validationContract);
 	}
 	/**
 	 * Returns a template variable, array-like syntax.

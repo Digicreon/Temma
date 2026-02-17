@@ -11,6 +11,7 @@ namespace Temma\Views;
 use \Temma\Base\Log as TµLog;
 use \Temma\Exceptions\Framework as TµFrameworkException;
 use \Temma\Exceptions\IO as TµIOException;
+use \Temma\Utils\Validation\DataFilter as TµDataFilter;
 
 if (!class_exists('\Smarty\Smarty')) {
 	include_once('smarty4/Autoloader.php');
@@ -139,11 +140,29 @@ class Smarty extends \Temma\Web\View {
 	}
 	/** Init. */
 	public function init() : void {
-		foreach ($this->_response->getData() as $key => $value) {
-			if (str_starts_with($key, '__') || !str_starts_with($key, '_'))
+		// get data (from "@output" template variable, or from all template variables)
+		$data = $this->_response->getData('@output') ??
+		        $this->_response->getData();
+		// data validation contract
+		$validationContract = $this->_response->getValidationContract();
+		// clean data
+		foreach ($data as $key => &$value) {
+			if (str_starts_with($key, '_') && !str_starts_with($key, '__')) {
+				if ($key == '_temmaCacheable' && $value === true)
+					$this->_isCacheable = true;
+				unset($data[$key]);
+			} else if (!$validationContract) {
+				// transfer data to Smarty
 				$this->_smarty->assign($key, $value);
-			else if ($key == '_temmaCacheable' && $value === true)
-				$this->_isCacheable = true;
+			}
+		}
+		if (!$validationContract)
+			return;
+		// data filtering
+		$data = TµDataFilter::process($data, $validationContract);
+		// transfer data to Smarty
+		foreach ($data as $key => $value) {
+			$this->_smarty->assign($key, $value);
 		}
 	}
 	/** Write body. */

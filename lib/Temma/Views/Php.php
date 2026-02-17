@@ -8,6 +8,7 @@
 
 namespace Temma\Views;
 
+use \Temma\Utils\Validation\DataFilter as TµDataFilter;
 use \Temma\Base\Log as TµLog;
 use \Temma\Exceptions\IO as TµIOException;
 
@@ -47,11 +48,28 @@ class Php extends \Temma\Web\View {
 	}
 	/** Init. */
 	public function init() : void {
-		foreach ($this->_response->getData() as $key => $value) {
-			if (isset($key[0]) && $key[0] != '_')
+		$data = $this->_response->getData('@output') ??
+		        $this->_response->getData();
+		// data validation contract
+		$validationContract = $this->_response->getValidationContract();
+		// clean data
+		foreach ($data as $key => $value) {
+			if (str_starts_with($key, '_') && !str_starts_with($key, '__')) {
+				if ($key == '_temmaCacheable' && $value === true)
+					$this->_isCacheable = true;
+				unset($data[$key]);
+			} else if (!$validationContract) {
+				// set global variables
 				$GLOBALS[$key] = $value;
-			else if ($key == '_temmaCacheable' && $value === true)
-				$this->_isCacheable = true;
+			}
+		}
+		if (!$validationContract)
+			return;
+		// data filtering
+		$data = TµDataFilter::process($data, $validationContract);
+		// set global variables
+		foreach ($data as $key => $value) {
+			$GLOBALS[$key] = $value;
 		}
 	}
 	/** Write the body. */

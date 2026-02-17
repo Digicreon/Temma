@@ -8,6 +8,8 @@
 
 namespace Temma\Views;
 
+use \Temma\Utils\Validation\DataFilter as TµDataFilter;
+
 /**
  * View for JSON export.
  *
@@ -33,13 +35,25 @@ class Json extends \Temma\Web\View {
 
 	/** Init. */
 	public function init() : void {
+		// get data
+		$this->_data = $this->_response->getData('@output') ??
+		               $this->_response->getData('json');
+		$this->_filename = $this->_response->getData('filename');
+		$this->_debug = $this->_response->getData('jsonDebug', false);
+		if (is_null($this->_data)) {
+		        $this->_data = $this->_response->getData();
+			unset($this->_data['filename']);
+			unset($this->_data['jsonDebug']);
+		}
+		// data validation
+		$validationContract = $this->_response->getValidationContract();
+		if ($validationContract)
+			$this->_data = TµDataFilter::process($this->_data, $validationContract);
+
+
 		$this->_data = $this->_response->getData('json');
 		$this->_filename = $this->_response->getData('filename');
 		$this->_debug = $this->_response->getData('jsonDebug', false);
-		$contract = $this->_response->getData('contract');
-		// output filtering
-		if ($contract)
-			$this->_data = \Temma\Utils\DataFilter::process($this->_data, $contract);
 	}
 	/** Write HTTP headers. */
 	public function sendHeaders(?array $headers=null) : void {

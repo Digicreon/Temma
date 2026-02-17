@@ -34,7 +34,8 @@ class Csv extends \Temma\Web\View {
 
 	/** Init. */
 	public function init() : void {
-		$this->_csv = $this->_response->getData('csv');
+		$this->_csv = $this->_response->getData('@output') ??
+		              $this->_response->getData('csv');
 		$this->_filename = $this->_response->getData('filename');
 		$this->_separator = $this->_response->getData('separator') ?? self::DEFAULT_SEPARATOR;
 	}
