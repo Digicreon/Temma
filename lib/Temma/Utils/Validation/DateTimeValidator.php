@@ -19,11 +19,12 @@ class DateTimeValidator implements Validator {
 	/**
 	 * Validate data.
 	 * @param	mixed	$data		Data to validate.
-	 * @param	array	$contract	Contract parameters.
+	 * @param	array	$contract	(optional) Contract parameters.
+	 * @param	mixed	&$output	(optional) Reference to output variable.
 	 * @return	mixed	The filtered data.
 	 * @throws	\Temma\Exceptions\Application	If the data is invalid.
 	 */
-	public function validate(mixed $data, array $contract=[]) : mixed {
+	public function validate(mixed $data, array $contract=[], mixed &$output=null) : mixed {
 		// get parameters
 		$strict = $contract['strict'] ?? false;
 		$min = $contract['min'] ?? null;
@@ -38,18 +39,18 @@ class DateTimeValidator implements Validator {
 		} else if (is_string($data)) {
 			$d = \DateTimeImmutable::createFromFormat($inFormat, $data);
 			if ($d && $strict && $d->format($inFormat) != $data)
-				return $this->_processDefault($contract, "Data is not a valid date/time, or bad input format.");
+				return $this->_processDefault($contract, "Data is not a valid date/time, or bad input format.", $output);
 		} else {
-			return $this->_processDefault($contract, "Data is not a valid date/time (not a string or a number).");
+			return $this->_processDefault($contract, "Data is not a valid date/time (not a string or a number).", $output);
 		}
 		if ($d === false)
-			return $this->_processDefault($contract, "Data is not a valid date/time, or bad input format.");
+			return $this->_processDefault($contract, "Data is not a valid date/time, or bad input format.", $output);
 		if ($min) {
 			if (($dMin = \DateTimeImmutable::createFromFormat($inFormat, $min)) === false)
 				throw new TµIOException("Min value is not a valid date/time, or bad input format.", TµIOException::BAD_FORMAT);
 			if ($d < $dMin) {
 				if ($strict)
-					return $this->_processDefault($contract, "Data doesn't respect contract (date/time too early).");
+					return $this->_processDefault($contract, "Data doesn't respect contract (date/time too early).", $output);
 				$d = $dMin;
 			}
 		}
@@ -58,19 +59,39 @@ class DateTimeValidator implements Validator {
 				throw new TµIOException("Max value is not a valid date/time, or bad input format.", TµIOException::BAD_FORMAT);
 			if ($d > $dMax) {
 				if ($strict)
-					return $this->_processDefault($contract, "Data doesn't respect contract (date/time too late).");
+					return $this->_processDefault($contract, "Data doesn't respect contract (date/time too late).", $output);
 				$d = $dMax;
 			}
 		}
-		return $d->format($outFormat);
+		$tz = $d->getTimezone();
+		$tzName = $tz ? $tz->getName() : null;
+		$output = [
+			'iso'       => $d->format(\DateTimeInterface::RFC3339_EXTENDED),
+			'timestamp' => $d->getTimestamp(),
+			'timezone'  => $tzName,
+			'offset'    => $d->getOffset(),
+			'year'      => (int)$d->format('Y'),
+			'month'     => (int)$d->format('m'),
+			'day'       => (int)$d->format('d'),
+			'hour'      => (int)$d->format('H'),
+			'minute'    => (int)$d->format('i'),
+			'second'    => (int)$d->format('s'),
+			'micro'     => (int)$d->format('u'),
+		];
+		return ($d->format($outFormat));
 	}
-	/** Manage default value. */
-	private function _processDefault(array $contract, string $exceptionMsg) : mixed {
+	/**
+	 * Manage default value.
+	 * @param	array	$contract	Validation contract.
+	 * @param	string	$exceptionMsg	Exception message if no default value.
+	 * @param	mixed	&$output	Reference to output variable.
+	 */
+	private function _processDefault(array $contract, string $exceptionMsg, mixed &$output) : mixed {
 		$default = $contract['default'] ?? null;
 		if (is_null($default))
 			throw new TµApplicationException($exceptionMsg, TµApplicationException::API);
 		$contract['default'] = null;
-		return $this->validate($default, $contract);
+		return $this->validate($default, $contract, $output);
 	}
 }
 

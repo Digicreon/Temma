@@ -20,11 +20,12 @@ class HashValidator implements Validator {
 	/**
 	 * Validate data.
 	 * @param	mixed	$data		Data to validate.
-	 * @param	array	$contract	Contract parameters.
+	 * @param	array	$contract	(optional) Contract parameters.
+	 * @param	mixed	&$output	(optional) Reference to output variable.
 	 * @return	mixed	The filtered data.
 	 * @throws	\Temma\Exceptions\Application	If the data is invalid.
 	 */
-	public function validate(mixed $data, array $contract=[]) : mixed {
+	public function validate(mixed $data, array $contract=[], mixed &$output=null) : mixed {
 		// get parameters
 		$algorithms = $contract['algo'] ?? null;
 		$source = $contract['source'] ?? null;
@@ -37,7 +38,7 @@ class HashValidator implements Validator {
 			throw new TµIOException("Bad contract 'algo' parameter.", TµIOException::BAD_FORMAT);
 		// check data type
 		if (!is_string($data) || !ctype_xdigit($data))
-			return $this->_processDefault($contract, "Data doesn't respect contract (not a valid non-empty hexadecimal string).");
+			return $this->_processDefault($contract, "Data doesn't respect contract (not a valid non-empty hexadecimal string).", $output);
 		// loop on algorithms
 		foreach ($algorithms as $algo) {
 			// compute targeted hash length
@@ -53,21 +54,30 @@ class HashValidator implements Validator {
 			if ($len != $algoLength)
 				continue;
 			// compare to source
-			if (!$source)
+			if (!$source) {
+				$output = $data;
 				return ($data);
+			}
 			$computed = \hash($algo, $source);
-			if ($computed == $data)
+			if ($computed == $data) {
+				$output = $data;
 				return ($data);
+			}
 		}
-		return $this->_processDefault($contract, "Data doesn't respect any given contract.");
+		return $this->_processDefault($contract, "Data doesn't respect any given contract.", $output);
 	}
-	/** Manage default value. */
-	private function _processDefault(array $contract, string $exceptionMsg) : mixed {
+	/**
+	 * Manage default value.
+	 * @param	array	$contract	Validation contract.
+	 * @param	string	$exceptionMsg	Exception message if no default value.
+	 * @param	mixed	&$output	Reference to output variable.
+	 */
+	private function _processDefault(array $contract, string $exceptionMsg, mixed &$output) : mixed {
 		$default = $contract['default'] ?? null;
 		if (is_null($default))
 			throw new TµApplicationException($exceptionMsg, TµApplicationException::API);
 		$contract['default'] = null;
-		return $this->validate($default, $contract);
+		return $this->validate($default, $contract, $output);
 	}
 }
 

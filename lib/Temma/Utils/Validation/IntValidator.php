@@ -19,12 +19,13 @@ class IntValidator implements Validator {
 	/**
 	 * Validate data.
 	 * @param	mixed	$data		Data to validate.
-	 * @param	array	$contract	Contract parameters.
+	 * @param	array	$contract	(optional) Contract parameters.
+	 * @param	mixed	&$output	(optional) Reference to output variable.
 	 * @return	mixed	The filtered data.
 	 * @throws	\Temma\Exceptions\IO		If the contract is invalid.
 	 * @throws	\Temma\Exceptions\Application	If the data is invalid.
 	 */
-	public function validate(mixed $data, array $contract=[]) : mixed {
+	public function validate(mixed $data, array $contract=[], mixed &$output=null) : mixed {
 		// get parameters
 		$strict = $contract['strict'] ?? false;
 		$inline = $contract['inline'] ?? false;
@@ -60,46 +61,53 @@ class IntValidator implements Validator {
 			if ($strict || $type == 'port') {
 				if ((isset($min) && $data < $min) ||
 				    (isset($max) && $data > $max))
-					return $this->_processDefault($contract, "Data doesn't respect contract (out of range integer).");
+					return $this->_processDefault($contract, "Data doesn't respect contract (out of range integer).", $output);
 			} else {
 				if (is_numeric($min))
 					$data = max($data, (int)$min);
 				if (is_numeric($max))
 					$data = min($data, (int)$max);
 			}
+			$output = $data;
 			return ($data);
 		}
 		// strict mode and not an integer: try the default value
 		if ($strict)
-			return $this->_processDefault($contract, "Data doesn't respect contract (can't cast to int).");
+			return $this->_processDefault($contract, "Data doesn't respect contract (can't cast to int).", $output);
 		// converts string input
 		if (($in2 = filter_var($data, FILTER_VALIDATE_INT, FILTER_FLAG_ALLOW_OCTAL | FILTER_FLAG_ALLOW_HEX)) === false) {
 			if (($in2 = filter_var($data, FILTER_VALIDATE_FLOAT, FILTER_FLAG_ALLOW_THOUSAND)) === false)
-				return $this->_processDefault($contract, "Data doesn't respect contract (can't cast to int).");
+				return $this->_processDefault($contract, "Data doesn't respect contract (can't cast to int).", $output);
 			$in2 = (int)$in2;
 		}
 		$data = $in2;
 		if ($type == 'port') {
 			if ((isset($min) && $data < $min) ||
 			    (isset($max) && $data > $max))
-				return $this->_processDefault($contract, "Data doesn't respect contract (out of range port number).");
+				return $this->_processDefault($contract, "Data doesn't respect contract (out of range port number).", $output);
 		} else {
 			if (isset($min))
 				$data = max($data, (int)$min);
 			if (isset($max))
 				$data = min($data, (int)$max);
 		}
+		$output = $data;
 		return ($data);
 	}
-	/** Manage default value. */
-	private function _processDefault(array $contract, string $exceptionMsg) : mixed {
+	/**
+	 * Manage default value.
+	 * @param	array	$contract	Validation contract.
+	 * @param	string	$exceptionMsg	Exception message if no default value.
+	 * @param	mixed	&$output	Reference to output variable.
+	 */
+	private function _processDefault(array $contract, string $exceptionMsg, mixed &$output) : mixed {
 		$default = $contract['default'] ?? null;
 		if (is_null($default))
 			throw new TµApplicationException($exceptionMsg, TµApplicationException::API);
 		if (($contract['inline'] ?? false) && is_numeric($default))
 			$default = (int)$default;
 		$contract['default'] = null;
-		return $this->validate($default, $contract);
+		return $this->validate($default, $contract, $output);
 	}
 }
 

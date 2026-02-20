@@ -17,15 +17,16 @@ class TimeValidator extends DateTimeValidator {
 	/**
 	 * Validate data.
 	 * @param	mixed	$data		Data to validate.
-	 * @param	array	$contract	Contract parameters.
+	 * @param	array	$contract	(optional) Contract parameters.
+	 * @param	mixed	&$output	(optional) Reference to output variable.
 	 * @return	mixed	The filtered data.
 	 * @throws	\Temma\Exceptions\IO		If the contract is invalid.
 	 * @throws	\Temma\Exceptions\Application	If the data is invalid.
 	 */
-	public function validate(mixed $data, array $contract=[]) : mixed {
+	public function validate(mixed $data, array $contract=[], mixed &$output=null) : mixed {
 		$contract['inFormat'] = $contract['inFormat'] ?? $contract['format'] ?? 'H:i:s';
 		$contract['outFormat'] = $contract['outFormat'] ?? $contract['format'] ?? 'H:i:s';
-		return parent::validate($data, $contract);
+		return parent::validate($data, $contract, $output);
 	}
 }
 

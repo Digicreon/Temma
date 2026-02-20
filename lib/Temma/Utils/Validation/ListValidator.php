@@ -21,11 +21,12 @@ class ListValidator implements Validator {
 	/**
 	 * Validate data.
 	 * @param	mixed	$data		Data to validate.
-	 * @param	array	$contract	Contract parameters.
+	 * @param	array	$contract	(optional) Contract parameters.
+	 * @param	mixed	&$output	(optional) Reference to output variable.
 	 * @return	mixed	The filtered data.
 	 * @throws	\Temma\Exceptions\Application	If the data is invalid.
 	 */
-	public function validate(mixed $data, array $contract=[]) : mixed {
+	public function validate(mixed $data, array $contract=[], mixed &$output=null) : mixed {
 		// get parameters
 		$strict = $contract['strict'] ?? false;
 		$minLen = TµText::parseSize($contract['minLen'] ?? null);
@@ -34,17 +35,17 @@ class ListValidator implements Validator {
 		$values = $contract['values'] ?? null;
 		// check data
 		if (!is_array($data))
-			return $this->_processDefault($contract, "Data doesn't respect contract (not a list).");
+			return $this->_processDefault($contract, "Data doesn't respect contract (not a list).", $output);
 		// check size
 		if ($minLen || $maxLen) {
 			$count = count($data);
 			if (isset($maxLen) && $count > $maxLen) {
 				if ($strict)
-					return $this->_processDefault($contract, "Data size doesn't respect the contract (list too long).");
+					return $this->_processDefault($contract, "Data size doesn't respect the contract (list too long).", $output);
 				$data = array_slice($data, 0, $maxLen);
 			}
 			if (($minLen && $count < $minLen))
-				return $this->_processDefault($contract, "Data size doesn't respect the contract (list too short).");
+				return $this->_processDefault($contract, "Data size doesn't respect the contract (list too short).", $output);
 		}
 		// check values from specific types
 		if ($values) {
@@ -56,10 +57,10 @@ class ListValidator implements Validator {
 			$global = false; // if true, the rest of the list will accepted as is
 			foreach ($data as $k => &$v) {
 				if (!is_int($k))
-					return $this->_processDefault($contract, "Data doesn't respect contract (not a list).");
+					return $this->_processDefault($contract, "Data doesn't respect contract (not a list).", $output);
 				if (!array_key_exists($k, $values)) {
 					if ($strict)
-					    return $this->_processDefault($contract, "Data doesn't respect contract (bad number of elements in list).");
+					    return $this->_processDefault($contract, "Data doesn't respect contract (bad number of elements in list).", $output);
 					$truncate = $k;
 					break;
 				}
@@ -71,35 +72,43 @@ class ListValidator implements Validator {
 				try {
 					$v = TµDataFilter::process($v, $sub, $strict);
 				} catch (TµApplicationException $t) {
-					return $this->_processDefault($contract, "Data doesn't respect contract (bad value for element {$k}).");
+					return $this->_processDefault($contract, "Data doesn't respect contract (bad value for element {$k}).", $output);
 				}
 			}
 			if ($strict && !$global && count($data) != count($values))
-			    return $this->_processDefault($contract, "Data doesn't respect contract (bad number of elements in list).");
+			    return $this->_processDefault($contract, "Data doesn't respect contract (bad number of elements in list).", $output);
 			if (!is_null($truncate))
 				$data = array_slice($data, 0, $truncate);
 			return ($data);
 		}
-		if ($subcontract === null)
+		if ($subcontract === null) {
+			$output = $data;
 			return ($data);
+		}
 		foreach ($data as $k => &$v) {
 			if (!is_int($k))
-				return $this->_processDefault($contract, "Data doesn't respect contract (not a list).");
+				return $this->_processDefault($contract, "Data doesn't respect contract (not a list).", $output);
 			try {
 				$v = TµDataFilter::process($v, $subcontract, $strict);
 			} catch (TµApplicationException $t) {
-				return $this->_processDefault($contract, "Data doesn't respect contract (bad value for element {$k}).");
+				return $this->_processDefault($contract, "Data doesn't respect contract (bad value for element {$k}).", $output);
 			}
 		}
+		$output = $data;
 		return ($data);
 	}
-	/** Manage default value. */
-	private function _processDefault(array $contract, string $exceptionMsg) : mixed {
+	/**
+	 * Manage default value.
+	 * @param	array	$contract	Validation contract.
+	 * @param	string	$exceptionMsg	Exception message if no default value.
+	 * @param	mixed	&$output	Reference to output variable.
+	 */
+	private function _processDefault(array $contract, string $exceptionMsg, mixed &$output) : mixed {
 		$default = $contract['default'] ?? null;
 		if (is_null($default))
 			throw new TµApplicationException($exceptionMsg, TµApplicationException::API);
 		$contract['default'] = null;
-		return $this->validate($default, $contract);
+		return $this->validate($default, $contract, $output);
 	}
 }
 

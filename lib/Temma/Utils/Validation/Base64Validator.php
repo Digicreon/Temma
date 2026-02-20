@@ -21,12 +21,13 @@ class Base64Validator implements Validator {
 	/**
 	 * Validate data.
 	 * @param	mixed	$data		Data to validate.
-	 * @param	array	$contract	Contract parameters.
+	 * @param	array	$contract	(optional) Contract parameters.
+	 * @param	mixed	&$output	(optional) Reference to output variable.
 	 * @return	mixed	The filtered data.
 	 * @throws	\Temma\Exceptions\IO		If the contract is invalid.
 	 * @throws	\Temma\Exceptions\Application	If the data is invalid.
 	 */
-	public function validate(mixed $data, array $contract=[]) : mixed {
+	public function validate(mixed $data, array $contract=[], mixed &$output=null) : mixed {
 		// get parameters
 		$strict = $contract['strict'] ?? false;
 		$minLen = TµText::parseSize($contract['minLen'] ?? null);
@@ -40,39 +41,45 @@ class Base64Validator implements Validator {
 		}
 		// validation
 		if (!is_string($data) || !$data || ($decoded = base64_decode($data, true)) === false)
-			return $this->_processDefault($contract, "Data is not a valid base64 string.");
+			return $this->_processDefault($contract, "Data is not a valid base64 string.", $output);
 		// check size
 		if ($minLen || $maxLen) {
 			$len = mb_strlen($decoded, 'ascii');
 			if (($minLen && $len < $minLen) || ($maxLen && $len > $maxLen))
-				return $this->_processDefault($contract, "Data size doesn't respect the contract.");
+				return $this->_processDefault($contract, "Data size doesn't respect the contract.", $output);
 		}
 		// strict check: re-encode and compare
 		if ($strict && base64_encode($decoded) !== $data)
-			return $this->_processDefault($contract, "Data is not a valid base64 string.");
+			return $this->_processDefault($contract, "Data is not a valid base64 string.", $output);
 		// check MIME type
-		if ($mime) {
-			try {
-				// Delegate to BinaryValidator for MIME check on decoded data
-				$validator = new TµBinaryValidator();
-				$binaryContract = ['mime' => $mime];
-				$binData = $validator->validate($decoded, $binaryContract);
-				if (isset($binData['binary']))
-					return ($binData['binary']);
-				throw new TµApplicationException("Data is not a valid binary string.", TµApplicationException::API);
-			} catch (TµApplicationException $e) {
-				return $this->_processDefault($contract, $e->getMessage());
+		$binaryContract = [];
+		if ($mime)
+			$binaryContract = ['mime' => $mime];
+		$validator = new TµBinaryValidator(); // delegate to BinaryValidator for MIME check on decoded data
+		try {
+			$binOutput = null;
+			$binData = $validator->validate($decoded, $binaryContract, $binOutput);
+			if (isset($binData)) {
+				$output = $binOutput;
+				return ($data);
 			}
+			throw new TµApplicationException("Data is not a valid binary string.", TµApplicationException::API);
+		} catch (TµApplicationException $e) {
+			return $this->_processDefault($contract, $e->getMessage(), $output);
 		}
-		return ($decoded);
 	}
-	/** Manage default value. */
-	private function _processDefault(array $contract, string $exceptionMsg) : mixed {
+	/**
+	 * Manage default value.
+	 * @param	array	$contract	Validation contract.
+	 * @param	string	$exceptionMsg	Exception message if no default value.
+	 * @param	mixed	&$output	Reference to output variable.
+	 */
+	private function _processDefault(array $contract, string $exceptionMsg, mixed &$output=null) : mixed {
 		$default = $contract['default'] ?? null;
 		if (is_null($default))
 			throw new TµApplicationException($exceptionMsg, TµApplicationException::API);
 		$contract['default'] = null;
-		return $this->validate($default, $contract);
+		return $this->validate($default, $contract, $output);
 	}
 }
 

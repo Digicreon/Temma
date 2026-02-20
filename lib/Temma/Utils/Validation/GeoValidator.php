@@ -18,18 +18,19 @@ class GeoValidator implements Validator {
 	/**
 	 * Validate data.
 	 * @param	mixed	$data		Data to validate.
-	 * @param	array	$contract	Contract parameters.
+	 * @param	array	$contract	(optional) Contract parameters.
+	 * @param	mixed	&$output	(optional) Reference to output variable.
 	 * @return	mixed	The filtered data.
 	 * @throws	\Temma\Exceptions\Application	If the data is invalid.
 	 */
-	public function validate(mixed $data, array $contract=[]) : mixed {
+	public function validate(mixed $data, array $contract=[], mixed &$output=null) : mixed {
 		// get parameters
 		$strict = $contract['strict'] ?? false;
 		$min = $contract['min'] ?? null;
 		$max = $contract['max'] ?? null;
 		// check data
 		if (!is_string($data) || !preg_match('/^[-+]?([1-8]?\d(\.\d+)?|90(\.0+)?),\s*[-+]?(180(\.0+)?|((1[0-7]\d)|([1-9]?\d))(\.\d+)?)$/', $data))
-			return $this->_processDefault($contract, "Data is not a valid geo coordinates string.");
+			return $this->_processDefault($contract, "Data is not a valid geo coordinates string.", $output);
 		list($lat, $lon) = array_map('trim', explode(',', $data));
 		$lat = (float)$lat;
 		$lon = (float)$lon;
@@ -41,7 +42,7 @@ class GeoValidator implements Validator {
 				$minLon = (float)$minLon;
 				if ($lat < $minLat || $lon < $minLon) {
 					if ($strict)
-						return $this->_processDefault($contract, "Data doesn't respect contract (geo coordinates too low).");
+						return $this->_processDefault($contract, "Data doesn't respect contract (geo coordinates too low).", $output);
 					$lat = max($lat, $minLat);
 					$lon = max($lon, $minLon);
 				}
@@ -55,21 +56,27 @@ class GeoValidator implements Validator {
 				$maxLon = (float)$maxLon;
 				if ($lat > $maxLat || $lon > $maxLon) {
 					if ($strict)
-						return $this->_processDefault($contract, "Data doesn't respect contract (geo coordinates too high).");
+						return $this->_processDefault($contract, "Data doesn't respect contract (geo coordinates too high).", $output);
 					$lat = min($lat, $maxLat);
 					$lon = min($lon, $maxLon);
 				}
 			}
 		}
-		return "$lat, $lon";
+		$output = "$lat, $lon";
+		return ($output);
 	}
-	/** Manage default value. */
-	private function _processDefault(array $contract, string $exceptionMsg) : mixed {
+	/**
+	 * Manage default value.
+	 * @param	array	$contract	Validation contract.
+	 * @param	string	$exceptionMsg	Exception message if no default value.
+	 * @param	mixed	&$output	Reference to output variable.
+	 */
+	private function _processDefault(array $contract, string $exceptionMsg, mixed &$output) : mixed {
 		$default = $contract['default'] ?? null;
 		if (is_null($default))
 			throw new TµApplicationException($exceptionMsg, TµApplicationException::API);
 		$contract['default'] = null;
-		return $this->validate($default, $contract);
+		return $this->validate($default, $contract, $output);
 	}
 }
 

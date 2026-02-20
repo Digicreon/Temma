@@ -27,7 +27,7 @@ class DbMock {
 		return [
 			'id' => $id,
 			'name' => 'Catégorie 1',
-			'dateCreation' => date('Y-m-d H-i-s'),
+			'dateCreation' => '2026-02-20 16:49:32',
 		];
 	}
 }
@@ -36,10 +36,11 @@ $loader['db'] = $dbMock;
 class CategoryValidator implements \Temma\Utils\Validation\Validator {
 	public function __construct(private DbMock $db){
 	}
-	public function validate(mixed $data, array $contract=[]) : mixed {
+	public function validate(mixed $data, array $contract=[], mixed &$output=null) : mixed {
 		if (!is_numeric($data))
 			throw new TµApplicationException("Bad value.");
 		$category = $this->db->getCategory($data);
+		$output = $category;
 		return $category;
 	}
 }
@@ -93,6 +94,21 @@ $tests = [
 		'strict' => false,
 		'expect' => true,
 	],
+	[
+		[
+			'type' => 'null',
+			'default' => 123,
+		],
+		'abc',
+		'strict' => false,
+		'expect' => 'io',
+	],
+	[
+		'null; default: null', 123,
+		'strict' => true,
+		'expect' => true,
+		'output' => null,
+	],
 	'false',
 	[
 		'false', null,
@@ -129,6 +145,13 @@ $tests = [
 		'strict' => false,
 		'expect' => 'app',
 	],
+	[
+		'false', 0,
+		'strict' => false,
+		'expect' => true,
+		'res' => false,
+		'output' => false,
+	],
 	'true',
 	[
 		'true', true,
@@ -159,6 +182,13 @@ $tests = [
 		'=true; default: true', false,
 		'strict' => false,
 		'expect' => true,
+	],
+	[
+		'true', true,
+		'strict' => true,
+		'expect' => true,
+		'res' => true,
+		'output' => true,
 	],
 	'bool',
 	[
@@ -210,6 +240,13 @@ $tests = [
 		'strict' => 'true',
 		'expect' => true,
 		'res' => true,
+	],
+	[
+		'bool', true,
+		'strict' => true,
+		'expect' => true,
+		'res' => true,
+		'output' => true,
 	],
 	'int',
 	[
@@ -358,6 +395,12 @@ $tests = [
 		'expect' => true,
 		'res' => 3,
 	],
+	[
+		'int', 12,
+		'strict' => true,
+		'expect' => true,
+		'output' => 12,
+	],
 	'float',
 	[
 		'float', null,
@@ -504,6 +547,13 @@ $tests = [
 		'expect' => true,
 		'res' => 5.5,
 	],
+	[
+		'float', 12.56,
+		'strict' => true,
+		'expect' => true,
+		'res' => 12.56,
+		'output' => 12.56,
+	],
 	'string',
 	[
 		'string', 'abc def',
@@ -644,6 +694,13 @@ $tests = [
 		'strict' => false,
 		'expect' => 'app',
 	],
+	[
+		'string', 12,
+		'strict' => false,
+		'expecct' => true,
+		'res' => '12',
+		'output' => '12',
+	],
 	'email',
 	[
 		'email', 'toto',
@@ -718,6 +775,13 @@ $tests = [
 		'tutu@tutu.com',
 		'strict' => false,
 		'expect' => 'app',
+	],
+	[
+		'email', 'toto@toto.com',
+		'strict' => false,
+		'expect' => true,
+		'value' => 'toto@toto.com',
+		'output' => 'toto@toto.com',
 	],
 	'url',
 	[
@@ -801,6 +865,19 @@ $tests = [
 		'strict' => false,
 		'expect' => 'app',
 	],
+	[
+		'url', 'https://www.toto.com/aa/bb?dd=ee&ff=gg',
+		'strict' => false,
+		'expect' => true,
+		'res' => 'https://www.toto.com/aa/bb?dd=ee&ff=gg',
+		'output' => [
+			'scheme' => "https",
+			'host' => "www.toto.com",
+			'path' => "/aa/bb",
+			'query' => "dd=ee&ff=gg",
+			'domain' => "toto.com",
+		],
+	],
 	'uuid',
 	[
 		'uuid', '123e4567-e89b-12d3-a456-426614174003',
@@ -818,7 +895,19 @@ $tests = [
 		'expect' => true,
 		'res' => '123e4567-e89b-12d3-a456-426614174003',
 	],
+	[
+		'uuid', '123e4567-e89b-12d3-a456-426614174003',
+		'strict' => false,
+		'expect' => true,
+		'res' => '123e4567-e89b-12d3-a456-426614174003',
+		'output' => '123e4567-e89b-12d3-a456-426614174003',
+	],
 	'hash',
+	[
+		'hash', md5('abc'),
+		'strict' => false,
+		'expect' => 'io',
+	],
 	[
 		'hash; algo: md5', md5('abc'),
 		'strict' => false,
@@ -854,6 +943,13 @@ $tests = [
 		'strict' => false,
 		'expect' => true,
 	],
+	[
+		'hash; algo: md5', md5('abc'),
+		'strict' => false,
+		'expect' => true,
+		'res' => md5('abc'),
+		'output' => md5('abc'),
+	],
 	'binary',
 	[
 		'binary', 'aqwzsxedcrfv',
@@ -885,11 +981,13 @@ $tests = [
 		'binary; mime: image/gif', $gif,
 		'strict' => false,
 		'expect' => true,
+		'res' => $gif,
 	],
 	[
 		'binary; mime: image, application/pdf', $gif,
 		'strict' => false,
 		'expect' => true,
+		'res' => $gif,
 	],
 	[
 		'binary; mime: image/png, application/pdf', $gif,
@@ -921,12 +1019,19 @@ $tests = [
 		'aa',
 		'strict' => false,
 		'expect' => true,
+		'res' => $gif,
+		'output' => [
+			'binary' => $gif,
+			'mime' => 'image/gif',
+			'charset' => 'binary',
+		],
 	],
 	'base64',
 	[
 		'base64', base64_encode($gif),
 		'strict' => false,
 		'expect' => true,
+		'res' => base64_encode($gif),
 	],
 	[
 		'base64', 'a',
@@ -937,12 +1042,13 @@ $tests = [
 		'base64; default: ' . base64_encode($gif), null,
 		'strict' => false,
 		'expect' => true,
-		'res' => $gif,
+		'res' => base64_encode($gif),
 	],
 	[
 		'base64; mime: image/gif', base64_encode($gif),
 		'strict' => false,
 		'expect' => true,
+		'res' => base64_encode($gif),
 	],
 	[
 		'base64; minLen: 3', 'aa',
@@ -958,6 +1064,17 @@ $tests = [
 		'base64; maxLen: 2', base64_encode($gif),
 		'strict' => true,
 		'expect' => 'app',
+	],
+	[
+		'base64', base64_encode($gif),
+		'strict' => true,
+		'expect' => true,
+		'res' => base64_encode($gif),
+		'output' => [
+			'binary' => $gif,
+			'mime' => 'image/gif',
+			'charset' => 'binary',
+		],
 	],
 	'date',
 	[
@@ -1174,6 +1291,25 @@ $tests = [
 		'expect' => true,
 		'res' => '2026-02-07 19:05:34',
 	],
+	[
+		'datetime', '2026-02-07 19:05:34',
+		'strict' => false,
+		'expect' => true,
+		'res' => '2026-02-07 19:05:34',
+		'output' => [
+			'iso' => "2026-02-07T19:05:34.000+00:00",
+			'timestamp' => 1770491134,
+			'timezone' => "UTC",
+			'offset' => 0,
+			'year' => 2026,
+			'month' => 2,
+			'day' => 7,
+			'hour' => 19,
+			'minute' => 5,
+			'second' => 34,
+			'micro' => 0,
+		],
+	],
 	'isbn',
 	[
 		'isbn', null,
@@ -1206,6 +1342,13 @@ $tests = [
 		'expect' => true,
 		'res' => '9783161484100',
 	],
+	[
+		'isbn', '0-306-40615-2',
+		'strict' => true,
+		'expect' => true,
+		'res' => '0306406152',
+		'output' => '0306406152',
+	],
 	'ean',
 	[
 		'ean', 'abc',
@@ -1228,6 +1371,13 @@ $tests = [
 		'strict' => false,
 		'expect' => 'app',
 	],
+	[
+		'ean', '4006381333931',
+		'strict' => false,
+		'expect' => true,
+		'res' => '4006381333931',
+		'output' => '4006381333931',
+	],
 	'ipv4',
 	[
 		'ipv4', '123.123',
@@ -1246,6 +1396,13 @@ $tests = [
 		'expect' => true,
 		'res' => '127.0.0.1',
 	],
+	[
+		'ipv4', '127.0.0.1',
+		'strict' => true,
+		'expect' => true,
+		'res' => '127.0.0.1',
+		'output' => '127.0.0.1',
+	],
 	'ipv6',
 	[
 		'ipv6', 'abc',
@@ -1262,6 +1419,13 @@ $tests = [
 		'strict' => false,
 		'expect' => true,
 		'res' => '::1',
+	],
+	[
+		'ipv6', '::1',
+		'strict' => true,
+		'expect' => true,
+		'res' => '::1',
+		'output' => '::1',
 	],
 	'ip',
 	[
@@ -1285,6 +1449,13 @@ $tests = [
 		'expect' => true,
 		'res' => '::1',
 	],
+	[
+		'ip; default: 127.0.0.1', 'abc',
+		'strict' => true,
+		'expect' => true,
+		'res' => '127.0.0.1',
+		'output' => '127.0.0.1',
+	],
 	'mac',
 	[
 		'mac', 'abcabc',
@@ -1301,6 +1472,13 @@ $tests = [
 		'strict' => false,
 		'expect' => true,
 		'res' => '00:1A:2B:3C:4D:5E',
+	],
+	[
+		'mac', '00:1A:2B:3C:4D:5E',
+		'strict' => false,
+		'expect' => true,
+		'res' => '00:1A:2B:3C:4D:5E',
+		'output' => '00:1A:2B:3C:4D:5E',
 	],
 	'port',
 	[
@@ -1338,6 +1516,20 @@ $tests = [
 		'strict' => false,
 		'expect' => true,
 		'res' => 32000,
+	],
+	[
+		'port', 123,
+		'strict' => true,
+		'expect' => true,
+		'res' => 123,
+		'output' => 123,
+	],
+	[
+		'port', '123',
+		'strict' => false,
+		'expect' => true,
+		'res' => 123,
+		'output' => 123,
 	],
 	'slug',
 	[
@@ -1389,6 +1581,13 @@ $tests = [
 		'strict' => false,
 		'expect' => 'app',
 	],
+	[
+		'slug', 'aa',
+		'strict' => true,
+		'expect' => true,
+		'res' => 'aa',
+		'output' => 'aa',
+	],
 	'color',
 	[
 		'color', '#0000ff',
@@ -1414,6 +1613,13 @@ $tests = [
 		'expect' => true,
 		'res' => '#aabbcc',
 	],
+	[
+		'color', 'aabbcc',
+		'strict' => true,
+		'expect' => true,
+		'res' => '#aabbcc',
+		'output' => '#aabbcc',
+	],
 	'geo',
 	[
 		'geo', '48.8566, 2.3522',
@@ -1430,6 +1636,13 @@ $tests = [
 		'strict' => false,
 		'expect' => true,
 		'res' => '48.8566, 2.3522',
+	],
+	[
+		'geo', '48.8566, 2.3522',
+		'strict' => true,
+		'expect' => true,
+		'res' => '48.8566, 2.3522',
+		'output' => '48.8566, 2.3522',
 	],
 	'phone',
 	[
@@ -1459,6 +1672,13 @@ $tests = [
 		'strict' => false,
 		'expect' => true,
 		'res' => '+1 514-123-4567',
+	],
+	[
+		'phone', '0102030405',
+		'strict' => true,
+		'expect' => true,
+		'res' => '0102030405',
+		'output' => '0102030405',
 	],
 	'enum',
 	[
@@ -1498,6 +1718,13 @@ $tests = [
 		'strict' => true,
 		'expect' => true,
 		'res' => 'red',
+	],
+	[
+		'enum; values: red, green', 'red',
+		'strict' => true,
+		'expect' => true,
+		'res' => 'red',
+		'output' => 'red',
 	],
 	'list',
 	[
@@ -1604,6 +1831,13 @@ $tests = [
 		'strict' => true,
 		'expect' => true,
 	],
+	[
+		'list', [1, 2],
+		'strict' => true,
+		'expect' => true,
+		'res' => [1, 2],
+		'output' => [1, 2],
+	],
 	'assoc',
 	[
 		'assoc', null,
@@ -1670,6 +1904,13 @@ $tests = [
 		'strict' => true,
 		'expect' => true,
 	],
+	[
+		'assoc; keys: aa, bb', ['aa' => 1, 'bb' => 2],
+		'strict' => true,
+		'expect' => true,
+		'res' => ['aa' => 1, 'bb' => 2],
+		'output' => ['aa' => 1, 'bb' => 2],
+	],
 	'json',
 	[
 		'json', '{abc!',
@@ -1688,6 +1929,13 @@ $tests = [
 		'res' => 123,
 	],
 	[
+		'json', '{"id" : 3, "name": "Toto"}',
+		'strict' => true,
+		'except' => true,
+		'res' => '{"id" : 3, "name": "Toto"}',
+		'output' => ['id' => 3, 'name' => 'Toto'],
+	],
+	[
 		[
 			'type' => 'json',
 			'contract' => [
@@ -1701,6 +1949,8 @@ $tests = [
 		'{"id": 3, "name": "Toto"}',
 		'strict' => true,
 		'expect' => true,
+		'res' => '{"id": 3, "name": "Toto"}',
+		'output' => ['id' => 3, 'name' => 'Toto'],
 	],
 	'list + assoc',
 	[
@@ -1718,6 +1968,16 @@ $tests = [
 		],
 		'strict' => false,
 		'expect' => true,
+		'res' => [
+			['id' => 3, 'login' => 'toto'],
+			['id' => 4, 'login' => 'tutu'],
+			['id' => 5, 'login' => 'titi'],
+		],
+		'output' => [
+			['id' => 3, 'login' => 'toto'],
+			['id' => 4, 'login' => 'tutu'],
+			['id' => 5, 'login' => 'titi'],
+		],
 	],
 	[
 		[
@@ -1750,6 +2010,16 @@ $tests = [
 		],
 		'strict' => false,
 		'expect' => true,
+		'res' => [
+			['id' => 3, 'login' => 'toto'],
+			['id' => 4, 'login' => 'tutu'],
+			['id' => 5, 'login' => 'titi'],
+		],
+		'output' => [
+			['id' => 3, 'login' => 'toto'],
+			['id' => 4, 'login' => 'tutu'],
+			['id' => 5, 'login' => 'titi'],
+		],
 	],
 	[
 		[
@@ -1783,6 +2053,16 @@ $tests = [
 		],
 		'strict' => true,
 		'expect' => true,
+		'res' => [
+			['id' => 3, 'login' => 'toto'],
+			['id' => 4, 'login' => 'tutu'],
+			['id' => 5, 'login' => 'titi', 'name' => 'aaa'],
+		],
+		'output' => [
+			['id' => 3, 'login' => 'toto'],
+			['id' => 4, 'login' => 'tutu'],
+			['id' => 5, 'login' => 'titi', 'name' => 'aaa'],
+		],
 	],
 	'?int',
 	[
@@ -1807,12 +2087,14 @@ $tests = [
 		'strict' => false,
 		'expect' => true,
 		'res' => 3,
+		'output' => 3,
 	],
 	[
 		'=null|int', null,
 		'strict' => false,
 		'expect' => true,
 		'res' => null,
+		'output' => null,
 	],
 	'int|float',
 	[
@@ -1820,12 +2102,14 @@ $tests = [
 		'strict' => false,
 		'expect' => true,
 		'res' => 12,
+		'output' => 12,
 	],
 	[
 		'=int|float', 12.34,
 		'strict' => false,
 		'expect' => true,
 		'res' => 12.34,
+		'output' => 12.34,
 	],
 	'int|string',
 	[
@@ -1833,18 +2117,21 @@ $tests = [
 		'strict' => false,
 		'expect' => true,
 		'res' => 12,
+		'output' => 12,
 	],
 	[
 		'int|string', '12',
 		'strict' => true,
 		'expect' => true,
 		'res' => '12',
+		'output' => '12',
 	],
 	[
 		'int|string', 'abc',
 		'strict' => false,
 		'expect' => true,
 		'res' => 'abc',
+		'output' => 'abc',
 	],
 	'string|list',
 	[
@@ -1852,11 +2139,14 @@ $tests = [
 		'strict' => false,
 		'expect' => true,
 		'res' => 'abc',
+		'output' => 'abc',
 	],
 	[
 		'string|list', [1, 2, 3],
 		'strict' => false,
 		'expect' => true,
+		'res' => [1, 2, 3],
+		'output' => [1, 2, 3],
 	],
 	'int|list|assoc',
 	[
@@ -1869,6 +2159,7 @@ $tests = [
 		'strict' => true,
 		'expect' => true,
 		'res' => 123,
+		'output' => 123,
 	],
 	[
 		[
@@ -1880,6 +2171,7 @@ $tests = [
 		'strict' => true,
 		'expect' => true,
 		'res' => 123,
+		'output' => 123,
 	],
 	[
 		[
@@ -1890,6 +2182,8 @@ $tests = [
 		['aa', 'bb'],
 		'strict' => true,
 		'expect' => true,
+		'res' => ['aa', 'bb'],
+		'output' => ['aa', 'bb'],
 	],
 	[
 		[
@@ -1900,6 +2194,8 @@ $tests = [
 		['aa', 12],
 		'strict' => true,
 		'expect' => true,
+		'res' => ['aa', '12'],
+		'output' => ['aa', '12'],
 	],
 	[
 		[
@@ -1920,22 +2216,30 @@ $tests = [
 		['id' => 3, 'login' => 'toto'],
 		'strict' => true,
 		'expect' => true,
+		'res' => ['id' => 3, 'login' => 'toto'],
+		'output' => ['id' => 3, 'login' => 'toto'],
 	],
 	'user',
 	[
 		'user', ['id' => 3, 'login' => 'toto', 'name' => 'Mister Toto'],
 		'strict' => false,
 		'expect' => true,
+		'res' => ['id' => 3, 'login' => 'toto', 'name' => 'Mister Toto'],
+		'output' => ['id' => 3, 'login' => 'toto', 'name' => 'Mister Toto'],
 	],
 	[
 		'user', ['id' => 3, 'login' => 'toto', 'name' => 'Mister Toto'],
 		'strict' => true,
 		'expect' => true,
+		'res' => ['id' => 3, 'login' => 'toto', 'name' => 'Mister Toto'],
+		'output' => ['id' => 3, 'login' => 'toto', 'name' => 'Mister Toto'],
 	],
 	[
 		'user', ['id' => 3, 'login' => 'toto', 'name' => 'Mister Toto', 'age' => 33],
 		'strict' => false,
 		'expect' => true,
+		'res' => ['id' => 3, 'login' => 'toto', 'name' => 'Mister Toto'],
+		'output' => ['id' => 3, 'login' => 'toto', 'name' => 'Mister Toto'],
 	],
 	[
 		'user', ['id' => 3, 'login' => 'toto', 'name' => 'Mister Toto', 'age' => 33],
@@ -1947,6 +2251,8 @@ $tests = [
 		'category', 3,
 		'strict' => false,
 		'expect' => true,
+		'res' => ['id' => 3, 'name' => 'Catégorie 1', 'dateCreation' => '2026-02-20 16:49:32'],
+		'output' => ['id' => 3, 'name' => 'Catégorie 1', 'dateCreation' => '2026-02-20 16:49:32'],
 	],
 	[
 		'category', 'toto',
@@ -1968,6 +2274,7 @@ foreach ($tests as $test) {
 		continue;
 	}
 	$res = null;
+	$output = null;
 	$status = null; // statut du test (true = test réussi, false = test échoué)
 	$contract = $test[0]; // définition du contrat (string ou array)
 	$data = $test[1]; // donnée à valider
@@ -1977,17 +2284,17 @@ foreach ($tests as $test) {
 	$appE = false; // true si ApplicationException
 	$exceptionMsg = null;
 	try {
-		$res = TµDataFilter::process($data, $contract, $strict);
+		$res = TµDataFilter::process($data, $contract, $strict, output: $output);
 		$status = true;
 		if ($expect && is_string($expect))
 			$status = false;
 		if (array_key_exists('res', $test)) {
-			if (is_null($res) || is_scalar($res))
-				$compare = $res;
-			else if (is_array($res) && array_key_exists('binary', $res))
-				$compare = $res['binary'];
-			if ($compare !== $test['res'])
+			if (var_export($res, true) != var_export($test['res'], true))
 				$status = false;
+		}
+		if (array_key_exists('output', $test)) {
+			if (var_export($output, true) != var_export($test['output'], true))
+				$status = 0;
 		}
 	} catch (TµIOException $ie) {
 		$ioE = true;
@@ -1999,13 +2306,14 @@ foreach ($tests as $test) {
 		$exceptionMsg = $ae->getMessage();
 	}
 	print(TµAnsi::faint(sprintf("%02d", $count)) . ' ' .
-	      TµAnsi::color(($status ? 'green' : 'red'), ($status ? 'OK' : 'KO')) . ' ' .
+	      TµAnsi::color(($status ? 'green' : ($status === false ? 'red' : 'yellow')), ($status ? 'OK' : 'KO')) . ' ' .
 	      TµAnsi::color('blue', "'" . (is_string($contract) ? $contract : (isset($contract['type']) ? $contract['type'] : 'inferred assoc')) . "' ") .
 	      TµAnsi::color('yellow', ($ioE ? 'IOException ' : '') . ($appE ? 'AppException ' : '')) .
 	      TµAnsi::faint($exceptionMsg) .
 	      "\n");
 	if (($test['dump'] ?? false)) {
 		var_dump($res);
+		var_dump($output);
 	}
 	if (!$status)
 		$mustBreak = true;

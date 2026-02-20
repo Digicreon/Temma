@@ -20,11 +20,12 @@ class BinaryValidator implements Validator {
 	/**
 	 * Validate data.
 	 * @param	mixed	$data		Data to validate.
-	 * @param	array	$contract	Contract parameters.
+	 * @param	array	$contract	(optional) Contract parameters.
+	 * @param	mixed	&$output	(optional) Reference to output variable.
 	 * @return	mixed	The filtered data.
 	 * @throws	\Temma\Exceptions\Application	If the data is invalid.
 	 */
-	public function validate(mixed $data, array $contract=[]) : mixed {
+	public function validate(mixed $data, array $contract=[], mixed &$output=null) : mixed {
 		// get parameters
 		$strict = $contract['strict'] ?? false;
 		$default = $contract['default'] ?? null;
@@ -47,20 +48,20 @@ class BinaryValidator implements Validator {
 		}
 		// check data type 
 		if (!is_string($data))
-			return $this->_processDefault($contract, "Data is not a string.");
+			return $this->_processDefault($contract, "Data is not a string.", $output);
 		// check for empty buffer
 		if (empty($data))
-			return $this->_processDefault($contract, "Binary data is empty.");
+			return $this->_processDefault($contract, "Binary data is empty.", $output);
 		// check size
 		if ($minLen || $maxLen) {
 			$len = mb_strlen($data, 'ascii');
 			if ($maxLen && $len > $maxLen) {
 				if ($strict)
-					return $this->_processDefault($contract, "Data size doesn't respect the contract.");
+					return $this->_processDefault($contract, "Data size doesn't respect the contract.", $output);
 				$data = substr($data, 0, $maxLen);
 			}
 			if ($minLen && $len < $minLen)
-				return $this->_processDefault($contract, "Data size doesn't respect the contract.");
+				return $this->_processDefault($contract, "Data size doesn't respect the contract.", $output);
 		}
 		// detect MIME type and charset
 		$finfo = new \finfo(FILEINFO_MIME);
@@ -68,13 +69,14 @@ class BinaryValidator implements Validator {
 		if ($mimeInfo === false) {
 			// finfo failed, check if a MIME validation was requested
 			if ($mime)
-				return $this->_processDefault($contract, "Unable to detect MIME type.");
+				return $this->_processDefault($contract, "Unable to detect MIME type.", $output);
 			// no MIME validation requested
-			return [
+			$output = [
 				'binary'  => $data,
 				'mime'    => null,
 				'charset' => null,
 			];
+			return ($data);
 		}
 		$parts = explode(';', $mimeInfo);
 		$detectedMime = trim($parts[0]);
@@ -94,7 +96,7 @@ class BinaryValidator implements Validator {
 				}
 			}
 			if (!$found)
-				return $this->_processDefault($contract, "Data doesn't respect contract (bad MIME type '$detectedMime').");
+				return $this->_processDefault($contract, "Data doesn't respect contract (bad MIME type '$detectedMime').", $output);
 		}
 		// charset validation/conversion
 		if ($charset && $detectedCharset) {
@@ -109,24 +111,30 @@ class BinaryValidator implements Validator {
 			}
 			if (!$foundCharset) {
 				if ($strict)
-					return $this->_processDefault($contract, "Data doesn't respect contract (charset mismatch: expected one of [" . implode(', ', $charset) . "], got '$detectedCharset').");
+					return $this->_processDefault($contract, "Data doesn't respect contract (charset mismatch: expected one of [" . implode(', ', $charset) . "], got '$detectedCharset').", $output);
 				$data = mb_convert_encoding($data, $targetCharset, $detectedCharset);
 				$detectedCharset = $targetCharset;
 			}
 		}
-		return ([
+		$output = [
 			'binary'  => $data,
 			'mime'    => $detectedMime,
 			'charset' => $detectedCharset,
-		]);
+		];
+		return ($data);
 	}
-	/** Manage default value. */
-	private function _processDefault(array $contract, string $exceptionMsg) : mixed {
+	/**
+	 * Manage default value.
+	 * @param	array	$contract	Validation contract.
+	 * @param	string	$exceptionMsg	Exception message if no default value.
+	 * @param	mixed	&$output	Reference to output variable.
+	 */
+	private function _processDefault(array $contract, string $exceptionMsg, mixed &$output=null) : mixed {
 		$default = $contract['default'] ?? null;
 		if (is_null($default))
 			throw new TµApplicationException($exceptionMsg, TµApplicationException::API);
 		$contract['default'] = null;
-		return $this->validate($default, $contract);
+		return $this->validate($default, $contract, $output);
 	}
 }
 

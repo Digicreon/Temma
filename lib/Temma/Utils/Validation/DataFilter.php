@@ -85,18 +85,19 @@ class DataFilter {
 	 * @param	null|string|array	$contract	The contract. If set to null, the function act as a pass-through.
 	 * @param	bool			$strict		(optional) True to force strict type comparison.
 	 * @param	bool			$inline		(optional) Set to true if the call was inline (by recursion only).
+	 * @param	mixed			&$output	(optional) Reference to output variable.
 	 * @return	mixed	The cleaned data.
 	 * @throws	\Temma\Exceptions\IO		If the contract is not well formed (BAD_FORMAT).
 	 * @throws	\Temma\Exceptions\Application	If the input data doesn't respect the contract (API).
 	 */
-	static public function process(mixed $in, null|string|array $contract, bool $strict=false, bool $inline=false) : mixed {
+	static public function process(mixed $in, null|string|array $contract, bool $strict=false, bool $inline=false, mixed &$output=null) : mixed {
 		// manage pass-thru
 		if ($contract === null || $contract === '')
 			return ($in);
 		/* *** management of string contract *** */
 		if (is_string($contract)) {
 			$res = self::_parseContractString($contract);
-			return (self::process($in, $res, $strict, true));
+			return (self::process($in, $res, $strict, true, $output));
 		} else if (!is_array($contract)) {
 			throw new TµIOException("Bad contract.", TµIOException::BAD_FORMAT);
 		}
@@ -179,14 +180,14 @@ class DataFilter {
 						else if (isset($mergedContract['type']) && $mergedContract['type'] === $type)
 							unset($mergedContract['type']); // Remove self-referencing type if not redefined in target
 
-						return (self::process($in, $mergedContract, $strict, true));
+						return (self::process($in, $mergedContract, $strict, true, $output));
 					}
 				}
 				// get validator
 				$validator = self::_getValidatorInstance($type);
 				// pass type to validator (used by multi-type validators)
 				$params['currentType'] = $type;
-				return ($validator->validate($in, $params));
+				return ($validator->validate($in, $params, $output));
 			} catch (TµIOException $ie) {
 				// ill-formed contract
 				throw $ie;
