@@ -72,19 +72,11 @@ class Temma extends \Temma\Web\Controller {
 				$currentVersion = \Temma\Web\Framework::TEMMA_VERSION;
 				if (!preg_match('/^(\d+)\.(\d+)\.(\d+)$/', $currentVersion, $matches))
 					throw new \Exception("Unable to split current version.");
-				$currentMajor = $matches[1] ?? null;
-				$currentMinor = $matches[2] ?? null;
-				$currentPatch = $matches[3] ?? null;
-				if (is_null($currentMajor) || is_null($currentMinor) || is_null($currentPatch))
-					throw new \Exception("Bad current version number.");
+				[$currentMajor, $currentMinor, $currentPatch] = [$matches[1], $matches[2], $matches[3]];
 				// check requested tag
 				if (!preg_match('/^(\d+)\.(\d+)\.(\d+)$/', $version, $matches))
 					throw new \Exception("Unable to split requested version.");
-				$versionMajor = $matches[1] ?? null;
-				$versionMinor = $matches[2] ?? null;
-				$versionPatch = $matches[3] ?? null;
-				if (is_null($versionMajor) || is_null($versionMinor) || is_null($versionPatch))
-					throw new \Exception("Bad requested version number.");
+				[$versionMajor, $versionMinor, $versionPatch] = [$matches[1], $matches[2], $matches[3]];
 				if (!$force &&
 				    ($versionMajor < $currentMajor ||
 				     ($versionMajor == $currentMajor && $versionMinor < $currentMinor) ||

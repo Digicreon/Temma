@@ -342,8 +342,8 @@ class Ansi {
 		$res = 0;
 		while ($string) {
 			// search for ANSI control sequence
-			if (preg_match("/e\\[[0-9;]*m/", $string, $matches) && ($matches[1] ?? null)) {
-				$string = mb_substr($string, mb_strlen($matches[1]));
+			if (preg_match("/e\\[[0-9;]*m/", $string, $matches)) {
+				$string = mb_substr($string, mb_strlen($matches[0]));
 				continue;
 			}
 			$char = mb_substr($string, 0, 1);
@@ -375,8 +375,8 @@ class Ansi {
 		while ($string) {
 			// search for ANSI control sequence
 			if (preg_match("/e\\[[0-9;]*m/", $string, $matches)) {
-				$line .= $matches[1];
-				$string = mb_substr($string, mb_strlen($matches[1]));
+				$line .= $matches[0];
+				$string = mb_substr($string, mb_strlen($matches[0]));
 				continue;
 			}
 			$char = mb_substr($string, 0, 1);
