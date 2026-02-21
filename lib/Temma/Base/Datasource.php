@@ -104,6 +104,8 @@ abstract class Datasource implements \ArrayAccess, \Countable {
 			return (\Temma\Datasources\GoogleChat::factory($dsn));
 		if (str_starts_with($dsn, 'telegram://'))
 			return (\Temma\Datasources\Telegram::factory($dsn));
+		if (str_starts_with($dsn, 'openai://'))
+			return (\Temma\Datasources\OpenAi::factory($dsn));
 		if (str_starts_with($dsn, 'dummy://'))
 			return (\Temma\Datasources\Dummy::factory(''));
 		if (str_starts_with($dsn, 'env://')) {
