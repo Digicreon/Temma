@@ -102,17 +102,21 @@ abstract class Attribute implements \ArrayAccess {
 	}
 	/**
 	 * Define an HTTP redirection (302).
-	 * @param	?string	$url	Redirection URL, or null to remove the redirection.
+	 * @param	?string	$url		(optional) Redirection URL, or null to remove the redirection.
+	 * @param	bool	$referer	(optional) True to use the HTTP REFERER as redirection URL, with $url as fallback.
+	 *					False by default.
 	 */
-	final protected function _redirect(?string $url) : void {
-		$this->_response?->setRedirection($url);
+	final protected function _redirect(?string $url=null, bool $referer=false) : void {
+		$this->_response?->setRedirection($url, false, $referer);
 	}
 	/**
 	 * Define an HTTP redirection (301).
-	 * @param	string	$url	Redirection URL.
+	 * @param	?string	$url		(optional) Redirection URL.
+	 * @param	bool	$referer	(optional) True to use the HTTP REFERER as redirection URL, with $url as fallback.
+	 *					False by default.
 	 */
-	final protected function _redirect301(string $url) : void {
-		$this->_response?->setRedirection($url, true);
+	final protected function _redirect301(?string $url=null, bool $referer=false) : void {
+		$this->_response?->setRedirection($url, true, $referer);
 	}
 	/**
 	 * Define the view to use.

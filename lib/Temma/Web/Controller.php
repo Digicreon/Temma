@@ -194,20 +194,24 @@ class Controller implements \ArrayAccess {
 	}
 	/**
 	 * Define an HTTP redirection (302).
-	 * @param	?string	$url	Redirection URL, or null to remove the redirection.
+	 * @param	?string	$url		(optional) Redirection URL, or null to remove the redirection.
+	 * @param	bool	$referer	(optional) True to use the HTTP REFERER as redirection URL, with $url as fallback.
+	 *					False by default.
 	 * @return	int	self::EXEC_HALT (useful value to return from the controller).
 	 */
-	final protected function _redirect(?string $url) : int {
-		$this->_response->setRedirection($url);
+	final protected function _redirect(?string $url=null, bool $referer=false) : int {
+		$this->_response->setRedirection($url, false, $referer);
 		return (self::EXEC_HALT);
 	}
 	/**
 	 * Define an HTTP redirection (301).
-	 * @param	string	$url	Redirection URL.
+	 * @param	?string	$url		(optional) Redirection URL.
+	 * @param	bool	$referer	(optional) True to use the HTTP REFERER as redirection URL, with $url as fallback.
+	 *					False by default.
 	 * @return	int	self::EXEC_HALT (useful value to return from the controller).
 	 */
-	final protected function _redirect301(string $url) : int {
-		$this->_response->setRedirection($url, true);
+	final protected function _redirect301(?string $url=null, bool $referer=false) : int {
+		$this->_response->setRedirection($url, true, $referer);
 		return (self::EXEC_HALT);
 	}
 	/**

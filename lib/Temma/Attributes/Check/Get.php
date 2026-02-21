@@ -11,6 +11,7 @@ namespace Temma\Attributes\Check;
 
 use \Temma\Base\Log as TµLog;
 use \Temma\Exceptions\Application as TµApplicationException;
+use \Temma\Exceptions\Http as TµHttpException;
 use \Temma\Exceptions\FlowHalt as TµFlowHalt;
 
 /**
@@ -43,26 +44,28 @@ use \Temma\Exceptions\FlowHalt as TµFlowHalt;
 class Get extends \Temma\Web\Attribute {
 	/**
 	 * Constructor.
-	 * @param	string|array	$contract	Name of the configured contract, or name of the validation object, or
-	 *						associative array of parameters to check.
-	 * @param	bool		$strict		(optional) True to use strict matching. False by default.
-	 * @param	?string		$redirect	(optional) Redirection URL used if the check fails.
-	 * @param	?string		$redirectVar	(optional) Name of the template variable which contains the redirection URL.
-	 * @param	?string		$flashVar	(optional) Name of the session flash variable which will contain the invalid GET variable in case of redirection.
+	 * @param	string|array	$contract		Name of the configured contract, or name of the validation object, or
+	 *							associative array of parameters to check.
+	 * @param	bool		$strict			(optional) True to use strict matching. False by default.
+	 * @param	?string		$redirect		(optional) Redirection URL used if the check fails.
+	 * @param	?string		$redirectVar		(optional) Name of the template variable which contains the redirection URL.
+	 * @param	bool		$redirectReferer	(optional) True to use the HTTP REFERER as redirection URL. True by default.
+	 * @param	?string		$flashVar		(optional) Name of the session flash variable which will contain the invalid GET variable in case of redirection. ("form" by default)
 	 */
 	public function __construct(
 		protected string|array $contract,
 		protected bool $strict=false,
 		protected ?string $redirect=null,
 		protected ?string $redirectVar=null,
-		protected ?string $flashVar=null,
+		protected bool $redirectReferer=true,
+		protected ?string $flashVar='form',
 	) {
 	}
 	/**
 	 * Processing of the attribute.
 	 * @param	\Reflector	$context	Context of the element on which the attribute is applied
 	 *						(ReflectionClass, ReflectionMethod or ReflectionFunction).
-	 * @throws	\Temma\Exceptions\Application	If the parameters are not valid.
+	 * @throws	\Temma\Exceptions\Http		If the parameters are not valid and no redirect URL is available (403).
 	 * @throws	\Temma\Exceptions\FlowHalt	If the parameters are not valid and a redirect URL has been given.
 	 */
 	public function apply(\Reflector $context) : void {
@@ -70,9 +73,12 @@ class Get extends \Temma\Web\Attribute {
 			$this->_request->validateInput($this->contract, 'GET', $this->strict);
 		} catch (TµApplicationException $e) {
 			// manage redirection URL
-			$url = $this->redirect ?:                              // direct URL
-			       $this[$this->redirectVar] ?:                    // template variable
-			       $this->_config->xtra('security', 'redirect');   // general configuration
+			$url = $this->redirect                                  // direct URL
+			       ?: $this[$this->redirectVar]                     // template variable
+			       ?: ($this->redirectReferer                       // REFERER (if enabled)
+			           ? ($_SERVER['HTTP_REFERER'] ?? null)
+			           : null)
+			       ?: $this->_config->xtra('security', 'redirect'); // config
 			if ($url) {
 				TµLog::log('Temma/Web', 'DEBUG', "Redirecting to '$url'.");
 				if ($this->flashVar)
@@ -80,8 +86,8 @@ class Get extends \Temma\Web\Attribute {
 				$this->_redirect($url);
 				throw new TµFlowHalt();
 			}
-			// no redirection: throw the exception
-			throw $e;
+			// no redirection URL available
+			throw new TµHttpException("Forbidden.", 403);
 		}
 	}
 }

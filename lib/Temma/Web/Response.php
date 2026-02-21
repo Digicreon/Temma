@@ -51,10 +51,18 @@ class Response implements \ArrayAccess {
 	}
 	/**
 	 * Define a redirection.
-	 * @param	?string	$url		Redirection URL, or null to remove the redirection.
-	 * @param	bool	$code301	True for a 301 redirection. False by default (302 redirection).
+	 * @param	?string	$url		(optional) Redirection URL, or null to remove the redirection.
+	 * @param	bool	$code301	(optional) True for a 301 redirection. False by default (302 redirection).
+	 * @param	bool	$referer	(optional) True to use the HTTP REFERER as redirection URL, with $url as fallback.
+	 *					False by default.
 	 */
-	public function setRedirection(?string $url, bool $code301=false) : void {
+	public function setRedirection(?string $url=null, bool $code301=false, bool $referer=false) : void {
+		// if $referer is true, try the REFERER first, with $url as fallback
+		if ($referer) {
+			$refererUrl = $_SERVER['HTTP_REFERER'] ?? null;
+			if ($refererUrl)
+				$url = $refererUrl;
+		}
 		$this->_redirect = $url;
 		$this->_redirectCode = $code301 ? 301 : 302;
 	}
