@@ -37,10 +37,10 @@ use \Temma\Exceptions\FlowHalt as TµFlowHalt;
 class Get extends \Temma\Web\Attribute {
 	/**
 	 * Constructor.
-	 * @param	string|array	$contract	Name of the configured contract, or name of the validation object, or
-	 *						associative array of parameters to check.
+	 * @param	null|string|array	$contract	Name of the configured contract, or name of the validation object, or
+	 *							associative array of parameters to check. Null to remove contract.
 	 */
-	public function __construct(protected string|array $contract) {
+	public function __construct(protected null|string|array $contract) {
 	}
 	/**
 	 * Processing of the attribute.
