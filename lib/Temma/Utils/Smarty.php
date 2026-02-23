@@ -60,6 +60,8 @@ class Smarty implements \Temma\Base\Loadable {
 			$pluginPathList[] = $pluginsDir;
 		else if (is_array($pluginsDir))
 			$pluginPathList = array_merge($pluginPathList, $pluginsDir);
+		// auto-registration of temma-ui plugins
+		$pluginPathList[] = $this->_config->appPath . '/vendor/digicreon/temma-ui/lib/smarty-plugins';
 		$pluginPathList = array_merge($this->_smarty->getPluginsDir(), $pluginPathList);
 		$this->_smarty->setPluginsDir($pluginPathList);
 	}

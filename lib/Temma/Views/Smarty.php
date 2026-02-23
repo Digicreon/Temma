@@ -84,6 +84,8 @@ class Smarty extends \Temma\Web\View {
 			$pluginPathList[] = $pluginsDir;
 		else if (is_array($pluginsDir))
 			$pluginPathList = array_merge($pluginPathList, $pluginsDir);
+		// auto-registration of temma-ui plugins
+		$pluginPathList[] = $config->appPath . '/vendor/digicreon/temma-ui/lib/smarty-plugins';
 		if (!class_exists('\Smarty\Smarty')) {
 			// smarty 4
 			$pluginPathList = array_merge($this->_smarty->getPluginsDir(), $pluginPathList);
