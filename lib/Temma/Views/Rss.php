@@ -65,15 +65,17 @@ class Rss extends \Temma\Web\View {
 
 	/** Init. */
 	public function init() : void {
-		$this->_filename = $this->_response->getData('filename');
-		$this->_domain = $this->_response->getData('domain');
-		$this->_title = $this->_response->getData('title');
-		$this->_description = $this->_response->getData('description');
-		$this->_language = $this->_response->getData('language');
-		$this->_contact = $this->_response->getData('contact');
-		$this->_category = $this->_response->getData('category');
-		$this->_copyright = $this->_response->getData('copyright');
-		$this->_articles = $this->_response->getData('articles');
+		$data = $this->_response->getData('@output')
+		        ?: $this->_response->getData();
+		$this->_filename = $data['filename'] ?? null;
+		$this->_domain = $data['domain'] ?? null;
+		$this->_title = $data['title'] ?? null;
+		$this->_description = $data['description'] ?? null;
+		$this->_language = $data['language'] ?? null;
+		$this->_contact = $data['contact'] ?? null;
+		$this->_category = $data['category'] ?? null;
+		$this->_copyright = $data['copyright'] ?? null;
+		$this->_articles = $data['articles'] ?? null;
 	}
 	/** Write HTTP headers. */
 	public function sendHeaders($headers=null) :void {
