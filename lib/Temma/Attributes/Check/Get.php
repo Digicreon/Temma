@@ -51,6 +51,7 @@ class Get extends \Temma\Web\Attribute {
 	 * @param	?string		$redirectVar		(optional) Name of the template variable which contains the redirection URL.
 	 * @param	bool		$redirectReferer	(optional) True to use the HTTP REFERER as redirection URL. True by default.
 	 * @param	?string		$flashVar		(optional) Name of the session flash variable which will contain the invalid GET variable in case of redirection. ("form" by default)
+	 * @param	?string		$dataVar		(optional) Name of the template variable which will contain the validated GET data.
 	 */
 	public function __construct(
 		protected string|array $contract,
@@ -59,6 +60,7 @@ class Get extends \Temma\Web\Attribute {
 		protected ?string $redirectVar=null,
 		protected bool $redirectReferer=true,
 		protected ?string $flashVar='form',
+		protected ?string $dataVar=null,
 	) {
 	}
 	/**
@@ -70,7 +72,13 @@ class Get extends \Temma\Web\Attribute {
 	 */
 	public function apply(\Reflector $context) : void {
 		try {
-			$this->_request->validateInput($this->contract, 'GET', $this->strict);
+			if (!$this->dataVar) {
+				$this->_request->validateInput($this->contract, 'GET', $this->strict);
+			} else {
+				$data = null;
+				$this->_request->validateInput($this->contract, 'GET', $this->strict, $data);
+				$this[$this->dataVar] = $data;
+			}
 		} catch (TµApplicationException $e) {
 			// manage redirection URL
 			$url = $this->redirect                                  // direct URL

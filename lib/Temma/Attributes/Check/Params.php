@@ -50,6 +50,7 @@ class Params extends \Temma\Web\Attribute {
 	 * @param	?string		$redirectVar		(optional) Name of the template variable which contains the redirection URL.
 	 * @param	bool		$redirectReferer	(optional) True to use the HTTP REFERER as redirection URL. True by default.
 	 * @param	?string		$flashVar		(optional) Name of the session flash variable which will contain the invalid data in case of redirection. ("form" by default)
+	 * @param	?string		$dataVar		(optional) Name of the template variable which will contain the validated list of parameters.
 	 */
 	public function __construct(
 		protected string|array $contract,
@@ -58,6 +59,7 @@ class Params extends \Temma\Web\Attribute {
 		protected ?string $redirectVar=null,
 		protected bool $redirectReferer=true,
 		protected ?string $flashVar='form',
+		protected ?string $dataVar=null,
 	) {
 	}
 	/**
@@ -69,7 +71,13 @@ class Params extends \Temma\Web\Attribute {
 	 */
 	public function apply(\Reflector $context) : void {
 		try {
-			$this->_request->validateParams($this->contract, $this->strict);
+			if (!$this->dataVar) {
+				$this->_request->validateParams($this->contract, $this->strict);
+			} else {
+				$data = null;
+				$this->_request->validateParams($this->contract, $this->strict, $data);
+				$this[$this->dataVar] = $data;
+			}
 		} catch (TµApplicationException $e) {
 			// manage redirection URL
 			$url = $this->redirect                                  // direct URL

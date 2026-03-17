@@ -254,10 +254,11 @@ class Request {
 	 * @param	null|string|array	$contract	Contract to validate the parameters: name of the contract defined in the configuration file,
 	 *							or name of the validation object, or list of contracts (one contract per validated parameter).
 	 * @param	bool			$strict		(optional) True to use strict matching. False by default.
+	 * @param	mixed			&$output	(optional) Reference to output variable.
 	 * @throws	\Temma\Exceptions\IO		If the contracts are not valid.
 	 * @throws	\Temma\Exceptions\Application	If the parameters are not valid.
 	 */
-	public function validateParams(null|string|array $contract, bool $strict=false) : void {
+	public function validateParams(null|string|array $contract, bool $strict=false, mixed &$output=null) : void {
 		if (is_array($contract)) {
 			$contract = [
 				'type'   => 'list',
@@ -265,7 +266,7 @@ class Request {
 			];
 		}
 		$params = $this->getParams();
-		$params = TµDataFilter::process($params, $contract, $strict);
+		$params = TµDataFilter::process($params, $contract, $strict, output: $output);
 		$this->setParams($params);
 	}
 	/**
@@ -273,12 +274,13 @@ class Request {
 	 * @param	null|string|array	$contract	Contract to validate the parameters: name of the contract defined in the configuration file,
 	 *							or name of the validation object, or associative array (parameter names as keys,
 	 *							with associated contracts).
-	 * @param	?string			$source	(optional) Source of the parameters ('GET', 'POST'). If null, checks both.
-	 * @param	bool	$strict	(optional) True to use strict matching. False by default.
+	 * @param	?string			$source		(optional) Source of the parameters ('GET', 'POST'). If null, checks both.
+	 * @param	bool			$strict		(optional) True to use strict matching. False by default.
+	 * @param	mixed			&$output	(optional) Reference to output variable.
 	 * @throws	\Temma\Exceptions\Application	If the parameters are not valid.
 	 * @see		https://www.temma.net/en/documentation/helper-datafilter
 	 */
-	public function validateInput(null|string|array $contract, ?string $source=null, bool $strict=false) : void {
+	public function validateInput(null|string|array $contract, ?string $source=null, bool $strict=false, mixed &$output=null) : void {
 		$source = strtoupper($source ?? '');
 		$checkGet = ($source === 'GET' || ($source === '' && !empty($_GET)));
 		$checkPost = ($source === 'POST' || ($source === '' && !empty($_POST)));
@@ -291,23 +293,24 @@ class Request {
 		}
 		// validate
 		if ($checkGet)
-			$_GET = TµDataFilter::process($_GET, $contract, $strict);
+			$_GET = TµDataFilter::process($_GET, $contract, $strict, output: $output);
 		if ($checkPost)
-			$_POST = TµDataFilter::process($_POST, $contract, $strict);
+			$_POST = TµDataFilter::process($_POST, $contract, $strict, output: $output);
 	}
 	/**
 	 * Validate the request payload.
 	 * @param	null|string|array	$contract	Contract to validate the payload: name of the contract defined in the configuration file,
 	 *							or name of the validation object, or contract definition (as needed by the DataFilter object).
 	 * @param	bool			$strict		(optional) True to use strict matching. False by default.
+	 * @param	mixed			&$output	(optional) Reference to output variable.
 	 * @return	mixed	The validated data.
 	 * @throws	\Temma\Exceptions\Application	If the payload is not valid.
 	 * @see		https://www.temma.net/en/documentation/helper-datafilter
 	 */
-	public function validatePayload(null|string|array $contract, bool $strict=false) : mixed {
+	public function validatePayload(null|string|array $contract, bool $strict=false, mixed &$output=null) : mixed {
 		$inputSource = (php_sapi_name() === 'cli') ? 'php://stdin' : 'php://input';
 		$input = file_get_contents($inputSource);
-		return (TµDataFilter::process($input, $contract, $strict));
+		return (TµDataFilter::process($input, $contract, $strict, output: $output));
 	}
 	/**
 	 * Validate uploaded files.
@@ -349,18 +352,20 @@ class Request {
 			if (!is_array($_FILES[$key]['name'])) {
 				// handle single file
 				$content = file_get_contents($_FILES[$key]['tmp_name']);
-				$result = TµDataFilter::process($content, $subcontract, $strict);
+				$output = null;
+				TµDataFilter::process($content, $subcontract, $strict, output: $output);
 				// update MIME type in $_FILES
-				if (isset($result['mime']))
-					$_FILES[$key]['type'] = $result['mime'];
+				if (isset($output['mime']))
+					$_FILES[$key]['type'] = $output['mime'];
 			} else {
 				// handle multiple files (array)
 				foreach ($_FILES[$key]['name'] as $i => $name) {
 					$content = file_get_contents($_FILES[$key]['tmp_name'][$i]);
-					$result = TµDataFilter::process($content, $subcontract, $strict);
+					$output = null;
+					TµDataFilter::process($content, $subcontract, $strict, output: $output);
 					// update MIME type in $_FILES
-					if (isset($result['mime']))
-						$_FILES[$key]['type'][$i] = $result['mime'];
+					if (isset($output['mime']))
+						$_FILES[$key]['type'][$i] = $output['mime'];
 				}
 			}
 		}
@@ -373,15 +378,17 @@ class Request {
 				// validate extra file
 				if (!is_array($_FILES[$fileKey]['name'])) {
 					$content = file_get_contents($_FILES[$fileKey]['tmp_name']);
-					$result = TµDataFilter::process($content, $wildcardContract, $strict);
-					if (isset($result['mime']))
-						$_FILES[$fileKey]['type'] = $result['mime'];
+					$output = null;
+					TµDataFilter::process($content, $wildcardContract, $strict, output: $output);
+					if (isset($output['mime']))
+						$_FILES[$fileKey]['type'] = $output['mime'];
 				} else {
 					foreach ($_FILES[$fileKey]['name'] as $i => $name) {
 						$content = file_get_contents($_FILES[$fileKey]['tmp_name'][$i]);
-						$result = TµDataFilter::process($content, $wildcardContract, $strict);
-						if (isset($result['mime']))
-							$_FILES[$fileKey]['type'][$i] = $result['mime'];
+						$output = null;
+						TµDataFilter::process($content, $wildcardContract, $strict, output: $output);
+						if (isset($output['mime']))
+							$_FILES[$fileKey]['type'][$i] = $output['mime'];
 					}
 				}
 			}
