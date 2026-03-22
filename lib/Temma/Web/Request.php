@@ -291,11 +291,15 @@ class Request {
 				'keys' => $contract,
 			];
 		}
-		// validate
-		if ($checkGet)
-			$_GET = TµDataFilter::process($_GET, $contract, $strict, output: $output);
-		if ($checkPost)
-			$_POST = TµDataFilter::process($_POST, $contract, $strict, output: $output);
+		// validate (empty strings are treated as absent values, as HTML forms send "" for unfilled fields)
+		if ($checkGet) {
+			$data = array_filter($_GET, fn($v) => $v !== '');
+			$_GET = TµDataFilter::process($data, $contract, $strict, output: $output);
+		}
+		if ($checkPost) {
+			$data = array_filter($_POST, fn($v) => $v !== '');
+			$_POST = TµDataFilter::process($data, $contract, $strict, output: $output);
+		}
 	}
 	/**
 	 * Validate the request payload.
