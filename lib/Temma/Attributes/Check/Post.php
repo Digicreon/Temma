@@ -80,6 +80,7 @@ class Post extends \Temma\Web\Attribute {
 				$this[$this->dataVar] = $data;
 			}
 		} catch (TµApplicationException $e) {
+			TµLog::log('Temma/Web', 'NOTE', "POST validation failed: " . $e->getMessage());
 			// manage redirection URL
 			$url = $this->redirect                                  // direct URL
 			       ?: $this[$this->redirectVar]                     // template variable

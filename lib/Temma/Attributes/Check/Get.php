@@ -80,6 +80,7 @@ class Get extends \Temma\Web\Attribute {
 				$this[$this->dataVar] = $data;
 			}
 		} catch (TµApplicationException $e) {
+			TµLog::log('Temma/Web', 'NOTE', "GET validation failed: " . $e->getMessage());
 			// manage redirection URL
 			$url = $this->redirect                                  // direct URL
 			       ?: $this[$this->redirectVar]                     // template variable

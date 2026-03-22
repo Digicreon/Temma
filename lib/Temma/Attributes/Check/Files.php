@@ -67,6 +67,7 @@ class Files extends \Temma\Web\Attribute {
 		try {
 			$this->_request->validateFiles($this->contract, $this->strict);
 		} catch (TµApplicationException $e) {
+			TµLog::log('Temma/Web', 'NOTE', "Files validation failed: " . $e->getMessage());
 			// manage redirection URL
 			$url = $this->redirect                                  // direct URL
 			       ?: $this[$this->redirectVar]                     // template variable
