@@ -235,7 +235,7 @@ class Socket extends \Temma\Base\Datasource {
 	 * @return	array	Never returned.
 	 * @throws	\Temma\Exceptions\Database	Always throws an exception.
 	 */
-	public function search(string $pattern, bool $getValues=false) : array {
+	public function search(string $pattern, bool $getValues=false, int $offset=0, int $limit=0) : array {
 		throw new \Temma\Exceptions\Database("No search() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);
 	}
 	/**

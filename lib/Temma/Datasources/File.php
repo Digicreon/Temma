@@ -101,13 +101,18 @@ class File extends \Temma\Base\Datasource {
 	/* ********** ARRAY-LIKE REQUESTS ********** */
 	/**
 	 * Return the number of files.
+	 * @param	?string	$pattern	(optional) Glob pattern to match. Null to count all files.
 	 * @return 	int	The number of files.
 	 */
-	public function count() : int {
+	public function count(?string $pattern=null) : int {
 		if (!$this->_enabled)
 			return (0);
-		$fi = new \FilesystemIterator($this->_rootPath);
-		return (iterator_count($fi));
+		if ($pattern === null) {
+			$fi = new \FilesystemIterator($this->_rootPath);
+			return (iterator_count($fi));
+		}
+		$pattern = $this->_cleanPath($pattern);
+		return (count(glob($this->_rootPath . '/' . $pattern)));
 	}
 
 	/* ********** STANDARD REQUESTS ********** */
@@ -163,18 +168,21 @@ class File extends \Temma\Base\Datasource {
 	 * Search all files matching a pattern.
 	 * @param	string	$pattern	The pattern.
 	 * @param	bool	$getValues	(optional) True to fetch the associated values. False by default.
+	 * @param	int	$offset		(optional) Number of items to skip. 0 by default.
+	 * @param	int	$limit		(optional) Maximum number of items to return. 0 means no limit.
 	 * @return	array	List of keys, or associative array of key-value pairs.
 	 * @throws	\Exception	If an error occured.
 	 */
-	public function find(string $pattern, bool $getValues=false) : array {
+	public function find(string $pattern, bool $getValues=false, int $offset=0, int $limit=0) : array {
 		if (!$this->_enabled)
 			return ([]);
 		$pattern = $this->_cleanPath($pattern);
 		$files = glob($this->_rootPath . '/' . $pattern);
+		if ($offset > 0 || $limit > 0)
+			$files = array_slice($files, $offset, $limit ?: null);
 		if (!$getValues)
 			return ($files);
-		$files = $this->mRead($files);
-		return ($files);
+		return ($this->mRead($files));
 	}
 	/**
 	 * Get a file. The raw content of the file is returned (not JSON-decoded).

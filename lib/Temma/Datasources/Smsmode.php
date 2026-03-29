@@ -153,9 +153,11 @@ class Smsmode extends \Temma\Base\Datasource {
 		if (!$text)
 			return (null);
 		// unicode
-		$unicode = false;
-		if (!\Temma\Utils\Text::encodingCompatible($text, 'iso-8859-15'))
-			$unicode = true;
+		$unicode = true;
+		if (\Temma\Utils\Text::encodingCompatible($text, 'iso-8859-15')) {
+			$unicode = false;
+			$text = mb_convert_encoding($text, 'iso-8859-15', 'utf-8');
+		}
 		// parameters
 		$params = [
 			'numero'  => is_array($recipient) ? implode(',', $recipient) : $recipient,
@@ -257,7 +259,7 @@ class Smsmode extends \Temma\Base\Datasource {
 	 * @return	array	Never returned.
 	 * @throws	\Temma\Exceptions\Database	Always throws an exception.
 	 */
-	public function search(string $pattern, bool $getValues=false) : array {
+	public function search(string $pattern, bool $getValues=false, int $offset=0, int $limit=0) : array {
 		throw new \Temma\Exceptions\Database("No search() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);
 	}
 	/**

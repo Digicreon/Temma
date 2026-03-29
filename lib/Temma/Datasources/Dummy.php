@@ -72,9 +72,11 @@ class Dummy extends \Temma\Base\Datasource {
 	 * find
 	 * @param	string	$pattern	Not used.
 	 * @param	bool	$getValues	(optional) Not used.
+	 * @param	int	$offset		(optional) Not used.
+	 * @param	int	$limit		(optional) Not used.
 	 * @return	array	Empty array.
 	 */
-	public function find(string $pattern, bool $getValues=false) : array {
+	public function find(string $pattern, bool $getValues=false, int $offset=0, int $limit=0) : array {
 		return ([]);
 	}
 	/**
@@ -161,9 +163,11 @@ class Dummy extends \Temma\Base\Datasource {
 	 * Search
 	 * @param	string	$pattern	Not used.
 	 * @param	bool	$getValues	(optional) Not used.
+	 * @param	int	$offset		(optional) Not used.
+	 * @param	int	$limit		(optional) Not used.
 	 * @return	array	Empty array.
 	 */
-	public function search(string $pattern, bool $getValues=false) : array {
+	public function search(string $pattern, bool $getValues=false, int $offset=0, int $limit=0) : array {
 		return ([]);
 	}
 	/**

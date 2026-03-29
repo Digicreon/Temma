@@ -183,20 +183,21 @@ class S3 extends \Temma\Base\Datasource {
 	/* ********** ARRAY-LIKE REQUESTS ********** */
 	/**
 	 * Get the number of files.
+	 * @param	?string	$pattern	(optional) Prefix to match. Null to count all files.
 	 * @return	int	The number of files.
 	 */
-	public function count() : int {
+	public function count(?string $pattern=null) : int {
 		if (!$this->_enabled)
 			return (0);
 		$this->connect();
 		$count = 0;
 		try {
-			$objects = $this->_s3Client->getIterator('ListObjects', [
-				'Bucket' => $this->_bucket,
-			]);
-			foreach ($objects as $object) {
+			$params = ['Bucket' => $this->_bucket];
+			if ($pattern !== null)
+				$params['Prefix'] = $pattern;
+			$objects = $this->_s3Client->getIterator('ListObjects', $params);
+			foreach ($objects as $object)
 				$count++;
-			}
 		} catch (\Exception $e) {
 			TµLog::log('Temma/Base', 'INFO', "Unable to list files on AWS S3. Bucket='{$this->_bucket}'.");
 		}
@@ -325,10 +326,12 @@ class S3 extends \Temma\Base\Datasource {
 	 * Search all S3 files starting with the given prefix.
 	 * @param	string	$prefix		Key prefix.
 	 * @param	bool	$getValues	(optional) True to fetch the associated values. False by default.
+	 * @param	int	$offset		(optional) Number of items to skip. 0 by default.
+	 * @param	int	$limit		(optional) Maximum number of items to return. 0 means no limit.
 	 * @return	array	List of keys, or associative array of key-value pairs.
 	 * @throws	\Exception	If an error occured.
 	 */
-	public function find(string $prefix, bool $getValues=false) : array {
+	public function find(string $prefix, bool $getValues=false, int $offset=0, int $limit=0) : array {
 		if (!$this->_enabled)
 			return ([]);
 		$this->connect();
@@ -338,11 +341,20 @@ class S3 extends \Temma\Base\Datasource {
 				'Bucket' => $this->_bucket,
 				'Prefix' => $prefix,
 			]);
+			$skipped = 0;
+			$collected = 0;
 			foreach ($objects as $object) {
+				if ($skipped < $offset) {
+					$skipped++;
+					continue;
+				}
 				if ($getValues)
 					$list[$object['Key']] = $this->read($object['Key']);
 				else
 					$list[] = $object['Key'];
+				$collected++;
+				if ($limit > 0 && $collected >= $limit)
+					break;
 			}
 		} catch (\Exception $e) {
 			TµLog::log('Temma/Base', 'INFO', "Unable to list files on AWS S3. Bucket='{$this->_bucket}'.");

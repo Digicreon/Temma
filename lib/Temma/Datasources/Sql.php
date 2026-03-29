@@ -560,13 +560,16 @@ class Sql extends \Temma\Base\Datasource {
 	/* ********** ARRAY-LIKE REQUESTS ********** */
 	/**
 	 * Return the number of elements.
+	 * @param	?string	$pattern	(optional) Prefix to match. Null to count all elements.
 	 * @return	int	The number of elements.
 	 */
-	public function count() : int {
+	public function count(?string $pattern=null) : int {
 		if (!$this->_enabled)
 			return (0);
 		$sql = "SELECT COUNT(*) AS cnt
 		        FROM TemmaData";
+		if ($pattern !== null)
+			$sql .= " WHERE key LIKE " . $this->quote("$pattern%");
 		$res = $this->queryOne($sql);
 		return ($res['cnt']);
 	}
@@ -637,9 +640,11 @@ class Sql extends \Temma\Base\Datasource {
 	 * Return a list of keys that match a pattern.
 	 * @param	string	$prefix		The prefix to match.
 	 * @param	bool	$getValues	(optional) True to fetch the associated values. False by default.
+	 * @param	int	$offset		(optional) Number of items to skip. 0 by default.
+	 * @param	int	$limit		(optional) Maximum number of items to return. 0 means no limit.
 	 * @return	array	List of keys, or associative array of key-value pairs.
 	 */
-	public function find(string $prefix, bool $getValues=false) : array {
+	public function find(string $prefix, bool $getValues=false, int $offset=0, int $limit=0) : array {
 		if (!$this->_enabled)
 			return ([]);
 		$sql = "SELECT key";
@@ -647,6 +652,10 @@ class Sql extends \Temma\Base\Datasource {
 			$sql .= ", data";
 		$sql .= " FROM TemmaData
 		         WHERE key LIKE " . $this->quote("$prefix%");
+		if ($limit > 0)
+			$sql .= " LIMIT $limit OFFSET $offset";
+		else if ($offset > 0)
+			$sql .= " LIMIT " . PHP_INT_MAX . " OFFSET $offset";
 		$data = $this->queryAll($sql);
 		$result = [];
 		foreach ($data as $line) {

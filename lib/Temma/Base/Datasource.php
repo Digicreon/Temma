@@ -202,10 +202,12 @@ abstract class Datasource implements \ArrayAccess, \Countable {
 	 * Squeleton method for a lister method implemented by derived classes.
 	 * @param	string	$pattern	The pattern to match. The syntax depends on the datasource.
 	 * @param	bool	$getValues	(optional) True to fetch the associated values. False by default.
+	 * @param	int	$offset		(optional) Number of items to skip. 0 by default.
+	 * @param	int	$limit		(optional) Maximum number of items to return. 0 means no limit.
 	 * @return	array	List of keys, or associative array of key-value pairs.
 	 * @throws	\Temma\Exceptions\Database	Always throws an exception.
 	 */
-	public function find(string $pattern, bool $getValues=false) : array {
+	public function find(string $pattern, bool $getValues=false, int $offset=0, int $limit=0) : array {
 		throw new \Temma\Exceptions\Database("No find() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);
 	}
 	/**
@@ -353,12 +355,14 @@ abstract class Datasource implements \ArrayAccess, \Countable {
 	 * Squeleton method for a lister method implemented by derived classes.
 	 * @param	string	$pattern	The pattern to match. The syntax depends on the datasource.
 	 * @param	bool	$getValues	(optional) True to fetch the associated values. False by default.
+	 * @param	int	$offset		(optional) Number of items to skip. 0 by default.
+	 * @param	int	$limit		(optional) Maximum number of items to return. 0 means no limit.
 	 * @return	array	List of keys, or associative array of key-value pairs. Values are JSON-decoded.
 	 */
-	public function search(string $pattern, bool $getValues=false) : array {
+	public function search(string $pattern, bool $getValues=false, int $offset=0, int $limit=0) : array {
 		if (!$this->_enabled)
 			return ([]);
-		$data = $this->find($pattern, $getValues);
+		$data = $this->find($pattern, $getValues, $offset, $limit);
 		if ($getValues) {
 			array_walk($data, function(&$value, $key) {
 				if (is_string($value))
@@ -434,9 +438,10 @@ abstract class Datasource implements \ArrayAccess, \Countable {
 	/* ********** ARRAY SYNTAX ********** */
 	/**
 	 * Return the number of elements.
+	 * @param	?string	$pattern	(optional) Pattern to match. Null to count all elements.
 	 * @return	int	The number of stored elements.
 	 */
-	public function count() : int {
+	public function count(?string $pattern=null) : int {
 		throw new \Temma\Exceptions\Database("No count() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);
 	}
 	/** 

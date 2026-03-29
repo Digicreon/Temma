@@ -178,7 +178,7 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 	 * Return the number of keys.
 	 * @return	int	The number of keys.
 	 */
-	public function count() : int {
+	public function count(?string $pattern=null) : int {
 		if (!$this->_enabled)
 			return (0);
 		$this->connect();
@@ -314,7 +314,7 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 	 * @return	array	List of keys, or associative array of key-value pairs. Values are JSON-decoded.
 	 * @throws	\Temma\Exceptions\Database	Always throws an exception.
 	 */
-	public function search(string $pattern, bool $getValues=false) : array {
+	public function search(string $pattern, bool $getValues=false, int $offset=0, int $limit=0) : array {
 		throw new \Temma\Exceptions\Database("No search() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);
 	}
 	/**
