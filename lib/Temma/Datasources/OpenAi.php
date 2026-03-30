@@ -16,6 +16,9 @@ use \Temma\Base\Log as TµLog;
  *
  * This object is used to interact with the OpenAI Chat Completions API.
  *
+ * @deprecated	Use \Temma\Datasources\Ai with DSN "ai://openai/MODEL/KEY" instead.
+ * @see		\Temma\Datasources\Ai
+ *
  * <b>Usage</b>
  * <code>
  * // initialization
@@ -42,6 +45,7 @@ use \Temma\Base\Log as TµLog;
  * ]);
  * </code>
  */
+#[\Deprecated(reason: "Use \\Temma\\Datasources\\Ai with DSN 'ai://openai/MODEL/KEY' instead", since: "2.18.0")]
 class OpenAi extends \Temma\Base\Datasource {
 	/** URL of the OpenAI Chat Completions API. */
 	const string API_URL = 'https://api.openai.com/v1/chat/completions';
