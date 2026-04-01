@@ -12,6 +12,9 @@ namespace Temma\Datasources\Ai;
 /**
  * Google Gemini provider for the Ai data source.
  *
+ * This class is not intended to be instantiated directly.
+ * It is used internally by \Temma\Datasources\Ai.
+ *
  * Supports: text, images, audio, video, PDF input. JSON structured output.
  * Gemini uses a unified inline_data format for all binary content types.
  */

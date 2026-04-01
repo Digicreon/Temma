@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Claude
+ * OpenAiCompatible
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2026, Amaury Bouchard
  * @link	https://www.temma.net/documentation/datasource-ai
@@ -10,28 +10,39 @@
 namespace Temma\Datasources\Ai;
 
 /**
- * Claude (Anthropic) provider for the Ai data source.
+ * Generic OpenAI-compatible provider for the Ai data source.
  *
  * This class is not intended to be instantiated directly.
  * It is used internally by \Temma\Datasources\Ai.
  *
- * Supports: text, images, PDF input. JSON structured output.
- * Does not support: audio input (not available in the Anthropic Messages API).
+ * This provider works with any service that implements the OpenAI Chat Completions API
+ * (Groq, Together AI, Fireworks AI, DeepInfra, LiteLLM, etc.).
+ *
+ * Common service endpoint URLs:
+ * <ul>
+ *   <li>Groq: <tt>https://api.groq.com/openai/v1/chat/completions</tt></li>
+ *   <li>Together AI: <tt>https://api.together.xyz/v1/chat/completions</tt></li>
+ *   <li>Fireworks AI: <tt>https://api.fireworks.ai/inference/v1/chat/completions</tt></li>
+ *   <li>DeepInfra: <tt>https://api.deepinfra.com/v1/openai/chat/completions</tt></li>
+ * </ul>
+ *
+ * Supports: text, images, audio input. JSON structured output.
+ * Actual feature support depends on the underlying service and model.
  */
-class Claude {
-	/** API endpoint URL. */
-	const string API_URL = 'https://api.anthropic.com/v1/messages';
-	/** API version. */
-	const string API_VERSION = '2023-06-01';
+class OpenAiCompatible {
 	/** API key. */
 	private string $_apiKey;
+	/** API endpoint URL. */
+	private string $_apiUrl;
 
 	/**
 	 * Constructor.
 	 * @param	string	$apiKey	API key.
+	 * @param	string	$apiUrl	API endpoint URL.
 	 */
-	public function __construct(string $apiKey) {
+	public function __construct(string $apiKey, string $apiUrl) {
 		$this->_apiKey = $apiKey;
+		$this->_apiUrl = $apiUrl;
 	}
 	/**
 	 * Build the API request payload.
@@ -43,6 +54,8 @@ class Claude {
 	public function buildPayload(string $model, string $prompt, array $options) : array {
 		// build messages list
 		$messages = [];
+		if (isset($options['system']))
+			$messages[] = ['role' => 'system', 'content' => $options['system']];
 		// conversation history
 		if (isset($options['messages'])) {
 			foreach ($options['messages'] as $msg) {
@@ -58,20 +71,16 @@ class Claude {
 		$messages[] = ['role' => 'user', 'content' => $content];
 		// build payload
 		$payload = [
-			'model'      => $model,
-			'messages'   => $messages,
-			'max_tokens' => (int)($options['max_tokens'] ?? 4096),
+			'model'    => $model,
+			'messages' => $messages,
 		];
-		if (isset($options['system']))
-			$payload['system'] = $options['system'];
 		if (isset($options['temperature']))
 			$payload['temperature'] = (float)$options['temperature'];
+		if (isset($options['max_tokens']))
+			$payload['max_tokens'] = (int)$options['max_tokens'];
 		return ([
-			'url'     => self::API_URL,
-			'headers' => [
-				'x-api-key: ' . $this->_apiKey,
-				'anthropic-version: ' . self::API_VERSION,
-			],
+			'url'     => $this->_apiUrl,
+			'headers' => ['Authorization: Bearer ' . $this->_apiKey],
 			'body'    => $payload,
 		]);
 	}
@@ -84,9 +93,9 @@ class Claude {
 	public function parseResponse(array $data) : ?string {
 		if (isset($data['error'])) {
 			$msg = $data['error']['message'] ?? 'Unknown error.';
-			throw new \Temma\Exceptions\Database("Claude API error: $msg", \Temma\Exceptions\Database::FUNDAMENTAL);
+			throw new \Temma\Exceptions\Database("OpenAI-compatible API error: $msg", \Temma\Exceptions\Database::FUNDAMENTAL);
 		}
-		return ($data['content'][0]['text'] ?? null);
+		return ($data['choices'][0]['message']['content'] ?? null);
 	}
 
 	/* ********** PRIVATE METHODS ********** */
@@ -99,30 +108,39 @@ class Claude {
 	private function _buildContent(string $text, ?array $attachments) : string|array {
 		if (!$attachments)
 			return ($text);
-		// attachments before text (Claude convention)
-		$content = [];
+		$content = [['type' => 'text', 'text' => $text]];
 		foreach ($attachments as $att) {
+			$dataUri = 'data:' . $att['mime'] . ';base64,' . $att['data'];
 			if (str_starts_with($att['mime'], 'image/')) {
 				$content[] = [
-					'type'   => 'image',
-					'source' => [
-						'type'       => 'base64',
-						'media_type' => $att['mime'],
-						'data'       => $att['data'],
-					],
+					'type'      => 'image_url',
+					'image_url' => ['url' => $dataUri],
 				];
-			} else if ($att['mime'] === 'application/pdf') {
+			} else if (str_starts_with($att['mime'], 'audio/')) {
 				$content[] = [
-					'type'   => 'document',
-					'source' => [
-						'type'       => 'base64',
-						'media_type' => $att['mime'],
-						'data'       => $att['data'],
+					'type'        => 'input_audio',
+					'input_audio' => [
+						'data'   => $att['data'],
+						'format' => $this->_audioFormat($att['mime']),
 					],
 				];
 			}
 		}
-		$content[] = ['type' => 'text', 'text' => $text];
 		return ($content);
+	}
+	/**
+	 * Convert MIME type to audio format identifier.
+	 * @param	string	$mime	MIME type.
+	 * @return	string	Audio format.
+	 */
+	private function _audioFormat(string $mime) : string {
+		return (match ($mime) {
+			'audio/wav'  => 'wav',
+			'audio/mpeg' => 'mp3',
+			'audio/ogg'  => 'ogg',
+			'audio/flac' => 'flac',
+			'audio/aac'  => 'aac',
+			default      => 'mp3',
+		});
 	}
 }

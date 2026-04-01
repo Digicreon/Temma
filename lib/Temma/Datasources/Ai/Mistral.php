@@ -12,6 +12,9 @@ namespace Temma\Datasources\Ai;
 /**
  * Mistral AI provider for the Ai data source.
  *
+ * This class is not intended to be instantiated directly.
+ * It is used internally by \Temma\Datasources\Ai.
+ *
  * Supports: text, images, audio, PDF input. JSON structured output.
  * The Mistral API closely follows the OpenAI format with minor differences.
  */

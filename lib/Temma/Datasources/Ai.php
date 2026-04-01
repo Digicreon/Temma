@@ -15,20 +15,24 @@ use \Temma\Base\Log as TµLog;
  * Unified AI data source.
  *
  * This object provides a unified interface to interact with various LLM providers
- * (OpenAI, Claude, Gemini, Mistral, or any custom provider).
+ * (OpenAI, Claude, Gemini, Mistral, Ollama, OpenRouter, or any custom/OpenAI-compatible provider).
  *
  * Connection is set using a DSN string:
  * <ul>
- *   <li><pre>ai://provider/model/API_KEY</pre></li>
- *   <li><pre>ai://[\Custom\Provider]/model/API_KEY</pre></li>
+ *   <li><pre>ai://provider/model#API_KEY</pre></li>
+ *   <li><pre>ai://[https://endpoint/path]/model#API_KEY</pre> (OpenAI-compatible service)</li>
+ *   <li><pre>ai://[\Custom\Provider]/model#API_KEY</pre> (custom provider class)</li>
  * </ul>
  * Examples:
  * <ul>
- *   <li><tt>ai://openai/gpt-4o/sk-proj-XXX</tt></li>
- *   <li><tt>ai://claude/claude-sonnet-4-20250514/sk-ant-XXX</tt></li>
- *   <li><tt>ai://gemini/gemini-2.5-flash/AIza-XXX</tt></li>
- *   <li><tt>ai://mistral/mistral-small-latest/XXX</tt></li>
- *   <li><tt>ai://[\App\MyProvider]/model-name/XXX</tt></li>
+ *   <li><tt>ai://openai/gpt-4o#sk-proj-XXX</tt></li>
+ *   <li><tt>ai://claude/claude-sonnet-4-20250514#sk-ant-XXX</tt></li>
+ *   <li><tt>ai://gemini/gemini-2.5-flash#AIza-XXX</tt></li>
+ *   <li><tt>ai://mistral/mistral-small-latest#XXX</tt></li>
+ *   <li><tt>ai://openrouter/openai/gpt-4o#sk-or-XXX</tt></li>
+ *   <li><tt>ai://ollama/llama3:70b</tt></li>
+ *   <li><tt>ai://[https://api.groq.com/openai/v1/chat/completions]/llama-3.3-70b#gsk-XXX</tt></li>
+ *   <li><tt>ai://[\App\MyProvider]/model#XXX</tt></li>
  * </ul>
  *
  * Full example:
@@ -85,10 +89,12 @@ class Ai extends \Temma\Base\Datasource {
 	];
 	/** Built-in provider mapping. */
 	const array PROVIDERS = [
-		'openai'  => '\Temma\Datasources\Ai\OpenAi',
-		'claude'  => '\Temma\Datasources\Ai\Claude',
-		'gemini'  => '\Temma\Datasources\Ai\Gemini',
-		'mistral' => '\Temma\Datasources\Ai\Mistral',
+		'openai'     => '\Temma\Datasources\Ai\OpenAi',
+		'claude'     => '\Temma\Datasources\Ai\Claude',
+		'gemini'     => '\Temma\Datasources\Ai\Gemini',
+		'mistral'    => '\Temma\Datasources\Ai\Mistral',
+		'openrouter' => '\Temma\Datasources\Ai\OpenRouter',
+		'ollama'     => '\Temma\Datasources\Ai\Ollama',
 	];
 	/** Provider instance. */
 	private object $_provider;
@@ -104,24 +110,29 @@ class Ai extends \Temma\Base\Datasource {
 	 */
 	static public function factory(string $dsn) : \Temma\Datasources\Ai {
 		TµLog::log('Temma/Base', 'DEBUG', "\\Temma\\Datasources\\Ai object creation with DSN: '$dsn'.");
-		// parse DSN: ai://provider/model/key or ai://[\Class]/model/key
-		if (!preg_match('/^ai:\/\/(\[([^\]]+)\]|([^\/]+))\/([^\/]+)\/(.+)$/', $dsn, $matches)) {
+		// parse DSN: ai://provider/model#key or ai://[url_or_class]/model#key
+		if (!preg_match('/^ai:\/\/(\[([^\]]+)\]|([^\/]+))\/([^#]+?)(?:#(.*))?$/', $dsn, $matches)) {
 			TµLog::log('Temma/Base', 'WARN', "Invalid AI DSN '$dsn'.");
 			throw new \Temma\Exceptions\Database("Invalid AI DSN '$dsn'.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		}
-		$customClass = $matches[2] ?? '';
+		$bracket = $matches[2] ?? '';
 		$providerName = $matches[3] ?? '';
 		$model = $matches[4];
-		$apiKey = $matches[5];
-		// resolve provider class
-		if ($customClass) {
-			$providerClass = ltrim($customClass, '\\');
-		} else {
-			$providerClass = self::PROVIDERS[mb_strtolower($providerName)] ?? null;
-			if (!$providerClass) {
-				TµLog::log('Temma/Base', 'WARN', "Unknown AI provider '$providerName'.");
-				throw new \Temma\Exceptions\Database("Unknown AI provider '$providerName'.", \Temma\Exceptions\Database::FUNDAMENTAL);
+		$apiKey = $matches[5] ?? '';
+		// resolve provider
+		if ($bracket) {
+			if (preg_match('/^https?:\/\//', $bracket)) {
+				// URL in brackets: OpenAI-compatible service
+				return (new self('\Temma\Datasources\Ai\OpenAiCompatible', $model, $apiKey, $bracket));
 			}
+			// class name in brackets: custom provider
+			return (new self(ltrim($bracket, '\\'), $model, $apiKey));
+		}
+		// built-in provider
+		$providerClass = self::PROVIDERS[mb_strtolower($providerName)] ?? null;
+		if (!$providerClass) {
+			TµLog::log('Temma/Base', 'WARN', "Unknown AI provider '$providerName'.");
+			throw new \Temma\Exceptions\Database("Unknown AI provider '$providerName'.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		}
 		return (new self($providerClass, $model, $apiKey));
 	}
@@ -129,10 +140,14 @@ class Ai extends \Temma\Base\Datasource {
 	 * Constructor.
 	 * @param	string	$providerClass	Fully qualified provider class name.
 	 * @param	string	$model		LLM model identifier.
-	 * @param	string	$apiKey		API key.
+	 * @param	string	$apiKey		(optional) API key.
+	 * @param	string	$endpointUrl	(optional) Custom endpoint URL (for OpenAI-compatible services).
 	 */
-	public function __construct(string $providerClass, string $model, string $apiKey) {
-		$this->_provider = new $providerClass($apiKey);
+	public function __construct(string $providerClass, string $model, string $apiKey='', string $endpointUrl='') {
+		if ($endpointUrl)
+			$this->_provider = new $providerClass($apiKey, $endpointUrl);
+		else
+			$this->_provider = new $providerClass($apiKey);
 		$this->_model = $model;
 	}
 

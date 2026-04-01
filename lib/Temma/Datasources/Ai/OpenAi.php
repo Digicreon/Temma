@@ -12,6 +12,9 @@ namespace Temma\Datasources\Ai;
 /**
  * OpenAI provider for the Ai data source.
  *
+ * This class is not intended to be instantiated directly.
+ * It is used internally by \Temma\Datasources\Ai.
+ *
  * Supports: text, images, audio input. JSON structured output.
  * Does not support: PDF input (not available in the OpenAI Chat Completions API).
  */
