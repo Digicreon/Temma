@@ -448,7 +448,7 @@ class Redis extends \Temma\Base\Datasource {
 					break 2;
 			}
 		} while ($it > 0);
-		if ($getValues) {
+		if ($getValues && $result) {
 			$result = $this->mRead($result);
 			array_walk($result, function(&$value, $key) {
 				if ($value === false)
