@@ -217,20 +217,20 @@ class Controller implements \ArrayAccess {
 	/**
 	 * Define the view to use.
 	 * @param	string	$view	Name of the view.
-	 * @return	\Temma\Web\Controller	The current object.
+	 * @return	?int	self::EXEC_FORWARD (useful value to return from the controller).
 	 */
-	final protected function _view(string $view) : \Temma\Web\Controller {
+	final protected function _view(string $view) : ?int {
 		$this->_response->setView($view);
-		return ($this);
+		return (self::EXEC_FORWARD);
 	}
 	/**
 	 * Define the template to use.
 	 * @param	string	$template	Template name.
-	 * @return	\Temma\Web\Controller	The current object.
+	 * @return	?int	self::EXEC_FORWARD (useful value to return from the controller).
 	 */
-	final protected function _template(string $template) : \Temma\Web\Controller {
+	final protected function _template(string $template) : ?int {
 		$this->_response->setTemplate($template);
-		return ($this);
+		return (self::EXEC_FORWARD);
 	}
 	/**
 	 * Define the prefix to the template path.
