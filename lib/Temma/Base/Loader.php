@@ -347,8 +347,11 @@ class Loader extends \Temma\Utils\Registry {
 			$this->_data = array_merge($this->_data, $key);
 		else if (is_null($data))
 			unset($this->_data[$key]);
-		else
+		else {
+			// normalize (see get())
+			$key = ltrim($key, '\\');
 			$this->_data[$key] = $data;
+		}
 		return ($this);
 	}
 
