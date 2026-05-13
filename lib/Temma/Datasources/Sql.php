@@ -638,13 +638,19 @@ class Sql extends \Temma\Base\Datasource {
 	/* ********** RAW REQUESTS ********** */
 	/**
 	 * Return a list of keys that match a pattern.
-	 * @param	string	$prefix		The prefix to match.
-	 * @param	bool	$getValues	(optional) True to fetch the associated values. False by default.
-	 * @param	int	$offset		(optional) Number of items to skip. 0 by default.
-	 * @param	int	$limit		(optional) Maximum number of items to return. 0 means no limit.
+	 * @param	string			$prefix		The prefix to match.
+	 * @param	bool			$getValues	(optional) True to fetch the associated values. False by default.
+	 * @param	null|bool|string|array	$sort		(optional) Sort criteria:
+	 *							- null: natural order (default).
+	 *							- true: ORDER BY key DESC.
+	 *							- false: random order (ORDER BY RAND()).
+	 *							- string/array: sort by column. Allowed fields: 'key' and 'data'.
+	 * @param	int			$offset		(optional) Number of items to skip. 0 by default.
+	 * @param	int			$limit		(optional) Maximum number of items to return. 0 means no limit.
 	 * @return	array	List of keys, or associative array of key-value pairs.
+	 * @throws	\Temma\Exceptions\Database	If $sort references an unsupported field.
 	 */
-	public function find(string $prefix, bool $getValues=false, int $offset=0, int $limit=0) : array {
+	public function find(string $prefix, bool $getValues=false, null|bool|string|array $sort=null, int $offset=0, int $limit=0) : array {
 		if (!$this->_enabled)
 			return ([]);
 		$sql = "SELECT key";
@@ -652,6 +658,22 @@ class Sql extends \Temma\Base\Datasource {
 			$sql .= ", data";
 		$sql .= " FROM TemmaData
 		         WHERE key LIKE " . $this->quote("$prefix%");
+		if ($sort === true)
+			$sql .= ' ORDER BY key DESC';
+		else if ($sort === false)
+			$sql .= ' ORDER BY RAND()';
+		else if (is_string($sort) || is_array($sort)) {
+			$criteria = $this->_normalizeSort($sort);
+			$allowed = ['key', 'data'];
+			$parts = [];
+			foreach ($criteria as [$field, $direction]) {
+				if (!in_array($field, $allowed, true))
+					throw new \Temma\Exceptions\Database("Unsupported sort field '$field' for Sql datasource (allowed: key, data).", \Temma\Exceptions\Database::FUNDAMENTAL);
+				$parts[] = $field . ' ' . mb_strtoupper($direction);
+			}
+			if ($parts)
+				$sql .= ' ORDER BY ' . implode(', ', $parts);
+		}
 		if ($limit > 0)
 			$sql .= " LIMIT $limit OFFSET $offset";
 		else if ($offset > 0)

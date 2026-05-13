@@ -302,35 +302,54 @@ class Redis extends \Temma\Base\Datasource {
 	/* ********** RAW REQUESTS ********** */
 	/**
 	 * Search keys from a pattern.
-	 * @param	string	$pattern	The pattern to match.
-	 * @param	bool	$getValues	(optional) True to fetch the associated values. False by default.
-	 * @param	int	$offset		(optional) Number of items to skip. 0 by default.
-	 * @param	int	$limit		(optional) Maximum number of items to return. 0 means no limit.
+	 * @param	string			$pattern	The pattern to match.
+	 * @param	bool			$getValues	(optional) True to fetch the associated values. False by default.
+	 * @param	null|bool|string|array	$sort		(optional) Sort criteria. Null and true are silently ignored
+	 *							(Redis SCAN does not guarantee any order). False shuffles the result
+	 *							(all matching keys are fetched before applying offset/limit). String and
+	 *							array forms are not supported and trigger an exception.
+	 * @param	int			$offset		(optional) Number of items to skip. 0 by default.
+	 * @param	int			$limit		(optional) Maximum number of items to return. 0 means no limit.
 	 * @return	array	List of keys, or associative array of key-value pairs.
+	 * @throws	\Temma\Exceptions\Database	If $sort is a string or an array.
 	 */
-	public function find(string $pattern, bool $getValues=false, int $offset=0, int $limit=0) : array {
+	public function find(string $pattern, bool $getValues=false, null|bool|string|array $sort=null, int $offset=0, int $limit=0) : array {
 		if (!$this->_enabled)
 			return ([]);
+		if (is_string($sort) || is_array($sort))
+			throw new \Temma\Exceptions\Database("Redis datasource does not support field-based sort.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		$this->connect();
 		$result = [];
 		$it = null;
-		$skipped = 0;
-		$collected = 0;
-		do {
-			$keys = $this->_ndb->scan($it, $pattern);
-			if (!is_array($keys))
-				continue;
-			foreach ($keys as $key) {
-				if ($skipped < $offset) {
-					$skipped++;
-					continue;
+		if ($sort === false) {
+			do {
+				$keys = $this->_ndb->scan($it, $pattern);
+				if (is_array($keys)) {
+					foreach ($keys as $key)
+						$result[] = $key;
 				}
-				$result[] = $key;
-				$collected++;
-				if ($limit > 0 && $collected >= $limit)
-					break 2;
-			}
-		} while ($it > 0);
+			} while ($it > 0);
+			shuffle($result);
+			$result = array_slice($result, $offset, $limit > 0 ? $limit : null);
+		} else {
+			$skipped = 0;
+			$collected = 0;
+			do {
+				$keys = $this->_ndb->scan($it, $pattern);
+				if (!is_array($keys))
+					continue;
+				foreach ($keys as $key) {
+					if ($skipped < $offset) {
+						$skipped++;
+						continue;
+					}
+					$result[] = $key;
+					$collected++;
+					if ($limit > 0 && $collected >= $limit)
+						break 2;
+				}
+			} while ($it > 0);
+		}
 		if ($getValues && $result)
 			$result = $this->mRead($result);
 		return ($result);
@@ -419,35 +438,54 @@ class Redis extends \Temma\Base\Datasource {
 	/* ********** KEY-VALUE REQUESTS ********** */
 	/**
 	 * Return a list of keys that match a pattern.
-	 * @param	string	$pattern	The pattern to match. Use the asterisk as wildcard.
-	 * @param	bool	$getValues	(optional) True to fetch the associated values. False by default.
-	 * @param	int	$offset		(optional) Number of items to skip. 0 by default.
-	 * @param	int	$limit		(optional) Maximum number of items to return. 0 means no limit.
+	 * @param	string			$pattern	The pattern to match. Use the asterisk as wildcard.
+	 * @param	bool			$getValues	(optional) True to fetch the associated values. False by default.
+	 * @param	null|bool|string|array	$sort		(optional) Sort criteria. Null and true are silently ignored
+	 *							(Redis SCAN does not guarantee any order). False shuffles the result
+	 *							(all matching keys are fetched before applying offset/limit). String and
+	 *							array forms are not supported and trigger an exception.
+	 * @param	int			$offset		(optional) Number of items to skip. 0 by default.
+	 * @param	int			$limit		(optional) Maximum number of items to return. 0 means no limit.
 	 * @return	array	List of keys, or associative array of key-value pairs. Values are JSON-decoded.
+	 * @throws	\Temma\Exceptions\Database	If $sort is a string or an array.
 	 */
-	public function search(string $pattern, bool $getValues=false, int $offset=0, int $limit=0) : array {
+	public function search(string $pattern, bool $getValues=false, null|bool|string|array $sort=null, int $offset=0, int $limit=0) : array {
 		if (!$this->_enabled)
 			return ([]);
+		if (is_string($sort) || is_array($sort))
+			throw new \Temma\Exceptions\Database("Redis datasource does not support field-based sort.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		$this->connect();
 		$result = [];
 		$it = null;
-		$skipped = 0;
-		$collected = 0;
-		do {
-			$keys = $this->_ndb->scan($it, $pattern);
-			if (!is_array($keys))
-				continue;
-			foreach ($keys as $key) {
-				if ($skipped < $offset) {
-					$skipped++;
-					continue;
+		if ($sort === false) {
+			do {
+				$keys = $this->_ndb->scan($it, $pattern);
+				if (is_array($keys)) {
+					foreach ($keys as $key)
+						$result[] = $key;
 				}
-				$result[] = $key;
-				$collected++;
-				if ($limit > 0 && $collected >= $limit)
-					break 2;
-			}
-		} while ($it > 0);
+			} while ($it > 0);
+			shuffle($result);
+			$result = array_slice($result, $offset, $limit > 0 ? $limit : null);
+		} else {
+			$skipped = 0;
+			$collected = 0;
+			do {
+				$keys = $this->_ndb->scan($it, $pattern);
+				if (!is_array($keys))
+					continue;
+				foreach ($keys as $key) {
+					if ($skipped < $offset) {
+						$skipped++;
+						continue;
+					}
+					$result[] = $key;
+					$collected++;
+					if ($limit > 0 && $collected >= $limit)
+						break 2;
+				}
+			} while ($it > 0);
+		}
 		if ($getValues && $result) {
 			$result = $this->mRead($result);
 			array_walk($result, function(&$value, $key) {

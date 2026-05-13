@@ -324,16 +324,24 @@ class S3 extends \Temma\Base\Datasource {
 	/* ********** RAW REQUESTS ********** */
 	/**
 	 * Search all S3 files starting with the given prefix.
-	 * @param	string	$prefix		Key prefix.
-	 * @param	bool	$getValues	(optional) True to fetch the associated values. False by default.
-	 * @param	int	$offset		(optional) Number of items to skip. 0 by default.
-	 * @param	int	$limit		(optional) Maximum number of items to return. 0 means no limit.
+	 * @param	string			$prefix		Key prefix.
+	 * @param	bool			$getValues	(optional) True to fetch the associated values. False by default.
+	 * @param	null|bool|string|array	$sort		(optional) Sort criteria:
+	 *							- null: natural lexicographic order (default, from S3 ListObjects).
+	 *							- true: reverse lexicographic order (all matching keys are fetched first).
+	 *							- false: random order (all matching keys are fetched first).
+	 *							- string/array: not supported, triggers an exception.
+	 * @param	int			$offset		(optional) Number of items to skip. 0 by default.
+	 * @param	int			$limit		(optional) Maximum number of items to return. 0 means no limit.
 	 * @return	array	List of keys, or associative array of key-value pairs.
 	 * @throws	\Exception	If an error occured.
+	 * @throws	\Temma\Exceptions\Database	If $sort is a string or an array.
 	 */
-	public function find(string $prefix, bool $getValues=false, int $offset=0, int $limit=0) : array {
+	public function find(string $prefix, bool $getValues=false, null|bool|string|array $sort=null, int $offset=0, int $limit=0) : array {
 		if (!$this->_enabled)
 			return ([]);
+		if (is_string($sort) || is_array($sort))
+			throw new \Temma\Exceptions\Database("S3 datasource does not support field-based sort.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		$this->connect();
 		$list = [];
 		try {
@@ -341,20 +349,36 @@ class S3 extends \Temma\Base\Datasource {
 				'Bucket' => $this->_bucket,
 				'Prefix' => $prefix,
 			]);
-			$skipped = 0;
-			$collected = 0;
-			foreach ($objects as $object) {
-				if ($skipped < $offset) {
-					$skipped++;
-					continue;
-				}
-				if ($getValues)
-					$list[$object['Key']] = $this->read($object['Key']);
+			if ($sort === true || $sort === false) {
+				$keys = [];
+				foreach ($objects as $object)
+					$keys[] = $object['Key'];
+				if ($sort === false)
+					shuffle($keys);
 				else
-					$list[] = $object['Key'];
-				$collected++;
-				if ($limit > 0 && $collected >= $limit)
-					break;
+					$keys = array_reverse($keys);
+				$keys = array_slice($keys, $offset, $limit > 0 ? $limit : null);
+				if ($getValues) {
+					foreach ($keys as $key)
+						$list[$key] = $this->read($key);
+				} else
+					$list = $keys;
+			} else {
+				$skipped = 0;
+				$collected = 0;
+				foreach ($objects as $object) {
+					if ($skipped < $offset) {
+						$skipped++;
+						continue;
+					}
+					if ($getValues)
+						$list[$object['Key']] = $this->read($object['Key']);
+					else
+						$list[] = $object['Key'];
+					$collected++;
+					if ($limit > 0 && $collected >= $limit)
+						break;
+				}
 			}
 		} catch (\Exception $e) {
 			TµLog::log('Temma/Base', 'INFO', "Unable to list files on AWS S3. Bucket='{$this->_bucket}'.");

@@ -343,12 +343,13 @@ class Dao {
 	/**
 	 * Search records from a search criteria.
 	 * @param	null|array|\Temma\Dao\Criteria	$criteria	(optional) Search criteria or an associative array of fields and their search values. Null to take all records. (default: null)
-	 * @param	null|false|string|array		$sort		(optional) Sort data. Null for natural sort, false for random sort.
+	 * @param	null|bool|string|array		$sort		(optional) Sort data. Null for natural sort, true for descending sort
+	 *								on the primary key, false for random sort. See _getSortString() for details.
 	 * @param	?int				$limitOffset	(optional) Offset of the first returned record. (default: 0).
 	 * @param	?int				$limit		(optional) Maximum number of records to return. Null for no limit. (default: null)
 	 * @return	array	List of associative arrays, indexed by the primary key (if defined).
 	 */
-	public function search(null|array|\Temma\Dao\Criteria $criteria=null, null|false|string|array $sort=null, ?int $limitOffset=null, ?int $limit=null) : array {
+	public function search(null|array|\Temma\Dao\Criteria $criteria=null, null|bool|string|array $sort=null, ?int $limitOffset=null, ?int $limit=null) : array {
 		$cacheVarName = '__dao:' . $this->_dbName . ':' . $this->_tableName . ':count';
 		$sql = 'SELECT ' . $this->_getFieldsString() . ' FROM ' .
 			(!$this->_dbName ? '' : ('`' . $this->_dbName . '`.')) . '`' . $this->_tableName . '`';
@@ -386,13 +387,14 @@ class Dao {
 	 *										Null to update all records. (default: null)
 	 * @param	array						$fields		Associative array where the keys are the fields to update, and their
 	 *										values are the new values to update. (default: empty array)
-	 * @param	null|false|string|array		$sort		(optional) Sort data. Null for natural sort, false for random sort.
+	 * @param	null|bool|string|array		$sort		(optional) Sort data. Null for natural sort, true for descending sort
+	 *									on the primary key, false for random sort. See _getSortString() for details.
 	 * @param	?int						$limit		(optional) Maximum number of lines to update. Null to update without limit.
 	 * @return	int	The number of modified lines.
 	 * @throws	\Temma\Exceptions\Dao	If the criteria or the fields array are not well formed.
 	 */
 	public function update(null|int|string|array|\Temma\Dao\Criteria $criteria=null, array $fields=[],
-	                            null|false|string|array $sort=null, ?int $limit=null) : int {
+	                            null|bool|string|array $sort=null, ?int $limit=null) : int {
 		if (!$fields)
 			return (0);
 		$this->_flushCache();
@@ -489,15 +491,22 @@ class Dao {
 	/* ****** PRIVATE METHODS ****** */
 	/**
 	 * Generates the sort string.
-	 * @param	null|false|string|array		$sort		(optional) Sort data. Null for natural sort, false for random sort.
+	 * @param	null|bool|string|array		$sort		(optional) Sort data:
+	 *								- null: natural sort.
+	 *								- true: descending sort on the primary key.
+	 *								- false: random sort.
+	 *								- string: field name (prefix '-' for descending).
+	 *								- array: list of fields, see Datasource sort doc.
 	 * @return	string	The generated string. Could be empty.
 	 */
-	protected function _getSortString(null|false|string|array $sort=null) : string {
+	protected function _getSortString(null|bool|string|array $sort=null) : string {
 		if (is_null($sort))
 			return ('');
 		$sortList = [];
 		if ($sort === false)
 			$sortList[] = 'RAND()';
+		else if ($sort === true)
+			$sortList[] = '`' . $this->_idField . '` DESC';
 		else if (is_string($sort)) {
 			if (str_starts_with($sort, '-'))
 				$sortList[] = mb_substr($sort, 1) . ' DESC';

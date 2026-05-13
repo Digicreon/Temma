@@ -202,14 +202,23 @@ abstract class Datasource implements \ArrayAccess, \Countable {
 	/* ********** RAW REQUESTS ********** */
 	/**
 	 * Squeleton method for a lister method implemented by derived classes.
-	 * @param	string	$pattern	The pattern to match. The syntax depends on the datasource.
-	 * @param	bool	$getValues	(optional) True to fetch the associated values. False by default.
-	 * @param	int	$offset		(optional) Number of items to skip. 0 by default.
-	 * @param	int	$limit		(optional) Maximum number of items to return. 0 means no limit.
+	 * @param	string			$pattern	The pattern to match. The syntax depends on the datasource.
+	 * @param	bool			$getValues	(optional) True to fetch the associated values. False by default.
+	 * @param	null|bool|string|array	$sort		(optional) Sort criteria:
+	 *							- null: natural order (default).
+	 *							- true: descending order (natural order reversed).
+	 *							- false: random order.
+	 *							- string: field name, optionally prefixed with '-' for descending order.
+	 *							- array: list of fields. Simple values are field names ('field' for asc,
+	 *							  '-field' for desc); associative entries set the direction explicitly
+	 *							  ('field' => 'asc'|'desc'); both forms can be mixed.
+	 *							String/array sort is only supported by datasources that handle it.
+	 * @param	int			$offset		(optional) Number of items to skip. 0 by default.
+	 * @param	int			$limit		(optional) Maximum number of items to return. 0 means no limit.
 	 * @return	array	List of keys, or associative array of key-value pairs.
 	 * @throws	\Temma\Exceptions\Database	Always throws an exception.
 	 */
-	public function find(string $pattern, bool $getValues=false, int $offset=0, int $limit=0) : array {
+	public function find(string $pattern, bool $getValues=false, null|bool|string|array $sort=null, int $offset=0, int $limit=0) : array {
 		throw new \Temma\Exceptions\Database("No find() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);
 	}
 	/**
@@ -355,16 +364,17 @@ abstract class Datasource implements \ArrayAccess, \Countable {
 	/* ********** KEY-VALUE REQUESTS ********** */
 	/**
 	 * Squeleton method for a lister method implemented by derived classes.
-	 * @param	string	$pattern	The pattern to match. The syntax depends on the datasource.
-	 * @param	bool	$getValues	(optional) True to fetch the associated values. False by default.
-	 * @param	int	$offset		(optional) Number of items to skip. 0 by default.
-	 * @param	int	$limit		(optional) Maximum number of items to return. 0 means no limit.
+	 * @param	string			$pattern	The pattern to match. The syntax depends on the datasource.
+	 * @param	bool			$getValues	(optional) True to fetch the associated values. False by default.
+	 * @param	null|bool|string|array	$sort		(optional) Sort criteria. See find() for details.
+	 * @param	int			$offset		(optional) Number of items to skip. 0 by default.
+	 * @param	int			$limit		(optional) Maximum number of items to return. 0 means no limit.
 	 * @return	array	List of keys, or associative array of key-value pairs. Values are JSON-decoded.
 	 */
-	public function search(string $pattern, bool $getValues=false, int $offset=0, int $limit=0) : array {
+	public function search(string $pattern, bool $getValues=false, null|bool|string|array $sort=null, int $offset=0, int $limit=0) : array {
 		if (!$this->_enabled)
 			return ([]);
-		$data = $this->find($pattern, $getValues, $offset, $limit);
+		$data = $this->find($pattern, $getValues, $sort, $offset, $limit);
 		if ($getValues) {
 			array_walk($data, function(&$value, $key) {
 				if (is_string($value))
@@ -469,13 +479,51 @@ abstract class Datasource implements \ArrayAccess, \Countable {
 	public function offsetGet(mixed $key) : mixed {
 		return ($this->get($key));
 	}   
-	/** 
+	/**
 	 * Tell if a file exists in source, array-like syntax.
 	 * @param       mixed   $key    Index key.
 	 * @return      bool    True if the variable is set, false otherwise.
 	 */
 	public function offsetExists(mixed $key) : bool {
 		return ($this->isSet($key));
+	}
+
+	/* ********** PROTECTED HELPERS ********** */
+	/**
+	 * Normalize a sort criteria (string or array form) into a list of [field, direction] pairs.
+	 *
+	 * Accepts:
+	 * - string: 'field' (asc) or '-field' (desc).
+	 * - array of strings (numeric keys): ['name', '-date', 'priority'].
+	 * - associative array: ['name' => 'asc', 'date' => 'desc'].
+	 * - mixed array: ['name', 'date' => 'desc', '-priority'].
+	 *
+	 * @param	string|array	$sort	The sort criteria.
+	 * @return	array	List of pairs, each pair being [string $field, string $direction]
+	 *			where $direction is 'asc' or 'desc'.
+	 * @throws	\Temma\Exceptions\Database	If a field name or direction value is invalid.
+	 */
+	protected function _normalizeSort(string|array $sort) : array {
+		$result = [];
+		$items = is_string($sort) ? [$sort] : $sort;
+		foreach ($items as $key => $value) {
+			if (is_int($key)) {
+				if (!is_string($value) || !$value)
+					throw new \Temma\Exceptions\Database("Invalid sort field.", \Temma\Exceptions\Database::FUNDAMENTAL);
+				if (str_starts_with($value, '-'))
+					$result[] = [mb_substr($value, 1), 'desc'];
+				else
+					$result[] = [$value, 'asc'];
+			} else {
+				if (!is_string($value))
+					throw new \Temma\Exceptions\Database("Invalid sort direction for field '$key'.", \Temma\Exceptions\Database::FUNDAMENTAL);
+				$direction = mb_strtolower($value);
+				if ($direction !== 'asc' && $direction !== 'desc')
+					throw new \Temma\Exceptions\Database("Invalid sort direction '$value' for field '$key'.", \Temma\Exceptions\Database::FUNDAMENTAL);
+				$result[] = [$key, $direction];
+			}
+		}
+		return ($result);
 	}
 }
 

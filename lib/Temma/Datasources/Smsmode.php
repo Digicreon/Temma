@@ -253,13 +253,16 @@ class Smsmode extends \Temma\Base\Datasource {
 
 	/* ********** KEY-VALUE REQUESTS ********** */
 	/**
-	 * Disabled search.
-	 * @param	string	$pattern	Not used.
-	 * @param	bool	$getValues	(optional) Not used.
+	 * Disabled search. The $sort parameter is not pertinent on a messaging datasource.
+	 * @param	string			$pattern	Not used.
+	 * @param	bool			$getValues	(optional) Not used.
+	 * @param	null|bool|string|array	$sort		(optional) Not pertinent on this datasource.
+	 * @param	int			$offset		(optional) Not used.
+	 * @param	int			$limit		(optional) Not used.
 	 * @return	array	Never returned.
 	 * @throws	\Temma\Exceptions\Database	Always throws an exception.
 	 */
-	public function search(string $pattern, bool $getValues=false, int $offset=0, int $limit=0) : array {
+	public function search(string $pattern, bool $getValues=false, null|bool|string|array $sort=null, int $offset=0, int $limit=0) : array {
 		throw new \Temma\Exceptions\Database("No search() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);
 	}
 	/**
