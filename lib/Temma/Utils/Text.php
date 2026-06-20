@@ -23,6 +23,8 @@ class Text {
 	const CAMEL_CASE = 'CAMEL_CASE';
 	/** Constant: pascal case. */
 	const PASCAL_CASE = 'PASCAL_CASE';
+	/** Constant: upper case. */
+	const UPPER_CASE = 'UPPER_CASE';
 
 	/**
 	 * Checks the syntax of an HTML stream.
@@ -332,8 +334,8 @@ class Text {
 	/**
 	 * Converts a string from a given case to another one.
 	 * @param	?string	$txt		The input string, or null.
-	 * @param	string	$inCase		The input case (self::KEBAB_CASE, self::CAMEL_CASE, self::PASCALECASE, self::SNAKE_CASE).
-	 * @param	string	$outCase	The output case (self::KEBAB_CASE, self::CAMEL_CASE, self::PASCAL_CASE, self::SNAKE_CASE).
+	 * @param	string	$inCase		The input case (self::KEBAB_CASE, self::CAMEL_CASE, self::PASCAL_CASE, self::SNAKE_CASE, self::UPPER_CASE).
+	 * @param	string	$outCase	The output case (self::KEBAB_CASE, self::CAMEL_CASE, self::PASCAL_CASE, self::SNAKE_CASE, self::UPPER_CASE).
 	 * @param	?bool	$upperCase	(optional) True for upper case output. False for lower case output.
 	 *					Defaults to null, to avoid upper/lower case modification.
 	 * @param	bool	$ascii		(optional) Set to true to convert all characters to ASCII. Defaults to false.
@@ -346,6 +348,18 @@ class Text {
 		// ASCII conversion
 		if ($ascii)
 			$txt = self::ascii($txt);
+		// upper case input is processed as a lower-cased snake case
+		if ($inCase == self::UPPER_CASE) {
+			$txt = mb_convert_case($txt, MB_CASE_LOWER);
+			$inCase = self::SNAKE_CASE;
+		}
+		// upper case output is processed as a snake case forced to upper case,
+		// unless lower case output was explicitly requested (then it stays a snake case)
+		if ($outCase == self::UPPER_CASE) {
+			$outCase = self::SNAKE_CASE;
+			if ($upperCase !== false)
+				$upperCase = true;
+		}
 		// snake case to snake case
 		if ($inCase == self::SNAKE_CASE && $outCase == self::SNAKE_CASE) {
 			$txt = str_replace('-', '_', $txt);
