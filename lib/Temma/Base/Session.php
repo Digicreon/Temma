@@ -125,8 +125,8 @@ class Session implements \ArrayAccess {
 		// search for the session ID in the received cookies
 		$oldSessionId = $_COOKIE[$cookieName] ?? null;
 		$this->_sessionId = $oldSessionId;
-		// creation of the new session ID
-		$newSessionId = hash('md5', time() . mt_rand(0, 0xffff) . mt_rand(0, 0xffff) . mt_rand(0, 0xffff) . mt_rand(0, 0xffff));
+		// creation of the new session ID, using a cryptographically secure pseudo-random generator
+		$newSessionId = bin2hex(random_bytes(16));
 		// fetch session data
 		if (empty($oldSessionId)) {
 			$this->_sessionId = $newSessionId;
