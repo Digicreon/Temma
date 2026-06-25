@@ -32,6 +32,14 @@ class Dumper {
 	const COLOR_CONTRAST_LIGHT = '#F7E9DC';
 	/** Constant : medium contrast color. */
 	const COLOR_CONTRAST_MEDIUM = '#FFDBC6';
+	/** Constant: inline style for <pre> elements in HTML dumps (host-proof legibility). */
+	const HTML_PRE_STYLE = 'margin: 0 !important; font: 14px/1.4 monospace !important; white-space: pre-wrap !important;';
+	/** Constant: inline style for <tt> headers in HTML dumps. */
+	const HTML_TT_STYLE = 'font: 14px/1.4 monospace !important;';
+	/** Constant: inline style for <table> elements in HTML dumps (keeps nesting indentation). */
+	const HTML_TABLE_STYLE = 'border-collapse: separate !important; border-spacing: 2px !important; width: calc(100% - 30px) !important; margin: 0 0 0 30px !important;';
+	/** Constant: inline style for <td> cells in HTML dumps. */
+	const HTML_CELL_STYLE = 'padding: 2px 8px !important; vertical-align: top !important;';
 	/** List of known elements, to avoid recursion. */
 	protected array $_known = [];
 	/** Indentation, used for text dump. */
@@ -492,19 +500,22 @@ class Dumper {
 	/* ********** HTML DUMPER PSEUDO-PRIVATE METHODS ********** */
 	/** HTML recursion. */
 	public function _dumpHtmlRecursion() : string {
-		return ('<em>RECURSION</em>');
+		return ("<em style='font-style: italic !important; color: #334 !important;'>RECURSION</em>");
 	}
 	/** HTML null. */
 	public function _dumpHtmlNull() : string {
-		return ("<pre title='null' style='font-weight: bold; color: #0a0;'>null</pre>\n");
+		$pre = self::HTML_PRE_STYLE;
+		return ("<pre title='null' style='$pre font-weight: bold !important; color: #0a0 !important;'>null</pre>\n");
 	}
 	/** HTML bool. */
 	public function _dumpHtmlBool(bool $data) : string {
+		$pre = self::HTML_PRE_STYLE;
 		$value = $data ? 'true' : 'false';
-		return ("<pre title='$value' style='font-weight: bold; color: #e44;'>$value</pre>\n");
+		return ("<pre title='$value' style='$pre font-weight: bold !important; color: #e44 !important;'>$value</pre>\n");
 	}
 	/** HTML scalar. */
 	public function _dumpHtmlScalar(mixed $data) : string {
+		$pre = self::HTML_PRE_STYLE;
 		$color = '#00c';
 		if (is_int($data)) {
 			$type = 'int';
@@ -514,16 +525,18 @@ class Dumper {
 			$type = 'string';
 			$color = '#a0a';
 		}
-		return ("<pre title='$type' class='tµ-wrap' style='color: $color;'>" . htmlspecialchars($data) . "</pre>\n");
+		return ("<pre title='$type' style='$pre color: $color !important;'>" . htmlspecialchars($data) . "</pre>\n");
 	}
 	/** HTML array start. */
 	public function _dumpHtmlArrayStart(array $data) : string {
 		$count = count($data);
 		$this->_lightBgStack[] = !$this->_lightBgStack ? false : !end($this->_lightBgStack);
 		$id = bin2hex(random_bytes(5));
+		$tt = self::HTML_TT_STYLE;
+		$table = self::HTML_TABLE_STYLE;
 		return(
-			"<div>
-				<tt>
+			"<div style='margin: 0 !important;'>
+				<tt style='$tt'>
 					array ($count)" . ($count ? ':' : '') . "
 					<span id='tµ-array-tr-$id' style='color: #666; cursor: pointer; display: none;'
 					 onclick=\"document.getElementById('tµ-array-td-$id').style.display = 'inline'; document.getElementById('tµ-array-$id').style.display = 'block'; this.style.display = 'none';\">▶</span>
@@ -531,16 +544,18 @@ class Dumper {
 					 onclick=\"document.getElementById('tµ-array-tr-$id').style.display = 'inline'; document.getElementById('tµ-array-$id').style.display = 'none'; this.style.display = 'none';\">▼</span>
 				</tt>
 			</div>
-			<table id='tµ-array-$id' class='tµ-data'>\n"
+			<table id='tµ-array-$id' class='tµ-data' style='$table'>\n"
 		);
 	}
 	/** HTML array item start. */
 	public function _dumpHtmlItemStart(int|string $key, mixed $value) : string {
 		$bgColor = end($this->_lightBgStack) ? self::COLOR_WHITE : self::COLOR_LIGHT;
+		$cell = self::HTML_CELL_STYLE;
+		$pre = self::HTML_PRE_STYLE;
 		return (
 			"<tr valign='top'>
-				<td style='background-color: $bgColor; width: 1%;'><pre>" . htmlspecialchars($key) . "</pre></td>
-				<td style='background-color: $bgColor;'>"
+				<td style='background-color: $bgColor !important; width: 1% !important; $cell'><pre style='$pre'>" . htmlspecialchars($key) . "</pre></td>
+				<td style='background-color: $bgColor !important; $cell'>"
 		);
 	}
 	/** HTML array item end. */
@@ -556,9 +571,11 @@ class Dumper {
 	public function _dumpHtmlObjectStart(object $data, string $objectName, array $properties) : string {
 		$this->_lightBgStack[] = !$this->_lightBgStack ? false : !end($this->_lightBgStack);
 		$id = bin2hex(random_bytes(5));
+		$tt = self::HTML_TT_STYLE;
+		$table = self::HTML_TABLE_STYLE;
 		return (
-			"<div>
-				<tt>
+			"<div style='margin: 0 !important;'>
+				<tt style='$tt'>
 					Object [" . htmlspecialchars($objectName) . "]" . ($properties ? ':' : '') . "
 					<span id='tµ-object-tr-$id' style='color: #666; cursor: pointer; display: none;'
 					 onclick=\"document.getElementById('tµ-object-td-$id').style.display = 'inline'; document.getElementById('tµ-object-$id').style.display = 'block'; this.style.display = 'none';\">▶</span>
@@ -566,21 +583,23 @@ class Dumper {
 					 onclick=\"document.getElementById('tµ-object-tr-$id').style.display = 'inline'; document.getElementById('tµ-object-$id').style.display = 'none'; this.style.display = 'none';\">▼</span>
 				</tt>
 			</div>
-			<table id='tµ-object-$id' class='tµ-data'>\n"
+			<table id='tµ-object-$id' class='tµ-data' style='$table'>\n"
 		);
 	}
 	/** HTML object property start. */
 	public function _dumpHtmlPropertyStart(mixed $value, string $propertyName, string $visibility, string $staticness) : string {
 		$bgColor = end($this->_lightBgStack) ? self::COLOR_WHITE : self::COLOR_LIGHT;
+		$cell = self::HTML_CELL_STYLE;
+		$pre = self::HTML_PRE_STYLE;
 		$title = (($staticness == 'static') ? 'static ' : '') . $visibility;
 		return (
 			"<tr valign='top'>
-				<td style='background-color: $bgColor; width: 1%;'>
-					<pre title='$title'>" .
-					"<span style='color: #840;'>" . (($visibility == 'public') ? '+' : (($visibility == 'protected') ? '#' : '-')) . "</span>" .
-					"<span" . (($staticness == 'static') ? " style='text-decoration: underline;'" : '') . '>$' . htmlspecialchars($propertyName) .
+				<td style='background-color: $bgColor !important; width: 1% !important; $cell'>
+					<pre title='$title' style='$pre'>" .
+					"<span style='color: #840 !important;'>" . (($visibility == 'public') ? '+' : (($visibility == 'protected') ? '#' : '-')) . "</span>" .
+					"<span" . (($staticness == 'static') ? " style='text-decoration: underline !important;'" : '') . '>$' . htmlspecialchars($propertyName) .
 				"</span></pre></td>
-				<td style='background-color: $bgColor;'>"
+				<td style='background-color: $bgColor !important; $cell'>"
 		);
 	}
 	/** HTML objet property end. */

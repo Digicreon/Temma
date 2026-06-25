@@ -295,6 +295,10 @@ class Debug extends \Temma\Web\Plugin {
 					tµHide("._tµ-panel");
 					tµToggle("#tµ-toolbar");
 					tµRemoveClass("._tµ-btn", "tµ-tab-active");
+					if (tµBarStatus == "0")
+						document.documentElement.classList.remove("tµ-with-bar");
+					else
+						document.documentElement.classList.add("tµ-with-bar");
 				}
 				var tµLogUsedLevel = "";
 				var tµLogUsedClass = "";
@@ -316,20 +320,25 @@ class Debug extends \Temma\Web\Plugin {
 				}
 			</script>
 			<style>
-				body {
-					padding-bottom: 150px;
+				:where(#tµ-toolbar, #tµ-toolbar *, .tµ-panel, .tµ-panel *) {
+					all: revert;
+					box-sizing: border-box;
+				}
+				html.tµ-with-bar body {
+					padding-bottom: 48px;
 				}
 				.tµ-panel {
-					position: fixed;
+					position: fixed !important;
 					width: 100%; height: calc(100% - 42px);
 					top: 0;
-					left; 0;
+					left: 0;
 					padding: 5px;
-					background-color: $colorLight;
-					color: $colorBlack;
+					background-color: $colorLight !important;
+					color: $colorBlack !important;
 					font-family: Arial, sans-serif;
 					font-size: 14px;
-					z-index: 99999;
+					line-height: 1.4;
+					z-index: 99999 !important;
 					overflow: auto;
 				}
 				.tµ-panel h2 {
@@ -342,61 +351,35 @@ class Debug extends \Temma\Web\Plugin {
 					color: red;
 					text-decoration: underline;
 				}
-				.tµ-panel pre.tµ-wrap,
-				.tµ-dump pre.tµ-wrap {
+				.tµ-panel pre.tµ-wrap {
 					white-space: pre-wrap;
 				}
-				.tµ-dump {
-					color: $colorBlack;
-					font-family: Arial, sans-serif;
+				.tµ-data td:hover {
+					filter: brightness(0.94) !important;
 				}
-				.tµ-panel table.tµ-data,
-				.tµ-dump table.tµ-data {
-					width: calc(100% - 30px);
-					border-collapse: separate;
-					border-spacing: 2px;
-					margin-left: 30px;
-				}
-				.tµ-panel table.tµ-data td,
-				.tµ-dump table.tµ-data td {
-					padding: 2px 8px 0 8px;
-				}
-				.tµ-panel table.tµ-data td[style='background-color: $colorWhite;']:hover,
-				.tµ-panel table.tµ-data td[style='background-color: $colorWhite; padding-right: 0;']:hover,
-				.tµ-dump table.tµ-data td[style='background-color: $colorWhite;']:hover,
-				.tµ-dump table.tµ-data td[style='background-color: $colorWhite; padding-right: 0;']:hover {
-					background-color: $colorContrastLight !important;
-				}
-				.tµ-panel table.tµ-data td[style='background-color: $colorLight;']:hover,
-				.tµ-panel table.tµ-data td[style='background-color: $colorLight; padding-right: 0;']:hover,
-				.tµ-dump table.tµ-data td[style='background-color: $colorLight;']:hover,
-				.tµ-dump table.tµ-data td[style='background-color: $colorLight; padding-right: 0;']:hover {
-					background-color: $colorContrastMedium !important;
-				}
-				.tµ-panel > table,
-				.tµ-dump > table {
+				.tµ-panel > table {
 					width: 100%;
 					border-collapse: separate;
 					border-spacing: 3px;
 				}
-				.tµ-panel > table > tbody > tr > td,
-				.tµ-dump > table > tbody > tr > td {
+				.tµ-panel > table > tbody > tr > td {
 					padding: 2px 8px 0 8px;
-			        	background-color: $colorWhite;
+					background-color: $colorWhite;
 				}
-				.tµ-panel > table > tbody > tr:hover > td,
-				.tµ-dump > table > tbody > tr:hover > td {
+				.tµ-panel > table > tbody > tr:hover > td {
 					background-color: $colorContrastLight;
 				}
-				.tµ-panel pre,
-				.tµ-dump pre {
-					margin-bottom: 0;
+				.tµ-panel pre {
+					margin: 0;
 				}
 				.tµ-panel button {
 					background-color: $colorMedium;
+					color: $colorWhite;
 					margin: 5px;
 					padding: 1px 8px;
 					border: 1px solid $colorLight;
+					font-family: Arial, sans-serif;
+					font-size: 14px;
 				}
 				.tµ-panel button:hover {
 					background-color: $colorDark;
@@ -412,28 +395,32 @@ class Debug extends \Temma\Web\Plugin {
 					color: $colorWhite;
 				}
 				#tµ-toolbar {
-					position: fixed;
+					position: fixed !important;
 					height: 42px;
 					bottom: 0;
 					left: 0;
 					right: 0;
-					background: linear-gradient($colorDark, #034C9A);
-					color: #000;
+					background: linear-gradient($colorDark, #034C9A) !important;
+					color: #ddd !important;
 					font-family: Arial, sans-serif;
 					font-size: 13px;
+					line-height: 1.4;
 					margin: 0;
 					padding: 3px 0 0 40px;
-					z-index: 999999;
+					z-index: 999999 !important;
 				}
 				#tµ-toolbar h1 {
 					font-family: sans-serif;
 				}
 				#tµ-toolbar button {
 					background-color: $colorMedium;
+					color: $colorWhite;
 					margin: 4px;/*4px 4px 0 4px;*/
 					padding: 0 6px 0 6px;
 					border: 1px solid $colorMedium;
 					height: 22px;
+					font-family: Arial, sans-serif;
+					font-size: 13px;
 				}
 				#tµ-toolbar button:hover {
 					background-color: $colorDark;
@@ -553,7 +540,7 @@ class Debug extends \Temma\Web\Plugin {
 				  </div>\n";
 			$tplVars = $this->_response->getData();
 			if (!$tplVars) {
-				$html .= "<p>Nothin</p>";
+				$html .= "<p>Nothing</p>";
 			} else {
 				$html .= "<table>";
 				ksort($tplVars);
@@ -636,16 +623,16 @@ class Debug extends \Temma\Web\Plugin {
 				$html .= "<p>Nothing</p>";
 			} else {
 				$html .= "<table>";
-				$getVars = $_GET;
-				ksort($getVars);
+				$postVars = $_POST;
+				ksort($postVars);
 				self::$_dumper = TµDumper::factoryHtml();
-				foreach ($getVars as $key => $value) {
+				foreach ($postVars as $key => $value) {
 					$html .= "<tr valign='top'>
 							<td style='width: 1%;'><pre>" . htmlspecialchars($key) . "</pre></td>
 							<td>" . self::$_dumper->execDump($value) . "</td>
 						  </tr>\n";
 				}
-				unset($getVars);
+				unset($postVars);
 				$html .= "</table>";
 			}
 			// cookie variables
@@ -659,7 +646,7 @@ class Debug extends \Temma\Web\Plugin {
 					<h2 id='tµ-vars-h1-cookie' style='margin-top: 15px;'>Cookie variables</h2>
 				  </div>\n";
 			if (!$_COOKIE) {
-				$html .= "<p>Nothin</p>";
+				$html .= "<p>Nothing</p>";
 			} else {
 				$html .= "<table>";
 				$cookies = $_COOKIE;
@@ -860,9 +847,10 @@ class Debug extends \Temma\Web\Plugin {
 		$html .= <<<'JS'
 			<script>
 				var tµBarStatus = localStorage.getItem("tµ-debug-bar-status");
-				if (tµBarStatus == "0") {
+				if (tµBarStatus == "0")
 					tµHide("#tµ-toolbar");
-				}
+				else
+					document.documentElement.classList.add("tµ-with-bar");
 			</script>
 		JS;
 		return ($html);
@@ -878,8 +866,9 @@ class Debug extends \Temma\Web\Plugin {
 		if (!$items)
 			return ('');
 		$res = "<div class='tµ-dump'>
-		                <table class='tµ-data' style='margin-left: 5px; width: calc(100% - 5px);'>\n";
+		                <table class='tµ-data' style='border-collapse: separate !important; border-spacing: 2px !important; margin-left: 5px !important; width: calc(100% - 5px) !important;'>\n";
 		$bgColor = $light ? self::COLOR_WHITE : self::COLOR_LIGHT;
+		$pre = TµDumper::HTML_PRE_STYLE;
 		foreach ($items as $item) {
 			$name = "<span style='color: brown;'>" . htmlspecialchars($item->f) . "(<span style='color: gray;'>";
 			$list = [];
@@ -904,8 +893,8 @@ class Debug extends \Temma\Web\Plugin {
 			$duration = (int)($item->duration * 1000);
 			$percent = sprintf('%.02f', abs($item->duration * 100 / $totalDuration));
 			$res .= "<tr valign='top'>
-					<td style='background-color: $bgColor; padding-right: 0;'>
-						<pre><span style='color: #484;'>[$duration&nbsp;ms&nbsp;/ <strong>$percent%</strong>]</span> $name</pre>\n";
+					<td style='background-color: $bgColor !important; padding: 2px 8px 0 0 !important; vertical-align: top !important;'>
+						<pre style='$pre'><span style='color: #484;'>[$duration&nbsp;ms&nbsp;/ <strong>$percent%</strong>]</span> $name</pre>\n";
 			$res .= self::dumpTelemetry($item->sub, $totalDuration, !$light);
 			$res .= "	</td>
 				 </tr>\n";
