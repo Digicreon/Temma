@@ -1865,6 +1865,20 @@ $tests = [
 		'expect' => true,
 	],
 	[
+		'assoc; keys: id, login?', ['id' => 1],
+		'strict' => false,
+		'expect' => true,
+	],
+	[
+		[
+			'id'    => 'int',
+			'name?' => 'string',
+		],
+		['id' => 3],
+		'strict' => false,
+		'expect' => true,
+	],
+	[
 		[
 			'type' => 'assoc',
 			'keys' => [
