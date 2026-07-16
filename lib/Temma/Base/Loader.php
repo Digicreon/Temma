@@ -304,13 +304,23 @@ class Loader extends \Temma\Utils\Registry {
 	 * Add a prefix, or a list of prefixes.
 	 * @param	string|array	$name	If a string is given, it's the name of the prefix, and a prefix should be given.
 	 *					If an array is given, its key/value pairs are used to set prefixes, and the
-	 *					second parameter is not used.
+	 *					second parameter is not used. Each value could be a namespace string
+	 *					(trailing backslashes are trimmed), a callable (closure, function name,
+	 *					'Class::method' string) executed at resolution time, or a falsy value
+	 *					(null, empty string) to remove the prefix.
 	 * @param	?string		$prefix	Prefixed namespace. Could be null to remove a prefix.
 	 * @return	\Temma\Base\Loader	The current object.
 	 */
 	public function prefix(string|array $name, ?string $prefix=null) : \Temma\Base\Loader {
 		if (is_array($name)) {
-			$this->_prefixes = array_merge($this->_prefixes, $name);
+			foreach ($name as $prefixName => $value) {
+				if (!$value)
+					unset($this->_prefixes[$prefixName]);
+				else if (is_string($value))
+					$this->_prefixes[$prefixName] = rtrim($value, '\\');
+				else
+					$this->_prefixes[$prefixName] = $value;
+			}
 			return ($this);
 		}
 		if (!$prefix)
@@ -396,7 +406,7 @@ class Loader extends \Temma\Utils\Registry {
 			}
 			// loop on prefixes
 			foreach ($this->_prefixes as $prefix => $value) {
-				if (!str_starts_with($key, $prefix) || !isset($value))
+				if (!str_starts_with($key, $prefix))
 					continue;
 				$shortKey = mb_substr($key, mb_strlen($prefix));
 				if (is_callable($value) && !$value instanceof \Temma\Web\Controller) {

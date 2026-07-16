@@ -89,6 +89,10 @@ class WantsDefault {
 		$this->received = $number;
 	}
 }
+// fonction utilisée comme préfixe callable (forme tableau)
+function prefixFunction(TµLoader $loader, string $shortKey) : string {
+	return ("fonction:$shortKey");
+}
 
 /* ********** MICRO-FRAMEWORK DE TEST ********** */
 $count = 0;
@@ -184,6 +188,50 @@ $obj = $loader['\WantsApiKey'];
 check("résolution d'un scalaire par nom de paramètre", $obj->received === 'SECRET');
 $obj = $loader['\WantsDefault'];
 check("valeur par défaut utilisée si paramètre irrésoluble", $obj->received === 42);
+
+print(TµAnsi::bold("Préfixes : équivalence des formes chaîne et tableau\n"));
+$prefixLoader = new TµLoader();
+$prefixLoader->prefix('StrA', '\Temma\Utils');
+$prefixLoader->prefix('StrB', '\Temma\Utils\\');
+$prefixLoader->prefix([
+	'TµA' => '\Temma\Utils',
+	'TµB' => '\Temma\Utils\\',
+	'TµC' => 'Temma\Utils',
+	'TµD' => 'Temma\Utils\\',
+]);
+$ref = $prefixLoader->get('StrATimer');
+check("forme chaîne sans backslash final : résolution en \\Temma\\Utils\\Timer",
+      $ref instanceof \Temma\Utils\Timer);
+check("forme chaîne avec backslash final : même instance",
+      $prefixLoader->get('StrBTimer') === $ref);
+check("forme tableau sans backslash final : même instance",
+      $prefixLoader->get('TµATimer') === $ref);
+check("forme tableau avec backslash final : même instance",
+      $prefixLoader->get('TµBTimer') === $ref);
+check("forme tableau sans backslash initial ni final : même instance",
+      $prefixLoader->get('TµCTimer') === $ref);
+check("forme tableau avec backslash final, sans initial : même instance",
+      $prefixLoader->get('TµDTimer') === $ref);
+
+print(TµAnsi::bold("Préfixes : suppression via la forme tableau\n"));
+$delLoader = new TµLoader();
+$delLoader->prefix(['Del' => '\Temma\Utils\\']);
+check("préfixe actif : la résolution fonctionne",
+      $delLoader->get('DelTimer') instanceof \Temma\Utils\Timer);
+$delLoader->prefix(['Del' => null]);
+check("préfixe supprimé : la résolution échoue",
+      $delLoader->get('DelRegistry', null, false) === null);
+
+print(TµAnsi::bold("Préfixes : callables via la forme tableau (non-régression)\n"));
+$cbLoader = new TµLoader();
+$cbLoader->prefix([
+	'Clo' => fn(TµLoader $l, string $shortKey) => "closure:$shortKey",
+	'Fun' => 'prefixFunction',
+]);
+check("closure : exécutée avec la clé courte",
+      $cbLoader->get('CloAbc') === 'closure:Abc');
+check("nom de fonction : exécuté avec la clé courte",
+      $cbLoader->get('FunXyz') === 'fonction:Xyz');
 
 // résumé
 print("\n");
