@@ -3,7 +3,7 @@
 /**
  * Email.
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2023, Amaury Bouchard
+ * @copyright	© 2023-2026, Amaury Bouchard
  * @link	https://www.temma.net/documentation/helper-email
  */
 
@@ -197,6 +197,7 @@ class Email implements \Temma\Base\Loadable {
 	 * @param	?string		$unsubscribe	(optional) Content for the "List-Unsubscribe" header.
 	 *						For example: "<mailto:contact@site.com?subject=Unsubscribe>, <https://www.site.com/mail/unsubscribe>"
 	 * @param	?string		$envelopeSender	(optional) Envelope sender passed to sendmail.
+	 * @see	\Temma\Utils\Smarty	The HTML template follows the configured HTML auto-escaping setting; the text template is never auto-escaped.
 	 */
 	public function templatedMail(string $from, string|array $to, string $title='',
 	                              ?string $htmlTplPath='', ?string $textTplPath=null,
@@ -207,7 +208,7 @@ class Email implements \Temma\Base\Loadable {
 		if ($htmlTplPath)
 			$html = $this->_loader['\Temma\Utils\Smarty']->render($htmlTplPath, $templateData);
 		if ($textTplPath)
-			$text = $this->_loader['\Temma\Utils\Smarty']->render($textTplPath, $templateData);
+			$text = $this->_loader['\Temma\Utils\Smarty']->render($textTplPath, $templateData, autoEscape: false);
 		$this->mimeMail($from, $to, $title, $html, $text, $attachments, $cc, $bcc, $unsubscribe, $envelopeSender);
 	}
 
