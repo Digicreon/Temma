@@ -59,6 +59,10 @@ class Email implements \Temma\Base\Loadable {
 	protected ?array $_bcc = [];
 	/** Envelope sender used for all messages. */
 	protected string $_envelopeSender = '';
+	/** Transport datasource used to send messages (null: use PHP's mail() through the local MTA). */
+	protected ?\Temma\Base\Datasource $_transport = null;
+	/** True once the transport has been resolved (from a setter or the configuration). */
+	protected bool $_transportResolved = false;
 
 	/**
 	 * Constructor.
@@ -122,6 +126,26 @@ class Email implements \Temma\Base\Loadable {
 		$this->_envelopeSender = trim($envelopeSender);
 	}
 	/**
+	 * Define the transport datasource used to send messages.
+	 * Any datasource supporting set() works: \Temma\Datasources\Smtp to deliver through a relay,
+	 * File/S3 to archive, Sqs/Beanstalk to enqueue, Dummy to discard.
+	 * @param	\Temma\Base\Datasource	$datasource	The transport datasource.
+	 */
+	public function setDatasource(\Temma\Base\Datasource $datasource) : void {
+		$this->_transport = $datasource;
+		$this->_transportResolved = true;
+	}
+	/**
+	 * Define the transport as an SMTP relay, from a DSN or separate parameters.
+	 * @param	string|array	$smtp	SMTP DSN ('smtp://', 'smtp+tls://' or 'smtps://'), or associative
+	 *					array of parameters (see \Temma\Datasources\Smtp::fromParams()).
+	 */
+	public function setSmtp(string|array $smtp) : void {
+		$this->_transport = is_string($smtp) ? \Temma\Base\Datasource::factory($smtp)
+		                                     : \Temma\Datasources\Smtp::fromParams($smtp);
+		$this->_transportResolved = true;
+	}
+	/**
 	 * Send a simple raw-text message, without attachment.
 	 * @param	string		$from		Sender of the message (in the form "Name <address@domain>" or "address@domain").
 	 * @param	string|array	$to		Recipient of the message, or list of recipients (each recipient in the form "Name <address@domain>" or "address@domain").
@@ -143,7 +167,7 @@ class Email implements \Temma\Base\Loadable {
 		$bcc = is_array($bcc) ? $bcc : [$bcc];
 		$bcc = array_merge($bcc, $this->_bcc);
 		$envelopeSender = $envelopeSender ?: $this->_envelopeSender;
-		self::simpleMail($from, $to, $title, $message, $cc, $bcc, $envelopeSender);
+		$this->_deliver($from, $to, $title, '', $message, null, $cc, $bcc, null, $envelopeSender);
 	}
 	/**
 	 * Send an HTML mail, with or without a raw text version, with or without attached files.
@@ -175,7 +199,7 @@ class Email implements \Temma\Base\Loadable {
 		$bcc = is_array($bcc) ? $bcc : [$bcc];
 		$bcc = array_merge($bcc, $this->_bcc);
 		$envelopeSender = $envelopeSender ?: $this->_envelopeSender;
-		self::fullMail($from, $to, $title, $html, $text, $attachments, $cc, $bcc, $unsubscribe, $envelopeSender);
+		$this->_deliver($from, $to, $title, $html, $text, $attachments, $cc, $bcc, $unsubscribe, $envelopeSender);
 	}
 	/**
 	 * Send an HTML mail, with or without a raw text version, with or without attached files.
@@ -301,21 +325,118 @@ class Email implements \Temma\Base\Loadable {
 		}
 		if ($bcc)
 			$headers['Bcc'] = $bcc;
+		// content type and body
+		$content = self::_composeBody($html, $text, $attachments);
+		$headers = array_merge($headers, $content['headers']);
+		$message = $content['body'];
+		// management of the envelope sender
+		$params = '';
+		if ($envelopeSender)
+			$params = "-f$envelopeSender";
+		// send the message
+		mail($to, $title, $message, $headers, $params);
+	}
 
+	/* ********** PRIVATE METHODS ********** */
+	/**
+	 * Build and deliver a message from an instance, through the configured transport if any,
+	 * or through PHP's mail() otherwise.
+	 * @param	string	$from		Sender (form "Name <address@domain>" or "address@domain").
+	 * @param	array	$toList		List of recipients.
+	 * @param	string	$title		Message title.
+	 * @param	string	$html		HTML content (empty for a plain-text message).
+	 * @param	?string	$text		Raw text content.
+	 * @param	?array	$attachments	List of attachments.
+	 * @param	array	$ccList		List of carbon-copy recipients.
+	 * @param	array	$bccList	List of blind carbon-copy recipients.
+	 * @param	?string	$unsubscribe	"List-Unsubscribe" header content.
+	 * @param	?string	$envelopeSender	Envelope sender.
+	 */
+	protected function _deliver(string $from, array $toList, string $title, string $html, ?string $text,
+	                            ?array $attachments, array $ccList, array $bccList, ?string $unsubscribe,
+	                            ?string $envelopeSender) : void {
+		$transport = $this->_getTransport();
+		if (!$transport) {
+			// no transport configured: fall back to the local MTA through mail()
+			self::fullMail($from, $toList, $title, $html, $text, $attachments, $ccList, $bccList, $unsubscribe, $envelopeSender);
+			return;
+		}
+		// build the complete message and hand it to the transport datasource
+		$content = self::_composeBody($html, $text, $attachments);
+		$messageId = self::_generateMessageId($from);
+		$message = self::_composeMessage($from, $toList, $ccList, $title, $unsubscribe, $content, $messageId);
+		// envelope recipients (RCPT TO): bare addresses of to + cc + bcc, deduplicated
+		$recipients = [];
+		foreach (array_merge($toList, $ccList, $bccList) as $recipient) {
+			$address = self::_cleanAddress((string)$recipient);
+			if ($address)
+				$recipients[$address] = true;
+		}
+		$envelope = self::_cleanAddress($envelopeSender ?: $from);
+		$transport->set($messageId, [
+			'from'       => $envelope,
+			'recipients' => array_keys($recipients),
+			'message'    => $message,
+		]);
+	}
+	/**
+	 * Resolve the transport datasource, from a runtime setter or the 'x-email' configuration.
+	 * Priority: runtime setter > 'datasource' (reference) > 'smtp' (inline). Null means "use mail()".
+	 * @return	?\Temma\Base\Datasource	The transport datasource, or null.
+	 */
+	protected function _getTransport() : ?\Temma\Base\Datasource {
+		if ($this->_transportResolved)
+			return ($this->_transport);
+		$this->_transportResolved = true;
+		$config = $this->_loader->get('config', null, false);
+		if (!($config instanceof \Temma\Web\Config))
+			return ($this->_transport);
+		// (b) reference to a datasource declared in the 'datasources' configuration section
+		$name = $config->xtra('email', 'datasource');
+		if (is_string($name) && $name) {
+			$registry = $this->_loader->get('dataSources', null, false);
+			if ($registry instanceof \Temma\Utils\Registry && isset($registry[$name]) &&
+			    $registry[$name] instanceof \Temma\Base\Datasource)
+				$this->_transport = $registry[$name];
+			else {
+				$datasource = $this->_loader->get($name, null, false);
+				if ($datasource instanceof \Temma\Base\Datasource)
+					$this->_transport = $datasource;
+			}
+			if ($this->_transport)
+				return ($this->_transport);
+		}
+		// (c) inline SMTP configuration (DSN string or associative array of parameters)
+		$smtp = $config->xtra('email', 'smtp');
+		if (is_string($smtp) && $smtp)
+			$this->_transport = \Temma\Base\Datasource::factory($smtp);
+		else if (is_array($smtp) && $smtp)
+			$this->_transport = \Temma\Datasources\Smtp::fromParams($smtp);
+		return ($this->_transport);
+	}
+	/**
+	 * Build the content-type header and body of a message (shared by the mail() and transport paths).
+	 * @param	string	$html		HTML content (empty for a plain-text message).
+	 * @param	?string	$text		Raw text content.
+	 * @param	?array	$attachments	List of attachments.
+	 * @return	array	Associative array with the keys 'headers' (content-related headers) and 'body'.
+	 */
+	static protected function _composeBody(string $html, ?string $text, ?array $attachments) : array {
+		$headers = [];
 		if (!$html && !$attachments) {
 			$headers['Content-Type'] = 'text/plain; charset=utf-8';
-			$message = $text;
+			$body = (string)$text;
 		} else if ($html && !$text && !$attachments) {
 			$headers['Content-Type'] = 'text/html; charset=utf-8';
-			$message = $html;
+			$body = $html;
 		} else {
 			$mixedBoundary = bin2hex(random_bytes(16));
 			$altBoundary = bin2hex(random_bytes(16));
 			if ($attachments) {
-				$headers['Content-type'] = "multipart/mixed; boundary=\"$mixedBoundary\"";
+				$headers['Content-Type'] = "multipart/mixed; boundary=\"$mixedBoundary\"";
 				$boundary = $mixedBoundary;
 			} else {
-				$headers['Content-type'] = "multipart/alternative; boundary=\"$altBoundary\"";
+				$headers['Content-Type'] = "multipart/alternative; boundary=\"$altBoundary\"";
 				$boundary = $altBoundary;
 			}
 			$message = [];
@@ -361,17 +482,73 @@ class Email implements \Temma\Base\Loadable {
 			// avoid null bytes
 			foreach ($message as &$msg)
 				$msg = str_replace(chr(0), '', $msg);
-			$message = implode("\r\n", $message);
+			$body = implode("\r\n", $message);
 		}
-		// management of the envelope sender
-		$params = '';
-		if ($envelopeSender)
-			$params = "-f$envelopeSender";
-		// send the message
-		mail($to, $title, $message, $headers, $params);
+		return (['headers' => $headers, 'body' => $body]);
 	}
-
-	/* ********** PRIVATE METHODS ********** */
+	/**
+	 * Build a complete RFC 5322 message stream for the transport path (no Bcc header).
+	 * @param	string	$from		Sender.
+	 * @param	array	$toList		List of recipients.
+	 * @param	array	$ccList		List of carbon-copy recipients.
+	 * @param	string	$title		Message title.
+	 * @param	?string	$unsubscribe	"List-Unsubscribe" header content.
+	 * @param	array	$content	Content built by _composeBody() (keys 'headers' and 'body').
+	 * @param	string	$messageId	Value of the "Message-ID" header.
+	 * @return	string	The complete RFC 5322 message.
+	 */
+	static protected function _composeMessage(string $from, array $toList, array $ccList, string $title,
+	                                          ?string $unsubscribe, array $content, string $messageId) : string {
+		$lines = [];
+		$lines[] = 'From: ' . $from;
+		$to = implode(', ', array_filter($toList));
+		if ($to !== '')
+			$lines[] = 'To: ' . $to;
+		$cc = implode(', ', array_filter($ccList));
+		if ($cc !== '')
+			$lines[] = 'Cc: ' . $cc;
+		$lines[] = 'Subject: ' . self::_encodeHeader($title);
+		$lines[] = 'Date: ' . date('r');
+		$lines[] = 'Message-ID: ' . $messageId;
+		$lines[] = 'MIME-Version: 1.0';
+		if ($unsubscribe)
+			$lines[] = 'List-Unsubscribe: ' . $unsubscribe;
+		foreach ($content['headers'] as $name => $value)
+			$lines[] = "$name: $value";
+		return (implode("\r\n", $lines) . "\r\n\r\n" . $content['body']);
+	}
+	/**
+	 * Encode a header value using RFC 2047 if it contains non-ASCII characters.
+	 * @param	string	$str	Header value.
+	 * @return	string	The encoded value.
+	 */
+	static private function _encodeHeader(string $str) : string {
+		if (preg_match('/[^\x00-\x7F]/', $str))
+			return ('=?UTF-8?B?' . base64_encode($str) . '?=');
+		return ($str);
+	}
+	/**
+	 * Generate a "Message-ID" header value, using the sender's domain.
+	 * @param	string	$from	Sender.
+	 * @return	string	The generated Message-ID (between angle brackets).
+	 */
+	static private function _generateMessageId(string $from) : string {
+		$domain = 'localhost';
+		$address = self::_cleanAddress($from);
+		if (($pos = mb_strrpos($address, '@')) !== false)
+			$domain = mb_substr($address, $pos + 1) ?: 'localhost';
+		return ('<' . bin2hex(random_bytes(16)) . "@$domain>");
+	}
+	/**
+	 * Extract a bare email address from a "Name <address>" or "address" string.
+	 * @param	string	$address	Address, possibly with a display name.
+	 * @return	string	The bare email address.
+	 */
+	static private function _cleanAddress(string $address) : string {
+		if (preg_match('/<([^>]+)>/', $address, $matches))
+			return (trim($matches[1]));
+		return (trim($address));
+	}
 	/**
 	 * Filter the list of recipients using the list of allowedDomains.
 	 * @param	string|array	$to	Recipient of the message, or list of recipients (each recipient in the form "Name <address@domain>" or "address@domain").

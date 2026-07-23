@@ -94,6 +94,10 @@ abstract class Datasource implements \ArrayAccess, \Countable {
 			return (\Temma\Datasources\Beanstalk::factory($dsn));
 		if (str_starts_with($dsn, 'smsmode://'))
 			return (\Temma\Datasources\Smsmode::factory($dsn));
+		if (str_starts_with($dsn, 'smtp://') ||
+		    str_starts_with($dsn, 'smtp+tls://') ||
+		    str_starts_with($dsn, 'smtps://'))
+			return (\Temma\Datasources\Smtp::factory($dsn));
 		if (str_starts_with($dsn, 'slack://'))
 			return (\Temma\Datasources\Slack::factory($dsn));
 		if (str_starts_with($dsn, 'pushover://'))
