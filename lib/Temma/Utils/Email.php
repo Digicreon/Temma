@@ -61,8 +61,6 @@ class Email implements \Temma\Base\Loadable {
 	protected string $_envelopeSender = '';
 	/** Transport datasource used to send messages (null: use PHP's mail() through the local MTA). */
 	protected ?\Temma\Base\Datasource $_transport = null;
-	/** True once the transport has been resolved (from a setter or the configuration). */
-	protected bool $_transportResolved = false;
 
 	/**
 	 * Constructor.
@@ -70,25 +68,32 @@ class Email implements \Temma\Base\Loadable {
 	 */
 	public function __construct(\Temma\Base\Loader $loader) {
 		$this->_loader = $loader;
-		$disabled = $loader->config?->xtra('email', 'disabled');
+		$config = $loader->get('config', null, false);
+		if (!($config instanceof \Temma\Web\Config))
+			return;
+		$disabled = $config->xtra('email', 'disabled');
 		if ($disabled)
 			$this->_disabled = true;
-		$allowedDomains = $loader->config?->xtra('email', 'allowedDomains');
+		$allowedDomains = $config->xtra('email', 'allowedDomains');
 		if (is_array($allowedDomains))
 			$this->_allowedDomains = $allowedDomains;
-		$cc = $loader->config?->xtra('email', 'cc');
+		$cc = $config->xtra('email', 'cc');
 		if (is_array($cc))
 			$this->_cc = array_filter($cc);
 		else if (is_string($cc) && $cc)
 			$this->_cc = [$cc];
-		$bcc = $loader->config?->xtra('email', 'bcc');
+		$bcc = $config->xtra('email', 'bcc');
 		if (is_array($bcc))
 			$this->_bcc = array_filter($bcc);
 		else if (is_string($bcc) && $bcc)
 			$this->_bcc = [$bcc];
-		$envelopeSender = $loader->config?->xtra('email', 'envelopeSender');
+		$envelopeSender = $config->xtra('email', 'envelopeSender');
 		if (is_string($envelopeSender))
 			$this->_envelopeSender = trim($envelopeSender);
+		// transport datasource (a runtime setTransport() call overrides it afterwards)
+		$transport = $config->xtra('email', 'transport');
+		if ((is_string($transport) || is_array($transport)) && $transport)
+			$this->_transport = $this->_makeTransport($transport);
 	}
 	/**
 	 * Enable or disable message sending.
@@ -126,24 +131,18 @@ class Email implements \Temma\Base\Loadable {
 		$this->_envelopeSender = trim($envelopeSender);
 	}
 	/**
-	 * Define the transport datasource used to send messages.
-	 * Any datasource supporting set() works: \Temma\Datasources\Smtp to deliver through a relay,
-	 * File/S3 to archive, Sqs/Beanstalk to enqueue, Dummy to discard.
-	 * @param	\Temma\Base\Datasource	$datasource	The transport datasource.
+	 * Define the transport used to send messages. Overrides the 'x-email' configuration.
+	 * The transport can be given as:
+	 * - an already-instantiated data source (any datasource supporting set(): \Temma\Datasources\Smtp
+	 *   to deliver through a relay, File/S3 to archive, Sqs/Beanstalk to enqueue, Dummy to discard);
+	 * - a DSN string (any scheme, e.g. 'smtp+tls://user:pass@host:587'), or the name of a data source
+	 *   declared in the 'datasources' configuration section;
+	 * - an associative array of SMTP parameters (see \Temma\Datasources\Smtp::fromParams()).
+	 * @param	string|array|\Temma\Base\Datasource	$transport	Data source, DSN, data source name, or SMTP parameters.
 	 */
-	public function setDatasource(\Temma\Base\Datasource $datasource) : void {
-		$this->_transport = $datasource;
-		$this->_transportResolved = true;
-	}
-	/**
-	 * Define the transport as an SMTP relay, from a DSN or separate parameters.
-	 * @param	string|array	$smtp	SMTP DSN ('smtp://', 'smtp+tls://' or 'smtps://'), or associative
-	 *					array of parameters (see \Temma\Datasources\Smtp::fromParams()).
-	 */
-	public function setSmtp(string|array $smtp) : void {
-		$this->_transport = is_string($smtp) ? \Temma\Base\Datasource::factory($smtp)
-		                                     : \Temma\Datasources\Smtp::fromParams($smtp);
-		$this->_transportResolved = true;
+	public function setTransport(string|array|\Temma\Base\Datasource $transport) : void {
+		$this->_transport = ($transport instanceof \Temma\Base\Datasource) ? $transport
+		                                                                   : $this->_makeTransport($transport);
 	}
 	/**
 	 * Send a simple raw-text message, without attachment.
@@ -355,8 +354,7 @@ class Email implements \Temma\Base\Loadable {
 	protected function _deliver(string $from, array $toList, string $title, string $html, ?string $text,
 	                            ?array $attachments, array $ccList, array $bccList, ?string $unsubscribe,
 	                            ?string $envelopeSender) : void {
-		$transport = $this->_getTransport();
-		if (!$transport) {
+		if (!$this->_transport) {
 			// no transport configured: fall back to the local MTA through mail()
 			self::fullMail($from, $toList, $title, $html, $text, $attachments, $ccList, $bccList, $unsubscribe, $envelopeSender);
 			return;
@@ -373,46 +371,33 @@ class Email implements \Temma\Base\Loadable {
 				$recipients[$address] = true;
 		}
 		$envelope = self::_cleanAddress($envelopeSender ?: $from);
-		$transport->set($messageId, [
+		$this->_transport->set($messageId, [
 			'from'       => $envelope,
 			'recipients' => array_keys($recipients),
 			'message'    => $message,
 		]);
 	}
 	/**
-	 * Resolve the transport datasource, from a runtime setter or the 'x-email' configuration.
-	 * Priority: runtime setter > 'datasource' (reference) > 'smtp' (inline). Null means "use mail()".
-	 * @return	?\Temma\Base\Datasource	The transport datasource, or null.
+	 * Turn a transport specification into a datasource. A string containing '://' is a DSN (any scheme);
+	 * any other string is the name of a datasource declared in the 'datasources' configuration section;
+	 * an array is a set of SMTP parameters (see \Temma\Datasources\Smtp::fromParams()).
+	 * @param	string|array	$transport	DSN, datasource name, or SMTP parameters.
+	 * @return	?\Temma\Base\Datasource	The transport datasource, or null if it can't be resolved.
 	 */
-	protected function _getTransport() : ?\Temma\Base\Datasource {
-		if ($this->_transportResolved)
-			return ($this->_transport);
-		$this->_transportResolved = true;
-		$config = $this->_loader->get('config', null, false);
-		if (!($config instanceof \Temma\Web\Config))
-			return ($this->_transport);
-		// (b) reference to a datasource declared in the 'datasources' configuration section
-		$name = $config->xtra('email', 'datasource');
-		if (is_string($name) && $name) {
-			$registry = $this->_loader->get('dataSources', null, false);
-			if ($registry instanceof \Temma\Utils\Registry && isset($registry[$name]) &&
-			    $registry[$name] instanceof \Temma\Base\Datasource)
-				$this->_transport = $registry[$name];
-			else {
-				$datasource = $this->_loader->get($name, null, false);
-				if ($datasource instanceof \Temma\Base\Datasource)
-					$this->_transport = $datasource;
-			}
-			if ($this->_transport)
-				return ($this->_transport);
-		}
-		// (c) inline SMTP configuration (DSN string or associative array of parameters)
-		$smtp = $config->xtra('email', 'smtp');
-		if (is_string($smtp) && $smtp)
-			$this->_transport = \Temma\Base\Datasource::factory($smtp);
-		else if (is_array($smtp) && $smtp)
-			$this->_transport = \Temma\Datasources\Smtp::fromParams($smtp);
-		return ($this->_transport);
+	private function _makeTransport(string|array $transport) : ?\Temma\Base\Datasource {
+		// array: SMTP parameters
+		if (is_array($transport))
+			return ($transport ? \Temma\Datasources\Smtp::fromParams($transport) : null);
+		// string containing '://': a DSN (any scheme)
+		if (str_contains($transport, '://'))
+			return (\Temma\Base\Datasource::factory($transport));
+		// otherwise: the name of a datasource declared in the 'datasources' configuration section
+		$registry = $this->_loader->get('dataSources', null, false);
+		if ($registry instanceof \Temma\Utils\Registry && isset($registry[$transport]) &&
+		    $registry[$transport] instanceof \Temma\Base\Datasource)
+			return ($registry[$transport]);
+		$datasource = $this->_loader->get($transport, null, false);
+		return ($datasource instanceof \Temma\Base\Datasource ? $datasource : null);
 	}
 	/**
 	 * Build the content-type header and body of a message (shared by the mail() and transport paths).

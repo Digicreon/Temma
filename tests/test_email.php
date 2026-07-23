@@ -35,10 +35,10 @@ class CaptureStorage extends \Temma\Base\Datasource {
 		return (true);
 	}
 }
-// sous-classe d'Email exposant la résolution du transport
+// sous-classe d'Email exposant le transport résolu (dans le constructeur)
 class TestEmail extends TµEmail {
 	public function transport() : ?\Temma\Base\Datasource {
-		return ($this->_getTransport());
+		return ($this->_transport);
 	}
 }
 
@@ -105,7 +105,7 @@ print(TµAnsi::bold("Email : envoi via une datasource de livraison\n"));
 $delivery = new CaptureDelivery();
 $loader = makeLoader();
 $email = new TµEmail($loader);
-$email->setDatasource($delivery);
+$email->setTransport($delivery);
 $email->textMail('Sender <s@dom.com>', 'a@x.com', 'Bonjour', 'Corps du message',
                  ['Cici <c@x.com>'], ['bcc@x.com'], 'env@dom.com');
 $value = $delivery->captured['value'] ?? [];
@@ -127,7 +127,7 @@ check("le message contient le corps",
 // message HTML
 $delivery = new CaptureDelivery();
 $email = new TµEmail(makeLoader());
-$email->setDatasource($delivery);
+$email->setTransport($delivery);
 $email->mimeMail('s@dom.com', 'a@x.com', 'HTML', '<h1>Salut</h1>');
 $message = $delivery->captured['value']['message'] ?? '';
 check("message HTML : Content-Type text/html et corps HTML",
@@ -135,7 +135,7 @@ check("message HTML : Content-Type text/html et corps HTML",
 // sujet non-ASCII encodé RFC 2047
 $delivery = new CaptureDelivery();
 $email = new TµEmail(makeLoader());
-$email->setDatasource($delivery);
+$email->setTransport($delivery);
 $email->textMail('s@dom.com', 'a@x.com', 'Été', 'x');
 $message = $delivery->captured['value']['message'] ?? '';
 check("sujet non-ASCII encodé en RFC 2047",
@@ -145,7 +145,7 @@ check("sujet non-ASCII encodé en RFC 2047",
 print(TµAnsi::bold("Email : portabilité vers une datasource de stockage\n"));
 $storage = new CaptureStorage();
 $email = new TµEmail(makeLoader());
-$email->setDatasource($storage);
+$email->setTransport($storage);
 $email->textMail('s@dom.com', 'a@x.com', 'Archive', 'Contenu', [], ['bcc@x.com'], 'env@dom.com');
 $decoded = json_decode($storage->raw, true);
 check("le stockage sérialise en JSON via le set() de base",
@@ -159,20 +159,40 @@ $email = new TestEmail(makeLoader());
 check("aucun transport configuré : null (repli mail())",
       $email->transport() === null);
 $ds = new CaptureDelivery();
-$email = new TestEmail(makeLoader(['datasource' => 'mail'], ['mail' => $ds]));
-check("x-email/datasource : résout la datasource référencée",
+$email = new TestEmail(makeLoader(['transport' => 'mail'], ['mail' => $ds]));
+check("x-email/transport (nom) : résout la datasource déclarée référencée",
       $email->transport() === $ds);
-$email = new TestEmail(makeLoader(['smtp' => 'smtp+tls://u:p@host:587']));
-check("x-email/smtp (DSN) : fabrique une datasource SMTP",
+$email = new TestEmail(makeLoader(['transport' => 'smtp+tls://u:p@host:587']));
+check("x-email/transport (DSN) : fabrique une datasource SMTP",
       $email->transport() instanceof TµSmtp);
-$email = new TestEmail(makeLoader(['smtp' => ['host' => 'localhost', 'security' => 'none']]));
-check("x-email/smtp (paramètres) : fabrique une datasource SMTP",
+$email = new TestEmail(makeLoader(['transport' => ['host' => 'localhost', 'security' => 'none']]));
+check("x-email/transport (paramètres SMTP) : fabrique une datasource SMTP",
       $email->transport() instanceof TµSmtp);
+$email = new TestEmail(makeLoader(['transport' => 'dummy://']));
+check("x-email/transport accepte n'importe quel DSN (pas seulement SMTP)",
+      $email->transport() instanceof \Temma\Datasources\Dummy);
 $ds = new CaptureDelivery();
-$email = new TestEmail(makeLoader(['smtp' => 'smtp://localhost']));
-$email->setDatasource($ds);
+$email = new TestEmail(makeLoader(['transport' => 'smtp://localhost']));
+$email->setTransport($ds);
 check("priorité : le setter runtime l'emporte sur la config",
       $email->transport() === $ds);
+
+/* ********** TESTS : setTransport() polymorphe ********** */
+print(TµAnsi::bold("Email : setTransport() (objet, DSN, paramètres SMTP)\n"));
+$ds = new CaptureDelivery();
+$email = new TestEmail(makeLoader());
+$email->setTransport($ds);
+check("setTransport(objet) : datasource utilisée telle quelle",
+      $email->transport() === $ds);
+$email = new TestEmail(makeLoader());
+$email->setTransport('smtp+tls://u:p@host:587');
+check("setTransport(DSN) : fabrique une datasource SMTP",
+      $email->transport() instanceof TµSmtp);
+$email = new TestEmail(makeLoader());
+$email->setTransport(['host' => 'smtp.example.com', 'port' => 587, 'security' => 'starttls']);
+$transport = $email->transport();
+check("setTransport(tableau) : paramètres SMTP",
+      $transport instanceof TµSmtp && smtpProp($transport, '_host') === 'smtp.example.com');
 
 // résumé
 print("\n");
