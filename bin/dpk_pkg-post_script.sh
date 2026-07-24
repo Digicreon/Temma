@@ -24,6 +24,8 @@ else
 	# copy files
 	pushd /opt/Temma > /dev/null
 	cp -a lib/*         /opt/temma-lib/lib/
+	mkdir -p /opt/temma-lib/skills
+	cp -a skills/*      /opt/temma-lib/skills/
 	popd > /dev/null
 	# commit files
 	pushd /opt/temma-lib > /dev/null
@@ -88,7 +90,7 @@ else
 	cp    etc/temma-api.php      /opt/temma-project-api/etc/temma.php
 	cp    etc/temma-full.php     /opt/temma-project-api/etc/
 	cp -a etc/asynk              /opt/temma-project-api/etc/
-	cp    tests/*                /opt/temma-project-api/tests/
+	cp    tests/autoload.php     /opt/temma-project-api/tests/
 	cp    www/index.php          /opt/temma-project-api/www/
 	cp    www/.htaccess          /opt/temma-project-api/www/
 	cp    .htaccess              /opt/temma-project-api/
