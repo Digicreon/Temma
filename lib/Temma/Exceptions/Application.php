@@ -3,7 +3,7 @@
 /**
  * Application
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2007-2019, Amaury Bouchard
+ * @copyright	© 2007-2024, Amaury Bouchard
  */
 
 namespace Temma\Exceptions;

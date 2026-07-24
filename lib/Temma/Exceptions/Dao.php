@@ -3,7 +3,7 @@
 /**
  * Dao
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2012-2019, Amaury Bouchard
+ * @copyright	© 2012-2021, Amaury Bouchard
  */
 
 namespace Temma\Exceptions;

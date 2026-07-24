@@ -7,7 +7,7 @@
  * @param	bool	$lowercase	Tell if the output must be in lowercase. (default: true)
  * @return	string	The processed text.
  * @author	Amaury Bouchard <amaury@æmaury.net>
- * @copyright	© 2017, Amaury Bouchard
+ * @copyright	© 2017-2024, Amaury Bouchard
  * @link	https://www.temma.net/documentation/helper-smarty_filenamize
  */
 function smarty_modifier_filenamize(string $text, bool $hyphenSpaces=true, bool $lowercase=true) : string {

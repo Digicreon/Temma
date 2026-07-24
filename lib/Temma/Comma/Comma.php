@@ -3,7 +3,7 @@
 /**
  * Comma
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2024, Amaury Bouchard
+ * @copyright	© 2024-2025, Amaury Bouchard
  */
 
 namespace Temma\Comma;

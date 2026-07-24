@@ -5,7 +5,7 @@
  * @param	string	$text	The text to transform.
  * @return	string	The processed text.
  * @author	Amaury Bouchard <amaury@æmaury.net>
- * @copyright	© 2019, Amaury Bouchard
+ * @copyright	© 2019-2024, Amaury Bouchard
  * @link	https://www.temma.net/documentation/helper-smarty_nbsp
  */
 function smarty_modifier_nbsp(string $text) : string {

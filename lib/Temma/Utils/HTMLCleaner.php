@@ -3,7 +3,7 @@
 /**
  * HTMLCleaner
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2010-2019, Amaury Bouchard
+ * @copyright	© 2010-2024, Amaury Bouchard
  * @link	https://www.temma.net/documentation/helper-htmlcleaner
  */
 

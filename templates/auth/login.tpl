@@ -22,7 +22,8 @@
  * page loading and form submission. An MD5 hash is also sent, just to ensure data
  * consistency.
  *
- * @copyright	© 2023-2024 Amaury Bouchard <amaury@amaury.net>
+ * @author	Amaury Bouchard <amaury@amaury.net>
+ * @copyright	© 2023-2025, Amaury Bouchard
  *}
 <!DOCTYPE html>
 <html>

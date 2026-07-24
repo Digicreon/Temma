@@ -3,7 +3,7 @@
 /**
  * Client
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2023, Amaury Bouchard
+ * @copyright	© 2023-2024, Amaury Bouchard
  */
 
 namespace Temma\Asynk;

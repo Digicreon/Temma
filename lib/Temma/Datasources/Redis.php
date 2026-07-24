@@ -3,7 +3,7 @@
 /**
  * Redis
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2012-2023, Amaury Bouchard
+ * @copyright	© 2012-2026, Amaury Bouchard
  * @link	https://www.temma.net/documentation/datasource-redis
  */
 

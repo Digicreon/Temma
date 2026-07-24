@@ -3,7 +3,7 @@
 /**
  * Datasource
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2012-2024, Amaury Bouchard
+ * @copyright	© 2012-2026, Amaury Bouchard
  */
 
 namespace Temma\Base;

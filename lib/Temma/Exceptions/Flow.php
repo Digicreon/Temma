@@ -3,7 +3,7 @@
 /**
  * Flow
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2020, Amaury Bouchard
+ * @copyright	© 2020-2021, Amaury Bouchard
  */
 
 namespace Temma\Exceptions;

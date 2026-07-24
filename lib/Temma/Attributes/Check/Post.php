@@ -3,7 +3,7 @@
 /**
  * Post
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2026 Amaury Bouchard
+ * @copyright	© 2026, Amaury Bouchard
  * @link	https://www.temma.net/documentation/helper-attr_check_post
  */
 

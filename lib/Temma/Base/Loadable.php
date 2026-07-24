@@ -3,7 +3,7 @@
 /**
  * Loadable
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2019, Amaury Bouchard
+ * @copyright	© 2019-2020, Amaury Bouchard
  */
 
 namespace Temma\Base;

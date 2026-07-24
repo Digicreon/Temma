@@ -3,7 +3,7 @@
 /**
  * Rss view
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	2009-2023, Amaury Bouchard
+ * @copyright	© 2009-2026, Amaury Bouchard
  */
 
 namespace Temma\Views;

@@ -7,7 +7,7 @@
  * Usage: ./configObjectGenerator.php /path/to/the/project/root/directory
  *
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2012-2022
+ * @copyright	© 2012-2023, Amaury Bouchard
  */
 
 require_once('Temma/Base/Autoload.php');

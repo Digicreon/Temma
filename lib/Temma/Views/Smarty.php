@@ -3,7 +3,7 @@
 /**
  * Smarty view
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	2007-2026, Amaury Bouchard
+ * @copyright	© 2007-2026, Amaury Bouchard
  */
 
 namespace Temma\Views;

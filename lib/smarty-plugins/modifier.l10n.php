@@ -7,7 +7,7 @@
  * @return	string	The translated string.
  * @link	http://www.smarty.net/docs/en/language.modifier.escape
  * @author	Amaury Bouchard <amaury@æmaury.net>
- * @copyright	© 2020, Amaury Bouchard
+ * @copyright	© 2020-2024, Amaury Bouchard
  * @link	https://www.temma.net/documentation/helper-plugin_language#doc-templates-modifier
  */
 function smarty_modifier_l10n(string $str, ...$data) {

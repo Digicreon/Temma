@@ -5,7 +5,7 @@
  * @param	?string	$text	The text to process.
  * @return	string	The processed text.
  * @author	Amaury Bouchard <amaury@æmaury.net>
- * @copyright	© 2007, Amaury Bouchard
+ * @copyright	© 2007-2024, Amaury Bouchard
  * @link	https://www.temma.net/documentation/helper-smarty_urlize
  */
 function smarty_modifier_urlize(?string $text) : string {

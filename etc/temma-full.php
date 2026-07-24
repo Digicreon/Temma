@@ -4,7 +4,7 @@
  * Extended configuration file for demonstration.
  *
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2024, Amaury Bouchard
+ * @copyright	© 2024-2026, Amaury Bouchard
  * @link	https://www.temma.net/documentation/configuration
  */
 return [

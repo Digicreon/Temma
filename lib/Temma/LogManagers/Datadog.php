@@ -3,7 +3,7 @@
 /**
  * Datadog
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2022-2023, Amaury Bouchard
+ * @copyright	© 2022-2024, Amaury Bouchard
  * @link	https://www.temma.net/documentation/log-datadog
  */
 

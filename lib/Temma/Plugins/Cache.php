@@ -3,7 +3,7 @@
 /**
  * Cache
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2011-2020, Amaury Bouchard
+ * @copyright	© 2011-2025, Amaury Bouchard
  */
 
 namespace Temma\Plugins;

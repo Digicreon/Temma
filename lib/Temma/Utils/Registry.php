@@ -3,7 +3,7 @@
 /**
  * Registry
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2007-2023, Amaury Bouchard
+ * @copyright	© 2007-2025, Amaury Bouchard
  * @link	https://www.temma.net/documentation/helper-registry
  */
 

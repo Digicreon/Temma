@@ -3,7 +3,7 @@
 /**
  * Method
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2023, Amaury Bouchard
+ * @copyright	© 2023-2025, Amaury Bouchard
  * @link	https://www.temma.net/documentation/helper-attr_method
  */
 
