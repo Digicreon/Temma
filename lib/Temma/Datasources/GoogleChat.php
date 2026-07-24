@@ -21,8 +21,8 @@ use \Temma\Base\Log as TµLog;
  * <b>Usage</b>
  * <code>
  * // initialization
- * $gchat = \Temma\Datasources\GoogleChat::factory('gchat://WEBHOOK_URL');
- * $gchat = \Temma\Base\Datasource::factory('gchat://WEBHOOK_URL');
+ * $gchat = \Temma\Datasources\GoogleChat::factory('googlechat://WEBHOOK_URL');
+ * $gchat = \Temma\Base\Datasource::factory('googlechat://WEBHOOK_URL');
  * // where WEBHOOK_URL is the fetched webhook URL without the 'https://' part at its beginning.
  * // example: 'googlechat://chat.googleapis.com/v1/spaces/XXXXXXX/messages?key=YYYYYYY&token=ZZZZZZZ'
  *
