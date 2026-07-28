@@ -54,6 +54,14 @@ key with `?` to make it optional (`'firstname?' => 'string'`); add `'...'` to ac
 extra keys (optionally typed: `'...' => 'int'`). Without the wildcard, extra keys are
 removed (non-strict) or cause an error (strict).
 
+**Bare-name shorthand**: in GET/POST contracts (`validateInput()`, `Check\Get`,
+`Check\Post`) and file contracts (`validateFiles()`, `Check\Files`), an entry with a
+numeric key and a string value means "this name must be present, content accepted
+as-is": `['name', 'age' => 'int']` is equivalent to `['name' => null, 'age' => 'int']`.
+For files, only the presence is checked (the content is not read). This does NOT apply
+to `list` contracts (`validateParams()`, `Check\Params`), where numeric keys are
+positional.
+
 **Named contracts**: declare reusable contracts in `etc/temma.php` under
 `validationTypes` (`'user' => [...]`, or a custom validator class name), then use their
 name anywhere a contract is expected: `#[TµCheckPost('user')]`,
@@ -116,6 +124,7 @@ $this->_request->validateFiles([
 	'definition' => 'json',
 	'avatar?'    => 'binary; mime: image',
 ]);
+$this->_request->validateFiles(['id_card']);   // presence only, content not read
 
 $output = null;
 $this->_request->validateInput(['email' => 'email'], 'POST', output: $output);

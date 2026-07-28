@@ -273,7 +273,9 @@ class Request {
 	 * Validate GET and POST input.
 	 * @param	null|string|array	$contract	Contract to validate the parameters: name of the contract defined in the configuration file,
 	 *							or name of the validation object, or associative array (parameter names as keys,
-	 *							with associated contracts).
+	 *							with associated contracts). An entry with a numeric key and a string value is a
+	 *							shorthand for a parameter name without validation contract
+	 *							(['name'] is equivalent to ['name' => null]).
 	 * @param	?string			$source		(optional) Source of the parameters ('GET', 'POST'). If null, checks both.
 	 * @param	bool			$strict		(optional) True to use strict matching. False by default.
 	 * @param	mixed			&$output	(optional) Reference to output variable.
@@ -286,9 +288,19 @@ class Request {
 		$checkPost = ($source === 'POST' || ($source === '' && !empty($_POST)));
 		// optimize contract
 		if (is_array($contract)) {
+			// entries with a numeric key and a string value are parameter names without validation
+			// contract (except the '...' wildcard, which keeps its meaning)
+			$keys = [];
+			foreach ($contract as $key => $subcontract) {
+				if (is_int($key) && is_string($subcontract) &&
+				    $subcontract !== '...' && $subcontract !== '…')
+					$keys[$subcontract] = null;
+				else
+					$keys[$key] = $subcontract;
+			}
 			$contract = [
 				'type' => 'assoc',
-				'keys' => $contract,
+				'keys' => $keys,
 			];
 		}
 		// validate (empty strings are treated as absent values, as HTML forms send "" for unfilled fields)
@@ -318,7 +330,10 @@ class Request {
 	}
 	/**
 	 * Validate uploaded files.
-	 * @param	array	$contract	Contract to validate the files.
+	 * @param	array	$contract	Contract to validate the files (file field names as keys, with associated contracts).
+	 *					An entry with a numeric key and a string value is a shorthand for a file name
+	 *					without validation contract (['avatar'] is equivalent to ['avatar' => null]);
+	 *					only the presence of the file is then checked.
 	 * @param	bool	$strict		(optional) True to use strict matching. False by default.
 	 * @throws	\Temma\Exceptions\Application	If the files are not valid.
 	 */
@@ -338,6 +353,11 @@ class Request {
 				$hasWildcard = true;
 				continue;
 			}
+			// entry with a numeric key and a string value: file name without validation contract
+			if (is_int($key) && is_string($subcontract)) {
+				$key = $subcontract;
+				$subcontract = null;
+			}
 			// check for optional suffix
 			$optional = false;
 			if (str_ends_with($key, '?')) {
@@ -352,6 +372,9 @@ class Request {
 					throw new TµApplicationException("Mandatory file '$key' is missing.", TµApplicationException::API);
 				continue;
 			}
+			// no validation contract: only the presence of the file is checked, its content is not read
+			if ($subcontract === null || $subcontract === '')
+				continue;
 			// check for single file or multiple files
 			if (!is_array($_FILES[$key]['name'])) {
 				// handle single file
