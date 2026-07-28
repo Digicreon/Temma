@@ -67,7 +67,7 @@ class Worker extends \Temma\Web\Controller {
 				if (!$object)
 					throw new \Exception("Unable to instanciate object '{$task['target']}'.");
 				if (!method_exists($object, $task['action']))
-					throw new \Exception("No méthode '{$task['action']}' in object '{$task['target']}'.");
+					throw new \Exception("No method '{$task['action']}' in object '{$task['target']}'.");
 				$method = $task['action'];
 				$object->$method(...$task['data']);
 				// task deletion

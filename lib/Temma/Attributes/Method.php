@@ -76,7 +76,7 @@ class Method extends \Temma\Web\Attribute {
 				if (strtoupper($method) === $_SERVER['REQUEST_METHOD'])
 					return;
 			}
-			TµLog::log('Temma/Web', 'WARN', "Invalid méthod '{$_SERVER['REQUEST_METHOD']}'.");
+			TµLog::log('Temma/Web', 'WARN', "Invalid method '{$_SERVER['REQUEST_METHOD']}'.");
 			throw new TµApplicationException("Invalid method '{$_SERVER['REQUEST_METHOD']}'.", TµApplicationException::UNAUTHORIZED);
 		} catch (TµApplicationException $e) {
 			// manage redirection URL

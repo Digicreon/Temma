@@ -145,7 +145,7 @@ class Telegram extends \Temma\Base\Datasource {
 		if ($response === false) {
 			$error = curl_error($ch);
 			curl_close($ch);
-			throw new \Temma\Exceptions\Database("Erreur cURL lors de l'envoi Telegram: $error", \Temma\Exceptions\Database::FUNDAMENTAL);
+			throw new \Temma\Exceptions\Database("cURL error while sending Telegram message: $error", \Temma\Exceptions\Database::FUNDAMENTAL);
 		}
 		curl_close($ch);
 		$data = json_decode($response, true);
