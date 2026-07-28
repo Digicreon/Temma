@@ -214,6 +214,10 @@ class Framework {
 				return (($processView === false) ? $this->_response->getData() : null);
 			}
 		}
+		// an EXEC_STOP status only stops the pre-plugins phase: the processing continues with the
+		// controller (unlike EXEC_HALT, which goes straight to the view)
+		if ($execStatus === \Temma\Web\Controller::EXEC_STOP)
+			$execStatus = \Temma\Web\Controller::EXEC_FORWARD;
 
 		/* ********** CONTROLLER ********** */
 		if ($this->_controllerReflection->getName() == 'Temma\Web\Controller')
@@ -239,6 +243,10 @@ class Framework {
 				return (($processView === false) ? $this->_response->getData() : null);
 			}
 		}
+		// an EXEC_STOP status only stops the controller phase: the processing continues with the
+		// post-plugins (unlike EXEC_HALT, which goes straight to the view)
+		if ($execStatus === \Temma\Web\Controller::EXEC_STOP)
+			$execStatus = \Temma\Web\Controller::EXEC_FORWARD;
 
 		/* ********** POST-PLUGINS ********** */
 		if (!$execStatus) { // $execStatus === \Temma\Web\Controller::EXEC_FORWARD || $execStatus === \Temma\Web\Controller::EXEC_FORWARD_THROWABLE

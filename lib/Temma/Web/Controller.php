@@ -10,6 +10,7 @@ namespace Temma\Web;
 
 use \Temma\Base\Log as TµLog;
 use \Temma\Exceptions\Http as TµHttpException;
+use \Temma\Exceptions\Flow as TµFlowException;
 
 /**
  * Basic object for controllers management.
@@ -314,6 +315,9 @@ class Controller implements \ArrayAccess {
 		$method = \Temma\Web\Framework::CONTROLLERS_INIT_METHOD;
 		try {
 			$status = $obj->$method();
+		} catch (TµFlowException $fe) {
+			// flow control exception: let it bubble up to the framework
+			throw $fe;
 		} catch (\Throwable $e) {
 			TµLog::log('Temma/Web', 'ERROR', "Unable to initialize the controller '$controller' [" . $e->getFile() . ':' . $e->getLine() . ']: ' . $e->getMessage());
 			throw new TµHttpException("Unable to initialize the controller '$controller'.", 500);
@@ -376,6 +380,9 @@ class Controller implements \ArrayAccess {
 				$status = $obj->$method($action, $parameters);
 			else
 				$status = $obj->$method(...$parameters);
+		} catch (TµFlowException $fe) {
+			// flow control exception: let it bubble up to the framework
+			throw $fe;
 		} catch (\ArgumentCountError $ace) {
 			TµLog::log('Temma/Web', 'ERROR', "$controller::$method: " . $ace->getMessage());
 			throw new TµHttpException("$controller::$method: " . $ace->getMessage(), 404);
@@ -390,6 +397,9 @@ class Controller implements \ArrayAccess {
 		$method = \Temma\Web\Framework::CONTROLLERS_FINALIZE_METHOD;
 		try {
 			$status = $obj->$method();
+		} catch (TµFlowException $fe) {
+			// flow control exception: let it bubble up to the framework
+			throw $fe;
 		} catch (\Throwable $e) {
 			TµLog::log('Temma/Web', 'ERROR', "Unable to finalize the controller '$controller' [" . $e->getFile() . ':' . $e->getLine() . ']: ' . $e->getMessage());
 			throw new TµHttpException("Unable to finalize the controller '$controller'.", 500);
