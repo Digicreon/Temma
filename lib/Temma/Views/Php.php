@@ -8,7 +8,7 @@
 
 namespace Temma\Views;
 
-use \Temma\Utils\Validation\DataFilter as TµDataFilter;
+use \Temma\Utils\DataFilter as TµDataFilter;
 use \Temma\Base\Log as TµLog;
 use \Temma\Exceptions\IO as TµIOException;
 

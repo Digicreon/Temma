@@ -8,7 +8,7 @@
 
 namespace Temma\Views;
 
-use \Temma\Utils\Validation\DataFilter as TµDataFilter;
+use \Temma\Utils\DataFilter as TµDataFilter;
 
 /**
  * View for INI export.

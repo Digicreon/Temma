@@ -295,7 +295,7 @@ class Config {
 
 		// register DataFilter aliases
 		if (isset($ini['validationTypes']) && is_array($ini['validationTypes']))
-			\Temma\Utils\Validation\DataFilter::registerAlias($ini['validationTypes']);
+			\Temma\Utils\DataFilter::registerAlias($ini['validationTypes']);
 
 		// define the session name
 		$this->_sessionName = ($ini['application']['sessionName'] ?? null) ?: self::SESSION_NAME;

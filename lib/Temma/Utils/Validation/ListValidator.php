@@ -11,7 +11,7 @@ namespace Temma\Utils\Validation;
 
 use \Temma\Exceptions\IO as TµIOException;
 use \Temma\Exceptions\Application as TµApplicationException;
-use \Temma\Utils\Validation\DataFilter as TµDataFilter;
+use \Temma\Utils\DataFilter as TµDataFilter;
 use \Temma\Utils\Text as TµText;
 
 /**

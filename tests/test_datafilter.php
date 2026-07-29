@@ -7,7 +7,7 @@ require_once(__DIR__ . '/../lib/Temma/Base/Autoload.php');
 
 use \Temma\Base\Autoload as TµAutoload;
 use \Temma\Base\Loader as TµLoader;
-use \Temma\Utils\Validation\DataFilter as TµDataFilter;
+use \Temma\Utils\DataFilter as TµDataFilter;
 use \Temma\Utils\Ansi as TµAnsi;
 use \Temma\Exceptions\IO as TµIOException;
 use \Temma\Exceptions\Application as TµApplicationException;
