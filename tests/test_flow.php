@@ -2,11 +2,11 @@
 <?php
 
 /**
- * Script de validation du flux d'exécution (EXEC_STOP vs EXEC_HALT).
- * Construit une application factice dont les plugins et contrôleurs tracent leur exécution
- * dans la variable de template 'trace', puis vérifie la trace produite par chaque scénario :
- * - EXEC_STOP n'arrête que la phase courante (pré-plugins, contrôleur ou post-plugins) ;
- * - EXEC_HALT court-circuite tout jusqu'à la vue.
+ * Validation script for the execution flow (EXEC_STOP vs EXEC_HALT).
+ * Builds a dummy application whose plugins and controllers trace their execution
+ * in the 'trace' template variable, then checks the trace produced by each scenario:
+ * - EXEC_STOP only stops the current phase (pre-plugins, controller or post-plugins);
+ * - EXEC_HALT short-circuits everything up to the view.
  */
 
 require_once(__DIR__ . '/../lib/Temma/Base/Autoload.php');
@@ -16,7 +16,7 @@ use \Temma\Utils\Ansi as TµAnsi;
 \Temma\Base\Autoload::autoload(__DIR__ . '/../lib');
 \Temma\Base\Log::disable();
 
-/* ********** APPLICATION FACTICE ********** */
+/* ********** DUMMY APPLICATION ********** */
 $appPath = sys_get_temp_dir() . '/temma-flow-test-' . getmypid();
 foreach (['controllers', 'etc', 'log', 'tmp', 'templates'] as $dir)
 	mkdir("$appPath/$dir", 0755, true);
@@ -24,7 +24,7 @@ register_shutdown_function(function() use ($appPath) {
 	exec('rm -rf ' . escapeshellarg($appPath));
 });
 
-// plugins traceurs et plugins de statut
+// tracer plugins and status plugins
 $classes = [
 	'MarkA' => <<<'EOT'
 		class MarkA extends \Temma\Web\Plugin {
@@ -54,7 +54,7 @@ $classes = [
 			}
 		}
 		EOT,
-	// pré-plugin qui retourne un statut selon le contrôleur demandé
+	// pre-plugin that returns a status depending on the requested controller
 	'PreStatusPlugin' => <<<'EOT'
 		class PreStatusPlugin extends \Temma\Web\Plugin {
 			public function preplugin() {
@@ -66,7 +66,7 @@ $classes = [
 			}
 		}
 		EOT,
-	// post-plugin qui retourne un statut selon le contrôleur demandé
+	// post-plugin that returns a status depending on the requested controller
 	'PostStatusPlugin' => <<<'EOT'
 		class PostStatusPlugin extends \Temma\Web\Plugin {
 			public function postplugin() {
@@ -78,7 +78,7 @@ $classes = [
 			}
 		}
 		EOT,
-	// contrôleurs de scénario : __wakeup trace 'w', l'action trace 'C', __sleep trace 's'
+	// scenario controllers: __wakeup traces 'w', the action traces 'C', __sleep traces 's'
 	'Normal' => <<<'EOT'
 		class Normal extends \Temma\Web\Controller {
 			public function __wakeup() { $this['trace'] = ($this['trace'] ?? '') . 'w'; }
@@ -168,7 +168,7 @@ $classes = [
 foreach ($classes as $name => $code)
 	file_put_contents("$appPath/controllers/$name.php", "<?php\n\n$code\n");
 
-// configuration : plugins globaux traceurs + plugins de statut
+// configuration: global tracer plugins + status plugins
 file_put_contents("$appPath/etc/temma.php", <<<'EOT'
 	<?php
 
@@ -184,7 +184,7 @@ file_put_contents("$appPath/etc/temma.php", <<<'EOT'
 	];
 	EOT);
 
-/* ********** MICRO-FRAMEWORK DE TEST ********** */
+/* ********** TEST MICRO-FRAMEWORK ********** */
 $count = 0;
 $failed = 0;
 function check(string $label, bool $ok) : void {
@@ -196,7 +196,7 @@ function check(string $label, bool $ok) : void {
 	      TµAnsi::color(($ok ? 'green' : 'red'), ($ok ? 'OK' : 'KO')) . ' ' .
 	      "$label\n");
 }
-// exécute une requête et retourne la trace produite
+// executes a request and returns the produced trace
 function getTrace(string $url) : ?string {
 	global $appPath;
 	$test = new \Temma\Web\Test($appPath, "$appPath/etc/temma.php");
@@ -205,33 +205,33 @@ function getTrace(string $url) : ?string {
 }
 
 /* ********** TESTS ********** */
-print(TµAnsi::bold("Flux d'exécution : EXEC_STOP vs EXEC_HALT\n"));
-// pré-plugins A, [statut], B ; contrôleur w, C, s ; post-plugins P, [statut], Q
-check("contrôle : chaîne complète (ABwCsPQ)",
+print(TµAnsi::bold("Execution flow: EXEC_STOP vs EXEC_HALT\n"));
+// pre-plugins A, [status], B; controller w, C, s; post-plugins P, [status], Q
+check("control: full chain (ABwCsPQ)",
       getTrace('/normal/run') === 'ABwCsPQ');
-check("EXEC_STOP en pré-plugin : arrête les pré-plugins, exécute contrôleur et post-plugins (AwCsPQ)",
+check("EXEC_STOP in pre-plugin: stops the pre-plugins, executes controller and post-plugins (AwCsPQ)",
       getTrace('/prestop/run') === 'AwCsPQ');
-check("EXEC_HALT en pré-plugin : va directement à la vue (A)",
+check("EXEC_HALT in pre-plugin: goes straight to the view (A)",
       getTrace('/prehalt/run') === 'A');
-check("EXEC_STOP dans __wakeup() : saute action et __sleep(), exécute les post-plugins (ABwPQ)",
+check("EXEC_STOP in __wakeup(): skips action and __sleep(), executes the post-plugins (ABwPQ)",
       getTrace('/wakestop/run') === 'ABwPQ');
-check("EXEC_STOP dans l'action : saute __sleep(), exécute les post-plugins (ABwCPQ)",
+check("EXEC_STOP in the action: skips __sleep(), executes the post-plugins (ABwCPQ)",
       getTrace('/actstop/run') === 'ABwCPQ');
-check("exception FlowStop dans l'action : même comportement (ABwCPQ)",
+check("FlowStop exception in the action: same behavior (ABwCPQ)",
       getTrace('/actstopex/run') === 'ABwCPQ');
-check("EXEC_HALT dans l'action : saute __sleep() et les post-plugins (ABwC)",
+check("EXEC_HALT in the action: skips __sleep() and the post-plugins (ABwC)",
       getTrace('/acthalt/run') === 'ABwC');
-check("EXEC_STOP dans __sleep() : exécute les post-plugins (ABwCsPQ)",
+check("EXEC_STOP in __sleep(): executes the post-plugins (ABwCsPQ)",
       getTrace('/sleepstop/run') === 'ABwCsPQ');
-check("EXEC_STOP en post-plugin : arrête les post-plugins (ABwCsP)",
+check("EXEC_STOP in post-plugin: stops the post-plugins (ABwCsP)",
       getTrace('/poststop/run') === 'ABwCsP');
-check("EXEC_HALT en post-plugin : arrête les post-plugins (ABwCsP)",
+check("EXEC_HALT in post-plugin: stops the post-plugins (ABwCsP)",
       getTrace('/posthalt/run') === 'ABwCsP');
 
-// résumé
+// summary
 print("\n");
 if ($failed) {
-	print(TµAnsi::color('red', "$failed test(s) en échec sur $count.") . "\n");
+	print(TµAnsi::color('red', "$failed test(s) failed out of $count.") . "\n");
 	exit(1);
 }
-print(TµAnsi::color('green', "Tous les tests ont réussi ($count).") . "\n");
+print(TµAnsi::color('green', "All tests passed ($count).") . "\n");

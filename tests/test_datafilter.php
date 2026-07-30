@@ -1,7 +1,7 @@
 #!/usr/bin/php
 <?php
 
-/** Script de validation du DataFilter. */
+/** DataFilter validation script. */
 
 require_once(__DIR__ . '/../lib/Temma/Base/Autoload.php');
 
@@ -12,15 +12,15 @@ use \Temma\Utils\Ansi as TµAnsi;
 use \Temma\Exceptions\IO as TµIOException;
 use \Temma\Exceptions\Application as TµApplicationException;
 
-// initialisation
+// initialization
 \Temma\Base\Autoload::autoload(__DIR__ . '/../lib');
 $loader = new \Temma\Base\Loader();
 TµDataFilter::setLoader($loader);
 
-// fichier image
+// image file
 $gif = base64_decode('R0lGODdhAQABAIAAAAAAAAAAACwAAAAAAQABAAACAkQBADs=');
 
-// ajout de contrat
+// contract registration
 TµDataFilter::registerAlias('user', 'assoc; keys: id, login, name');
 class DbMock {
 	public function getCategory(int $id) : array {
@@ -46,7 +46,7 @@ class CategoryValidator implements \Temma\Utils\Validation\Validator {
 }
 TµDataFilter::registerAlias('category', CategoryValidator::class);
 
-// liste des tests
+// list of tests
 $tests = [
 	[
 		'abc', null,
@@ -2289,13 +2289,13 @@ foreach ($tests as $test) {
 	}
 	$res = null;
 	$output = null;
-	$status = null; // statut du test (true = test réussi, false = test échoué)
-	$contract = $test[0]; // définition du contrat (string ou array)
-	$data = $test[1]; // donnée à valider
-	$strict = $test['strict'] ?? false; // test strict ou non
-	$expect = $test['expect'] ?? null;  // résultat attendu (true = test réussi, false = test échoué)
-	$ioE = false; // true si IOException
-	$appE = false; // true si ApplicationException
+	$status = null; // test status (true = test passed, false = test failed)
+	$contract = $test[0]; // contract definition (string or array)
+	$data = $test[1]; // data to validate
+	$strict = $test['strict'] ?? false; // strict test or not
+	$expect = $test['expect'] ?? null;  // expected result (true = test passed, false = test failed)
+	$ioE = false; // true if IOException
+	$appE = false; // true if ApplicationException
 	$exceptionMsg = null;
 	try {
 		$res = TµDataFilter::process($data, $contract, $strict, output: $output);
