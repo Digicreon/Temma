@@ -249,7 +249,7 @@ class Criteria {
 	protected function _addTypedCriteria(string $type, string $field, string $operator='', ?string $value=null) : void {
 		$field = $this->_dao->getFieldName($field);
 		if ($operator)
-			$criteria = "`$field` $operator " . (isset($value) ? $this->_db->quote($value) : '');
+			$criteria = $this->_dao->quoteIdentifier($field) . " $operator " . (isset($value) ? $this->_db->quote($value) : '');
 		else
 			$criteria = $field;
 		$this->_elements[] = [$type, $criteria];

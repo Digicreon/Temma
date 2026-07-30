@@ -113,7 +113,7 @@ class Controller implements \ArrayAccess {
 			'source'   => null,
 			'cache'    => true,
 			'base'     => null,
-			'table'    => $this['CONTROLLER'],
+			'table'    => $this->_getDaoTableName(),
 			'id'       => 'id',
 			'fields'   => null,
 		];
@@ -131,7 +131,7 @@ class Controller implements \ArrayAccess {
 			$daoConf['fields'] = (isset($param['fields']) && is_array($param['fields'])) ? $param['fields'] : $daoConf['fields'];
 		}
 		// object creation
-		if (isset($daoConf['source']) && isset($this->_dataSources[$daoConf['source']]))
+		if (isset($daoConf['source']) && isset($this->_loader->dataSources[$daoConf['source']]))
 			$dataSource = $this->_loader->dataSources[$daoConf['source']];
 		else
 			$dataSource = $this->_loader->dataSources[\Temma\Web\Framework::DEFAULT_DATASOURCE] ?? reset($this->_loader->dataSources);
@@ -140,6 +140,20 @@ class Controller implements \ArrayAccess {
 		$dao = new $daoConf['object']($dataSource, ($daoConf['cache'] ? $this->_loader->cache : null), $daoConf['table'], $daoConf['id'],
 		                              $daoConf['base'], $daoConf['fields'], $daoConf['criteria']);
 		return ($dao);
+	}
+	/**
+	 * Compute the default DAO table name, from the name of the current controller class
+	 * (namespace and controllers' suffix removed, first letter in lower case).
+	 * @return	string	The table name.
+	 */
+	protected function _getDaoTableName() : string {
+		$name = get_class($this);
+		if (($pos = mb_strrpos($name, '\\')) !== false)
+			$name = mb_substr($name, $pos + 1);
+		$suffix = $this->_config?->controllersSuffix;
+		if ($suffix && mb_strlen($name) > mb_strlen($suffix) && str_ends_with($name, $suffix))
+			$name = mb_substr($name, 0, -mb_strlen($suffix));
+		return (lcfirst($name));
 	}
 
 	/* ********** METHODS CALLABLE BY THE CHILDREN OBJECTS ********** */

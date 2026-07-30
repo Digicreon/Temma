@@ -177,6 +177,15 @@ class Dao {
 		return ($this->_fieldAliases[$field] ?? $field);
 	}
 	/**
+	 * Escape and quote an SQL identifier (database, table or field name) with backticks.
+	 * This method may also be used by \Temma\Dao\Criteria objects.
+	 * @param	string	$identifier	The identifier to quote.
+	 * @return	string	The quoted identifier.
+	 */
+	public function quoteIdentifier(string $identifier) : string {
+		return ('`' . str_replace('`', '``', $identifier) . '`');
+	}
+	/**
 	 * Tell if the table exists.
 	 * @param	string	$tableName	(optional) Name of the table to check. If empty,
 	 *					check the DAO's table.
@@ -214,7 +223,7 @@ class Dao {
 	public function count(null|array|\Temma\Dao\Criteria $criteria=null) : int {
 		$cacheVarName = '__dao:' . $this->_dbName . ':' . $this->_tableName . ':count';
 		$sql = 'SELECT COUNT(*) AS nb
-			FROM ' . (!$this->_dbName ? '' : ('`' . $this->_dbName . '`.')) . '`' . $this->_tableName . '`';
+			FROM ' . $this->_getTableString();
 		if (isset($criteria)) {
 			if (is_array($criteria)) {
 				$crit = $this->criteria();
@@ -244,7 +253,7 @@ class Dao {
 	 */
 	public function get(int|string|array|\Temma\Dao\Criteria $id) : array {
 		if (is_int($id) || is_string($id)) {
-			$where = '`' . $this->_idField . "` = " . $this->_db->quote($id);
+			$where = $this->quoteIdentifier($this->_idField) . ' = ' . $this->_db->quote($id);
 			$idHash = md5($id);
 		} else {
 			if (is_array($id)) {
@@ -261,8 +270,7 @@ class Dao {
 		if (($data = $this->_getCache($cacheVarName)) !== null)
 			return ($data);
 		// query execution
-		$sql = 'SELECT ' . $this->_getFieldsString() . ' FROM ' .
-			(!$this->_dbName ? '' : ('`' . $this->_dbName . '`.')) . '`' . $this->_tableName . '`' .
+		$sql = 'SELECT ' . $this->_getFieldsString() . ' FROM ' . $this->_getTableString() .
 			' WHERE ' . $where;
 		$data = $this->_db->queryOne($sql);
 		// write result in cache
@@ -289,8 +297,7 @@ class Dao {
 		// boolean used for the safe data (telling if the primary key is in the given data)
 		$idUpdated = false;
 		// create and execute the query
-		$sql = 'INSERT INTO ' . (empty($this->_dbName) ? '' : ($this->_dbName . '.')) . $this->_tableName .
-			' SET ';
+		$sql = 'INSERT INTO ' . $this->_getTableString() . ' SET ';
 		$set = [];
 		foreach ($data as $key => $value) {
 			// manage the key
@@ -301,9 +308,9 @@ class Dao {
 				$idUpdated = true;
 			// add the data
 			if (is_null($value))
-				$set[] = "`$key` = NULL";
+				$set[] = $this->quoteIdentifier($key) . ' = NULL';
 			else if (is_string($value) || is_numeric($value) || is_bool($value))
-				$set[] = "`$key` = " . $this->_db->quote($value);
+				$set[] = $this->quoteIdentifier($key) . ' = ' . $this->_db->quote($value);
 			else
 				throw new TµDaoException("Bad field value for key '$key'.", TµDaoException::FIELD);
 		}
@@ -315,15 +322,15 @@ class Dao {
 			if (!$idUpdated && $this->_idField) {
 				// this instruction is used to make the subsequent call to LAST_INSERT_ID() returns the rightful value
 				// see: https://stackoverflow.com/questions/778534/mysql-on-duplicate-key-last-insert-id
-				$sql .= '`' . $this->_idField . '` = LAST_INSERT_ID(`' . $this->_idField . '`), ';
+				$sql .= $this->quoteIdentifier($this->_idField) . ' = LAST_INSERT_ID(' . $this->quoteIdentifier($this->_idField) . '), ';
 			}
 			if ($safeData === true)
 				$sql .= $dataSet;
 			else if (is_string($safeData)) {
 				if (isset($data[$safeData]))
-					$sql .= "`$safeData` = " . $this->_db->quote($data[$safeData]);
+					$sql .= $this->quoteIdentifier($safeData) . ' = ' . $this->_db->quote($data[$safeData]);
 				else
-					$sql .= "`$safeData` = '$safeData'";
+					$sql .= $this->quoteIdentifier($safeData) . ' = ' . $this->quoteIdentifier($safeData);
 			} else if (is_array($safeData)) {
 				$set = [];
 				foreach ($safeData as $key) {
@@ -331,11 +338,11 @@ class Dao {
 						continue;
 					$value = $data[$key];
 					$key = (($field = array_search($key, $this->_fields)) === false || is_int($field)) ? $key : $field;
-					$set[] = "`$key` = " . $this->_db->quote($value);
+					$set[] = $this->quoteIdentifier($key) . ' = ' . $this->_db->quote($value);
 				}
 				$sql .= implode(', ', $set);
 			} else
-				$sql .= '`' . $this->_idField . '` = `' . $this->_idField . '`';
+				$sql .= $this->quoteIdentifier($this->_idField) . ' = ' . $this->quoteIdentifier($this->_idField);
 		}
 		$this->_db->exec($sql);
 		return ($this->_db->lastInsertId());
@@ -351,8 +358,7 @@ class Dao {
 	 */
 	public function search(null|array|\Temma\Dao\Criteria $criteria=null, null|bool|string|array $sort=null, ?int $limitOffset=null, ?int $limit=null) : array {
 		$cacheVarName = '__dao:' . $this->_dbName . ':' . $this->_tableName . ':count';
-		$sql = 'SELECT ' . $this->_getFieldsString() . ' FROM ' .
-			(!$this->_dbName ? '' : ('`' . $this->_dbName . '`.')) . '`' . $this->_tableName . '`';
+		$sql = 'SELECT ' . $this->_getFieldsString() . ' FROM ' . $this->_getTableString();
 		if (isset($criteria)) {
 			if (is_array($criteria)) {
 				$crit = $this->criteria();
@@ -399,8 +405,7 @@ class Dao {
 			return (0);
 		$this->_flushCache();
 		// creation of the request
-		$sql = 'UPDATE ' . (!$this->_dbName ? '' : ('`' . $this->_dbName . '`.')) . '`' . $this->_tableName . '`' .
-			' SET ';
+		$sql = 'UPDATE ' . $this->_getTableString() . ' SET ';
 		$set = [];
 		foreach ($fields as $field => $value) {
 			// get the field if it is aliased
@@ -408,11 +413,11 @@ class Dao {
 				$field = $field2;
 			// request generation
 			if (is_string($value) || is_int($value) || is_float($value))
-				$set[] = "`$field` = " . $this->_db->quote($value);
+				$set[] = $this->quoteIdentifier($field) . ' = ' . $this->_db->quote($value);
 			else if (is_bool($value))
-				$set[] = "`$field` = " . ($value ? 'TRUE' : 'FALSE');
+				$set[] = $this->quoteIdentifier($field) . ' = ' . ($value ? 'TRUE' : 'FALSE');
 			else if (is_null($value))
-				$set[] = "`$field` = NULL";
+				$set[] = $this->quoteIdentifier($field) . ' = NULL';
 			else
 				throw new TµDaoException("Bad field '$field' value.", TµDaoException::VALUE);
 		}
@@ -420,7 +425,7 @@ class Dao {
 		if (!is_null($criteria)) {
 			$sql .= ' WHERE ';
 			if (is_int($criteria) || is_string($criteria))
-				$sql .= '`' . $this->_idField . "` = " . $this->_db->quote($criteria);
+				$sql .= $this->quoteIdentifier($this->_idField) . ' = ' . $this->_db->quote($criteria);
 			else {
 				if (is_array($criteria)) {
 					$crit = $this->criteria();
@@ -449,11 +454,11 @@ class Dao {
 		// effacement du cache pour cette DAO
 		$this->_flushCache();
 		// constitution et exécution de la requête
-		$sql = 'DELETE FROM ' . (!$this->_dbName ? '' : ('`' . $this->_dbName . '`.')) . '`' . $this->_tableName . '`';
+		$sql = 'DELETE FROM ' . $this->_getTableString();
 		if (!is_null($criteria)) {
 			$sql .= ' WHERE ';
 			if (is_int($criteria) || is_string($criteria))
-				$sql .= '`' . $this->_idField . "` = " . $this->_db->quote($criteria);
+				$sql .= $this->quoteIdentifier($this->_idField) . ' = ' . $this->_db->quote($criteria);
 			else {
 				if (is_array($criteria)) {
 					$crit = $this->criteria();
@@ -490,6 +495,13 @@ class Dao {
 
 	/* ****** PRIVATE METHODS ****** */
 	/**
+	 * Generate the quoted table name, prefixed with the quoted database name if defined.
+	 * @return	string	The generated string.
+	 */
+	protected function _getTableString() : string {
+		return ((!$this->_dbName ? '' : ($this->quoteIdentifier($this->_dbName) . '.')) . $this->quoteIdentifier($this->_tableName));
+	}
+	/**
 	 * Generates the sort string.
 	 * @param	null|bool|string|array		$sort		(optional) Sort data:
 	 *								- null: natural sort.
@@ -506,12 +518,12 @@ class Dao {
 		if ($sort === false)
 			$sortList[] = 'RAND()';
 		else if ($sort === true)
-			$sortList[] = '`' . $this->_idField . '` DESC';
+			$sortList[] = $this->quoteIdentifier($this->_idField) . ' DESC';
 		else if (is_string($sort)) {
 			if (str_starts_with($sort, '-'))
-				$sortList[] = mb_substr($sort, 1) . ' DESC';
+				$sortList[] = $this->quoteIdentifier(mb_substr($sort, 1)) . ' DESC';
 			else
-				$sortList[] = $sort;
+				$sortList[] = $this->quoteIdentifier($sort);
 		} else if (is_array($sort)) {
 			foreach ($sort as $key => $value) {
 				$field = is_int($key) ? $value : $key;
@@ -522,7 +534,7 @@ class Dao {
 					$sortType = (!is_int($key) && !strcasecmp($value, 'desc')) ? 'DESC' : 'ASC';
 				if (($field2 = array_search($field, $this->_fields)) !== false && !is_int($field2))
 					$field = $field2;
-				$sortList[] = "$field $sortType";
+				$sortList[] = $this->quoteIdentifier($field) . " $sortType";
 			}
 		}
 		if (!$sortList)
@@ -542,9 +554,9 @@ class Dao {
 			$list = [];
 			foreach ($this->_fields as $fieldName => $aliasName) {
 				if (is_int($fieldName))
-					$list[] = '`' . $aliasName . '`';
+					$list[] = $this->quoteIdentifier($aliasName);
 				else
-					$list[] = "`$fieldName` AS `$aliasName`";
+					$list[] = $this->quoteIdentifier($fieldName) . ' AS ' . $this->quoteIdentifier($aliasName);
 			}
 			$this->_fieldsString = implode(', ', $list);
 		}
