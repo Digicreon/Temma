@@ -11,6 +11,12 @@ custom DAO classes for business methods and joins. DAOs use the SQL data source 
 declared in `etc/temma.php`, and transparently use the `cache` data source when defined
 (see the `temma-datasource` skill for data source declaration).
 
+DAOs generate SQL adapted to the engine of their data source: MySQL, PostgreSQL or SQLite
+(other engines are treated as MySQL). Two restrictions outside MySQL: `update()` does not
+accept sort/limit parameters (they throw an exception), and the safe mode of `create()`
+targets the primary key only (MySQL reacts to any unique key conflict); on SQLite, the
+safe mode requires SQLite 3.35+.
+
 ## Automatic DAO in a controller
 
 The fastest path: a controller sets `$_temmaAutoDao` and gets a ready-to-use DAO in

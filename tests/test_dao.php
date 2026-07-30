@@ -2,11 +2,12 @@
 <?php
 
 /**
- * Script de validation des DAO :
- * - nom de table par défaut dérivé du nom de la classe du contrôleur (et non plus de l'URL) ;
- * - prise en compte du paramètre 'source' de _loadDao() ;
- * - échappement des identifiants SQL (base, table, champs) dans Dao et Criteria.
- * Utilise un faux datasource SQL qui enregistre les requêtes générées au lieu de les exécuter.
+ * DAO validation script:
+ * - default table name derived from the controller class name (not from the URL anymore);
+ * - support of the 'source' parameter of _loadDao();
+ * - SQL identifiers escaping (database, table, fields) in Dao and Criteria;
+ * - SQL generation adapted to the database engine (MySQL, PostgreSQL, SQLite).
+ * Uses a fake SQL data source which records the generated queries instead of executing them.
  */
 
 require_once(__DIR__ . '/../lib/Temma/Base/Autoload.php');
@@ -17,15 +18,15 @@ use \Temma\Utils\Ansi as TµAnsi;
 \Temma\Base\Autoload::autoload(__DIR__ . '/../lib');
 \Temma\Base\Log::disable();
 
-/* ********** FAUX DATASOURCE SQL ********** */
+/* ********** FAKE SQL DATA SOURCE ********** */
 class FakeSql extends \Temma\Datasources\Sql {
-	/** Requêtes SQL reçues. */
+	/** Received SQL queries. */
 	public array $queries = [];
-	/** Résultat à retourner par queryOne(). */
+	/** Result to be returned by queryOne(). */
 	public mixed $nextResult = null;
 
-	public function __construct() {
-		parent::__construct('mysqli', null, null, 'localhost', null, 'testbase');
+	public function __construct(string $type='mysqli') {
+		parent::__construct($type, null, null, 'localhost', null, 'testbase');
 	}
 	public function quote(mixed $str) : string {
 		if (is_null($str))
@@ -53,7 +54,7 @@ class FakeSql extends \Temma\Datasources\Sql {
 	}
 }
 
-/* ********** CONTRÔLEURS DE TEST ********** */
+/* ********** TEST CONTROLLERS ********** */
 class TestUser extends \Temma\Web\Controller {
 	protected $_temmaAutoDao = true;
 	public function getDao() : \Temma\Dao\Dao {
@@ -78,7 +79,7 @@ class TestSource extends \Temma\Web\Controller {
 		return ($this->_dao);
 	}
 }
-// contrôleur avec namespace
+// namespaced controller
 eval('namespace Blog;
       class Post extends \Temma\Web\Controller {
 	protected $_temmaAutoDao = true;
@@ -87,7 +88,7 @@ eval('namespace Blog;
 	}
 }');
 
-/* ********** HARNAIS ********** */
+/* ********** TEST HARNESS ********** */
 $count = 0;
 $failed = 0;
 function check(string $label, bool $ok) : void {
@@ -100,25 +101,25 @@ function check(string $label, bool $ok) : void {
 	      "$label\n");
 }
 
-/* ********** NOM DE TABLE PAR DÉFAUT ********** */
-print(TµAnsi::bold("Nom de table par défaut\n"));
+/* ********** DEFAULT TABLE NAME ********** */
+print(TµAnsi::bold("Default table name\n"));
 $db = new FakeSql();
 $loader = new TµLoader([
 	'dataSources' => ['db' => $db],
 	'response'    => new \Temma\Web\Response(),
 ]);
-// nom de classe simple
+// simple class name
 $ctrl = new TestUser($loader);
-check("classe TestUser => table 'testUser'", $ctrl->getDao()->getTableName() === 'testUser');
-// le nom de table ne dépend pas de la variable de template CONTROLLER (URL)
+check("class TestUser => table 'testUser'", $ctrl->getDao()->getTableName() === 'testUser');
+// the table name doesn't depend on the CONTROLLER template variable (URL)
 $executor = new \Temma\Web\Controller($loader);
 $executor['CONTROLLER'] = 'weird-url-name';
 $ctrl = new TestUser($loader);
-check("indépendant de l'URL (variable CONTROLLER ignorée)", $ctrl->getDao()->getTableName() === 'testUser');
-// namespace retiré
+check("independent from the URL (CONTROLLER variable ignored)", $ctrl->getDao()->getTableName() === 'testUser');
+// namespace removed
 $ctrl = new \Blog\Post($loader);
-check("classe \\Blog\\Post => table 'post'", $ctrl->getDao()->getTableName() === 'post');
-// suffixe de contrôleur retiré (configuration 'controllersSuffix')
+check("class \\Blog\\Post => table 'post'", $ctrl->getDao()->getTableName() === 'post');
+// controllers' suffix removed ('controllersSuffix' configuration)
 $appPath = sys_get_temp_dir() . '/temma-dao-test-' . getmypid();
 mkdir("$appPath/etc", 0755, true);
 register_shutdown_function(function() use ($appPath) {
@@ -133,81 +134,154 @@ $loaderSuffix = new TµLoader([
 	'config'      => $config,
 ]);
 $ctrl = new ArticleController($loaderSuffix);
-check("classe ArticleController + suffixe => table 'article'", $ctrl->getDao()->getTableName() === 'article');
-// nom de table explicite prioritaire
+check("class ArticleController + suffix => table 'article'", $ctrl->getDao()->getTableName() === 'article');
+// explicit table name takes precedence
 $ctrl = new TestExplicit($loader);
-check("paramètre 'table' explicite prioritaire", $ctrl->getDao()->getTableName() === 'explicit');
-// paramètre 'source' honoré
+check("explicit 'table' parameter takes precedence", $ctrl->getDao()->getTableName() === 'explicit');
+// 'source' parameter honored
 $db2 = new FakeSql();
 $loaderSources = new TµLoader([
 	'dataSources' => ['db' => $db, 'other' => $db2],
 	'response'    => new \Temma\Web\Response(),
 ]);
 $ctrl = new TestSource($loaderSources);
-check("paramètre 'source' honoré", $ctrl->getDao()->getDataBase() === $db2);
+check("'source' parameter honored", $ctrl->getDao()->getDataBase() === $db2);
 
-/* ********** ÉCHAPPEMENT DES IDENTIFIANTS ********** */
-print(TµAnsi::bold("Échappement des identifiants SQL\n"));
+/* ********** SQL IDENTIFIERS ESCAPING ********** */
+print(TµAnsi::bold("SQL identifiers escaping\n"));
 $dao = new \Temma\Dao\Dao($db, null, 'user');
 $evil = new \Temma\Dao\Dao($db, null, 'us`er', 'i`d', 'ba`se');
 // count
 $dao->count();
-check('count : table backtickée', str_contains($db->lastQuery(), 'FROM `user`'));
+check('count: backquoted table', str_contains($db->lastQuery(), 'FROM `user`'));
 $evil->count();
-check('count : base et table échappées', str_contains($db->lastQuery(), 'FROM `ba``se`.`us``er`'));
-// injection par le nom de table neutralisée
+check('count: escaped database and table', str_contains($db->lastQuery(), 'FROM `ba``se`.`us``er`'));
+// injection through the table name neutralized
 $inject = new \Temma\Dao\Dao($db, null, 'user` WHERE 1 -- ');
 $inject->count();
-check('count : injection par le nom de table neutralisée', str_contains($db->lastQuery(), 'FROM `user`` WHERE 1 -- `'));
+check('count: injection through the table name neutralized', str_contains($db->lastQuery(), 'FROM `user`` WHERE 1 -- `'));
 // get
 $db->nextResult = ['id' => 3];
 $evil->get(3);
-check('get : clé primaire échappée', str_contains($db->lastQuery(), "WHERE `i``d` = '3'"));
+check('get: escaped primary key', str_contains($db->lastQuery(), "WHERE `i``d` = '3'"));
 $db->nextResult = null;
 // create
 $id = $dao->create(['na`me' => 'bob']);
-check('create : INSERT INTO backtické', str_starts_with($db->lastQuery(), 'INSERT INTO `user` SET '));
-check('create : champ échappé', str_contains($db->lastQuery(), "`na``me` = 'bob'"));
-check('create : lastInsertId retourné', $id === 42);
+check('create: backquoted INSERT INTO', str_starts_with($db->lastQuery(), 'INSERT INTO `user` ('));
+check('create: escaped field', str_contains($db->lastQuery(), "(`na``me`) VALUES ('bob')"));
+check('create: lastInsertId returned', $id === 42);
 $evil->create(['a' => 1]);
-check('create : base et table échappées', str_starts_with($db->lastQuery(), 'INSERT INTO `ba``se`.`us``er` SET '));
-// create en mode safe
+check('create: escaped database and table', str_starts_with($db->lastQuery(), 'INSERT INTO `ba``se`.`us``er` ('));
+// safe-mode create
 $dao->create(['name' => 'bob'], 'counter');
-check('create safe : LAST_INSERT_ID échappé', str_contains($db->lastQuery(), "`id` = LAST_INSERT_ID(`id`)"));
-check('create safe : champ absent conservé (`counter` = `counter`)', str_contains($db->lastQuery(), '`counter` = `counter`'));
+check('safe create: escaped LAST_INSERT_ID', str_contains($db->lastQuery(), "`id` = LAST_INSERT_ID(`id`)"));
+check('safe create: absent field kept (`counter` = `counter`)', str_contains($db->lastQuery(), '`counter` = `counter`'));
 $dao->create(['name' => 'bob', 'n`b' => 3], ['n`b']);
-check('create safe : liste de champs échappée', str_contains($db->lastQuery(), "ON DUPLICATE KEY UPDATE") && str_contains($db->lastQuery(), "`n``b` = '3'"));
+check('safe create: escaped fields list', str_contains($db->lastQuery(), "ON DUPLICATE KEY UPDATE") && str_contains($db->lastQuery(), "`n``b` = '3'"));
 $dao->create(['name' => 'bob'], 12);
-check('create safe : clé primaire conservée (`id` = `id`)', str_contains($db->lastQuery(), '`id` = `id`'));
+check('safe create: primary key kept (`id` = `id`)', str_contains($db->lastQuery(), '`id` = `id`'));
 // update
 $dao->update(5, ['fi`eld' => 'v']);
-check('update : champ échappé', str_contains($db->lastQuery(), "`fi``eld` = 'v'"));
-check('update : clé primaire échappée', str_contains($db->lastQuery(), "WHERE `id` = '5'"));
+check('update: escaped field', str_contains($db->lastQuery(), "`fi``eld` = 'v'"));
+check('update: escaped primary key', str_contains($db->lastQuery(), "WHERE `id` = '5'"));
 $dao->update(5, ['flag' => true, 'x' => null]);
-check('update : booléen et NULL backtickés', str_contains($db->lastQuery(), '`flag` = TRUE') && str_contains($db->lastQuery(), '`x` = NULL'));
+check('update: backquoted boolean and NULL', str_contains($db->lastQuery(), '`flag` = TRUE') && str_contains($db->lastQuery(), '`x` = NULL'));
 // remove
 $evil->remove(7);
-check('remove : identifiants échappés', str_contains($db->lastQuery(), "DELETE FROM `ba``se`.`us``er` WHERE `i``d` = '7'"));
-// tri
+check('remove: escaped identifiers', str_contains($db->lastQuery(), "DELETE FROM `ba``se`.`us``er` WHERE `i``d` = '7'"));
+// sort
 $dao->search(null, 'na`me');
-check('search : champ de tri échappé', str_contains($db->lastQuery(), 'ORDER BY `na``me`'));
+check('search: escaped sort field', str_contains($db->lastQuery(), 'ORDER BY `na``me`'));
 $dao->search(null, '-age');
-check('search : tri descendant échappé', str_contains($db->lastQuery(), 'ORDER BY `age` DESC'));
+check('search: escaped descending sort', str_contains($db->lastQuery(), 'ORDER BY `age` DESC'));
 $dao->search(null, ['age' => 'desc', 'name']);
-check('search : tri multiple échappé', str_contains($db->lastQuery(), 'ORDER BY `age` DESC, `name` ASC'));
+check('search: escaped multiple sort', str_contains($db->lastQuery(), 'ORDER BY `age` DESC, `name` ASC'));
 $dao->search(null, true);
-check('search : tri sur clé primaire échappé', str_contains($db->lastQuery(), 'ORDER BY `id` DESC'));
-// critères
+check('search: escaped primary key sort', str_contains($db->lastQuery(), 'ORDER BY `id` DESC'));
+// criteria
 $dao->search(['na`me' => 'x']);
-check('search : champ de critère échappé', str_contains($db->lastQuery(), "WHERE `na``me` = 'x'"));
+check('search: escaped criteria field', str_contains($db->lastQuery(), "WHERE `na``me` = 'x'"));
 $crit = $dao->criteria()->equal('em`ail', 'a@b.c');
 $dao->search($crit);
-check('criteria : champ échappé', str_contains($db->lastQuery(), "WHERE `em``ail` = 'a@b.c'"));
-// liste de champs
+check('criteria: escaped field', str_contains($db->lastQuery(), "WHERE `em``ail` = 'a@b.c'"));
+// fields list
 $daoFields = new \Temma\Dao\Dao($db, null, 'user', 'id', null, ['first_name' => 'firstName', 'age']);
 $daoFields->search();
-check('fields : alias échappés', str_contains($db->lastQuery(), 'SELECT `first_name` AS `firstName`, `age` FROM `user`'));
+check('fields: escaped aliases', str_contains($db->lastQuery(), 'SELECT `first_name` AS `firstName`, `age` FROM `user`'));
 
-/* ********** RÉSULTAT ********** */
-print(TµAnsi::bold($failed ? "$failed test(s) en échec sur $count\n" : "Tous les tests ont réussi ($count)\n"));
+/* ********** POSTGRESQL AND SQLITE DIALECTS ********** */
+print(TµAnsi::bold("PostgreSQL and SQLite dialects\n"));
+check("Sql::getType()", $db->getType() === 'mysql' && (new FakeSql('pgsql'))->getType() === 'pgsql');
+// PostgreSQL
+$pgDb = new FakeSql('pgsql');
+$pgEvil = new \Temma\Dao\Dao($pgDb, null, 'us"er', 'id', 'ba"se');
+$pgEvil->count();
+check('pgsql: escaped double-quoted identifiers', str_contains($pgDb->lastQuery(), 'FROM "ba""se"."us""er"'));
+$pg = new \Temma\Dao\Dao($pgDb, null, 'user');
+$pgDb->nextResult = ['id' => 7];
+$newId = $pg->create(['name' => 'bob']);
+check('pgsql: INSERT ... RETURNING', str_contains($pgDb->lastQuery(), 'INSERT INTO "user" ("name") VALUES (\'bob\') RETURNING "id"'));
+check('pgsql: id fetched from RETURNING', $newId === 7);
+$pg->create(['name' => 'bob'], 'counter');
+check('pgsql: ON CONFLICT upsert, absent field kept', str_contains($pgDb->lastQuery(), 'ON CONFLICT ("id") DO UPDATE SET "counter" = "user"."counter" RETURNING "id"'));
+$pg->create(['name' => 'bob'], 12);
+check('pgsql: no-op upsert', str_contains($pgDb->lastQuery(), 'DO UPDATE SET "id" = "user"."id"'));
+$pgDb->nextResult = null;
+$pg->search(null, false);
+check('pgsql: RANDOM()', str_contains($pgDb->lastQuery(), 'ORDER BY RANDOM()'));
+$pg->search(null, null, 5, 10);
+check('pgsql: LIMIT ... OFFSET', str_contains($pgDb->lastQuery(), 'LIMIT 10 OFFSET 5'));
+$pg->search(null, null, 5);
+check('pgsql: bare OFFSET', str_ends_with($pgDb->lastQuery(), 'OFFSET 5') && !str_contains($pgDb->lastQuery(), 'LIMIT'));
+try {
+	$pg->update(3, ['a' => 'b'], null, 10);
+	check('pgsql: update with limit => exception', false);
+} catch (\Temma\Exceptions\Dao $e) {
+	check('pgsql: update with limit => exception', true);
+}
+$pgDb->nextResult = ['cnt' => 1];
+check('pgsql: tableExists using information_schema', $pg->tableExists() && str_contains($pgDb->lastQuery(), 'current_schema()'));
+$pgDb->nextResult = ['dbname' => 'testbase'];
+check('pgsql: getDatabaseName using current_database()', $pg->getDatabaseName() === 'testbase' && str_contains($pgDb->lastQuery(), 'current_database()'));
+$pgDb->nextResult = null;
+// SQLite
+$slDb = new FakeSql('sqlite');
+$sl = new \Temma\Dao\Dao($slDb, null, 'user');
+$sl->count();
+check('sqlite: backquotes kept', str_contains($slDb->lastQuery(), 'FROM `user`'));
+$slId = $sl->create(['name' => 'bob']);
+check('sqlite: simple INSERT without RETURNING', str_ends_with($slDb->lastQuery(), "VALUES ('bob')") && $slId === 42);
+$slDb->nextResult = ['id' => 9];
+$slId = $sl->create(['name' => 'bob'], true);
+check('sqlite: ON CONFLICT upsert + RETURNING', str_contains($slDb->lastQuery(), "ON CONFLICT (`id`) DO UPDATE SET `name` = 'bob' RETURNING `id`") && $slId === 9);
+$slDb->nextResult = null;
+$sl->search(null, false);
+check('sqlite: RANDOM()', str_contains($slDb->lastQuery(), 'ORDER BY RANDOM()'));
+$sl->search(null, null, 5);
+check('sqlite: LIMIT -1 OFFSET', str_contains($slDb->lastQuery(), 'LIMIT -1 OFFSET 5'));
+$slDb->nextResult = ['cnt' => 1];
+check('sqlite: tableExists using sqlite_master', $sl->tableExists() && str_contains($slDb->lastQuery(), 'sqlite_master'));
+$slDb->nextResult = null;
+check("sqlite: getDatabaseName => 'main'", $sl->getDatabaseName() === 'main');
+$sl2 = new \Temma\Dao\Dao(new FakeSql('sqlite2'), null, 'user');
+check("sqlite2: treated as sqlite", str_contains((function($d) { $d->search(null, false); return ($d->getDataBase()->lastQuery()); })($sl2), 'RANDOM()'));
+// back to MySQL: offset without limit
+$dao->search(null, null, 5);
+check('mysql: bare offset => huge LIMIT', str_contains($db->lastQuery(), 'LIMIT 18446744073709551615 OFFSET 5'));
+// Sql::lastInsertId() on PostgreSQL (LASTVAL), without overriding lastInsertId()
+class FakePgRaw extends \Temma\Datasources\Sql {
+	public array $queries = [];
+	public function __construct() {
+		parent::__construct('pgsql', null, null, 'localhost', null, 'testbase');
+	}
+	public function queryOne(string $sql, ?string $valueField=null, ?array $parameters=null) : mixed {
+		$this->queries[] = $sql;
+		return (33);
+	}
+}
+$raw = new FakePgRaw();
+check('Sql::lastInsertId on pgsql using LASTVAL()', $raw->lastInsertId() === 33 && str_contains((string)end($raw->queries), 'LASTVAL()'));
+
+/* ********** RESULT ********** */
+print(TµAnsi::bold($failed ? "$failed test(s) failed out of $count\n" : "All tests passed ($count)\n"));
 exit($failed ? 1 : 0);

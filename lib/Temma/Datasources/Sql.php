@@ -297,6 +297,13 @@ class Sql extends \Temma\Base\Datasource {
 
 	/* ********** SPECIAL REQUESTS ********** */
 	/**
+	 * Return the database engine type.
+	 * @return	?string	The type ('mysql', 'pgsql', 'sqlite', ...), as defined in the DSN.
+	 */
+	public function getType() : ?string {
+		return ($this->_type);
+	}
+	/**
 	 * Return the last SQL error.
 	 * @return	string	The last error.
 	 */
@@ -535,6 +542,14 @@ class Sql extends \Temma\Base\Datasource {
 	public function lastInsertId() : int {
 		if (!$this->_enabled)
 			return (0);
+		// PostgreSQL: PDO::lastInsertId() needs a sequence name, use LASTVAL() instead
+		if ($this->_type == 'pgsql') {
+			try {
+				return ((int)$this->queryOne('SELECT LASTVAL() AS id', 'id'));
+			} catch (\Exception $e) {
+				return (0);
+			}
+		}
 		$this->connect();
 		return ((int)$this->_db->lastInsertId());
 	}
