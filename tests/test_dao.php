@@ -301,6 +301,99 @@ class FakePgRaw extends \Temma\Datasources\Sql {
 $raw = new FakePgRaw();
 check('Sql::lastInsertId on pgsql using LASTVAL()', $raw->lastInsertId() === 33 && str_contains((string)end($raw->queries), 'LASTVAL()'));
 
+/* ********** SQLITE INTEGRATION ********** */
+// these tests execute the generated SQL against a real SQLite database
+if (!extension_loaded('pdo_sqlite'))
+	print(TµAnsi::bold("SQLite integration (skipped: no pdo_sqlite extension)\n"));
+else {
+	print(TµAnsi::bold("SQLite integration\n"));
+	$dbFile = "$appPath/test.sq3";
+	$sqlite = \Temma\Datasources\Sql::factory("sqlite:$dbFile");
+	$sqlite->exec('CREATE TABLE `user` (
+			`id`    INTEGER PRIMARY KEY AUTOINCREMENT,
+			`name`  TEXT,
+			`email` TEXT,
+			`age`   INTEGER
+		)');
+	check('connection through a SQLite DSN', is_file($dbFile));
+	$dao = new \Temma\Dao\Dao($sqlite, null, 'user');
+	check('tableExists() on an existing table', $dao->tableExists());
+	check('tableExists() on a missing table', !$dao->tableExists('nosuchtable'));
+	check("getDatabaseName() => 'main'", $dao->getDatabaseName() === 'main');
+	// create
+	$id1 = $dao->create(['name' => 'Alice', 'email' => 'alice@x.com', 'age' => 30]);
+	$id2 = $dao->create(['name' => 'Bob', 'email' => 'bob@x.com', 'age' => 20]);
+	check('create() returns the new primary key', $id1 === 1 && $id2 === 2);
+	// get
+	$user = $dao->get($id1);
+	check('get() by primary key', ($user['name'] ?? null) === 'Alice' && (int)($user['age'] ?? 0) === 30);
+	// count
+	check('count() without criteria', $dao->count() === 2);
+	check('count() with criteria', $dao->count(['name' => 'Bob']) === 1);
+	// search with criteria and sort
+	$users = $dao->search(null, 'age');
+	check('search() with ascending sort', array_keys($users) === [2, 1]);
+	$users = $dao->search(null, '-age');
+	check('search() with descending sort', array_keys($users) === [1, 2]);
+	$users = $dao->search($dao->criteria()->greaterThan('age', 25));
+	check('search() with a criteria', count($users) === 1 && isset($users[1]));
+	// limit and offset
+	$users = $dao->search(null, 'age', 1, 1);
+	check('search() with limit and offset', array_keys($users) === [1]);
+	$users = $dao->search(null, 'age', 1);
+	check('search() with a bare offset', array_keys($users) === [1]);
+	// random sort
+	$users = $dao->search(null, false);
+	check('search() with random sort (RANDOM())', count($users) === 2);
+	// fields aliasing
+	$daoAlias = new \Temma\Dao\Dao($sqlite, null, 'user', 'id', null, ['id' => 'id', 'name' => 'userName']);
+	$user = $daoAlias->get(1);
+	check('search() with aliased fields', ($user['userName'] ?? null) === 'Alice');
+	// update
+	$nbr = $dao->update($id2, ['age' => 21, 'name' => 'Bobby']);
+	check('update() returns the number of modified records', $nbr === 1);
+	check('update() really updated the record', (int)$dao->get($id2)['age'] === 21);
+	// update with sort/limit is not supported outside MySQL
+	try {
+		$dao->update($id2, ['age' => 22], null, 1);
+		check('update() with a limit throws an exception', false);
+	} catch (\Temma\Exceptions\Dao $e) {
+		check('update() with a limit throws an exception', true);
+	}
+	// safe-mode create (upsert): the conflicting record is updated, not duplicated
+	$id3 = $dao->create(['id' => $id1, 'name' => 'Alicia', 'age' => 31], true);
+	check('safe create() returns the primary key (RETURNING)', $id3 === $id1);
+	check('safe create() updated the record', $dao->get($id1)['name'] === 'Alicia');
+	check('safe create() did not duplicate the record', $dao->count() === 2);
+	// safe-mode create keeping the former value of a field
+	$dao->create(['id' => $id1, 'name' => 'Ignored'], 'email');
+	check('safe create() keeps the former value of an absent field', $dao->get($id1)['email'] === 'alice@x.com');
+	// remove
+	check('remove() returns the number of deleted records', $dao->remove($id2) === 1);
+	check('remove() really deleted the record', $dao->count() === 1);
+	$dao->remove();
+	check('remove() without criteria empties the table', $dao->count() === 0);
+	// a failed query must not stay in the buffered requests list and poison the connection
+	$dao->create(['id' => 10, 'name' => 'Ten']);
+	try {
+		$dao->create(['id' => 10, 'name' => 'Duplicate']);
+		check('a duplicate primary key is rejected', false);
+	} catch (\Throwable $e) {
+		check('a duplicate primary key is rejected', true);
+	}
+	try {
+		$dao->create(['id' => 11, 'name' => 'Eleven']);
+		check('a failed write doesn\'t poison the next write', true);
+	} catch (\Throwable $e) {
+		check('a failed write doesn\'t poison the next write', false);
+	}
+	try {
+		check('a failed write doesn\'t poison the next read', $dao->count() === 2);
+	} catch (\Throwable $e) {
+		check('a failed write doesn\'t poison the next read', false);
+	}
+}
+
 /* ********** RESULT ********** */
 print(TµAnsi::bold($failed ? "$failed test(s) failed out of $count\n" : "All tests passed ($count)\n"));
 exit($failed ? 1 : 0);
