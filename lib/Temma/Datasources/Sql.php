@@ -148,6 +148,9 @@ class Sql extends \Temma\Base\Datasource {
 	 * @throws	\Temma\Exceptions\Database	If something went wrong.
 	 */
 	static public function factory(string $dsn) : \Temma\Datasources\Sql {
+		// SQLite: the DSN contains only the path to the database file (e.g. 'sqlite:/path/to/file.sq3' or 'sqlite::memory:')
+		if (preg_match('/^(sqlite2?):(.+)$/', $dsn, $matches))
+			return (new self($matches[1], null, null, null, null, $matches[2]));
 		// parameters extraction
 		$params = null;
 		if (!preg_match("/^([^:]+):\/\/([^:@]+):?([^@]+)?@([^\/:]+):?(\d+)?\/([^#]*)#?(.*)$/", $dsn, $matches)) {
@@ -213,7 +216,10 @@ class Sql extends \Temma\Base\Datasource {
 			// special process for Oracle
 			if ($this->_type == 'oci')
 				$pdoDsn .= 'dbname=//' . $this->_host . ':' . $this->_port . '/' . $this->_base;
-			else {
+			else if ($this->_type == 'sqlite' || $this->_type == 'sqlite2') {
+				// SQLite: the PDO DSN contains only the file path (or ':memory:')
+				$pdoDsn .= $this->_base;
+			} else {
 				// other databases
 				$pdoDsn .= 'dbname=' . $this->_base;
 				// host

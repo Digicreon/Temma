@@ -208,6 +208,24 @@ $daoFields = new \Temma\Dao\Dao($db, null, 'user', 'id', null, ['first_name' => 
 $daoFields->search();
 check('fields: escaped aliases', str_contains($db->lastQuery(), 'SELECT `first_name` AS `firstName`, `age` FROM `user`'));
 
+/* ********** SQL DSN PARSING ********** */
+print(TµAnsi::bold("SQL DSN parsing\n"));
+$reflection = new ReflectionClass(\Temma\Datasources\Sql::class);
+$typeProperty = $reflection->getProperty('_type');
+$baseProperty = $reflection->getProperty('_base');
+$sql = \Temma\Datasources\Sql::factory('sqlite:/tmp/test.sq3');
+check("factory('sqlite:/absolute/path')", $typeProperty->getValue($sql) === 'sqlite' && $baseProperty->getValue($sql) === '/tmp/test.sq3');
+$sql = \Temma\Datasources\Sql::factory('sqlite:data/test.sq3');
+check("factory('sqlite:relative/path')", $baseProperty->getValue($sql) === 'data/test.sq3');
+$sql = \Temma\Datasources\Sql::factory('sqlite::memory:');
+check("factory('sqlite::memory:')", $baseProperty->getValue($sql) === ':memory:');
+$sql = \Temma\Datasources\Sql::factory('sqlite2:/tmp/test.sq3');
+check("factory('sqlite2:...')", $typeProperty->getValue($sql) === 'sqlite2');
+$sql = \Temma\Base\Datasource::factory('sqlite:/tmp/test.sq3');
+check('Datasource::factory() routes SQLite DSNs', $sql instanceof \Temma\Datasources\Sql);
+$sql = \Temma\Datasources\Sql::factory('mysql://user:pwd@localhost/mybase');
+check('classic DSN still parsed', $typeProperty->getValue($sql) === 'mysql' && $baseProperty->getValue($sql) === 'mybase');
+
 /* ********** RESULT ********** */
 print(TµAnsi::bold($failed ? "$failed test(s) failed out of $count\n" : "All tests passed ($count)\n"));
 exit($failed ? 1 : 0);
