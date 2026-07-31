@@ -5,7 +5,9 @@
  * DAO validation script:
  * - default table name derived from the controller class name (not from the URL anymore);
  * - support of the 'source' parameter of _loadDao();
- * - SQL identifiers escaping (database, table, fields) in Dao and Criteria.
+ * - SQL identifiers escaping (database, table, fields) in Dao and Criteria;
+ * - SQL generation adapted to the database engine (MySQL, PostgreSQL, SQLite);
+ * - SQL DSN parsing (including SQLite DSNs, which contain a file path).
  * Uses a fake SQL data source which records the generated queries instead of executing them.
  */
 
@@ -24,8 +26,8 @@ class FakeSql extends \Temma\Datasources\Sql {
 	/** Result to be returned by queryOne(). */
 	public mixed $nextResult = null;
 
-	public function __construct() {
-		parent::__construct('mysqli', null, null, 'localhost', null, 'testbase');
+	public function __construct(string $type='mysqli') {
+		parent::__construct($type, null, null, 'localhost', null, 'testbase');
 	}
 	public function quote(mixed $str) : string {
 		if (is_null($str))
@@ -166,11 +168,11 @@ check('get: escaped primary key', str_contains($db->lastQuery(), "WHERE `i``d` =
 $db->nextResult = null;
 // create
 $id = $dao->create(['na`me' => 'bob']);
-check('create: backquoted INSERT INTO', str_starts_with($db->lastQuery(), 'INSERT INTO `user` SET '));
-check('create: escaped field', str_contains($db->lastQuery(), "`na``me` = 'bob'"));
+check('create: backquoted INSERT INTO', str_starts_with($db->lastQuery(), 'INSERT INTO `user` ('));
+check('create: escaped field', str_contains($db->lastQuery(), "(`na``me`) VALUES ('bob')"));
 check('create: lastInsertId returned', $id === 42);
 $evil->create(['a' => 1]);
-check('create: escaped database and table', str_starts_with($db->lastQuery(), 'INSERT INTO `ba``se`.`us``er` SET '));
+check('create: escaped database and table', str_starts_with($db->lastQuery(), 'INSERT INTO `ba``se`.`us``er` ('));
 // safe-mode create
 $dao->create(['name' => 'bob'], 'counter');
 check('safe create: escaped LAST_INSERT_ID', str_contains($db->lastQuery(), "`id` = LAST_INSERT_ID(`id`)"));
@@ -225,6 +227,79 @@ $sql = \Temma\Base\Datasource::factory('sqlite:/tmp/test.sq3');
 check('Datasource::factory() routes SQLite DSNs', $sql instanceof \Temma\Datasources\Sql);
 $sql = \Temma\Datasources\Sql::factory('mysql://user:pwd@localhost/mybase');
 check('classic DSN still parsed', $typeProperty->getValue($sql) === 'mysql' && $baseProperty->getValue($sql) === 'mybase');
+
+/* ********** POSTGRESQL AND SQLITE DIALECTS ********** */
+print(TµAnsi::bold("PostgreSQL and SQLite dialects\n"));
+check("Sql::getType()", $db->getType() === 'mysql' && (new FakeSql('pgsql'))->getType() === 'pgsql');
+// PostgreSQL
+$pgDb = new FakeSql('pgsql');
+$pgEvil = new \Temma\Dao\Dao($pgDb, null, 'us"er', 'id', 'ba"se');
+$pgEvil->count();
+check('pgsql: escaped double-quoted identifiers', str_contains($pgDb->lastQuery(), 'FROM "ba""se"."us""er"'));
+$pg = new \Temma\Dao\Dao($pgDb, null, 'user');
+$pgDb->nextResult = ['id' => 7];
+$newId = $pg->create(['name' => 'bob']);
+check('pgsql: INSERT ... RETURNING', str_contains($pgDb->lastQuery(), 'INSERT INTO "user" ("name") VALUES (\'bob\') RETURNING "id"'));
+check('pgsql: id fetched from RETURNING', $newId === 7);
+$pg->create(['name' => 'bob'], 'counter');
+check('pgsql: ON CONFLICT upsert, absent field kept', str_contains($pgDb->lastQuery(), 'ON CONFLICT ("id") DO UPDATE SET "counter" = "user"."counter" RETURNING "id"'));
+$pg->create(['name' => 'bob'], 12);
+check('pgsql: no-op upsert', str_contains($pgDb->lastQuery(), 'DO UPDATE SET "id" = "user"."id"'));
+$pgDb->nextResult = null;
+$pg->search(null, false);
+check('pgsql: RANDOM()', str_contains($pgDb->lastQuery(), 'ORDER BY RANDOM()'));
+$pg->search(null, null, 5, 10);
+check('pgsql: LIMIT ... OFFSET', str_contains($pgDb->lastQuery(), 'LIMIT 10 OFFSET 5'));
+$pg->search(null, null, 5);
+check('pgsql: bare OFFSET', str_ends_with($pgDb->lastQuery(), 'OFFSET 5') && !str_contains($pgDb->lastQuery(), 'LIMIT'));
+try {
+	$pg->update(3, ['a' => 'b'], null, 10);
+	check('pgsql: update with limit => exception', false);
+} catch (\Temma\Exceptions\Dao $e) {
+	check('pgsql: update with limit => exception', true);
+}
+$pgDb->nextResult = ['cnt' => 1];
+check('pgsql: tableExists using information_schema', $pg->tableExists() && str_contains($pgDb->lastQuery(), 'current_schema()'));
+$pgDb->nextResult = ['dbname' => 'testbase'];
+check('pgsql: getDatabaseName using current_database()', $pg->getDatabaseName() === 'testbase' && str_contains($pgDb->lastQuery(), 'current_database()'));
+$pgDb->nextResult = null;
+// SQLite
+$slDb = new FakeSql('sqlite');
+$sl = new \Temma\Dao\Dao($slDb, null, 'user');
+$sl->count();
+check('sqlite: backquotes kept', str_contains($slDb->lastQuery(), 'FROM `user`'));
+$slId = $sl->create(['name' => 'bob']);
+check('sqlite: simple INSERT without RETURNING', str_ends_with($slDb->lastQuery(), "VALUES ('bob')") && $slId === 42);
+$slDb->nextResult = ['id' => 9];
+$slId = $sl->create(['name' => 'bob'], true);
+check('sqlite: ON CONFLICT upsert + RETURNING', str_contains($slDb->lastQuery(), "ON CONFLICT (`id`) DO UPDATE SET `name` = 'bob' RETURNING `id`") && $slId === 9);
+$slDb->nextResult = null;
+$sl->search(null, false);
+check('sqlite: RANDOM()', str_contains($slDb->lastQuery(), 'ORDER BY RANDOM()'));
+$sl->search(null, null, 5);
+check('sqlite: LIMIT -1 OFFSET', str_contains($slDb->lastQuery(), 'LIMIT -1 OFFSET 5'));
+$slDb->nextResult = ['cnt' => 1];
+check('sqlite: tableExists using sqlite_master', $sl->tableExists() && str_contains($slDb->lastQuery(), 'sqlite_master'));
+$slDb->nextResult = null;
+check("sqlite: getDatabaseName => 'main'", $sl->getDatabaseName() === 'main');
+$sl2 = new \Temma\Dao\Dao(new FakeSql('sqlite2'), null, 'user');
+check("sqlite2: treated as sqlite", str_contains((function($d) { $d->search(null, false); return ($d->getDataBase()->lastQuery()); })($sl2), 'RANDOM()'));
+// back to MySQL: offset without limit
+$dao->search(null, null, 5);
+check('mysql: bare offset => huge LIMIT', str_contains($db->lastQuery(), 'LIMIT 18446744073709551615 OFFSET 5'));
+// Sql::lastInsertId() on PostgreSQL (LASTVAL), without overriding lastInsertId()
+class FakePgRaw extends \Temma\Datasources\Sql {
+	public array $queries = [];
+	public function __construct() {
+		parent::__construct('pgsql', null, null, 'localhost', null, 'testbase');
+	}
+	public function queryOne(string $sql, ?string $valueField=null, ?array $parameters=null) : mixed {
+		$this->queries[] = $sql;
+		return (33);
+	}
+}
+$raw = new FakePgRaw();
+check('Sql::lastInsertId on pgsql using LASTVAL()', $raw->lastInsertId() === 33 && str_contains((string)end($raw->queries), 'LASTVAL()'));
 
 /* ********** RESULT ********** */
 print(TµAnsi::bold($failed ? "$failed test(s) failed out of $count\n" : "All tests passed ($count)\n"));
