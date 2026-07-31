@@ -566,7 +566,11 @@ class Sql extends \Temma\Base\Datasource {
 	 */
 	public function execBufferedRequests() : int {
 		$lineCount = 0;
-		foreach ($this->_bufferedRequests as $request) {
+		// empty the list before executing the requests: if a request fails, it must not
+		// stay in the list and be replayed by every subsequent call
+		$requests = $this->_bufferedRequests;
+		$this->_bufferedRequests = [];
+		foreach ($requests as $request) {
 			$lineCount = $this->_db->exec($request);
 			if ($lineCount === false) {
 				$errStr = 'Database request error: ' . $this->getError();
@@ -574,7 +578,6 @@ class Sql extends \Temma\Base\Datasource {
 				throw new TµDatabaseException($errStr, TµDatabaseException::QUERY);
 			}
 		}
-		$this->_bufferedRequests = [];
 		return ($lineCount);
 	}
 
