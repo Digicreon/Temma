@@ -3,7 +3,7 @@
 /**
  * Comma
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2024-2025, Amaury Bouchard
+ * @copyright	© 2024-2026, Amaury Bouchard
  */
 
 namespace Temma\Comma;
@@ -191,38 +191,103 @@ class Comma {
 			}
 			break;
 		}
-		// extract object, method and parameters
-		$this->_objectName = array_shift($_SERVER['argv']);
-		$this->_methodName = array_shift($_SERVER['argv']);
-		if (str_starts_with($this->_methodName, '--')) {
-			fprintf(STDERR, "No parameter allowed for the root action.\n");
-			exit(1);
+		// extract object name, method name and positional parameters, possibly aggregated
+		// in the first element ("Obj:method", "Obj::method", "Obj/method/param1"...)
+		[$this->_objectName, $this->_methodName, $positional] = self::_parseCommand(array_shift($_SERVER['argv']));
+		$this->_objectName = self::_resolveObjectName($this->_objectName);
+		if ($this->_methodName === null) {
+			// no separator used: the method name may be given as the next element
+			$this->_methodName = array_shift($_SERVER['argv']);
+			if ($this->_methodName !== null && str_starts_with($this->_methodName, '--')) {
+				fprintf(STDERR, "No parameter allowed for the root action.\n");
+				exit(1);
+			}
 		}
+		// extract named and positional parameters
+		$named = [];
+		$rawMode = false;
 		foreach ($_SERVER['argv'] as $param) {
-			// check parameter
-			if (!str_starts_with($param, '--')) {
+			// after a '--' marker, everything is a positional parameter
+			if ($rawMode) {
+				$positional[] = $param;
+				continue;
+			}
+			if ($param === '--') {
+				$rawMode = true;
+				continue;
+			}
+			// named parameter
+			if (str_starts_with($param, '--')) {
+				// remove '--' prefix
+				$param = mb_substr($param, 2);
+				// extract parameter without value
+				if (!str_contains($param, '=')) {
+					$named[$param] = true;
+					continue;
+				}
+				// extract parameter with value
+				if (!preg_match('/^([^=]+)=(.*)$/', $param, $matches)) {
+					fprintf(STDERR, "Bad parameter '$param'\n");
+					exit(2);
+				}
+				$param = $matches[1];
+				$val = $matches[2];
+				if ((str_starts_with($val, '"') && str_ends_with($val, '"')) ||
+				    (str_starts_with($val, "'") && str_ends_with($val, "'")))
+					$val = mb_substr($val, 1, -1);
+				$named[$param] = $val;
+				continue;
+			}
+			// parameter starting with a single dash: probably a mistyped named parameter
+			// (use the '--' marker to pass positional values starting with a dash)
+			if (str_starts_with($param, '-')) {
 				fprintf(STDERR, "Invalid parameter '$param'.\n");
 				exit(2);
 			}
-			// remove '--' prefix
-			$param = mb_substr($param, 2);
-			// extract parameter without value
-			if (!str_contains($param, '=')) {
-				$this->_params[$param] = true;
-				continue;
-			}
-			// extract parameter with value
-			if (!preg_match('/^([^=]+)=(.*)$/', $param, $matches)) {
-				fprintf(STDERR, "Bad parameter '$param'\n");
-				exit(2);
-			}
-			$param = $matches[1];
-			$val = $matches[2];
-			if ((str_starts_with($val, '"') && str_ends_with($val, '"')) ||
-			    (str_starts_with($val, "'") && str_ends_with($val, "'")))
-				$val = mb_substr($val, 1, -1);
-			$this->_params[$param] = $val;
+			// positional parameter
+			$positional[] = $param;
 		}
+		// positional parameters first, named parameters after (mandatory order for PHP named arguments)
+		$this->_params = array_merge($positional, $named);
+	}
+	/**
+	 * Parse a command designation, which may aggregate the object name, the method name and
+	 * positional parameters ("Obj", "Obj:method", "Obj::method", "Obj/method/param1/param2",
+	 * "Obj:method/param1"...).
+	 * @param	string	$token	The command designation.
+	 * @return	array	Object name, method name (null if no separator was used) and
+	 *			list of positional parameters.
+	 */
+	static private function _parseCommand(string $token) : array {
+		// search for the leftmost separator ('::' takes precedence over ':' at the same position)
+		$positions = [];
+		if (($pos = mb_strpos($token, '::')) !== false)
+			$positions['::'] = $pos;
+		if (($pos = mb_strpos($token, ':')) !== false && $pos !== ($positions['::'] ?? -1))
+			$positions[':'] = $pos;
+		if (($pos = mb_strpos($token, '/')) !== false)
+			$positions['/'] = $pos;
+		if (!$positions)
+			return ([$token, null, []]);
+		asort($positions);
+		$separator = array_key_first($positions);
+		$objectName = mb_substr($token, 0, $positions[$separator]);
+		$rest = mb_substr($token, $positions[$separator] + mb_strlen($separator));
+		// the rest is split on '/' to get the method name and the positional parameters
+		$chunks = explode('/', $rest);
+		$methodName = array_shift($chunks);
+		return ([$objectName, $methodName, $chunks]);
+	}
+	/**
+	 * Resolve an object name: if the given name doesn't start with a backslash and doesn't match
+	 * an existing class, search the class in the '\Temma\Cli' namespace (framework's built-in commands).
+	 * @param	string	$objectName	The object name given on the command line.
+	 * @return	string	The resolved object name.
+	 */
+	static private function _resolveObjectName(string $objectName) : string {
+		if (!class_exists($objectName) && !str_starts_with($objectName, '\\') && class_exists("\\Temma\\Cli\\$objectName"))
+			return ("\\Temma\\Cli\\$objectName");
+		return ($objectName);
 	}
 	/**
 	 * Function called when the first parameter on the command line is 'help'.
@@ -235,10 +300,22 @@ class Comma {
 		if (!$_SERVER['argv'] || $showUsage) {
 			$s = "<h1 padding='2'>COMMA USAGE</h1>
 <h2 line=''>Common usage</h2>
-    <b>bin/comma</b> <color t='blue'>controller</color> <faint>[</faint><color t='green'>action</color> <faint>[</faint>--<color t='yellow'>param1</color>=<color t='cyan'>value1</color><faint>] [</faint>--<color t='yellow'>param2</color>=<color t='cyan'>value2</color><faint>]</faint>...<faint>]</faint><br />
+    <b>bin/comma</b> <color t='blue'>controller</color><faint>/</faint><color t='green'>action</color> <faint>[</faint>--<color t='yellow'>param1</color>=<color t='cyan'>value1</color><faint>] [</faint>--<color t='yellow'>flag</color><faint>]</faint>...<br />
+    <b>bin/comma</b> <color t='blue'>controller</color><faint>/</faint><color t='green'>action</color><faint>/</faint><color t='cyan'>value1</color><faint>/</faint><color t='cyan'>value2</color>...<br />
+        <faint>Parameters can be named (mapped to the parameters of the action method) or positional, like in a URL.</faint><br />
+        <faint>Positional values can also be given as separate arguments: <b>bin/comma</b> <span textColor='blue'>controller</span>/<span textColor='green'>action</span> <span textColor='cyan'>value1</span> <span textColor='cyan'>value2</span></faint><br />
+        <faint>Values starting with a dash must be preceded by a '--' marker: <b>bin/comma</b> <span textColor='blue'>Math</span>/<span textColor='green'>add</span> -- <span textColor='cyan'>-5</span></faint><br />
+
+    <b>bin/comma</b> <color t='blue'>controller</color> <color t='green'>action</color>, <b>bin/comma</b> <color t='blue'>controller</color>:<color t='green'>action</color>, <b>bin/comma</b> <color t='blue'>controller</color>::<color t='green'>action</color><br />
+        <faint>Alternative equivalent forms.</faint><br />
+
+    <b>bin/comma</b> <color t='blue'>controller</color><br />
         <faint>If no action is given, the <span textColor='green'>__invoke()</span> method is executed.</faint><br />
         <faint>If the controller has a <span textColor='green'>__proxy()</span> method, it is executed systematically.</faint><br />
         <faint>If the requested action doesn't exist, but the controller has a <span textColor='green'>__call()</span> method, this method is executed.</faint><br />
+
+    <b>bin/comma</b> <color t='blue'>Cache</color><faint>/</faint><color t='green'>clear</color><br />
+        <faint>If the controller is not found and doesn't start with a backslash, it is searched in the <span textColor='blue'>\\Temma\\Cli</span> namespace (framework's built-in commands).</faint><br />
 
 
 <h2 line='' marginTop='2'>Help</h2>
@@ -255,6 +332,10 @@ class Comma {
 			exit(0);
 		}
 		$objectName = array_shift($_SERVER['argv']);
+		[$objectName, $methodName, ] = self::_parseCommand($objectName);
+		$objectName = self::_resolveObjectName($objectName);
+		if ($methodName)
+			array_unshift($_SERVER['argv'], $methodName);
 		if (!class_exists($objectName)) {
 			print(TµAnsi::color('red', "There is no avaiable controller named '$objectName'.\n"));
 			exit(1);

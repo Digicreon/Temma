@@ -11,10 +11,19 @@ configuration, log, autoloader, dependency injection and data sources. Commands 
 invoked as:
 
 ```
-bin/comma <Controller> <action> [--param1=value1] [--param2=value2]...
-bin/comma "\MyApp\Cli\CrmManager" pushData        # namespaced controller: quote the name
-bin/comma help [Controller [action]]              # built-in documentation, from PHPDoc
+bin/comma <Controller>/<action> [--param1=value1] [--flag]...   # canonical form
+bin/comma <Controller>/<action>/<value1>/<value2>...            # URL-like positional parameters
+bin/comma <Controller>/<action> <value1> <value2>...            # space-separated positional parameters
+bin/comma <Controller> <action>, <Controller>:<action>, <Controller>::<action>   # equivalent forms
+bin/comma "\MyApp\Cli\CrmManager/pushData"        # namespaced controller: quote the name
+bin/comma help [Controller[/action]]              # built-in documentation, from PHPDoc
 ```
+
+Positional parameters fill the action's parameters from left to right, like a Temma URL;
+named parameters (`--param=value`) map to the action's parameters by name; both can be
+combined. A positional value cannot contain `/` in the URL-like form (use the
+space-separated form or a named parameter, e.g. for file paths). For a value starting
+with a dash, use the standard `--` end-of-options marker: `bin/comma Math/add 3 -- -5`.
 
 ## Writing a CLI controller
 
@@ -43,10 +52,12 @@ class User extends \Temma\Web\Controller {
 }
 ```
 
-Invocation: `bin/comma User add --name="Luke Skywalker" --email=luke@rebellion.org --admin`
+Invocation: `bin/comma User/add --name="Luke Skywalker" --email=luke@rebellion.org --admin`
+or, with positional parameters: `bin/comma User/add "Luke Skywalker" luke@rebellion.org`
 
-- Parameters map to **named** command-line options (`--email=...`); a parameter given
-  without a value is `true` (boolean flags). Optional method parameters have defaults.
+- Parameters map to **named** command-line options (`--email=...`) or **positional**
+  values (URL-like or space-separated); a named parameter given without a value is `true`
+  (boolean flags). Optional method parameters have defaults.
 - `__invoke()` (root action, no parameters), `__call()`, `__proxy()`, `__wakeup()`,
   `__sleep()` behave as in web controllers. Attributes run too (when they make sense
   outside a web context).
@@ -57,12 +68,15 @@ Invocation: `bin/comma User add --name="Luke Skywalker" --email=luke@rebellion.o
   `$this->_request` only carries the command-line parameters.
 
 Options placed **before** the controller name tune Comma itself:
-`bin/comma conf=etc/temma-test.php User add ...` (alternate configuration file),
+`bin/comma conf=etc/temma-test.php User/add ...` (alternate configuration file),
 `inc=/path` (additional include path), `nostderr` (do not log to stderr; by default CLI
 logs go to stderr, plus `log/temma.log` if configured).
 
-Built-in commands: `bin/comma "\Temma\Cli\Cache" ...` (cache clearing),
-`bin/comma "\Temma\Cli\User" ...` (user management for the Auth system).
+Built-in commands: when a controller name doesn't start with a backslash and doesn't
+match a class of the project, it is searched in the `\Temma\Cli` namespace:
+`bin/comma Cache/clear` (cache clearing), `bin/comma User ...` (user management for the
+Auth system), `bin/comma 'Asynk\Worker/crontab'` (async tasks) — a project class with
+the same name takes precedence.
 
 ## Terminal output: `\Temma\Utils\Ansi`
 
@@ -108,7 +122,7 @@ Also: `clear()`, `clearLine()`, `hideCursor()`/`showCursor()`, cursor movement
 A Comma command is directly usable in a crontab; use absolute paths:
 
 ```
-42 3 * * * /path/to/project/bin/comma nostderr Backup run
+42 3 * * * /path/to/project/bin/comma nostderr Backup/run
 ```
 
 For long or deferred processing triggered from web requests, see the `temma-asynk` skill.

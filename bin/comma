@@ -8,13 +8,17 @@
  * Usage:
  *     bin/comma help
  *     bin/comma help controller
+ *     bin/comma help controller/action
  *     bin/comma help '\namespace\controller'
- *     bin/comma controller [action [--param1=value1] [--param2=value2]...]
- *     bin/comma '\namespace\controller' [action [--param1=value1] [--param2=value2]...]
- *     bin/comma [nostderr] [conf=/path/to/temma.php] [inc=/path/to/include] controller [action [--param1=value1] [--param2=value2]...]
- *     bin/comma [nostderr] [conf=/path/to/temma.php] [inc=/path/to/include] '\namespace\controller' [action [--param1=value1] [--param2=value2]...]
+ *     bin/comma controller/action [--param1=value1] [--param2=value2] [--flag]...
+ *     bin/comma controller/action/value1/value2...
+ *     bin/comma controller/action value1 value2 [-- -value3]...
+ *     bin/comma controller action, controller:action, controller::action (equivalent forms)
+ *     bin/comma controller (executes the __invoke() method)
+ *     bin/comma '\namespace\controller/action' [--param1=value1]...
+ *     bin/comma [nostderr] [conf=/path/to/temma.php] [inc=/path/to/include] controller/action [--param1=value1]...
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2023-2024, Amaury Bouchard
+ * @copyright	© 2023-2026, Amaury Bouchard
  * @link	https://www.temma.net/documentation/cli
  */
 
