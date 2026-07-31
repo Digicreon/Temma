@@ -3,7 +3,7 @@
 /**
  * User
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2023-2024, Amaury Bouchard
+ * @copyright	© 2023-2026, Amaury Bouchard
  * @link	https://www.temma.net/documentation/helper-cli_user
  */
 
@@ -16,7 +16,7 @@ use \Temma\Utils\Term as TµTerm;
 /**
  * User management CLI controller.
  *
- * This objet is used to manage users from the command line.
+ * This object is used to manage users from the command line.
  * The users are managed in a way compatible with the Auth controller/plugin
  * and the Auth attribute.
  *
@@ -105,7 +105,7 @@ class User extends \Temma\Web\Controller {
 	 * @param	?string	$dateLastLoginFrom	(optional) Beginning of last authentication date period (format YYYY-MM-DD).
 	 * @param	?string	$dateLastLoginTo	(optional) Ending of last authentication date period (format YYYY-MM-DD).
 	 * @param	?string $dateLastAccessFrom	(optional) Beginning of last access date period (format YYYY-MM-DD).
-	 * @param	?string $dateLastAccessTo	(optionel) Ending of last access date period (format YYYY-MM-DD).
+	 * @param	?string $dateLastAccessTo	(optional) Ending of last access date period (format YYYY-MM-DD).
 	 * @param	string	$sort			(optional) 'id', 'name', 'date_creation', 'date_last_login' or 'date_last_access'. (defaults to 'id')
 	 */
 	public function list(?string $email=null, ?string $name=null, ?string $role=null, ?string $service=null,
@@ -115,6 +115,8 @@ class User extends \Temma\Web\Controller {
 		$criteria = $this->_userDao->criteria();
 		if ($email)
 			$criteria->like('email', "$email%");
+		if ($name)
+			$criteria->like('name', "$name%");
 		if ($role)
 			$criteria->like('roles', "%$role%");
 		if ($service)
@@ -140,7 +142,7 @@ class User extends \Temma\Web\Controller {
 			print('name:        ' . TµAnsi::color('white', $user['name']) . "\n");
 			print('creation:    ' . TµAnsi::faint($user['date_creation']) . "\n");
 			print('last login:  ' . TµAnsi::faint($user['date_last_login']) . "\n");
-			print('last access: ' . TµAnsi::faint($user['date_last_login']) . "\n");
+			print('last access: ' . TµAnsi::faint($user['date_last_access']) . "\n");
 			print('email:       ' . TµAnsi::color('green', $user['email']) . "\n");
 			if ($user['roles']) {
 				$roles = str_getcsv($user['roles']);
@@ -160,7 +162,7 @@ class User extends \Temma\Web\Controller {
 	/**
 	 * Add a new user.
 	 * @param	string	$email		Email address.
-	 * @param	?string	$name		(optional) User role.
+	 * @param	?string	$name		(optional) User name.
 	 * @param	?string	$roles		(optional) User role(s).
 	 * @param	?string	$services	(optional) User service(s).
 	 */
