@@ -78,6 +78,16 @@ match a class of the project, it is searched in the `\Temma\Cli` namespace:
 Auth system), `bin/comma 'Asynk\Worker/crontab'` (async tasks) — a project class with
 the same name takes precedence.
 
+## Development server
+
+`bin/comma Temma/serve` launches a standalone development server (PHP built-in web
+server, 8 workers) on `http://<project>.localhost:8000/`; the host name comes from the
+project's directory name. `bin/comma Temma/serve/8080` changes the port. The `--env`
+parameter sets the platform exported in the `ENVIRONMENT` variable (`dev` by default,
+used to load `etc/temma.<env>.php`). Files existing under `www/` are served as-is,
+everything else goes through the front controller. Development only: production
+deserves a real web server (Apache, Nginx, FrankenPHP).
+
 ## Terminal output: `\Temma\Utils\Ansi`
 
 Static helpers producing ANSI-decorated strings:

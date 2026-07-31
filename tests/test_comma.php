@@ -19,7 +19,7 @@ use \Temma\Utils\Ansi as TµAnsi;
 
 /* ********** SANDBOX APPLICATION ********** */
 $appPath = sys_get_temp_dir() . '/temma-comma-test-' . getmypid();
-foreach (['bin', 'cli', 'cli/Temma/Cli', 'etc', 'log', 'tmp'] as $dir)
+foreach (['bin', 'cli', 'cli/Temma/Cli', 'etc', 'log', 'tmp', 'www'] as $dir)
 	mkdir("$appPath/$dir", 0755, true);
 register_shutdown_function(function() use ($appPath) {
 	exec('rm -rf ' . escapeshellarg($appPath));
@@ -87,6 +87,9 @@ class Task extends \Temma\Web\Controller {
 	}
 }
 EOT);
+// fake front controller and static file (for the development server tests)
+file_put_contents("$appPath/www/index.php", '<?php print("FRONT:" . $_SERVER["REQUEST_URI"] . ":" . getenv("ENVIRONMENT"));');
+file_put_contents("$appPath/www/static.txt", 'STATIC-OK');
 // namespaced application controller
 mkdir("$appPath/cli/App", 0755, true);
 file_put_contents("$appPath/cli/App/Deep.php", <<<'EOT'
@@ -196,6 +199,34 @@ print(TµAnsi::bold("Help\n"));
 check("'help Obj/action' accepted", $code === 0 && str_contains($out, 'add') && !str_contains($out, 'Action: show'));
 [$out, $code] = comma('help Greet');
 check("'help' uses the \\Temma\\Cli fallback", $code === 0 && str_contains($out, 'hi'));
+
+/* ********** DEVELOPMENT SERVER ********** */
+print(TµAnsi::bold("Development server (Temma/serve)\n"));
+$port = 20000 + (getmypid() % 10000);
+// launch the server in its own session, to be able to kill the whole process group
+exec('cd ' . escapeshellarg($appPath) . " && setsid php bin/comma Temma/serve/$port --env=testenv > tmp/serve.log 2>&1 & echo \$!", $pidOutput);
+$servePid = (int)($pidOutput[0] ?? 0);
+register_shutdown_function(function() use ($servePid) {
+	if ($servePid)
+		exec("kill -- -$servePid 2>/dev/null");
+});
+// wait for the server to be up
+$up = false;
+for ($i = 0; $i < 50; $i++) {
+	usleep(100000);
+	if (($sock = @fsockopen('127.0.0.1', $port, $errno, $errstr, 0.2))) {
+		fclose($sock);
+		$up = true;
+		break;
+	}
+}
+check('the server starts', $up);
+check('static files are served as-is', @file_get_contents("http://127.0.0.1:$port/static.txt") === 'STATIC-OK');
+check('other URLs are routed to the front controller', @file_get_contents("http://127.0.0.1:$port/foo/bar?x=1") === 'FRONT:/foo/bar?x=1:testenv');
+$serveLog = (string)@file_get_contents("$appPath/tmp/serve.log");
+check("the banner shows the '.localhost' URL", str_contains($serveLog, ".localhost:$port"));
+exec('cd ' . escapeshellarg($appPath) . " && php bin/comma Temma/serve/$port 2>/dev/null", $busyOutput, $busyCode);
+check('busy port => error', $busyCode !== 0);
 
 /* ********** RESULT ********** */
 print(TµAnsi::bold($failed ? "$failed test(s) failed out of $count\n" : "All tests passed ($count)\n"));

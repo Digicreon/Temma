@@ -17,6 +17,11 @@ use \Temma\Utils\File as TµFile;
  * Temma management command.
  */
 class Temma extends \Temma\Web\Controller {
+	/** Constant: default listening port of the development server. */
+	const SERVER_DEFAULT_PORT = 8000;
+	/** Constant: number of workers of the development server. */
+	const SERVER_WORKERS = 8;
+
 	/**
 	 * Shows Temma information.
 	 */
@@ -120,6 +125,49 @@ class Temma extends \Temma\Web\Controller {
 		if ($tgzPath)
 			unlink($tgzPath);
 		return ($returnStatus);
+	}
+	/**
+	 * Launch a standalone development web server, based on the PHP built-in web server.
+	 * Existing files under the 'www/' directory are served as-is; any other request is
+	 * routed to the front controller, like the usual Apache/Nginx rewrite rule.
+	 * @param	int	$port	(optional) Listening port. (defaults to 8000)
+	 * @param	string	$env	(optional) Platform name, exported in the ENVIRONMENT variable,
+	 *				used to load the 'etc/temma.<env>.php' configuration file. (defaults to 'dev')
+	 */
+	public function serve(int $port=self::SERVER_DEFAULT_PORT, string $env='dev') {
+		$appPath = $this->_config->appPath;
+		// check the document root and its front controller
+		$docRoot = "$appPath/www";
+		if (!is_file("$docRoot/index.php")) {
+			print(TµAnsi::style("<alert>No front controller found at '$docRoot/index.php'.</alert>"));
+			exit(1);
+		}
+		// check the router script
+		$router = realpath(__DIR__ . '/../Web/server-router.php');
+		if (!$router) {
+			print(TµAnsi::style("<alert>Router script not found.</alert>"));
+			exit(1);
+		}
+		// check if the port is free
+		if (($sock = @fsockopen('127.0.0.1', $port, $errno, $errstr, 0.2))) {
+			fclose($sock);
+			print(TµAnsi::style("<alert>The port $port is already in use.</alert>"));
+			exit(1);
+		}
+		// compute the displayed host name from the project's directory name, truncated to the last dot
+		// (every '*.localhost' name resolves to the local host)
+		$name = basename($appPath);
+		if (($pos = mb_strrpos($name, '.')) !== false)
+			$name = mb_substr($name, 0, $pos);
+		$name = $name ?: 'temma';
+		// banner
+		print(TµAnsi::style("<h2>Temma development server</h2>"));
+		print(TµAnsi::style("URL: <b>http://$name.localhost:$port/</b> (environment '<b>$env</b>')\n"));
+		print(TµAnsi::style("<faint>Development server, do not use in production. Press Ctrl+C to stop.</faint>\n\n"));
+		// launch the server
+		putenv("ENVIRONMENT=$env");
+		putenv('PHP_CLI_SERVER_WORKERS=' . self::SERVER_WORKERS);
+		passthru(escapeshellarg(PHP_BINARY) . " -S 127.0.0.1:$port -t " . escapeshellarg($docRoot) . ' ' . escapeshellarg($router));
 	}
 
 	/* ********** PRIVATE METHODS ********** */
