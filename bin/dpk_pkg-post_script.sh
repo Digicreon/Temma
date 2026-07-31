@@ -60,6 +60,7 @@ else
 	cp    www/*.html         /opt/temma-project-web/www/
 	cp    www/.htaccess      /opt/temma-project-web/www/
 	cp    .htaccess          /opt/temma-project-web/
+	popd > /dev/null
 	# manage composer.json
 	pushd /opt/temma-project-web > /dev/null
 	sed "s/\"digicreon\/temma-lib\": \"[^\"]*\"/\"digicreon\/temma-lib\": \"^$PKG_TAG\"/" composer.json > composer.json.tmp
@@ -94,6 +95,7 @@ else
 	cp    www/index.php          /opt/temma-project-api/www/
 	cp    www/.htaccess          /opt/temma-project-api/www/
 	cp    .htaccess              /opt/temma-project-api/
+	popd > /dev/null
 	# manage composer.json
 	pushd /opt/temma-project-api > /dev/null
 	sed "s/\"digicreon\/temma-lib\": \"[^\"]*\"/\"digicreon\/temma-lib\": \"^$PKG_TAG\"/" composer.json > composer.json.tmp
@@ -106,6 +108,29 @@ else
 	fi
 	# create tag
 	/opt/Dispak/dpk pkg --tag=$PKG_TAG
+	echo "   done"
+	popd > /dev/null
+fi
+
+# ########## temma.net ##########
+# check if directory exists
+if [ ! -d /home/http/Digicreon/www.temma.net ]; then
+	echo "No directory '/home/http/Digicreon/www.temma.net' found."
+else
+	echo "== Update 'temma.net'"
+	# copy files
+	pushd /opt/Temma > /dev/null
+	rm -rf /home/http/Digicreon/www.temma.net/lib/Temma
+	cp -a lib/Temma /home/http/Digicreon/www.temma.net/lib/
+	cp llms-install.md /home/http/Digicreon/www.temma.net/www/
+	popd > /dev/null
+	# commit files
+	pushd /home/http/Digicreon/www.temma.net > /dev/null
+	if [[ -n $(git status --porcelain lib/Temma www/llms-install.md) ]]; then
+		git add lib/Temma www/llms-install.md
+		git commit -m "Update Temma version '$PKG_TAG'."
+		git push
+	fi
 	echo "   done"
 	popd > /dev/null
 fi
