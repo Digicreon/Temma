@@ -34,7 +34,7 @@ use \Temma\Exceptions\FlowHalt as TµFlowHalt;
  * ```
  */
 #[\Attribute(\Attribute::TARGET_CLASS | \Attribute::TARGET_METHOD | \Attribute::IS_REPEATABLE)]
-class Get extends \Temma\Web\Attribute {
+class Output extends \Temma\Web\Attribute {
 	/**
 	 * Constructor.
 	 * @param	null|string|array	$contract	Name of the configured contract, or name of the validation object, or
