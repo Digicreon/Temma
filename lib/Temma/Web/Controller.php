@@ -231,10 +231,11 @@ class Controller implements \ArrayAccess {
 	}
 	/**
 	 * Define the view to use.
-	 * @param	string	$view	Name of the view.
+	 * @param	null|false|string	$view	(optional) Name of the view. Null (or left empty) to use the default view
+	 *						(as defined in the configuration). False to disable the view processing.
 	 * @return	?int	self::EXEC_FORWARD (useful value to return from the controller).
 	 */
-	final protected function _view(string $view) : ?int {
+	final protected function _view(null|false|string $view=null) : ?int {
 		$this->_response->setView($view);
 		return (self::EXEC_FORWARD);
 	}

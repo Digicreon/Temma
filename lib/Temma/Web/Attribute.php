@@ -120,10 +120,11 @@ abstract class Attribute implements \ArrayAccess {
 	}
 	/**
 	 * Define the view to use.
-	 * @param	string	$view	Name of the view.
+	 * @param	null|false|string	$view	(optional) Name of the view. Null (or left empty) to use the default view
+	 *						(as defined in the configuration). False to disable the view processing.
 	 * @return	\Temma\Web\Attribute	The current object.
 	 */
-	final protected function _view(string $view) : \Temma\Web\Attribute {
+	final protected function _view(null|false|string $view=null) : \Temma\Web\Attribute {
 		$this->_response?->setView($view);
 		return ($this);
 	}

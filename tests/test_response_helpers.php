@@ -48,6 +48,16 @@ $classes = [
 			}
 		}
 		EOT,
+	// attribute which disables the view
+	'DisableViewAttr' => <<<'EOT'
+		#[\Attribute(\Attribute::TARGET_METHOD)]
+		class DisableViewAttr extends \Temma\Web\Attribute {
+			public function apply(\Reflector $context) : void {
+				$this->_view(false);
+				$this['attrView'] = $this->_getView();
+			}
+		}
+		EOT,
 	// controller which stores what the getters return, before and after using the setters
 	'Helpers' => <<<'EOT'
 		class Helpers extends \Temma\Web\Controller {
@@ -74,8 +84,17 @@ $classes = [
 				$this['headers'] = $this->_getHeaders();
 				$this['contentType'] = $this->_getContentType();
 			}
-			#[\Temma\Attributes\View(false)]
 			public function disabledView() {
+				$this->_view(false);
+				$this['view'] = $this->_getView();
+			}
+			public function resetView() {
+				$this->_view('\Temma\Views\Json');
+				$this->_view();
+				$this['view'] = $this->_getView();
+			}
+			#[DisableViewAttr]
+			public function attributeDisabledView() {
 				$this['view'] = $this->_getView();
 			}
 			#[GetterAttr]
@@ -142,7 +161,9 @@ check("_getHeaders() returns the headers defined by _header()", $response['heade
 check("_getContentType() returns the resolved content type defined by _contentType()", $response['contentType'] === 'application/json');
 check("getters and Response object agree", $response->getRedirection() === '/somewhere' && $response->getView() === '\Temma\Views\Json');
 $response = getResponse('/helpers/disabledView');
-check("_getView() returns false when the view is disabled", $response['view'] === false);
+check("_view(false) disables the view: _getView() returns false", $response['view'] === false);
+$response = getResponse('/helpers/resetView');
+check("_view() without parameter resets to the default view: _getView() returns null", $response['view'] === null);
 
 print("\n" . TµAnsi::bold("Attribute getters\n"));
 $response = getResponse('/helpers/attribute');
@@ -157,6 +178,9 @@ check("_getRedirect() after _redirect()", $response['attrRedirect'] === '/attr-r
 check("_getContentType() after _contentType() with an alias", $response['attrContentType'] === 'text/csv');
 check("values defined by the attribute are visible from the action's getters",
       $response['view'] === '\Temma\Views\Json' && $response['redirect'] === '/attr-redirect' && $response['contentType'] === 'text/csv');
+$response = getResponse('/helpers/attributeDisabledView');
+check("_view(false) in an attribute disables the view (seen by the attribute and by the action)",
+      $response['attrView'] === false && $response['view'] === false);
 
 // summary
 print("\n");
