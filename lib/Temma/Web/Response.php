@@ -9,6 +9,7 @@
 namespace Temma\Web;
 
 use \Temma\Base\Log as TµLog;
+use \Temma\Exceptions\Framework as TµFrameworkException;
 
 /**
  * Object use to manage the response of a controller execution.
@@ -30,6 +31,8 @@ class Response implements \ArrayAccess {
 	private ?string $_template = null;
 	/** Array of header strings. */
 	private array $_headers = [];
+	/** Content type of the response (full MIME type). */
+	private ?string $_contentType = null;
 	/** Template variables. */
 	private array $_data = [];
 	/** Prepended response stream. */
@@ -129,6 +132,31 @@ class Response implements \ArrayAccess {
 	 */
 	public function header(string $header) : void {
 		$this->_headers[] = $header;
+	}
+	/**
+	 * Define the content type of the response. It is sent by the view as Content-Type header,
+	 * instead of the view's default content type.
+	 * @param	?string	$contentType	The MIME type (like "image/png"), or one of the aliases defined
+	 *					in \Temma\Web\View::MIME_ALIASES (like "json"), or null to remove
+	 *					the content type (the view's default content type will be used).
+	 * @throws	\Temma\Exceptions\Framework	If the given alias is unknown.
+	 */
+	public function setContentType(?string $contentType) : void {
+		$contentType = trim($contentType ?? '');
+		if (!$contentType) {
+			$this->_contentType = null;
+			return;
+		}
+		// manage aliases
+		if (!str_contains($contentType, '/')) {
+			$alias = mb_strtolower($contentType);
+			if (!isset(\Temma\Web\View::MIME_ALIASES[$alias])) {
+				TµLog::log('Temma/Web', 'WARN', "Unknown content type alias '$contentType'.");
+				throw new TµFrameworkException("Unknown content type alias '$contentType'.", TµFrameworkException::CONFIG);
+			}
+			$contentType = \Temma\Web\View::MIME_ALIASES[$alias];
+		}
+		$this->_contentType = $contentType;
 	}
 	/**
 	 * Set the prepend stream.
@@ -239,6 +267,13 @@ class Response implements \ArrayAccess {
 	 */
 	public function getHeaders() : array {
 		return ($this->_headers);
+	}
+	/**
+	 * Returns the content type of the response.
+	 * @return	?string	The MIME type, or null if it was not set.
+	 */
+	public function getContentType() : ?string {
+		return ($this->_contentType);
 	}
 	/**
 	 * Returns template variable(s), object-oriented syntax.

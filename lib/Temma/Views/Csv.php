@@ -15,14 +15,8 @@ namespace Temma\Views;
  * The name of the downloaded file is fetched from the "filename" template variable.
  */
 class Csv extends \Temma\Web\View {
-	/** Constant: list of generic headers. */
-	const GENERIC_HEADERS = [
-		'Content-Encoding: UTF-8',
-		'Content-Type: text/csv; charset=UTF-8',
-		'Cache-Control: no-cache, no-store, must-revalidate, max-age=0, post-check=0, pre-check=0',
-		'Pragma: no-cache',
-		'Expires: 0',
-	];
+	/** Constant: default content type. */
+	const CONTENT_TYPE = 'text/csv';
 	/** Constant: default separator character. */
 	const DEFAULT_SEPARATOR = ',';
 	/** Data that must be exported. */

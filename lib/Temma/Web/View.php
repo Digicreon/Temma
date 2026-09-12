@@ -12,9 +12,19 @@ namespace Temma\Web;
  * Object used to manage views.
  */
 abstract class View {
-	/** Constant: list of generic headers. */
+	/** Constant: default content type of the view (used if no content type is defined on the response). */
+	const CONTENT_TYPE = 'text/html';
+	/** Constant: MIME type aliases, usable everywhere a content type is expected. */
+	const MIME_ALIASES = [
+		'html'     => 'text/html',
+		'xhtml'    => 'application/xhtml+xml',
+		'json'     => 'application/json',
+		'rss'      => 'application/rss+xml',
+		'csv'      => 'text/csv',
+		'calendar' => 'text/calendar',
+	];
+	/** Constant: list of generic headers, sent after the Content-Type header. */
 	const GENERIC_HEADERS = [
-		'Content-Type: text/html; charset=UTF-8',
 		'Cache-Control: no-cache, no-store, must-revalidate, max-age=0, post-check=0, pre-check=0',
 		'Expires: Mon, 26 Jul 1997 05:00:00 GMT',
 		'Pragma: no-cache',
@@ -62,18 +72,33 @@ abstract class View {
 	}
 	/**
 	 * Write HTTP headers on stdout.
-	 * This default function sends an HTML content-type, with cache deactivation header.
+	 * Sends the HTTP return code and the headers built by the buildHeaders() method.
 	 * @param	array	$headers	(optional) Default array of headers that must be sent.
 	 */
 	public function sendHeaders(?array $headers=null) : void {
-		$httpCode = $this->_response->getHttpCode();
+		$httpCode = $this->_response?->getHttpCode() ?? 200;
 		if ($httpCode != 200)
 			http_response_code($httpCode);
-		// send generic headers
-		foreach (static::GENERIC_HEADERS as $_header) {
-			header($_header);
-		}
-		// send default headers
+		foreach ($this->buildHeaders($headers) as $header)
+			header($header);
+	}
+	/**
+	 * Build the list of HTTP headers to send: the Content-Type header, the generic headers (cache deactivation),
+	 * the default headers defined in the configuration, and the given specific headers.
+	 * The Content-Type header uses the content type defined on the response object if any, or the view's default
+	 * content type otherwise. A "text/*" content type without charset information is completed with a
+	 * "charset=UTF-8" parameter.
+	 * @param	array	$headers	(optional) Array of specific headers that must be sent.
+	 * @return	array	List of header strings.
+	 */
+	public function buildHeaders(?array $headers=null) : array {
+		// content type
+		$contentType = $this->_response?->getContentType() ?? static::CONTENT_TYPE;
+		if (str_starts_with(mb_strtolower($contentType), 'text/') && mb_stripos($contentType, 'charset') === false)
+			$contentType .= '; charset=UTF-8';
+		// generic headers
+		$result = array_merge(["Content-Type: $contentType"], static::GENERIC_HEADERS);
+		// default headers
 		$headersDefault = $this->_config->xtra('headers', 'default');
 		if (is_array($headersDefault)) {
 			foreach ($headersDefault as $key => $val) {
@@ -82,10 +107,10 @@ abstract class View {
 					$key = trim($key);
 					$val = "$key: $val";
 				}
-				header($val);
+				$result[] = $val;
 			}
 		}
-		// send specific headers
+		// specific headers
 		if ($headers) {
 			foreach ($headers as $key => $val) {
 				$val = trim($val);
@@ -93,9 +118,10 @@ abstract class View {
 					$key = trim($key);
 					$val = "$key: $val";
 				}
-				header($val);
+				$result[] = $val;
 			}
 		}
+		return ($result);
 	}
 	/** Write the document body on stdout. */
 	abstract public function sendBody() : void;

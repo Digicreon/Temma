@@ -145,6 +145,61 @@ abstract class Attribute implements \ArrayAccess {
 		$this->_response?->setTemplatePrefix($prefix);
 		return ($this);
 	}
+	/**
+	 * Define the content type of the response (sent by the view as Content-Type header,
+	 * instead of the view's default content type).
+	 * @param	?string	$contentType	The MIME type (like "image/png") or an alias (like "json"),
+	 *					or null to use the view's default content type.
+	 * @return	\Temma\Web\Attribute	The current object.
+	 * @throws	\Temma\Exceptions\Framework	If the given alias is unknown.
+	 */
+	final protected function _contentType(?string $contentType) : \Temma\Web\Attribute {
+		$this->_response?->setContentType($contentType);
+		return ($this);
+	}
+	/**
+	 * Returns the defined redirection URL.
+	 * @return	?string	The URL, or null if no redirection was defined.
+	 */
+	final protected function _getRedirect() : ?string {
+		return ($this->_response?->getRedirection());
+	}
+	/**
+	 * Returns the defined view.
+	 * @return	null|false|string	The view name, false if the view processing is disabled,
+	 *				or null if no view was defined (the default view will be used).
+	 */
+	final protected function _getView() : null|false|string {
+		return ($this->_response?->getView());
+	}
+	/**
+	 * Returns the defined template.
+	 * @return	?string	The template name, or null if no template was defined.
+	 */
+	final protected function _getTemplate() : ?string {
+		return ($this->_response?->getTemplate());
+	}
+	/**
+	 * Returns the defined template prefix.
+	 * @return	?string	The prefix, or null if no prefix was defined.
+	 */
+	final protected function _getTemplatePrefix() : ?string {
+		return ($this->_response?->getTemplatePrefix());
+	}
+	/**
+	 * Returns the defined view headers.
+	 * @return	array	List of header strings.
+	 */
+	final protected function _getHeaders() : array {
+		return ($this->_response?->getHeaders() ?? []);
+	}
+	/**
+	 * Returns the defined content type.
+	 * @return	?string	The MIME type, or null if no content type was defined.
+	 */
+	final protected function _getContentType() : ?string {
+		return ($this->_response?->getContentType());
+	}
 
 	/* ********** MANAGEMENT OF "TEMPLATE VARIABLES" ********** */
 	/**

@@ -19,13 +19,8 @@ use \Temma\Utils\DataFilter as TµDataFilter;
  * @link	http://json.org/
  */
 class Json extends \Temma\Web\View {
-	/** Constant: list of generic headers. */
-	const GENERIC_HEADERS = [
-		'Content-Type: text/x-json; charset=UTF-8',
-		'Cache-Control: no-cache, no-store, must-revalidate, max-age=0, post-check=0, pre-check=0',
-		'Pragma: no-cache',
-		'Expires: 0',
-	];
+	/** Constant: default content type. */
+	const CONTENT_TYPE = 'application/json';
 	/** Data that must be JSON-encoded. */
 	private mixed $_data = null;
 	/** Name of the downloadable file. */

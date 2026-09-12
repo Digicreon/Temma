@@ -66,15 +66,6 @@ use \Temma\Base\Log as TµLog;
  */
 #[\Attribute(\Attribute::TARGET_CLASS | \Attribute::TARGET_METHOD | \Attribute::IS_REPEATABLE)]
 class View extends \Temma\Web\Attribute {
-	/** Constant: MIME type aliases. */
-	const MIME_ALIASES = [
-		'html'     => 'text/html',
-		'xhtml'    => 'application/xhtml+xml',
-		'json'     => 'application/json',
-		'rss'      => 'application/rss+xml',
-		'csv'      => 'text/csv',
-		'calendar' => 'text/calendar',
-	];
 	/** Constant: map MIME types to view objects. */
 	const MIME_TO_VIEW = [
 		'text/html'             => '\Temma\Views\Smarty',
@@ -160,13 +151,13 @@ class View extends \Temma\Web\Attribute {
 			// manage associative array
 			if (!is_int($key)) {
 				// manage aliases
-				$key = self::MIME_ALIASES[$key] ?? $key;
+				$key = \Temma\Web\View::MIME_ALIASES[$key] ?? $key;
 				// add to final configuration
 				$newConfig[$key] = $value;
 				continue;
 			}
 			// manage aliases
-			$value = self::MIME_ALIASES[$value] ?? $value;
+			$value = \Temma\Web\View::MIME_ALIASES[$value] ?? $value;
 			// add to final configuration if the MIME type is known
 			if (isset(self::MIME_TO_VIEW[$value]))
 				$newConfig[$value] = self::MIME_TO_VIEW[$value];
