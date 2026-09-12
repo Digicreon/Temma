@@ -95,7 +95,7 @@ abstract class Attribute implements \ArrayAccess {
 	}
 	/**
 	 * Returns the configured HTTP return code.
-	 * @return	int	The configured return code, or null if no code was configured.
+	 * @return	?int	The configured return code (200 by default), or null if the attribute has no response object.
 	 */
 	final protected function _getHttpCode() : ?int {
 		return ($this->_response?->getHttpCode());
