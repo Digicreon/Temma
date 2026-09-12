@@ -358,12 +358,18 @@ class Controller implements \ArrayAccess {
 	/* ********** SUB-PROCESS ********** */
 	/**
 	 * Process a sub-controller.
+	 *
+	 * Only public methods declared by the application, whose name starts with a lower-case letter, are callable
+	 * as actions. Methods whose name starts with an underscore (framework helpers, magic methods) and methods
+	 * declared by the framework's base classes (\Temma\Web\Controller and its descendants in the \Temma\Web namespace)
+	 * are never callable as actions. When the controller has a proxy action, the raw action name is given to the
+	 * proxy, which is responsible for the dispatch.
 	 * @param	string	$controller	Controller name.
-	 * @param	string	$action		(optional) Action name. Call the default action if not defined.
+	 * @param	string	$action		(optional) Action name. Call the root action if not defined.
 	 * @param	array	$parameters	(optional) List of parameters given to the sub-controller.
 	 *					If not given, use the parameters received by the main controller.
 	 * @return	?int	The sub-controller's execution status (self::EXE_FORWARD, etc.). Could be null (==self::EXEC_FORWARD).
-	 * @throws	\Temma\Exceptions\Http	If the requested controller or action doesn't exist.
+	 * @throws	\Temma\Exceptions\Http	If the requested controller or action doesn't exist, or if the action is not callable.
 	 * @throws	\Temma\Exceptions\Flow	If the requested controller or action throws a Flow exception.
 	 */
 	final public function _subProcess(string $controller, ?string $action=null, ?array $parameters=null) : ?int {
@@ -398,6 +404,7 @@ class Controller implements \ArrayAccess {
 		/* ********** find the right method to execute ********** */
 		$isProxyAction = false;
 		$isDefaultAction = false;
+		$actionReflection = null;
 		// check if this sub-controller has a proxy action
 		if (method_exists($controller, \Temma\Web\Framework::CONTROLLERS_PROXY_ACTION)) {
 			// proxy action found
@@ -411,26 +418,36 @@ class Controller implements \ArrayAccess {
 			// no proxy action defined on this controller
 			if (empty($action)) {
 				// no action was requested, use the root action
-				$method = \Temma\Web\Framework::CONTROLLERS_ROOT_ACTION;
-			} else if (!($firstLetter = $action[0]) || $firstLetter !== strtolower($firstLetter)) {
-				// the action must start with a lower-case letter
-				TµLog::log('Temma/Web', 'ERROR', "Actions must start with a lower-case letter (here: '$action').");
-				throw new TµHttpException("Actions must start with a lower-case letter (here: '$action').", 404);
+				$action = \Temma\Web\Framework::CONTROLLERS_ROOT_ACTION;
+			} else if ($action !== \Temma\Web\Framework::CONTROLLERS_ROOT_ACTION) {
+				// the action must start with a lower-case letter; underscore-prefixed methods are reserved to the framework
+				$firstLetter = $action[0];
+				if ($firstLetter === '_' || $firstLetter !== strtolower($firstLetter)) {
+					TµLog::log('Temma/Web', 'ERROR', "Actions must start with a lower-case letter (here: '$action').");
+					throw new TµHttpException("Actions must start with a lower-case letter (here: '$action').", 404);
+				}
 			}
-			// check that the action could be executed
-			if (!is_callable([$obj, $action])) {
-				// no proxy action, and no callable action method
+			if (method_exists($obj, $action)) {
+				// the action exists: it must be a public method declared by the application, not by the framework
+				$actionReflection = new \ReflectionMethod($obj, $action);
+				if (!$actionReflection->isPublic() ||
+				    str_starts_with($actionReflection->getDeclaringClass()->getName(), 'Temma\\Web\\')) {
+					TµLog::log('Temma/Web', 'ERROR', "Method '$action' of controller '$controller' is not an action.");
+					throw new TµHttpException("Method '$action' of controller '$controller' is not an action.", 404);
+				}
+				$method = $action;
+			} else if (method_exists($obj, \Temma\Web\Framework::CONTROLLERS_DEFAULT_ACTION)) {
+				// the action doesn't exist, but there is a default action that could handle it
+				$method = $action;
+				$isDefaultAction = true;
+			} else {
+				// no proxy action, no action method, no default action
 				throw new TµHttpException("Unable to find action '$action' on controller '$controller'.", 404);
 			}
-			// the requested action is set, or there is a default action that could handle it
-			$method = $action;
-			if (!method_exists($controller, $action))
-				$isDefaultAction = true;
 		}
 
 		/* ********** attributes on the action ********** */
-		$reflectionMethod = $isDefaultAction ? \Temma\Web\Framework::CONTROLLERS_DEFAULT_ACTION : $method;
-		$actionReflection = new \ReflectionMethod($obj, $reflectionMethod);
+		$actionReflection ??= new \ReflectionMethod($obj, ($isDefaultAction ? \Temma\Web\Framework::CONTROLLERS_DEFAULT_ACTION : $method));
 		$attributes = $actionReflection->getAttributes(\Temma\Web\Attribute::class, \ReflectionAttribute::IS_INSTANCEOF);
 		foreach ($attributes as $attribute) {
 			TµLog::log('Temma/Web', 'DEBUG', "Action attribute '{$attribute->getName()}'.");
