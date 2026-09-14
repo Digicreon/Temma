@@ -303,8 +303,9 @@ class Framework {
 			TµLog::log('Temma/Web', 'DEBUG', "Redirecting to '$url'.");
 			if ($processView === false)
 				return ($url);
-			if ($this->_response->getRedirectionCode() == 301)
-				header('HTTP/1.1 301 Moved Permanently');
+			// send the redirection code (301, 302, 303, 307... 302 if the defined code is not a redirection code) and the URL
+			$httpCode = $this->_response->getHttpCode();
+			http_response_code(($httpCode >= 300 && $httpCode < 400) ? $httpCode : 302);
 			header("Location: $url");
 			exit();
 		}

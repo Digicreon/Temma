@@ -17,8 +17,6 @@ use \Temma\Exceptions\Framework as TµFrameworkException;
 class Response implements \ArrayAccess {
 	/** Redirection URL. */
 	private ?string $_redirect = null;
-	/** Redirection code (301, 302). */
-	private int $_redirectCode = 302;
 	/** HTTP error code. */
 	private ?int $_httpError = null;
 	/** HTTP return code. */
@@ -53,13 +51,15 @@ class Response implements \ArrayAccess {
 		$this->_template = $template;
 	}
 	/**
-	 * Define a redirection.
-	 * @param	?string	$url		(optional) Redirection URL, or null to remove the redirection.
-	 * @param	bool	$code301	(optional) True for a 301 redirection. False by default (302 redirection).
-	 * @param	bool	$referer	(optional) True to use the HTTP REFERER as redirection URL, with $url as fallback.
-	 *					False by default.
+	 * Define a redirection. The HTTP return code is set to the redirection code.
+	 * Removing the redirection resets the HTTP return code to 200 if it was a redirection code.
+	 * @param	?string		$url		(optional) Redirection URL, or null to remove the redirection.
+	 * @param	bool|int	$code		(optional) Redirection code (301, 302, 303, 307, 308...). 302 by default.
+	 *						For backward compatibility, true means 301 and false means 302.
+	 * @param	bool		$referer	(optional) True to use the HTTP REFERER as redirection URL, with $url as fallback.
+	 *						False by default.
 	 */
-	public function setRedirection(?string $url=null, bool $code301=false, bool $referer=false) : void {
+	public function setRedirection(?string $url=null, bool|int $code=302, bool $referer=false) : void {
 		// if $referer is true, try the REFERER first, with $url as fallback
 		if ($referer) {
 			$refererUrl = $_SERVER['HTTP_REFERER'] ?? null;
@@ -67,7 +67,11 @@ class Response implements \ArrayAccess {
 				$url = $refererUrl;
 		}
 		$this->_redirect = $url;
-		$this->_redirectCode = $code301 ? 301 : 302;
+		// manage the HTTP return code
+		if ($url)
+			$this->_httpCode = is_bool($code) ? ($code ? 301 : 302) : $code;
+		else if ($this->_httpCode >= 300 && $this->_httpCode < 400)
+			$this->_httpCode = 200;
 	}
 	/**
 	 * Define an HTTP error code.
@@ -220,13 +224,6 @@ class Response implements \ArrayAccess {
 		return ($this->_redirect);
 	}
 	/**
-	 * Returns the redirection code (301, 302).
-	 * @return	int	The code.
-	 */
-	public function getRedirectionCode() : int {
-                return ($this->_redirectCode);
-        }
-	/**
 	 * Returns the HTTP error code if it was defined, or null.
 	 * @return	int|null	The HTTP error code (403, 404, 500, ...) or null.
 	 */
@@ -234,8 +231,8 @@ class Response implements \ArrayAccess {
 		return ($this->_httpError);
 	}
 	/**
-	 * Returns the HTTP return code if it was defined, or null.
-	 * @return	int	The HTTP return code (403, 404, 500, ...) or 200.
+	 * Returns the HTTP return code.
+	 * @return	int	The HTTP return code (200 by default; 301 or 302 after a redirection).
 	 */
 	public function getHttpCode() : int {
 		return ($this->_httpCode);

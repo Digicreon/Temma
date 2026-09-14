@@ -41,6 +41,9 @@ use \Temma\Exceptions\Application as TµApplicationException;
  * - Redirect to the HTTP REFERER:
  * #[TµRedirect(referer: true)]
  *
+ * - Permanent redirection (301):
+ * #[TµRedirect('/somewhere/else', code: 301)]
+ *
  * @see	\Temma\Web\Controller
  */
 #[\Attribute(\Attribute::TARGET_CLASS | \Attribute::TARGET_METHOD)]
@@ -50,11 +53,13 @@ class Redirect extends \Temma\Web\Attribute {
 	 * @param	?string	$url		(optional) Redirection URL.
 	 * @param	?string	$var		(optional) Name of the template variable which contains the redirection URL.
 	 * @param	bool	$referer	(optional) True to use the HTTP REFERER as redirection URL. False by default.
+	 * @param	int	$code		(optional) Redirection code (301, 302, 303, 307, 308...). 302 by default.
 	 */
 	public function __construct(
 		protected ?string $url=null,
 		protected ?string $var=null,
 		protected bool $referer=false,
+		protected int $code=302,
 	) {
 	}
 	/**
@@ -72,8 +77,8 @@ class Redirect extends \Temma\Web\Attribute {
 		           : null)
 		       ?: $this->_config->xtra('security', 'redirect'); // configuration
 		if ($url) {
-			TµLog::log('Temma/Web', 'DEBUG', "Redirecting to '$url'.");
-			$this->_redirect($url);
+			TµLog::log('Temma/Web', 'DEBUG', "Redirecting to '$url' ({$this->code}).");
+			$this->_redirect($url, false, $this->code);
 			throw new \Temma\Exceptions\FlowHalt();
 		}
 		// no redirection URL defined

@@ -101,22 +101,23 @@ abstract class Attribute implements \ArrayAccess {
 		return ($this->_response?->getHttpCode());
 	}
 	/**
-	 * Define an HTTP redirection (302).
+	 * Define an HTTP redirection (302 by default).
 	 * @param	?string	$url		(optional) Redirection URL, or null to remove the redirection.
 	 * @param	bool	$referer	(optional) True to use the HTTP REFERER as redirection URL, with $url as fallback.
 	 *					False by default.
+	 * @param	int	$code		(optional) Redirection code (301, 302, 303, 307, 308...). 302 by default.
 	 */
-	final protected function _redirect(?string $url=null, bool $referer=false) : void {
-		$this->_response?->setRedirection($url, false, $referer);
+	final protected function _redirect(?string $url=null, bool $referer=false, int $code=302) : void {
+		$this->_response?->setRedirection($url, $code, $referer);
 	}
 	/**
-	 * Define an HTTP redirection (301).
+	 * Define a permanent HTTP redirection (301). Shortcut for _redirect($url, $referer, 301).
 	 * @param	?string	$url		(optional) Redirection URL.
 	 * @param	bool	$referer	(optional) True to use the HTTP REFERER as redirection URL, with $url as fallback.
 	 *					False by default.
 	 */
 	final protected function _redirect301(?string $url=null, bool $referer=false) : void {
-		$this->_response?->setRedirection($url, true, $referer);
+		$this->_response?->setRedirection($url, 301, $referer);
 	}
 	/**
 	 * Define the view to use.
@@ -144,6 +145,15 @@ abstract class Attribute implements \ArrayAccess {
 	 */
 	final protected function _templatePrefix(string $prefix) : \Temma\Web\Attribute {
 		$this->_response?->setTemplatePrefix($prefix);
+		return ($this);
+	}
+	/**
+	 * Define a view header.
+	 * @param	string	$header	The header string.
+	 * @return	\Temma\Web\Attribute	The current object.
+	 */
+	final protected function _header(string $header) : \Temma\Web\Attribute {
+		$this->_response?->header($header);
 		return ($this);
 	}
 	/**
