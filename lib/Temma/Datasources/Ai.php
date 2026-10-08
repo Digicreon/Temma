@@ -15,7 +15,7 @@ use \Temma\Base\Log as TµLog;
  * Unified AI data source.
  *
  * This object provides a unified interface to interact with various LLM providers
- * (OpenAI, Claude, Gemini, Mistral, Ollama, OpenRouter, or any custom/OpenAI-compatible provider).
+ * (OpenAI, Claude, Gemini, Mistral, Ollama, OpenRouter, OVHcloud, or any custom/OpenAI-compatible provider).
  *
  * Connection is set using a DSN string:
  * <ul>
@@ -31,6 +31,7 @@ use \Temma\Base\Log as TµLog;
  *   <li><tt>ai://mistral/mistral-small-latest#XXX</tt></li>
  *   <li><tt>ai://openrouter/openai/gpt-4o#sk-or-XXX</tt></li>
  *   <li><tt>ai://ollama/llama3:70b</tt></li>
+ *   <li><tt>ai://ovh/gpt-oss-120b#XXX</tt></li>
  *   <li><tt>ai://[https://api.groq.com/openai/v1/chat/completions]/llama-3.3-70b#gsk-XXX</tt></li>
  *   <li><tt>ai://[\App\MyProvider]/model#XXX</tt></li>
  * </ul>
@@ -95,6 +96,7 @@ class Ai extends \Temma\Base\Datasource {
 		'mistral'    => '\Temma\Datasources\Ai\Mistral',
 		'openrouter' => '\Temma\Datasources\Ai\OpenRouter',
 		'ollama'     => '\Temma\Datasources\Ai\Ollama',
+		'ovh'        => '\Temma\Datasources\Ai\Ovh',
 	];
 	/** Provider instance. */
 	private object $_provider;

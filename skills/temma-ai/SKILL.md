@@ -1,6 +1,6 @@
 ---
 name: temma-ai
-description: Query LLMs (OpenAI, Claude, Gemini, Mistral, OpenRouter, Ollama, or any OpenAI-compatible API) from a Temma PHP framework project through the unified AI data source. Use when calling a language model, generating text or structured JSON, sending images/audio/PDF to a model, or configuring an ai:// DSN.
+description: Query LLMs (OpenAI, Claude, Gemini, Mistral, OpenRouter, Ollama, OVHcloud, or any OpenAI-compatible API) from a Temma PHP framework project through the unified AI data source. Use when calling a language model, generating text or structured JSON, sending images/audio/PDF to a model, or configuring an ai:// DSN.
 license: MIT
 ---
 
@@ -33,6 +33,7 @@ Built-in providers and DSN examples:
 | `mistral` | `ai://mistral/mistral-small-latest#XXX` | text, images, audio, PDF, JSON |
 | `openrouter` | `ai://openrouter/openai/gpt-4o#sk-or-XXX` | model name contains `/` |
 | `ollama` | `ai://ollama/llama3:70b` | local, no API key |
+| `ovh` | `ai://ovh/gpt-oss-120b#XXX` | OVHcloud AI Endpoints; API key optional (anonymous usage is rate-limited) |
 
 Any **OpenAI-compatible service** works with the bracket syntax
 `ai://[ENDPOINT_URL]/MODEL#API_KEY` (Groq, Together AI, Fireworks, DeepInfra, LiteLLM...):

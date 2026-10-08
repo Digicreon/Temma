@@ -80,7 +80,7 @@ class OpenAiCompatible {
 			$payload['max_tokens'] = (int)$options['max_tokens'];
 		return ([
 			'url'     => $this->_apiUrl,
-			'headers' => ['Authorization: Bearer ' . $this->_apiKey],
+			'headers' => $this->_apiKey ? ['Authorization: Bearer ' . $this->_apiKey] : [],
 			'body'    => $payload,
 		]);
 	}
