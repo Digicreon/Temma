@@ -1,47 +1,61 @@
 <?php
 
 /**
- * Ollama
+ * OpenRouter
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2026, Amaury Bouchard
  * @link	https://www.temma.net/documentation/datasource-ai
  */
 
-namespace Temma\Datasources\Ai;
+namespace Temma\Datasources\Ai\Providers;
+
+use \Temma\Datasources\Ai\Type as TµAiType;
 
 /**
- * Ollama provider for the Ai data source.
+ * OpenRouter provider for the Ai data source.
  *
  * This class is not intended to be instantiated directly.
  * It is used internally by \Temma\Datasources\Ai.
  *
- * Ollama runs LLMs locally and exposes an OpenAI-compatible API.
- * Default endpoint: http://localhost:11434/v1/chat/completions
- * No API key is required by default.
+ * OpenRouter is an API gateway providing access to 300+ models from multiple providers
+ * (OpenAI, Anthropic, Google, Meta, etc.) through an OpenAI-compatible API.
  *
- * Model names may contain colons for tags (e.g. "llama3:70b", "mistral:latest").
+ * Model names use the format "provider:model" in the DSN (e.g. "openai:gpt-4o"),
+ * which is translated to "provider/model" for the API call.
  *
- * Supports: text, images input. JSON structured output.
- * Actual feature support depends on the model.
+ * Supports: text, images, audio, PDF input. JSON structured output.
+ *
+ * Managed type: chat only.
  */
-class Ollama {
-	/** Default API endpoint URL. */
-	const string API_URL = 'http://localhost:11434/v1/chat/completions';
+class OpenRouter implements \Temma\Datasources\Ai\Provider {
+	/** API endpoint URL. */
+	const string API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+	/** API key. */
+	private string $_apiKey;
 
 	/**
 	 * Constructor.
-	 * @param	string	$apiKey	(optional) API key (usually empty for local Ollama).
+	 * @param	string		$apiKey		(optional) API key.
+	 * @param	string		$endpointUrl	(optional) Not used.
+	 * @param	TµAiType	$type		(optional) Type of API. Only chat is supported.
+	 * @throws	\Temma\Exceptions\Database	If the type is not supported.
 	 */
-	public function __construct(string $apiKey='') {
+	// @phpstan-ignore-next-line (unused parameters required by the Provider interface)
+	public function __construct(string $apiKey='', string $endpointUrl='', TµAiType $type=TµAiType::Chat) {
+		if ($type !== TµAiType::Chat)
+			throw new \Temma\Exceptions\Database("OpenRouter provider doesn't support the '{$type->value}' type.", \Temma\Exceptions\Database::FUNDAMENTAL);
+		$this->_apiKey = $apiKey;
 	}
 	/**
 	 * Build the API request payload.
-	 * @param	string	$model		Model identifier (e.g. "llama3:70b").
+	 * @param	string	$model		Model identifier (with ":" separator, e.g. "openai:gpt-4o").
 	 * @param	string	$prompt		User prompt.
 	 * @param	array	$options	Normalized options.
 	 * @return	array	Associative array with 'url', 'headers', and 'body' keys.
 	 */
 	public function buildPayload(string $model, string $prompt, array $options) : array {
+		// convert model name separator ("openai:gpt-4o" → "openai/gpt-4o")
+		$model = str_replace(':', '/', $model);
 		// build messages list
 		$messages = [];
 		if (isset($options['system']))
@@ -68,11 +82,9 @@ class Ollama {
 			$payload['temperature'] = (float)$options['temperature'];
 		if (isset($options['max_tokens']))
 			$payload['max_tokens'] = (int)$options['max_tokens'];
-		if (($options['output'] ?? null) === 'application/json')
-			$payload['format'] = 'json';
 		return ([
 			'url'     => self::API_URL,
-			'headers' => [],
+			'headers' => ['Authorization: Bearer ' . $this->_apiKey],
 			'body'    => $payload,
 		]);
 	}
@@ -85,7 +97,7 @@ class Ollama {
 	public function parseResponse(array $data) : ?string {
 		if (isset($data['error'])) {
 			$msg = $data['error']['message'] ?? 'Unknown error.';
-			throw new \Temma\Exceptions\Database("Ollama API error: $msg", \Temma\Exceptions\Database::FUNDAMENTAL);
+			throw new \Temma\Exceptions\Database("OpenRouter API error: $msg", \Temma\Exceptions\Database::FUNDAMENTAL);
 		}
 		return ($data['choices'][0]['message']['content'] ?? null);
 	}
@@ -102,13 +114,45 @@ class Ollama {
 			return ($text);
 		$content = [['type' => 'text', 'text' => $text]];
 		foreach ($attachments as $att) {
+			$dataUri = 'data:' . $att['mime'] . ';base64,' . $att['data'];
 			if (str_starts_with($att['mime'], 'image/')) {
 				$content[] = [
 					'type'      => 'image_url',
-					'image_url' => ['url' => 'data:' . $att['mime'] . ';base64,' . $att['data']],
+					'image_url' => ['url' => $dataUri],
+				];
+			} else if ($att['mime'] === 'application/pdf') {
+				$content[] = [
+					'type' => 'file',
+					'file' => [
+						'filename'  => 'document.pdf',
+						'file_data' => $dataUri,
+					],
+				];
+			} else if (str_starts_with($att['mime'], 'audio/')) {
+				$content[] = [
+					'type'        => 'input_audio',
+					'input_audio' => [
+						'data'   => $att['data'],
+						'format' => $this->_audioFormat($att['mime']),
+					],
 				];
 			}
 		}
 		return ($content);
+	}
+	/**
+	 * Convert MIME type to audio format identifier.
+	 * @param	string	$mime	MIME type.
+	 * @return	string	Audio format.
+	 */
+	private function _audioFormat(string $mime) : string {
+		return (match ($mime) {
+			'audio/wav'  => 'wav',
+			'audio/mpeg' => 'mp3',
+			'audio/ogg'  => 'ogg',
+			'audio/flac' => 'flac',
+			'audio/aac'  => 'aac',
+			default      => 'mp3',
+		});
 	}
 }

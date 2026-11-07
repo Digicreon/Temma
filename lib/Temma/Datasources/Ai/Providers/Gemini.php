@@ -7,7 +7,9 @@
  * @link	https://www.temma.net/documentation/datasource-ai
  */
 
-namespace Temma\Datasources\Ai;
+namespace Temma\Datasources\Ai\Providers;
+
+use \Temma\Datasources\Ai\Type as TµAiType;
 
 /**
  * Google Gemini provider for the Ai data source.
@@ -17,8 +19,10 @@ namespace Temma\Datasources\Ai;
  *
  * Supports: text, images, audio, video, PDF input. JSON structured output.
  * Gemini uses a unified inline_data format for all binary content types.
+ *
+ * Managed type: chat only.
  */
-class Gemini {
+class Gemini implements \Temma\Datasources\Ai\Provider {
 	/** API base URL. */
 	const string API_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models/';
 	/** API key. */
@@ -26,9 +30,15 @@ class Gemini {
 
 	/**
 	 * Constructor.
-	 * @param	string	$apiKey	API key.
+	 * @param	string		$apiKey		(optional) API key.
+	 * @param	string		$endpointUrl	(optional) Not used.
+	 * @param	TµAiType	$type		(optional) Type of API. Only chat is supported.
+	 * @throws	\Temma\Exceptions\Database	If the type is not supported.
 	 */
-	public function __construct(string $apiKey) {
+	// @phpstan-ignore-next-line (unused parameters required by the Provider interface)
+	public function __construct(string $apiKey='', string $endpointUrl='', TµAiType $type=TµAiType::Chat) {
+		if ($type !== TµAiType::Chat)
+			throw new \Temma\Exceptions\Database("Gemini provider doesn't support the '{$type->value}' type.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		$this->_apiKey = $apiKey;
 	}
 	/**

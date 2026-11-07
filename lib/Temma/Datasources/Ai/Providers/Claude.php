@@ -7,7 +7,9 @@
  * @link	https://www.temma.net/documentation/datasource-ai
  */
 
-namespace Temma\Datasources\Ai;
+namespace Temma\Datasources\Ai\Providers;
+
+use \Temma\Datasources\Ai\Type as TµAiType;
 
 /**
  * Claude (Anthropic) provider for the Ai data source.
@@ -17,8 +19,10 @@ namespace Temma\Datasources\Ai;
  *
  * Supports: text, images, PDF input. JSON structured output.
  * Does not support: audio input (not available in the Anthropic Messages API).
+ *
+ * Managed type: chat only.
  */
-class Claude {
+class Claude implements \Temma\Datasources\Ai\Provider {
 	/** API endpoint URL. */
 	const string API_URL = 'https://api.anthropic.com/v1/messages';
 	/** API version. */
@@ -28,9 +32,15 @@ class Claude {
 
 	/**
 	 * Constructor.
-	 * @param	string	$apiKey	API key.
+	 * @param	string		$apiKey		(optional) API key.
+	 * @param	string		$endpointUrl	(optional) Not used.
+	 * @param	TµAiType	$type		(optional) Type of API. Only chat is supported.
+	 * @throws	\Temma\Exceptions\Database	If the type is not supported.
 	 */
-	public function __construct(string $apiKey) {
+	// @phpstan-ignore-next-line (unused parameters required by the Provider interface)
+	public function __construct(string $apiKey='', string $endpointUrl='', TµAiType $type=TµAiType::Chat) {
+		if ($type !== TµAiType::Chat)
+			throw new \Temma\Exceptions\Database("Claude provider doesn't support the '{$type->value}' type.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		$this->_apiKey = $apiKey;
 	}
 	/**

@@ -1,52 +1,52 @@
 <?php
 
 /**
- * OpenAiCompatible
+ * Ollama
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2026, Amaury Bouchard
  * @link	https://www.temma.net/documentation/datasource-ai
  */
 
-namespace Temma\Datasources\Ai;
+namespace Temma\Datasources\Ai\Providers;
+
+use \Temma\Datasources\Ai\Type as TµAiType;
 
 /**
- * Generic OpenAI-compatible provider for the Ai data source.
+ * Ollama provider for the Ai data source.
  *
  * This class is not intended to be instantiated directly.
  * It is used internally by \Temma\Datasources\Ai.
  *
- * This provider works with any service that implements the OpenAI Chat Completions API
- * (Groq, Together AI, Fireworks AI, DeepInfra, LiteLLM, etc.).
+ * Ollama runs LLMs locally and exposes an OpenAI-compatible API.
+ * Default endpoint: http://localhost:11434/v1/chat/completions
+ * No API key is required by default.
  *
- * Common service endpoint URLs:
- * <ul>
- *   <li>Groq: <tt>https://api.groq.com/openai/v1/chat/completions</tt></li>
- *   <li>Together AI: <tt>https://api.together.xyz/v1/chat/completions</tt></li>
- *   <li>Fireworks AI: <tt>https://api.fireworks.ai/inference/v1/chat/completions</tt></li>
- *   <li>DeepInfra: <tt>https://api.deepinfra.com/v1/openai/chat/completions</tt></li>
- * </ul>
+ * Model names may contain colons for tags (e.g. "llama3:70b", "mistral:latest").
  *
- * Supports: text, images, audio input. JSON structured output.
- * Actual feature support depends on the underlying service and model.
+ * Supports: text, images input. JSON structured output.
+ * Actual feature support depends on the model.
+ *
+ * Managed type: chat only.
  */
-class OpenAiCompatible {
-	/** API key. */
-	private string $_apiKey;
-	/** API endpoint URL. */
-	private string $_apiUrl;
+class Ollama implements \Temma\Datasources\Ai\Provider {
+	/** Default API endpoint URL. */
+	const string API_URL = 'http://localhost:11434/v1/chat/completions';
 
 	/**
 	 * Constructor.
-	 * @param	string	$apiKey	API key.
-	 * @param	string	$apiUrl	API endpoint URL.
+	 * @param	string		$apiKey		(optional) API key (usually empty for local Ollama, not used).
+	 * @param	string		$endpointUrl	(optional) Not used.
+	 * @param	TµAiType	$type		(optional) Type of API. Only chat is supported.
+	 * @throws	\Temma\Exceptions\Database	If the type is not supported.
 	 */
-	public function __construct(string $apiKey, string $apiUrl) {
-		$this->_apiKey = $apiKey;
-		$this->_apiUrl = $apiUrl;
+	// @phpstan-ignore-next-line (unused parameters required by the Provider interface)
+	public function __construct(string $apiKey='', string $endpointUrl='', TµAiType $type=TµAiType::Chat) {
+		if ($type !== TµAiType::Chat)
+			throw new \Temma\Exceptions\Database("Ollama provider doesn't support the '{$type->value}' type.", \Temma\Exceptions\Database::FUNDAMENTAL);
 	}
 	/**
 	 * Build the API request payload.
-	 * @param	string	$model		Model identifier.
+	 * @param	string	$model		Model identifier (e.g. "llama3:70b").
 	 * @param	string	$prompt		User prompt.
 	 * @param	array	$options	Normalized options.
 	 * @return	array	Associative array with 'url', 'headers', and 'body' keys.
@@ -78,9 +78,11 @@ class OpenAiCompatible {
 			$payload['temperature'] = (float)$options['temperature'];
 		if (isset($options['max_tokens']))
 			$payload['max_tokens'] = (int)$options['max_tokens'];
+		if (($options['output'] ?? null) === 'application/json')
+			$payload['format'] = 'json';
 		return ([
-			'url'     => $this->_apiUrl,
-			'headers' => $this->_apiKey ? ['Authorization: Bearer ' . $this->_apiKey] : [],
+			'url'     => self::API_URL,
+			'headers' => [],
 			'body'    => $payload,
 		]);
 	}
@@ -93,7 +95,7 @@ class OpenAiCompatible {
 	public function parseResponse(array $data) : ?string {
 		if (isset($data['error'])) {
 			$msg = $data['error']['message'] ?? 'Unknown error.';
-			throw new \Temma\Exceptions\Database("OpenAI-compatible API error: $msg", \Temma\Exceptions\Database::FUNDAMENTAL);
+			throw new \Temma\Exceptions\Database("Ollama API error: $msg", \Temma\Exceptions\Database::FUNDAMENTAL);
 		}
 		return ($data['choices'][0]['message']['content'] ?? null);
 	}
@@ -110,37 +112,13 @@ class OpenAiCompatible {
 			return ($text);
 		$content = [['type' => 'text', 'text' => $text]];
 		foreach ($attachments as $att) {
-			$dataUri = 'data:' . $att['mime'] . ';base64,' . $att['data'];
 			if (str_starts_with($att['mime'], 'image/')) {
 				$content[] = [
 					'type'      => 'image_url',
-					'image_url' => ['url' => $dataUri],
-				];
-			} else if (str_starts_with($att['mime'], 'audio/')) {
-				$content[] = [
-					'type'        => 'input_audio',
-					'input_audio' => [
-						'data'   => $att['data'],
-						'format' => $this->_audioFormat($att['mime']),
-					],
+					'image_url' => ['url' => 'data:' . $att['mime'] . ';base64,' . $att['data']],
 				];
 			}
 		}
 		return ($content);
-	}
-	/**
-	 * Convert MIME type to audio format identifier.
-	 * @param	string	$mime	MIME type.
-	 * @return	string	Audio format.
-	 */
-	private function _audioFormat(string $mime) : string {
-		return (match ($mime) {
-			'audio/wav'  => 'wav',
-			'audio/mpeg' => 'mp3',
-			'audio/ogg'  => 'ogg',
-			'audio/flac' => 'flac',
-			'audio/aac'  => 'aac',
-			default      => 'mp3',
-		});
 	}
 }
