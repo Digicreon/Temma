@@ -34,6 +34,10 @@ class User extends \Temma\Web\Controller {
 }
 ```
 
+`_view(null)` (or `#[TµView]` without parameter) restores the default view; `_view(false)`
+(or `#[TµView(false)]`) disables the view: nothing is sent by Temma, the action sends its
+output by itself.
+
 Built-in views and the reference file describing each one:
 
 | View | Data variable | Reference |
@@ -52,6 +56,28 @@ views read their specific variable (see table). Alternatively, assigning `$this[
 takes priority: an associative array of template variables for template-based views, or
 the raw data to serialize for the other views. Most non-template views also honor a
 `filename` variable to send the stream as a downloadable attachment.
+
+## Content type
+
+Each view sends its default `Content-Type` header: `text/html` (Smarty, Php),
+`application/json` (Json), `text/csv` (Csv), `application/rss+xml` (Rss), `text/calendar`
+(ICal), `text/ini` (Ini). Override it with the `_contentType()` method or the
+`#[TµContentType]` attribute, using a MIME type or an alias (`html`, `xhtml`, `json`, `rss`,
+`csv`, `calendar`); `null` (or the attribute without parameter) restores the view's
+default. A `text/*` content type without charset is sent with `charset=UTF-8`.
+
+```php
+use \Temma\Attributes\ContentType as TµContentType;
+
+class Doc extends \Temma\Web\Controller {
+	#[TµContentType('text/markdown')]       // Smarty template generating Markdown
+	public function readme() { }
+
+	public function export() {
+		$this->_contentType('text/plain');   // method form
+	}
+}
+```
 
 ## Smarty templates
 
@@ -140,4 +166,5 @@ See https://www.temma.net/en/documentation/helper-plugin_language for the full s
 - https://www.temma.net/en/documentation/views
 - https://www.temma.net/en/documentation/view-smarty
 - https://www.temma.net/en/documentation/helper-attr_view
+- https://www.temma.net/en/documentation/helper-attr_contenttype
 - https://www.temma.net/en/documentation/helper-attr_template

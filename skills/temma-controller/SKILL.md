@@ -80,15 +80,24 @@ and imports everything under the `autoimport` key of the configuration.
 - `$this->_template('ctrl/action.tpl')`: override the template (default: `<controller>/<action>.tpl`).
 - `$this->_templatePrefix('subdir')`: prefix the template path.
 - `$this->_view('\Temma\Views\Json')`: override the view (default: Smarty; see the `temma-view` skill).
+  `_view(null)` restores the default view; `_view(false)` disables the view (the action
+  sends its output by itself).
+- `$this->_contentType('text/markdown')`: override the content type sent by the view, with a
+  MIME type or an alias (`'json'`, `'csv'`...); `null` restores the view's default.
 - `$this->_redirect($url)` / `$this->_redirect301($url)`: HTTP redirection (302 / 301). With
   `referer: true` as second parameter, redirects to the HTTP referer, using `$url` as fallback.
+  The third parameter sets another redirection code: `$this->_redirect($url, code: 303)`.
 - `$this->_httpError(404)`: interrupt with an HTTP error code.
 - `$this->_httpCode(201)`: set the HTTP response code without interrupting.
-- `$this->_header('Content-Type: text/plain')`: add an HTTP response header.
+- `$this->_header('X-Robots-Tag: noindex')`: add an HTTP response header.
 - `$this->_subProcess('OtherController', 'action')`: delegate the request to another controller.
 
 `_redirect()`, `_redirect301()`, `_httpError()` and `_httpCode()` return an execution-flow
 value; in an action, return their result: `return $this->_redirect('/login');`
+
+Getters return what was defined so far (by the action, plugins or attributes): `_getView()`,
+`_getTemplate()`, `_getTemplatePrefix()`, `_getContentType()`, `_getHeaders()`,
+`_getRedirect()`, `_getHttpCode()`, `_getHttpError()`.
 
 ## Objects available in a controller
 
@@ -141,11 +150,13 @@ class Admin extends \Temma\Web\Controller {
 
 - `#[TµTemplate('path.tpl')]`, `#[TµTemplate(prefix: 'special')]`: template selection.
 - `#[TµView('~Json')]`: view selection (`~` is a shortcut for `\Temma\Views\`).
+- `#[TµContentType('text/markdown')]`: content type of the response (see the `temma-view` skill).
 - `#[TµAuth(...)]`: access control (see the `temma-auth` skill).
 - `#[TµGet]`, `#[TµPost]`, `#[TµPut]`, `#[TµPatch]`, `#[TµDelete]`, `#[TµHead]`
   (namespace `\Temma\Attributes\Methods\`) or `#[TµMethod('POST')]`: restrict the HTTP method
   (throws an error 405 otherwise).
-- `#[TµRedirect('/url')]`, `#[TµReferer]`: redirections and referer checks.
+- `#[TµRedirect('/url')]` (other codes: `#[TµRedirect('/url', code: 301)]`), `#[TµReferer]`:
+  redirections and referer checks.
 - Input validation attributes are covered by the `temma-validation` skill.
 
 ## Routing

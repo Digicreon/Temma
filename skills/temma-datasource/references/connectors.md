@@ -42,7 +42,7 @@ Documentation pages: `https://www.temma.net/en/documentation/datasource-<name>`.
 
 | Connector | DSN | Notes |
 |---|---|---|
-| AI (unified LLM) | `ai://provider/model#API_KEY` (e.g. `ai://openai/gpt-4o#sk-XXX`; see the `temma-ai` skill) | doc: `datasource-ai` |
+| AI (unified LLM) | `ai://[type@]provider/model#API_KEY` (e.g. `ai://openai/gpt-4o#sk-XXX`, `ai://transcript@ovh/whisper-large-v3`; type: `chat` by default, `transcript` or `embedding`; see the `temma-ai` skill) | doc: `datasource-ai` |
 
 ## Special
 

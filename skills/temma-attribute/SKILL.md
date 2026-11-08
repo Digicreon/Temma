@@ -9,7 +9,7 @@ license: MIT
 In Temma, attributes are **active**: the framework executes them before the controller or
 action they decorate, and they can alter its behavior (block access, redirect, change the
 view...). New attributes plug in without touching the framework core. Built-in ones
-(`Auth`, `Check\*`, `View`, `Template`, `Methods\*`, `Referer`, `Redirect`) are covered
+(`Auth`, `Check\*`, `View`, `Template`, `ContentType`, `Methods\*`, `Referer`, `Redirect`) are covered
 by the other `temma-*` skills; this skill is about writing your own.
 
 ## Writing an attribute
@@ -71,7 +71,11 @@ Through inheritance, `apply()` has the same toolbox as a controller (see the
 - internal objects: `$this->_loader`, `$this->_session`, `$this->_config`,
   `$this->_request`, `$this->_response`;
 - response control: `$this->_httpCode()`, `$this->_httpError()`, `$this->_redirect()`,
-  `$this->_redirect301()`, `$this->_view()`, `$this->_template()`, `$this->_templatePrefix()`.
+  `$this->_redirect301()`, `$this->_view()`, `$this->_template()`, `$this->_templatePrefix()`,
+  `$this->_contentType()`, `$this->_header()`;
+- response getters: `$this->_getView()`, `$this->_getTemplate()`, `$this->_getTemplatePrefix()`,
+  `$this->_getContentType()`, `$this->_getHeaders()`, `$this->_getRedirect()`,
+  `$this->_getHttpCode()`, `$this->_getHttpError()`.
 
 ## Altering the execution flow
 

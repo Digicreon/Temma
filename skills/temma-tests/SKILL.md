@@ -54,9 +54,9 @@ All take `(string $url, string $httpMethod='GET', ?array $data=null, ?array $coo
 - **`execOutput()`**: the output stream rendered by the view (HTML, JSON...), for
   content-level assertions;
 - **`execResponse()`**: the `\Temma\Web\Response` object; getters `getRedirection()`,
-  `getRedirectionCode()`, `getHttpError()`, `getHttpCode()`, `getView()`,
-  `getTemplate()`, `getTemplatePrefix()`, `getHeaders()`, `getData()`, plus array-like
-  access to template variables (`$response['article']`);
+  `getHttpError()`, `getHttpCode()` (also gives the redirection code: 301, 302...),
+  `getView()`, `getTemplate()`, `getTemplatePrefix()`, `getHeaders()`, `getContentType()`,
+  `getData()`, plus array-like access to template variables (`$response['article']`);
 - **`execLoader()`**: the whole dependency injection component created for the request
   (`config`, `request`, `response`, `session`, and every object the application code
   instantiated through it).

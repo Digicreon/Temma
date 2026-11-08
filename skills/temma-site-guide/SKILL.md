@@ -114,7 +114,7 @@ API uses the API plugin (default in the `temma-project-api` skeleton).
 - command-line tools and cron jobs: `cli/` controllers run by `bin/comma` → skill `temma-cli`;
 - background/deferred processing → skill `temma-asynk`;
 - sending emails (SMTP relay, templated emails) → skill `temma-email`;
-- LLM calls (OpenAI, Claude, Gemini, Mistral...) → skill `temma-ai`;
+- LLM calls (OpenAI, Claude, Gemini, Mistral...), audio transcription, embeddings → skill `temma-ai`;
 - server-sent events (live updates) → skill `temma-sse`;
 - logging and log managers → skill `temma-log`;
 - tests → skill `temma-tests`.
