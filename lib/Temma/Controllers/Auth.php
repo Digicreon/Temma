@@ -350,10 +350,7 @@ class Auth extends \Temma\Web\Plugin {
 		$subject = $conf['emailSubject'] ?? 'Your connection link';
 		$protocol = ($_SERVER['SERVER_PORT'] == '443') ? 'https' : 'http';
 		$authUrl = "$protocol://" . $_SERVER['SERVER_NAME'] . "/auth/check/$token";
-		if (($conf['emailContent'] ?? null))
-			$message = $conf['emailText'];
-		else
-			$message = "Hi,
+		$message = ($conf['emailText'] ?? null) ?: "Hi,
 
 Here is your connection link:
 %s
