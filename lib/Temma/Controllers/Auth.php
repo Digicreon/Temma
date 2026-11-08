@@ -266,9 +266,8 @@ class Auth extends \Temma\Web\Plugin {
 			// register the user
 			TµLog::log('Temma/App', 'DEBUG', "Register user '$email'.");
 			$this->_userDao->create([
-				'email'           => $email,
-				'date_creation'   => date('c'),
-				'date_last_login' => date('c'),
+				'email'         => $email,
+				'date_creation' => date('c'),
 			]);
 			$user = $this->_userDao->get($criteria);
 			if (!isset($user['id'])) {
@@ -323,6 +322,8 @@ class Auth extends \Temma\Web\Plugin {
 			$this->_session['__authStatus'] = 'badToken';
 			return $this->_redirect($this->_redirectUrl);
 		}
+		// update user last login
+		$this->_userDao->update($currentUser['id'], ['date_last_login' => date('c')]);
 		// store the user identifier in session
 		$currentUserId = $currentUser['id'] ?? null;
 		$this->_session['currentUserId'] = $currentUserId;
