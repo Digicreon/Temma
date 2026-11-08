@@ -65,8 +65,9 @@ your own). It POSTs an `email` field to `/auth/login`, and can use the `authErro
 (unknown email) and `authSent` (email sent) template variables.
 
 Options under `x-security` → `auth`: `emailSender`, `emailSubject`, `emailText` (with
-`%s` replaced by the login URL), `registration` (`true` to auto-register unknown emails),
-`redirection` (URL after login; default home page). Logout: link to `/auth/logout`.
+`%s` replaced by the login URL; write `%%` for a literal `%`; empty = default message),
+`registration` (`true` to auto-register unknown emails), `redirection` (URL after login;
+default home page). Logout: link to `/auth/logout`.
 Emails are sent through the `temma-email` machinery (configure a transport if the local
 MTA can't send).
 
