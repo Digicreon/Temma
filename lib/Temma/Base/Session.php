@@ -81,6 +81,8 @@ class Session implements \ArrayAccess {
 	 * @param	\Temma\Base\Datasource	$cache		(optional) Cache management object.
 	 * @param	string			$cookieName	(optional) Name of the session cookie. "TEMMA_SESSION" by default.
 	 * @param	int			$duration	(optional) Session duration. One year by default.
+	 *							Only used when sessions are stored in a data source. Native PHP sessions
+	 *							use PHP's configuration.
 	 * @param	null|false|string	$domain		(optional) Cookie domain name. null by default.
 	 *							- null  = domain is not set, use the level 1 domain name of the current host
 	 *							- false = domain show not be defined, so the navigator will use the strict host
@@ -99,6 +101,8 @@ class Session implements \ArrayAccess {
 	 * @param	\Temma\Base\Datasource	$cache		(optional) Cache management object.
 	 * @param	?string			$cookieName	(optional) Name of the session cookie. "TEMMA_SESSION" by default.
 	 * @param	?int			$duration	(optional) Session duration. One year by default.
+	 *							Only used when sessions are stored in a data source. Native PHP sessions
+	 *							use PHP's configuration.
 	 * @param	null|false|string	$domain		(optional) Cookie domain name. null by default.
 	 *							- null  = domain is not set, use the level 1 domain name of the current host
 	 *							- false = domain show not be defined, so the navigator will use the strict host
@@ -123,13 +127,9 @@ class Session implements \ArrayAccess {
 				else
 					session_name($cookieName);
 			}
-			// session duration (lifetime of the cookie and of the session data stored on the server)
+			// cookie parameters (the session duration is the one defined by PHP's configuration, because it is
+			// also used by the garbage collector, which is shared with the other applications)
 			$params = session_get_cookie_params();
-			if ($duration) {
-				$params['lifetime'] = $duration;
-				ini_set('session.gc_maxlifetime', (string)$duration);
-			}
-			// cookie parameters
 			$host = $this->_getCookieDomain();
 			session_set_cookie_params([
 				'lifetime' => $params['lifetime'],
