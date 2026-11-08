@@ -58,7 +58,9 @@ return [
 
 Key entries: `dataSources` (named connections, see the `temma-datasource` skill),
 `rootController` (home page controller), `defaultController`, `defaultView` (`'~Json'`
-for an API), `routes` (URL aliases), `plugins` (`_pre`/`_post` lists), `autoimport`
+for an API), `timezone` (PHP timezone set at startup, e.g. `'Europe/Paris'`; read or
+changed at runtime with `$this->_config->getTimezone()` and `setTimezone()`, which returns
+the previous one), `routes` (URL aliases), `plugins` (`_pre`/`_post` lists), `autoimport`
 (values exposed to all templates as `$conf.<key>`), `loglevels` (see the `temma-log`
 skill), and `x-*` sections for extended configuration. Full reference:
 https://www.temma.net/en/documentation/configuration

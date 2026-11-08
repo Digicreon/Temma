@@ -26,7 +26,8 @@ return [
 		'defaultView'       => '\Temma\Views\SmartyView',
 		'loader'            => 'MyLoader',
 		'logFile'           => 'log/temma.log',
-		'logManager'        => [ 'ElasticLogManager', 'SentryLogManager' ]
+		'logManager'        => [ 'ElasticLogManager', 'SentryLogManager' ],
+		'timezone'          => 'Europe/Paris',
 	],
 	'loglevels' => [
 		'Temma/Base'  => 'ERROR',

@@ -104,7 +104,9 @@ Getters return what was defined so far (by the action, plugins or attributes): `
 - `$this->_loader`: the dependency injection component; any object may be fetched through it
   (`$this->_loader->UserDao`, `$this->_loader['\Temma\Utils\Email']`...).
 - `$this->_session`: the session (`$this->_session['userId'] = 42;` array-like access).
-- `$this->_config`: read-only access to the configuration (`$this->_config->xtra('section', 'key')`).
+- `$this->_config`: access to the configuration (`$this->_config->xtra('section', 'key')`);
+  `getTimezone()` / `setTimezone('Europe/Paris')` read or change PHP's timezone (`setTimezone()`
+  returns the previous one, to restore it afterwards).
 - `$this->_request`: the request (`getMethod()`, `getParam(0)`, `getPathInfo()`, `isAjax()`...).
 - `$this->_response`: the response object.
 - **Data sources** are directly available as properties, named as declared in the

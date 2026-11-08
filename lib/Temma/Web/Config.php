@@ -82,6 +82,8 @@ class Config {
 	 * other = use the defined value as cookie domain
 	 */
 	protected ?string $_cookieDomain = null;
+	/** Timezone defined in the configuration. */
+	protected ?string $_timezone = null;
 	/** Path to the application root directory. */
 	protected ?string $_appPath = null;
 	/** Path to the configuration directory. */
@@ -141,6 +143,7 @@ class Config {
 	 * Constructor.
 	 * @param	string	$appPath	Path to the application root directory.
 	 * @param	?array	$attributes	(optional) Initialization attributes. SHOULD BE USED BY THE __set_state() METHOD ONLY.
+	 * @throws	\Temma\Exceptions\Framework	If the timezone given in the attributes is not valid.
 	 */
 	public function __construct(string $appPath, ?array $attributes=null) {
 		$this->_appPath = $appPath;
@@ -153,6 +156,9 @@ class Config {
 					$this->$attrName = $attrValue;
 				}
 			}
+			// set the timezone
+			if ($this->_timezone && !@date_default_timezone_set($this->_timezone))
+				throw new TµFrameworkException("Invalid timezone '{$this->_timezone}'.", TµFrameworkException::CONFIG);
 		}
 	}
 	/**
@@ -202,6 +208,10 @@ class Config {
 		// overload if needed
 		if ($overConf)
 			$ini = array_replace_recursive($ini, $overConf);
+
+		// set the timezone
+		if (isset($ini['application']['timezone']) && is_string($ini['application']['timezone']) && $ini['application']['timezone'])
+			$this->setTimezone($ini['application']['timezone']);
 
 		// path to log file
 		$logPath = null;
@@ -341,6 +351,8 @@ class Config {
 	 * @return	mixed	The associated value.
 	 */
 	public function __get(string $name) : mixed {
+		if ($name === 'timezone')
+			return ($this->getTimezone());
 		if ($this->_executorConfig)
 			return ($this->_executorConfig->$name);
 		$name = '_' . $name;
@@ -350,8 +362,13 @@ class Config {
 	 * Setter. Defines a configuration value.
 	 * @param	string	$name	Name of the property to set.
 	 * @param	mixed	$value	Value of the property.
+	 * @throws	\Temma\Exceptions\Framework	If the property is the timezone and its value is not valid.
 	 */
 	public function __set(string $name, mixed $value) : void {
+		if ($name === 'timezone') {
+			$this->setTimezone($value);
+			return;
+		}
 		if ($this->_executorConfig) {
 			$this->_executorConfig->$name = $value;
 			return;
@@ -365,6 +382,8 @@ class Config {
 	 * @return	bool	True if the variable exists.
 	 */
 	public function __isset(string $name) : bool {
+		if ($name === 'timezone')
+			return (true);
 		if ($this->_executorConfig)
 			return isset($this->_executorConfig->$name);
 		$name = '_' . $name;
@@ -417,6 +436,28 @@ class Config {
 		if (!isset($this->_extraConfig["x-$name"]))
 			$this->_extraConfig["x-$name"] = [];
 		$this->_extraConfig["x-$name"][$key] = $value;
+	}
+	/**
+	 * Returns the timezone currently used by PHP.
+	 * @return	string	The timezone identifier (e.g. 'Europe/Paris').
+	 */
+	public function getTimezone() : string {
+		return (date_default_timezone_get());
+	}
+	/**
+	 * Defines the timezone used by PHP.
+	 * @param	string	$timezone	The timezone identifier (e.g. 'Europe/Paris').
+	 * @return	string	The previous timezone.
+	 * @throws	\Temma\Exceptions\Framework	If the timezone is not valid.
+	 */
+	public function setTimezone(string $timezone) : string {
+		if ($this->_executorConfig)
+			return ($this->_executorConfig->setTimezone($timezone));
+		$previousTimezone = date_default_timezone_get();
+		if (!@date_default_timezone_set($timezone))
+			throw new TµFrameworkException("Invalid timezone '$timezone'.", TµFrameworkException::CONFIG);
+		$this->_timezone = $timezone;
+		return ($previousTimezone);
 	}
 	/** Initialize the PHP include paths when the configuration is read. */
 	protected function _initIncludePaths() : void {
