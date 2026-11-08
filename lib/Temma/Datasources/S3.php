@@ -442,7 +442,7 @@ class S3 extends \Temma\Base\Datasource {
 		// check if the local file is writable
 		$dirname = dirname($localPath);
 		if (($dirname && !file_exists($dirname) && !mkdir($dirname, 0777, true)) ||
-		    !is_writeable($localPath)) {
+		    !is_writeable(file_exists($localPath) ? $localPath : $dirname)) {
 			TµLog::log('Temma/Base', 'INFO', "Unable to write file '$localPath'.");
 			throw new \Temma\Exceptions\IO("Unable to write file '$localPath'.", \Temma\Exceptions\IO::UNWRITABLE);
 		}
