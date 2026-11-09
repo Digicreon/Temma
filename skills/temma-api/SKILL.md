@@ -1,6 +1,6 @@
 ---
 name: temma-api
-description: Build REST APIs and webservices with the Temma PHP framework. Use when creating JSON API endpoints, versioned APIs (/v1, /v2), API key authentication, or when configuring the Temma API plugin in a web or API-oriented Temma project.
+description: Build REST APIs and webservices with the Temma PHP framework. Use when creating JSON API endpoints, versioned APIs (/v1, /v2), API key authentication (HTTP Basic or bearer token), or when configuring the Temma API plugin in a web or API-oriented Temma project.
 license: MIT
 ---
 
@@ -49,9 +49,11 @@ It provides:
   `/v2/user/remove/123` calls `\v2\User::remove(123)`. Several versions coexist, each in
   its own namespace tree.
 - **JSON view** set by default for all actions.
-- **Authentication** with public/private key pairs, sent on each request as HTTP Basic
-  credentials (public key = login, private key = password). Always serve the API over
-  HTTPS. On success, the plugin defines the `currentUser` template variable (user data,
+- **Authentication** with public/private key pairs, sent on each request either as HTTP
+  Basic credentials (public key = login, private key = password), or as a bearer token
+  (`Authorization: Bearer <token>`, the token being the base64url encoding, without
+  padding, of `public_key:private_key`). HTTP Basic credentials take precedence when both
+  are sent. Always serve the API over HTTPS. On success, the plugin defines the `currentUser` template variable (user data,
   including `roles` and `services`), which powers the `#[TµAuth]` attribute.
 
 ## Authentication database
@@ -77,8 +79,8 @@ CREATE TABLE User (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 
 CREATE TABLE ApiKey (
-	public_key  CHAR(32) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
-	private_key TINYTEXT CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
+	public_key  CHAR(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+	private_key TINYTEXT CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
 	name        TINYTEXT NOT NULL DEFAULT ('Default'),
 	user_id     INT UNSIGNED NOT NULL,
 	PRIMARY KEY (public_key),
@@ -97,7 +99,7 @@ Generate key pairs server-side, show them once to the user, store the public key
 and only a hash of the private key:
 
 ```php
-$keys = \Temma\Plugins\Api::generateKeys();
+$keys = \Temma\Plugins\Api::generateKeys(); // 'public', 'private' and 'token' (bearer token)
 $apiKeyDao->create([
 	'public_key'  => $keys['public'],
 	'private_key' => password_hash($keys['private'], PASSWORD_BCRYPT),
@@ -105,6 +107,11 @@ $apiKeyDao->create([
 	'name'        => $keyName,     // optional label, lets users manage several keys
 ]);
 ```
+
+The bearer token (`$keys['token']`) is shown to the user along with the keys, never stored.
+`\Temma\Plugins\Api::keysToToken($publicKey, $privateKey)` computes it from a key pair.
+With Apache + PHP-FPM, the `Authorization` header reaches PHP only with `CGIPassAuth On`
+(already in Temma's `etc/apache.conf`).
 
 ## Protecting endpoints
 
