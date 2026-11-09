@@ -25,31 +25,40 @@ use \Temma\Base\Log as TµLog;
  * $file = \Temma\Datasources\File::factory('file://0007/opt/temma_files');
  * $file = \Temma\Base\Datasource::factory('file://0007/opt/temma_files');
  *
- * // add or update a file
- * // if the data is a string, it is written as is
- * // otherwise it is JSON-encoded
+ * // add or update a file (missing directories are created)
+ * // the data is JSON-encoded (and JSON-decoded when read with get())
  * $file['path/to/file'] = $data;
  * $file->set('path/to/file', $data);
  *
  * // add or update a file, giving its permissions
  * $file->set('path/to/file', $data, 0600);
  *
- * // copy a file
- * $file->put('path/to/file', '/path/to/source/file');
+ * // add or update a file with raw data (written as is)
+ * $file->write('path/to/file', $rawData);
+ * $file->write('path/to/file', $rawData, 0600);
  *
- * // copy a file, giving special permissions
- * $file->put('path/to/file', '/path/to/source/file', 0600);
+ * // copy a local file
+ * $file->copyTo('path/to/file', '/path/to/source/file');
  *
- * // read a file
+ * // copy a local file, giving special permissions
+ * $file->copyTo('path/to/file', '/path/to/source/file', 0600);
+ *
+ * // read a file (JSON-decoded data)
  * $data = $file['path/to/file'];
  * $data = $file->get('path/to/file');
  *
+ * // read a file (raw content)
+ * $rawData = $file->read('path/to/file');
+ *
+ * // copy a file to a local file
+ * $file->copyFrom('path/to/file', '/path/to/local/file');
+ *
  * // tell if a file exists
- * if (isset($file['path/to/file')) { }
+ * if (isset($file['path/to/file'])) { }
  * if ($file->isSet('path/to/file')) { }
  *
- * // search a list of files with a given prefix
- * $list = $file->search('prefix/folder');
+ * // search files matching a glob pattern, in the whole sub-tree
+ * $list = $file->search('folder/*');
  *
  * // remove file
  * unset($file['path/to/file']);
@@ -72,17 +81,13 @@ class File extends \Temma\Base\Datasource {
 	 */
 	static public function factory(string $dsn) : \Temma\Datasources\File {
 		TµLog::log('Temma/Base', 'DEBUG', "\\Temma\\Datasources\\File object creation with DSN: '$dsn'.");
-		if (!preg_match("/^([^:]+):\/\/([^\/]+)\/(.*)$/", $dsn, $matches)) {
+		// optional umask (4 octal digits, starting with a zero), followed by an absolute path
+		if (!preg_match('/^file:\/\/(0[0-7]{3})?(\/.+)$/', $dsn, $matches) ||
+		    !($rootPath = rtrim($matches[2], '/'))) {
 			TµLog::log('Temma/Base', 'WARN', "Invalid File DSN '$dsn'.");
 			throw new \Temma\Exceptions\Database("Invalid File DSN '$dsn'.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		}
-		$type = $matches[1] ?? null;
-		$umask = $matches[2] ?? '';
-		$rootPath = $matches[3] ?? '';
-		if ($type != 'file' || !$rootPath || ($umask && mb_strlen($umask) != 4))
-			throw new \Temma\Exceptions\Database("Invalid File DSN '$dsn'.", \Temma\Exceptions\Database::FUNDAMENTAL);
-		$rootPath = rtrim($rootPath, '/');
-		return (new self($rootPath, $umask));
+		return (new self($rootPath, $matches[1]));
 	}
 	/**
 	 * Constructor.
@@ -100,19 +105,12 @@ class File extends \Temma\Base\Datasource {
 
 	/* ********** ARRAY-LIKE REQUESTS ********** */
 	/**
-	 * Return the number of files.
+	 * Return the number of files (sub-directories are searched recursively, see find()).
 	 * @param	?string	$pattern	(optional) Glob pattern to match. Null to count all files.
 	 * @return 	int	The number of files.
 	 */
 	public function count(?string $pattern=null) : int {
-		if (!$this->_enabled)
-			return (0);
-		if ($pattern === null) {
-			$fi = new \FilesystemIterator($this->_rootPath);
-			return (iterator_count($fi));
-		}
-		$pattern = $this->_cleanPath($pattern);
-		return (count(glob($this->_rootPath . '/' . $pattern)));
+		return (count($this->find($pattern ?? '*')));
 	}
 
 	/* ********** STANDARD REQUESTS ********** */
@@ -126,26 +124,31 @@ class File extends \Temma\Base\Datasource {
 			return (false);
 		$path = $this->_cleanPath($path);
 		$fullPath = $this->_rootPath . '/' . $path;
-		return (file_exists($fullPath));
+		return (is_file($fullPath));
 	}
 	/**
-	 * Remove a file.
+	 * Remove a file. Its parent directories are removed if they become empty.
 	 * @param	string	$path	Path of the file.
 	 */
 	public function remove(string $path) : void {
 		if (!$this->_enabled)
 			return;
 		$path = $this->_cleanPath($path);
-		@unlink($this->_rootPath . '/' . $path);
+		$fullPath = $this->_rootPath . '/' . $path;
+		if (!is_file($fullPath) || !unlink($fullPath))
+			return;
+		// remove the parent directories which became empty (never the root directory)
+		$dir = dirname($fullPath);
+		while (str_starts_with($dir, $this->_rootPath . '/') && @rmdir($dir))
+			$dir = dirname($dir);
 	}
 	/**
-	 * Remove all files matching a given pattern.
-	 * @param	string	$pattern	Pattern string.
+	 * Remove all files matching a given pattern (see find()).
+	 * @param	string	$pattern	Glob pattern.
 	 */
 	public function clear(string $pattern) : void {
-		$files = $this->find($pattern);
-		if ($files)
-			array_map('unlink', $files);
+		foreach ($this->find($pattern) as $path)
+			$this->remove($path);
 	}
 	/**
 	 * Remove all files.
@@ -165,17 +168,19 @@ class File extends \Temma\Base\Datasource {
 
 	/* ********** RAW REQUESTS ********** */
 	/**
-	 * Search all files matching a pattern.
-	 * @param	string			$pattern	The pattern.
+	 * Search all files matching a glob pattern, like a prefix search on S3: sub-directories are searched
+	 * recursively, the '*' wildcard also matches the '/' character, and only files are returned
+	 * (not directories). Hidden files and directories (whose name starts with a dot) are skipped.
+	 * @param	string			$pattern	The glob pattern, relative to the root path (e.g. 'users/*').
 	 * @param	bool			$getValues	(optional) True to fetch the associated values. False by default.
 	 * @param	null|bool|string|array	$sort		(optional) Sort criteria:
-	 *							- null: natural alphabetical order (default, from glob()).
+	 *							- null: alphabetical order (default).
 	 *							- true: reverse alphabetical order.
 	 *							- false: random order.
 	 *							- string/array: not supported, triggers an exception.
 	 * @param	int			$offset		(optional) Number of items to skip. 0 by default.
 	 * @param	int			$limit		(optional) Maximum number of items to return. 0 means no limit.
-	 * @return	array	List of keys, or associative array of key-value pairs.
+	 * @return	array	List of file paths relative to the root path, or associative array of path-content pairs.
 	 * @throws	\Exception	If an error occured.
 	 * @throws	\Temma\Exceptions\Database	If $sort is a string or an array.
 	 */
@@ -185,9 +190,25 @@ class File extends \Temma\Base\Datasource {
 		if (is_string($sort) || is_array($sort))
 			throw new \Temma\Exceptions\Database("File datasource does not support field-based sort.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		$pattern = $this->_cleanPath($pattern);
-		$files = glob($this->_rootPath . '/' . $pattern);
-		if ($files === false)
-			$files = [];
+		// directory to walk: the fixed part of the pattern, before the first wildcard
+		preg_match('/^[^*?\[]*/', $pattern, $matches);
+		$slashPos = mb_strrpos($matches[0], '/');
+		$dir = $this->_rootPath . (($slashPos === false) ? '' : ('/' . mb_substr($matches[0], 0, $slashPos)));
+		if (!is_dir($dir))
+			return ([]);
+		// files of the sub-tree matching the pattern (hidden files and directories are skipped)
+		$iterator = new \RecursiveIteratorIterator(new \RecursiveCallbackFilterIterator(
+			new \RecursiveDirectoryIterator($dir, \FilesystemIterator::SKIP_DOTS),
+			fn($file) => !str_starts_with($file->getFilename(), '.')
+		));
+		$prefixLength = mb_strlen($this->_rootPath) + 1;
+		$files = [];
+		foreach ($iterator as $file) {
+			$path = mb_substr($file->getPathname(), $prefixLength);
+			if (fnmatch($pattern, $path))
+				$files[] = $path;
+		}
+		sort($files);
 		if ($sort === false)
 			shuffle($files);
 		else if ($sort === true)
@@ -212,7 +233,7 @@ class File extends \Temma\Base\Datasource {
 		$path = $this->_cleanPath($path);
 		$fullPath = $this->_rootPath . '/' . $path;
 		// fetch the file content
-		if ($this->_enabled && file_exists($fullPath)) {
+		if ($this->_enabled && is_file($fullPath)) {
 			$data = file_get_contents($fullPath);
 			return ($data);
 		}
@@ -240,16 +261,11 @@ class File extends \Temma\Base\Datasource {
 	 */
 	public function copyFrom(string $path, string $localPath, mixed $defaultOrCallback=null, mixed $options=0) : bool {
 		// check if the local file is writable
-		$dirname = dirname($localPath);
-		if (($dirname && !file_exists($dirname) && !mkdir($dirname, 0777, true)) ||
-		    !is_writeable(file_exists($localPath) ? $localPath : $dirname)) {
-			TµLog::log('Temma/Base', 'INFO', "Unable to write file '$localPath'.");
-			throw new \Temma\Exceptions\IO("Unable to write file '$localPath'.", \Temma\Exceptions\IO::UNWRITABLE);
-		}
+		$this->_prepareFileWrite($localPath);
 		// copy the file
 		$path = $this->_cleanPath($path);
 		$fullPath = $this->_rootPath . '/' . $path;
-		if ($this->_enabled && is_readable($fullPath) && copy($fullPath, $localPath))
+		if ($this->_enabled && is_file($fullPath) && is_readable($fullPath) && copy($fullPath, $localPath))
 			return (true);
 		// manage default value
 		if (!$defaultOrCallback)
@@ -276,13 +292,8 @@ class File extends \Temma\Base\Datasource {
 	public function write(string $path, string $data, mixed $options=0) : bool {
 		if (!$this->_enabled)
 			return (false);
-		// check if the destination file is writeable
 		$path = $this->_cleanPath($path);
 		$fullPath = $this->_rootPath . '/' . $path;
-		if (!is_writeable($fullPath)) {
-			TµLog::log('Temma/Base', 'INFO', "Unable to write file '$fullPath'.");
-			throw new \Temma\Exceptions\IO("Unable to write file '$fullPath'.", \Temma\Exceptions\IO::UNWRITABLE);
-		}
 		// manage permissions
 		$permissions = null;
 		if ($options) {
@@ -293,10 +304,16 @@ class File extends \Temma\Base\Datasource {
 			if ($permissions === null)
 				throw new \Exception("Bad permissions.");
 		}
-		// create or update file
-		if (file_put_contents($fullPath, $data) === false) {
-			TµLog::log('Temma/Base', 'INFO', "Unable to write file '$fullPath'.");
-			throw new \Temma\Exceptions\IO("Unable to write file '$fullPath'.", \Temma\Exceptions\IO::UNWRITABLE);
+		// create or update file (and its directory if needed), with the data source's umask
+		$oldUmask = umask($this->_umask);
+		try {
+			$this->_prepareFileWrite($fullPath);
+			if (file_put_contents($fullPath, $data) === false) {
+				TµLog::log('Temma/Base', 'INFO', "Unable to write file '$fullPath'.");
+				throw new \Temma\Exceptions\IO("Unable to write file '$fullPath'.", \Temma\Exceptions\IO::UNWRITABLE);
+			}
+		} finally {
+			umask($oldUmask);
 		}
 		if ($permissions)
 			chmod($fullPath, $permissions);
@@ -325,10 +342,19 @@ class File extends \Temma\Base\Datasource {
 			if ($permissions === null)
 				throw new \Exception("Bad permissions.");
 		}
-		if (!copy($localPath, $fullPath)) {
-			TµLog::log('Temma/Base', 'INFO', "Unable to copy file '$localPath' to '$fullPath'.");
-			throw new \Temma\Exceptions\IO("Unable to copy file '$localPath' to '$fullPath'.", \Temma\Exceptions\IO::UNWRITABLE);
+		// copy the file (and create its directory if needed), with the data source's umask
+		$oldUmask = umask($this->_umask);
+		try {
+			$this->_prepareFileWrite($fullPath);
+			if (!copy($localPath, $fullPath)) {
+				TµLog::log('Temma/Base', 'INFO', "Unable to copy file '$localPath' to '$fullPath'.");
+				throw new \Temma\Exceptions\IO("Unable to copy file '$localPath' to '$fullPath'.", \Temma\Exceptions\IO::UNWRITABLE);
+			}
+		} finally {
+			umask($oldUmask);
 		}
+		if ($permissions)
+			chmod($fullPath, $permissions);
 		return (true);
 	}
 

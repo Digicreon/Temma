@@ -440,12 +440,7 @@ class S3 extends \Temma\Base\Datasource {
 	 */
 	public function copyFrom(string $s3Path, string $localPath, mixed $defaultOrCallback=null, mixed $options=null) : bool {
 		// check if the local file is writable
-		$dirname = dirname($localPath);
-		if (($dirname && !file_exists($dirname) && !mkdir($dirname, 0777, true)) ||
-		    !is_writeable(file_exists($localPath) ? $localPath : $dirname)) {
-			TµLog::log('Temma/Base', 'INFO', "Unable to write file '$localPath'.");
-			throw new \Temma\Exceptions\IO("Unable to write file '$localPath'.", \Temma\Exceptions\IO::UNWRITABLE);
-		}
+		$this->_prepareFileWrite($localPath);
 		$this->connect();
 		// fetch the file content
 		if ($this->_enabled) {
@@ -491,7 +486,7 @@ class S3 extends \Temma\Base\Datasource {
 		if (is_bool($options))
 			$public = $options;
 		else if (is_string($options))
-			$mime = $options;
+			$mimetype = $options;
 		else if (is_array($options)) {
 			$public = (bool)($options['public'] ?? $public);
 			$mimetype = $options['mimetype'] ?? $mimetype;
@@ -525,10 +520,10 @@ class S3 extends \Temma\Base\Datasource {
 		if (!$this->_enabled)
 			return (false);
 		$this->connect();
-		// check destination file
-		if (!is_writeable($localPath)) {
-			TµLog::log('Temma/Base', 'INFO', "Unable to write in file '$localPath'.");
-			throw new \Temma\Exceptions\IO("Unable to write in file '$localPath'.", \Temma\Exceptions\IO::UNWRITABLE);
+		// check source file
+		if (!is_readable($localPath)) {
+			TµLog::log('Temma/Base', 'INFO', "Unable to read file '$localPath'.");
+			throw new \Temma\Exceptions\IO("Unable to read file '$localPath'.", \Temma\Exceptions\IO::UNREADABLE);
 		}
 		// check parameters
 		$public = $this->_publicAccess;
@@ -536,7 +531,7 @@ class S3 extends \Temma\Base\Datasource {
 		if (is_bool($options))
 			$public = $options;
 		else if (is_string($options))
-			$mime = $options;
+			$mimetype = $options;
 		else if (is_array($options)) {
 			$public = (bool)($options['public'] ?? $public);
 			$mimetype = $options['mimetype'] ?? $mimetype;
