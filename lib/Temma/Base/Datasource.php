@@ -266,12 +266,7 @@ abstract class Datasource implements \ArrayAccess, \Countable {
 		if (!$this->_enabled)
 			return (false);
 		// check if the local path is writable
-		$dirname = dirname($localPath);
-		if (($dirname && !file_exists($dirname) && !mkdir($dirname, 0777, true)) ||
-		    !is_writeable(file_exists($localPath) ? $localPath : $dirname)) {
-			TµLog::log('Temma/Base', 'INFO', "Unable to write file '$localPath'.");
-			throw new \Temma\Exceptions\IO("Unable to write file '$localPath'.", \Temma\Exceptions\IO::UNWRITABLE);
-		}
+		$this->_prepareFileWrite($localPath);
 		// get the file's data
 		$data = $this->read($key, $defaultOrCallback, $options);
 		if ($data === null)
@@ -528,6 +523,20 @@ abstract class Datasource implements \ArrayAccess, \Countable {
 			}
 		}
 		return ($result);
+	}
+	/**
+	 * Prepare the writing of a local file: create its directory if needed, and check that the file
+	 * (or its directory, if the file doesn't exist yet) is writable.
+	 * @param	string	$path	Path to the local file.
+	 * @throws	\Temma\Exceptions\IO	If the file is not writable.
+	 */
+	protected function _prepareFileWrite(string $path) : void {
+		$dirname = dirname($path);
+		if ((!file_exists($dirname) && !mkdir($dirname, 0777, true)) ||
+		    !is_writeable(file_exists($path) ? $path : $dirname)) {
+			TµLog::log('Temma/Base', 'INFO', "Unable to write file '$path'.");
+			throw new \Temma\Exceptions\IO("Unable to write file '$path'.", \Temma\Exceptions\IO::UNWRITABLE);
+		}
 	}
 }
 
