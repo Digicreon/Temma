@@ -132,7 +132,7 @@ manually. (The former `x-smarty-view` section is deprecated; use `x-smarty`.)
 ## Smarty plugins
 
 Custom plugins are PHP functions in files named `modifier.<name>.php`,
-`function.<name>.php` or `block.<name>.php`, placed in the project's
+`modifiercompiler.<name>.php`, `function.<name>.php` or `block.<name>.php`, placed in the project's
 `lib/smarty-plugins/` directory (additional directories via `'x-smarty' => ['pluginsDir' => ...]`):
 
 ```php
@@ -145,8 +145,13 @@ function smarty_modifier_warp($text) {
 
 Temma ships plugins, usable out of the box: `|urlize` (URL-friendly string),
 `|filenamize` (filename-friendly string), `|nbsp` (non-breaking spaces before French
-punctuation), `|hash` (hash a value), `|dump` / `{dump}` (debug dump), and `|l10n` /
+punctuation), `|hash` (hash a value), `|dump` / `{dump}` (debug dump), `|ansi2html`
+(terminal output with ANSI escape sequences to HTML, to display in a `<pre>`), and `|l10n` /
 `{l10n}` for translations.
+
+`|ansi2html` escapes its input itself. With Smarty 5 its output is not escaped again by
+auto-escaping (`<pre>{$output|ansi2html}</pre>`); with Smarty 4 and auto-escaping, add
+`nofilter` (`{$output|ansi2html nofilter}`).
 
 ## Localization
 

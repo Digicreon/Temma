@@ -25,6 +25,11 @@ class Text {
 	const PASCAL_CASE = 'PASCAL_CASE';
 	/** Constant: upper case. */
 	const UPPER_CASE = 'UPPER_CASE';
+	/** Regular expression matching ANSI escape sequences (string sequences like OSC, CSI, charset designation, other two-character sequences). */
+	private const ANSI_SEQUENCES_REGEX = '/(\e(?:[\]PX^_][^\a\e]*(?:\a|\e\\\\)?|\[[0-?]*[ -\/]*[@-~]?|[()*+][0-9A-Za-z]?|[0-~])?)/';
+	/** ANSI palette of the 16 base colors (normal and bright). */
+	private const ANSI_PALETTE = ['#000', '#c00', '#080', '#a60', '#00c', '#a0a', '#088', '#bbb',
+	                              '#555', '#f55', '#5f5', '#ff5', '#55f', '#f5f', '#5ff', '#fff'];
 
 	/**
 	 * Checks the syntax of an HTML stream.
@@ -88,6 +93,72 @@ class Text {
 		$text = strip_tags($html);
 		$text = html_entity_decode($text);
 		return ($text);
+	}
+	/**
+	 * Transform a text containing ANSI escape sequences (terminal output) into HTML.
+	 * The text is HTML-escaped. SGR sequences (bold, dim, italic, underline, reverse, hidden, strikethrough,
+	 * 16, 256 and 24-bit colors) are converted into styled <span> tags, OSC 8 hyperlinks are converted into
+	 * <a> tags (only for http, https and mailto URLs), and all other escape sequences are removed.
+	 * Line breaks are kept as is, the result should be displayed in a <pre> tag (or with a 'white-space: pre' style).
+	 * @param	?string	$text	The text to convert.
+	 * @return	string	The generated HTML.
+	 */
+	static public function ansiToHtml(?string $text) : string {
+		if (!isset($text) || $text === '')
+			return ('');
+		$parts = preg_split(self::ANSI_SEQUENCES_REGEX, $text, -1, PREG_SPLIT_DELIM_CAPTURE);
+		$html = '';
+		// desired state (from the escape sequences) and state of the currently open tags
+		$state = [];
+		$link = null;
+		$openCss = '';
+		$openLink = null;
+		foreach ($parts as $i => $part) {
+			if ($part === '')
+				continue;
+			// escape sequence
+			if ($i % 2) {
+				if (preg_match('/^\e\[([0-9;:]*)m$/', $part, $matches))
+					$state = self::_applyAnsiSgr($state, $matches[1]);
+				else if (preg_match('/^\e\]8;[^;\a\e]*;([^\a\e]*)/', $part, $matches))
+					$link = preg_match('/^(https?:\/\/|mailto:)/i', $matches[1]) ? $matches[1] : null;
+				continue;
+			}
+			// text chunk: open the needed tags
+			$css = self::_ansiStateToCss($state);
+			if ($css !== $openCss || $link !== $openLink) {
+				if ($openCss !== '')
+					$html .= '</span>';
+				if ($link !== $openLink) {
+					if (isset($openLink))
+						$html .= '</a>';
+					if (isset($link))
+						$html .= '<a href="' . htmlspecialchars($link) . '">';
+					$openLink = $link;
+				}
+				if ($css !== '')
+					$html .= '<span style="' . $css . '">';
+				$openCss = $css;
+			}
+			$html .= htmlspecialchars($part);
+		}
+		// close the open tags
+		if ($openCss !== '')
+			$html .= '</span>';
+		if (isset($openLink))
+			$html .= '</a>';
+		return ($html);
+	}
+	/**
+	 * Remove all ANSI escape sequences (colors, styles, cursor moves, hyperlinks...) from a text.
+	 * The text of OSC 8 hyperlinks is kept.
+	 * @param	?string	$text	The text to clean.
+	 * @return	string	The text without escape sequences.
+	 */
+	static public function ansiToText(?string $text) : string {
+		if (!isset($text) || $text === '')
+			return ('');
+		return (preg_replace(self::ANSI_SEQUENCES_REGEX, '', $text));
 	}
 	/**
 	 * Transform a text to a filename-compatible string.
@@ -499,5 +570,127 @@ class Text {
 		}
 		return ($len);
 	}
-}
 
+	/* ********** PRIVATE METHODS ********** */
+	/**
+	 * Apply the parameters of an ANSI SGR sequence ("\e[...m") to a style state.
+	 * @param	array	$state	The current style state.
+	 * @param	string	$params	The parameters of the sequence (e.g. "1;38;5;196").
+	 * @return	array	The new style state.
+	 */
+	static private function _applyAnsiSgr(array $state, string $params) : array {
+		$codes = explode(';', $params);
+		$count = count($codes);
+		for ($i = 0; $i < $count; $i++) {
+			// sub-parameters separated by colons (e.g. "38:5:196" or "4:3")
+			$sub = explode(':', $codes[$i]);
+			$code = (int)$sub[0];
+			if ($code == 38 || $code == 48) {
+				if (count($sub) > 1) {
+					// colon form: "38:5:N", "38:2:R:G:B" or "38:2:colorspace:R:G:B"
+					$args = array_slice($sub, 1);
+					if (($args[0] ?? '') == '2' && count($args) > 4)
+						array_splice($args, 1, 1);
+				} else {
+					// semicolon form: the color parameters are the next codes
+					$length = (($codes[$i + 1] ?? '') == '2') ? 4 : 2;
+					$args = array_slice($codes, $i + 1, $length);
+					$i += $length;
+				}
+				$color = self::_ansiExtendedColor($args);
+				if (isset($color))
+					$state[($code == 38) ? 'color' : 'background'] = $color;
+				continue;
+			}
+			switch ($code) {
+				case 0: $state = []; break;
+				case 1: $state['bold'] = true; break;
+				case 2: $state['dim'] = true; break;
+				case 3: $state['italic'] = true; break;
+				case 4:
+				case 21:
+					if (($sub[1] ?? '') === '0')
+						unset($state['underline']);
+					else
+						$state['underline'] = true;
+					break;
+				case 7: $state['reverse'] = true; break;
+				case 8: $state['hidden'] = true; break;
+				case 9: $state['strike'] = true; break;
+				case 22: unset($state['bold'], $state['dim']); break;
+				case 23: unset($state['italic']); break;
+				case 24: unset($state['underline']); break;
+				case 27: unset($state['reverse']); break;
+				case 28: unset($state['hidden']); break;
+				case 29: unset($state['strike']); break;
+				case 39: unset($state['color']); break;
+				case 49: unset($state['background']); break;
+				default:
+					if ($code >= 30 && $code <= 37)
+						$state['color'] = self::ANSI_PALETTE[$code - 30];
+					else if ($code >= 40 && $code <= 47)
+						$state['background'] = self::ANSI_PALETTE[$code - 40];
+					else if ($code >= 90 && $code <= 97)
+						$state['color'] = self::ANSI_PALETTE[$code - 82];
+					else if ($code >= 100 && $code <= 107)
+						$state['background'] = self::ANSI_PALETTE[$code - 92];
+			}
+		}
+		return ($state);
+	}
+	/**
+	 * Compute the CSS color of an extended ANSI color (256-color palette or 24-bit color).
+	 * @param	array	$args	Color parameters: ['5', index] or ['2', red, green, blue].
+	 * @return	?string	The CSS color, or null if the parameters are not valid.
+	 */
+	static private function _ansiExtendedColor(array $args) : ?string {
+		if (($args[0] ?? '') == '2' && count($args) >= 4) {
+			// 24-bit color
+			$rgb = array_map(fn($c) => min(255, max(0, (int)$c)), array_slice($args, 1, 3));
+			return (sprintf('#%02x%02x%02x', ...$rgb));
+		}
+		if (($args[0] ?? '') != '5' || !isset($args[1]) || !ctype_digit($args[1]) || $args[1] > 255)
+			return (null);
+		$index = (int)$args[1];
+		// 16 base colors
+		if ($index < 16)
+			return (self::ANSI_PALETTE[$index]);
+		// grayscale
+		if ($index >= 232)
+			return (sprintf('#%1$02x%1$02x%1$02x', 8 + ($index - 232) * 10));
+		// 6x6x6 color cube
+		$index -= 16;
+		$levels = [0, 95, 135, 175, 215, 255];
+		return (sprintf('#%02x%02x%02x', $levels[intdiv($index, 36)], $levels[intdiv($index, 6) % 6], $levels[$index % 6]));
+	}
+	/**
+	 * Generate the CSS style matching an ANSI style state.
+	 * @param	array	$state	The style state.
+	 * @return	string	The CSS style (empty string if there is no style).
+	 */
+	static private function _ansiStateToCss(array $state) : string {
+		$color = $state['color'] ?? null;
+		$background = $state['background'] ?? null;
+		if (isset($state['reverse'])) {
+			$color = $background ?? '#fff';
+			$background = $state['color'] ?? '#000';
+		}
+		$css = [];
+		if (isset($color))
+			$css[] = "color:$color";
+		if (isset($background))
+			$css[] = "background-color:$background";
+		if (isset($state['bold']))
+			$css[] = 'font-weight:bold';
+		if (isset($state['dim']))
+			$css[] = 'opacity:.6';
+		if (isset($state['italic']))
+			$css[] = 'font-style:italic';
+		$decoration = trim((isset($state['underline']) ? 'underline ' : '') . (isset($state['strike']) ? 'line-through' : ''));
+		if ($decoration)
+			$css[] = "text-decoration:$decoration";
+		if (isset($state['hidden']))
+			$css[] = 'visibility:hidden';
+		return (implode(';', $css));
+	}
+}
