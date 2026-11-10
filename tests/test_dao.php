@@ -5,6 +5,7 @@
  * DAO validation script:
  * - default table name derived from the controller class name (not from the URL anymore);
  * - support of the 'source' parameter of _loadDao();
+ * - cache of the DAO created by _loadDao() (no warning when there is no 'cache' data source);
  * - SQL identifiers escaping (database, table, fields) in Dao and Criteria;
  * - SQL generation adapted to the database engine (MySQL, PostgreSQL, SQLite);
  * - SQL DSN parsing (including SQLite DSNs, which contain a file path).
@@ -147,6 +148,29 @@ $loaderSources = new TµLoader([
 ]);
 $ctrl = new TestSource($loaderSources);
 check("'source' parameter honored", $ctrl->getDao()->getDataBase() === $db2);
+
+/* ********** DAO CACHE ********** */
+print(TµAnsi::bold("DAO cache\n"));
+// record the warnings
+$warnings = [];
+\Temma\Base\Log::addCallback(function($traceId, $text, $priority, $class) use (&$warnings) {
+	if ($priority == 'WARN')
+		$warnings[] = $text;
+});
+// no 'cache' data source
+$ctrl = new TestUser($loader);
+check("no 'cache' data source: DAO without cache", $ctrl->getDao()->getCache() === null);
+check("no 'cache' data source: no warning", !array_filter($warnings, fn($w) => str_contains($w, "'cache'")));
+\Temma\Base\Log::disable();
+// 'cache' data source (added to the loader by the framework)
+$cache = new class extends \Temma\Base\Datasource {};
+$loaderCache = new TµLoader([
+	'dataSources' => ['db' => $db, 'cache' => $cache],
+	'cache'       => $cache,
+	'response'    => new \Temma\Web\Response(),
+]);
+$ctrl = new TestUser($loaderCache);
+check("'cache' data source used by the DAO", $ctrl->getDao()->getCache() === $cache);
 
 /* ********** SQL IDENTIFIERS ESCAPING ********** */
 print(TµAnsi::bold("SQL identifiers escaping\n"));
