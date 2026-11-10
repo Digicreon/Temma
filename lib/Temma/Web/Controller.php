@@ -370,7 +370,9 @@ class Controller implements \ArrayAccess {
 	 * @param	array	$parameters	(optional) List of parameters given to the sub-controller.
 	 *					If not given, use the parameters received by the main controller.
 	 * @return	?int	The sub-controller's execution status (self::EXE_FORWARD, etc.). Could be null (==self::EXEC_FORWARD).
-	 * @throws	\Temma\Exceptions\Http	If the requested controller or action doesn't exist, or if the action is not callable.
+	 * @throws	\Temma\Exceptions\Http	If the requested controller or action doesn't exist, if the action is not callable,
+	 *					if the URL parameters don't match the action's signature (404), or if the
+	 *					controller raised an error (500, unless it threw an HTTP exception itself).
 	 * @throws	\Temma\Exceptions\Flow	If the requested controller or action throws a Flow exception.
 	 */
 	final public function _subProcess(string $controller, ?string $action=null, ?array $parameters=null) : ?int {
@@ -395,6 +397,9 @@ class Controller implements \ArrayAccess {
 		} catch (TµFlowException $fe) {
 			// flow control exception: let it bubble up to the framework
 			throw $fe;
+		} catch (TµHttpException $he) {
+			// HTTP exception thrown by the controller: keep its HTTP code
+			throw $he;
 		} catch (\Throwable $e) {
 			TµLog::log('Temma/Web', 'ERROR', "Unable to initialize the controller '$controller' [" . $e->getFile() . ':' . $e->getLine() . ']: ' . $e->getMessage());
 			throw new TµHttpException("Unable to initialize the controller '$controller'.", 500);
@@ -471,12 +476,19 @@ class Controller implements \ArrayAccess {
 		} catch (TµFlowException $fe) {
 			// flow control exception: let it bubble up to the framework
 			throw $fe;
-		} catch (\ArgumentCountError $ace) {
-			TµLog::log('Temma/Web', 'ERROR', "$controller::$method: " . $ace->getMessage());
-			throw new TµHttpException("$controller::$method: " . $ace->getMessage(), 404);
+		} catch (TµHttpException $he) {
+			// HTTP exception thrown by the action: keep its HTTP code
+			throw $he;
 		} catch (\Throwable $e) {
 			TµLog::log('Temma/Web', 'ERROR', "$controller::$method" . '[' . $e->getFile() . ':' . $e->getLine() . ']: ' . $e->getMessage());
-			throw new TµHttpException("Unable to execute method '$method' on controller '$controller'.", 404);
+			// the parameters given by the URL don't match the action's signature (missing parameter, bad type): the page doesn't exist
+			// (PHP raises these errors with a message like "... called in <file> on line <line>" or "... passed in <file> on line <line>")
+			$frame = $e->getTrace()[0] ?? [];
+			if ($e instanceof \TypeError && ($frame['file'] ?? null) === __FILE__ &&
+			    preg_match('/ in ' . preg_quote(__FILE__, '/') . ' on line ' . ($frame['line'] ?? 0) . '\b/', $e->getMessage()))
+				throw new TµHttpException("$controller::$method: " . $e->getMessage(), 404);
+			// any other error
+			throw new TµHttpException("Unable to execute method '$method' on controller '$controller'.", 500);
 		}
 		if ($status) // $status !== self::EXEC_FORWARD && $status !== self::EXEC_FORWARD_THROWABLE
 			return ($status);
@@ -488,6 +500,9 @@ class Controller implements \ArrayAccess {
 		} catch (TµFlowException $fe) {
 			// flow control exception: let it bubble up to the framework
 			throw $fe;
+		} catch (TµHttpException $he) {
+			// HTTP exception thrown by the controller: keep its HTTP code
+			throw $he;
 		} catch (\Throwable $e) {
 			TµLog::log('Temma/Web', 'ERROR', "Unable to finalize the controller '$controller' [" . $e->getFile() . ':' . $e->getLine() . ']: ' . $e->getMessage());
 			throw new TµHttpException("Unable to finalize the controller '$controller'.", 500);

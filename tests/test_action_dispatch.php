@@ -8,7 +8,9 @@
  * - framework helpers (_redirect(), _view(), _httpCode(), _subProcess()...), magic methods (__sleep()...),
  *   methods declared by the framework's base classes (offsetSet()...) and protected methods are not
  *   (they were reachable, allowing an open redirect through "/controller/_redirect/<url>");
- * - the root action, the default action (__call) and the proxy action (__proxy) keep working.
+ * - the root action, the default action (__call) and the proxy action (__proxy) keep working;
+ * - errors raised by an action give a 500 error, HTTP exceptions keep their code, and URL parameters
+ *   which don't match the action's signature give a 404 error.
  */
 
 require_once(__DIR__ . '/../lib/Temma/Base/Autoload.php');
@@ -51,6 +53,28 @@ $classes = [
 	// controller without root action nor default action
 	'Norooted' => <<<'EOT'
 		class Norooted extends \Temma\Web\Controller {
+			public function hello() { $this['trace'] = 'hello'; }
+		}
+		EOT,
+	// controller whose actions raise errors
+	'Failing' => <<<'EOT'
+		class Failing extends \Temma\Web\Controller {
+			public function show(int $id) { $this['trace'] = "show:$id"; }
+			public function database() {
+				throw new \Temma\Exceptions\Database('SQL error.', \Temma\Exceptions\Database::QUERY);
+			}
+			public function forbidden() {
+				throw new \Temma\Exceptions\Http('Forbidden.', 403);
+			}
+			public function internalType() { strlen([]); }
+			public function internalCount() { $this->helper(); }
+			public function helper(int $a) { }
+		}
+		EOT,
+	// controller whose init method throws an HTTP exception
+	'Guarded' => <<<'EOT'
+		class Guarded extends \Temma\Web\Controller {
+			public function __wakeup() { throw new \Temma\Exceptions\Http('Unauthorized.', 401); }
 			public function hello() { $this['trace'] = 'hello'; }
 		}
 		EOT,
@@ -122,6 +146,16 @@ check("protected method declared by the application", trace('/direct/internal') 
 check("action starting with an upper-case letter", trace('/direct/Hello') === 'http:404');
 check("unknown action without default action", trace('/direct/unknown') === 'http:404');
 check("root action without __invoke() nor __call()", trace('/norooted') === 'http:404');
+
+print("\n" . TµAnsi::bold("Errors raised by actions\n"));
+check("action with a typed parameter", trace('/failing/show/12') === 'show:12');
+check("parameter of the wrong type gives a 404", trace('/failing/show/abc') === 'http:404');
+check("missing parameter gives a 404", trace('/failing/show') === 'http:404');
+check("database exception gives a 500", trace('/failing/database') === 'http:500');
+check("HTTP exception keeps its code", trace('/failing/forbidden') === 'http:403');
+check("type error inside the action gives a 500", trace('/failing/internalType') === 'http:500');
+check("argument count error inside the action gives a 500", trace('/failing/internalCount') === 'http:500');
+check("HTTP exception thrown by __wakeup() keeps its code", trace('/guarded/hello') === 'http:401');
 
 print("\n" . TµAnsi::bold("Proxy action: the dispatch is up to the proxy\n"));
 check("underscore-prefixed name is given to the proxy", trace('/proxied/_anything') === 'proxy:_anything');
