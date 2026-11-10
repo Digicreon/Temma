@@ -18,6 +18,9 @@ use the dedicated skill mentioned for details.
   User-generated HTML must go through `\Temma\Utils\HTMLCleaner` (HTMLPurifier-based)
   before being stored or displayed raw.
 - Inline JavaScript receiving variables: use `{$var|escape:'javascript'}`.
+- `|ansi2html` escapes its input and is safe in printed tags. With Smarty 5 up to 5.8.5,
+  `|raw`, `|escape` and `|ansi2html` used in a non-printing tag (`{assign}`, `{if}`...)
+  disable the escaping of the next printed variable: avoid this pattern.
 - The PHP view (`~Php`) escapes NOTHING: every displayed variable needs
   `htmlspecialchars()`.
 

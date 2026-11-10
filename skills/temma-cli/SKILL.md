@@ -110,6 +110,9 @@ print(TµAnsi::title1("Big section title"));
   `progressStart()`/`progressGo()`/`progressEnd()` (progress bar, styled with
   `setProgressStyle()`).
 - `TµAnsi::strlen()` and `wordwrap()` compute on visible characters (ignoring ANSI codes).
+- To reuse a terminal output elsewhere: `\Temma\Utils\Text::ansiToHtml()` converts ANSI
+  styles, colors and hyperlinks into escaped HTML (`|ansi2html` in Smarty templates), and
+  `\Temma\Utils\Text::ansiToText()` removes all escape sequences (logs, plain text emails).
 
 ## Terminal interaction: `\Temma\Utils\Term`
 

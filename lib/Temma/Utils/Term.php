@@ -115,11 +115,11 @@ class Term {
 	}
 	/** Save cursor position, in order to restore it later (with restoreCursor() method). */
 	static public function saveCursor() : void {
-		print("\eb7");
+		print("\e7");
 	}
 	/** Restore cursor position (previously saved with the saveCursor() method). */
 	static public function restoreCursor() : void {
-		print("\eb8");
+		print("\e8");
 	}
 	/**
 	 * Returns cursor position.

@@ -137,7 +137,7 @@ class Smarty implements \Temma\Base\Loadable {
 		$pluginPathList = array_unique($pluginPathList);
 		foreach ($pluginPathList as $path) {
 			$path = rtrim($path, '/');
-			foreach (['function', 'modifier', 'block', 'compiler', 'prefilter', 'postfilter', 'outputfilter'] as $type) {
+			foreach (['function', 'modifier', 'modifiercompiler', 'block', 'compiler', 'prefilter', 'postfilter', 'outputfilter'] as $type) {
 				foreach (glob("$path/$type.?*.php") as $filename) {
 					if (!preg_match('/.*\.([a-z_A-Z0-9]+)\.php$/', $filename, $matches))
 						continue;

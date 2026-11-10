@@ -477,7 +477,7 @@ class Ansi {
 	 * @return	string	The formatted text.
 	 */
 	static public function italic(?string $text) : string {
-		return ($text ? "\e[3m;$text\e[23m" : '');
+		return ($text ? "\e[3m$text\e[23m" : '');
 	}
 	/**
 	 * Underlined text.

@@ -85,6 +85,9 @@ file_put_contents("$templatesPath/hello.tpl", 'Hello {$name}!');
 file_put_contents("$templatesPath/escape.tpl", '{$html}');
 file_put_contents("$templatesPath/trim.tpl", '[{$s|trim}]');
 file_put_contents("$templatesPath/nbsp.tpl", '{$s|nbsp}');
+file_put_contents("$templatesPath/ansi2html.tpl", '<pre>{$s|ansi2html}</pre>{$s}');
+file_put_contents("$templatesPath/ansi2html_nofilter.tpl", '<pre>{$s|ansi2html nofilter}</pre>');
+file_put_contents("$templatesPath/ansi2html_assign.tpl", '{assign var=y value=$s|ansi2html}{$s}');
 file_put_contents("$templatesPath/mail_html.tpl", '<p>{$name}</p>');
 file_put_contents("$templatesPath/mail_text.tpl", 'Name: {$name}');
 // cleanup at the end of execution
@@ -160,6 +163,26 @@ check("native PHP modifier (trim)",
 $utilPlugins = makeUtil(['smarty' => ['pluginsDir' => $temmaPluginsDir, 'autoEscape' => false]]);
 check("Temma plugin registered via pluginsDir (nbsp)",
       $utilPlugins->render('nbsp.tpl', ['s' => 'a :']) === 'a&nbsp;:');
+
+print(TµAnsi::bold("Utility object: ansi2html compiler modifier\n"));
+$ansi = "<b>\e[1mA\e[0m";
+$ansiHtml = '<pre>&lt;b&gt;<span style="font-weight:bold">A</span></pre>';
+$utilAnsiOn = makeUtil(['smarty' => ['pluginsDir' => $temmaPluginsDir]]);
+$utilAnsiOff = makeUtil(['smarty' => ['pluginsDir' => $temmaPluginsDir, 'autoEscape' => false]]);
+check("ansi2html without auto-escaping",
+      $utilAnsiOff->render('ansi2html.tpl', ['s' => $ansi]) === $ansiHtml . "<b>\e[1mA\e[0m");
+check("ansi2html with 'nofilter' and auto-escaping",
+      $utilAnsiOn->render('ansi2html_nofilter.tpl', ['s' => $ansi]) === $ansiHtml);
+if ($smartyVersion == 5) {
+	check("ansi2html with auto-escaping: not escaped twice, next variable still escaped",
+	      $utilAnsiOn->render('ansi2html.tpl', ['s' => $ansi]) === $ansiHtml . "&lt;b&gt;\e[1mA\e[0m");
+	// Smarty versions up to 5.8.5 leak the "safe output" marker of '|raw' out of non-printing tags
+	if ($utilAnsiOn->eval('{assign var=y value=$s|raw}{$s}', ['s' => '<b>']) === '<b>')
+		print("   (skipped: this Smarty version leaks the raw output marker of non-printing tags, even with '|raw')\n");
+	else
+		check("ansi2html in an assignment: next variable still escaped",
+		      $utilAnsiOn->render('ansi2html_assign.tpl', ['s' => $ansi]) === "&lt;b&gt;\e[1mA\e[0m");
+}
 
 print(TµAnsi::bold("Utility object: HTML escaping\n"));
 check("escaping enabled by default",
