@@ -21,7 +21,8 @@ if ($_SERVER['argc'] != 2 || $_SERVER['argv'][1] === '--help' || $_SERVER['argv'
 }
 
 // move the previously created files
-$filePath = "$appPath/etc/" . \Temma\Web\Config::PHP_CONFIG_FILE_NAME;
+// (the generated file must not be named 'temma.php', which is now a regular configuration file)
+$filePath = "$appPath/etc/temma-object.php";
 if (file_exists($filePath)) {
 	for ($i = 1; true; $i++) {
 		if (!file_exists("$filePath.$i"))
