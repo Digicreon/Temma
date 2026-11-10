@@ -66,6 +66,8 @@ class Session implements \ArrayAccess {
 	 * other = use the defined value as the cookie domain
 	 */
 	private null|false|string $_domain = null;
+	/** Tell if the cookie must be sent only on HTTPS connections (even if the current connection is not secured). */
+	private bool $_secure = false;
 	/** Associative array of session data. */
 	private ?array $_data = null;
 	/** Session identifier. */
@@ -79,41 +81,61 @@ class Session implements \ArrayAccess {
 	 * @param	\Temma\Base\Datasource	$cache		(optional) Cache management object.
 	 * @param	string			$cookieName	(optional) Name of the session cookie. "TEMMA_SESSION" by default.
 	 * @param	int			$duration	(optional) Session duration. One year by default.
+	 *							Only used when sessions are stored in a data source. Native PHP sessions
+	 *							use PHP's configuration.
 	 * @param	null|false|string	$domain		(optional) Cookie domain name. null by default.
 	 *							- null  = domain is not set, use the level 1 domain name of the current host
 	 *							- false = domain show not be defined, so the navigator will use the strict host
 	 *							- other = use the defined value as the cookie domain
+	 * @param	bool			$secure		(optional) True to send the cookie only on HTTPS connections. False by default
+	 *							(the cookie is secured anyway if the current connection uses HTTPS).
 	 * @return	\Temma\Base\Session	The created instance.
 	 */
 	static public function factory(?\Temma\Base\Datasource $cache=null, string $cookieName='TEMMA_SESSION',
-	                               int $duration=31536000, null|false|string $domain=null) : \Temma\Base\Session {
-		return (new \Temma\Base\Session($cache, $cookieName, $duration, $domain));
+	                               int $duration=31536000, null|false|string $domain=null,
+	                               bool $secure=false) : \Temma\Base\Session {
+		return (new \Temma\Base\Session($cache, $cookieName, $duration, $domain, $secure));
 	}
 	/**
 	 * Constructor.
 	 * @param	\Temma\Base\Datasource	$cache		(optional) Cache management object.
 	 * @param	?string			$cookieName	(optional) Name of the session cookie. "TEMMA_SESSION" by default.
 	 * @param	?int			$duration	(optional) Session duration. One year by default.
+	 *							Only used when sessions are stored in a data source. Native PHP sessions
+	 *							use PHP's configuration.
 	 * @param	null|false|string	$domain		(optional) Cookie domain name. null by default.
 	 *							- null  = domain is not set, use the level 1 domain name of the current host
 	 *							- false = domain show not be defined, so the navigator will use the strict host
 	 *							- other = use the defined value as the cookie domain
+	 * @param	bool			$secure		(optional) True to send the cookie only on HTTPS connections. False by default
+	 *							(the cookie is secured anyway if the current connection uses HTTPS).
 	 */
 	private function __construct(?\Temma\Base\Datasource $cache=null, ?string $cookieName=null,
-	                             ?int $duration=null, null|false|string $domain=null) {
+	                             ?int $duration=null, null|false|string $domain=null, bool $secure=false) {
 		TµLog::log('Temma/Base', 'DEBUG', "Session object creation.");
 		$this->_domain = $domain;
+		$this->_secure = $secure;
 		// fetch the cache
 		if (isset($cache) && $cache->isEnabled())
 			$this->_cache = clone $cache;
 		// if the cache is not active, use the standard PHP session engine
 		if (!isset($this->_cache) && session_status() == PHP_SESSION_NONE) {
+			// name of the session cookie
+			if ($cookieName) {
+				if (is_numeric($cookieName) || strpbrk($cookieName, "=,;.[ \t\r\n\013\014") !== false)
+					TµLog::log('Temma/Base', 'WARN', "Invalid session name '$cookieName'. PHP's default session name is used.");
+				else
+					session_name($cookieName);
+			}
+			// cookie parameters (the session duration is the one defined by PHP's configuration, because it is
+			// also used by the garbage collector, which is shared with the other applications)
 			$params = session_get_cookie_params();
+			$host = $this->_getCookieDomain();
 			session_set_cookie_params([
 				'lifetime' => $params['lifetime'],
 				'path'     => $params['path'],
-				'domain'   => $params['domain'],
-				'secure'   => (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off') ? true : false,
+				'domain'   => ($host === false) ? '' : $host,
+				'secure'   => $this->_isSecure(),
 				'httponly' => true,
 				'samesite' => 'Lax',
 			]);
@@ -156,16 +178,8 @@ class Session implements \ArrayAccess {
 		if ($this->_cookieSent)
 			return;
 		$timestamp = time() + $this->_duration;
-		$expiration = date('Y-m-d H-i-s', $timestamp);
 		// set cookie's domain
-		if ($this->_domain === false)
-			$host = false;
-		else if ($this->_domain)
-			$host = $this->_domain;
-		else if (preg_match("/([^.]+\.[^.:]+)(:\d*)?$/", $_SERVER['HTTP_HOST'], $matches))
-			$host = $matches[1];
-		else
-			$host = $_SERVER['HTTP_HOST'];
+		$host = $this->_getCookieDomain();
 		// store the session ID in cookie
 		$oldSessionId = $_COOKIE[$this->_cookieName] ?? null;
 		if (!isset($_COOKIE[$this->_cookieName]) || empty($_COOKIE[$this->_cookieName]) || $this->_sessionId != $oldSessionId && !headers_sent()) {
@@ -173,7 +187,7 @@ class Session implements \ArrayAccess {
 			$options = [
 				'expires'	=> $timestamp,
 				'path'		=> '/',
-				'secure'	=> (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off') ? true : false,
+				'secure'	=> $this->_isSecure(),
 				'httponly'	=> true,
 				'samesite'	=> 'Lax'
 			];
@@ -410,6 +424,33 @@ class Session implements \ArrayAccess {
 		if (!isset($this->_data))
 			return (null);
 		return ($this->_data); 
+	}
+
+	/* ********** PRIVATE METHODS ********** */
+	/**
+	 * Compute the domain of the session cookie.
+	 * @return	false|string	The cookie domain, or false if the cookie must be restricted to the current host.
+	 */
+	private function _getCookieDomain() : false|string {
+		if ($this->_domain === false)
+			return (false);
+		if ($this->_domain)
+			return ($this->_domain);
+		// no defined domain: use the level 1 domain name of the current host (without port number)
+		$host = preg_replace('/:\d*$/', '', ($_SERVER['HTTP_HOST'] ?? ''));
+		// IP addresses and hosts without dot (like "localhost") can't be extended: the cookie is restricted to the host
+		if (!str_contains($host, '.') || filter_var(trim($host, '[]'), FILTER_VALIDATE_IP) !== false)
+			return (false);
+		if (preg_match('/([^.]+\.[^.]+)$/', $host, $matches))
+			return ($matches[1]);
+		return (false);
+	}
+	/**
+	 * Tell if the session cookie must be sent only on HTTPS connections.
+	 * @return	bool	True if the cookie is secured by configuration or if the current connection uses HTTPS.
+	 */
+	private function _isSecure() : bool {
+		return ($this->_secure || (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off'));
 	}
 }
 
