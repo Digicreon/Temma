@@ -174,16 +174,17 @@ class DataFilter {
 					if (is_array($target) || (is_string($target) && !class_exists($target))) {
 						if (is_string($target))
 							$targetArray = self::_parseContractString($target);
-
+						// definition without type: associative array (its content is the list of keys)
+						if (!array_key_exists('type', $targetArray)) {
+							$targetArray = [
+								'type' => 'assoc',
+								'keys' => $targetArray,
+							];
+						}
 						// merge usage params into contract definition
 						// usage params should override definition, except for 'type' which must remain the definition's type
 						$mergedContract = array_merge($targetArray, $params);
-						// force the type to be the aliased type
-						if (isset($targetArray['type']))
-							$mergedContract['type'] = $targetArray['type'];
-						else if (isset($mergedContract['type']) && $mergedContract['type'] === $type)
-							unset($mergedContract['type']); // Remove self-referencing type if not redefined in target
-
+						$mergedContract['type'] = $targetArray['type'];
 						return (self::process($in, $mergedContract, $strict, true, $output));
 					}
 				}
@@ -399,7 +400,7 @@ class DataFilter {
 					return ([]);
 				$targetArray = is_string($target) ? self::_parseContractString($target) : $target;
 				// alias without type: associative array
-				if (!isset($targetArray['type']) || empty($targetArray['type']))
+				if (!array_key_exists('type', $targetArray))
 					$targetArray = ['type' => 'assoc', 'keys' => $targetArray];
 				// usage parameters override the definition, except the type
 				$mergedContract = array_merge($targetArray, $contract);

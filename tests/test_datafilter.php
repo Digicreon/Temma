@@ -14,6 +14,7 @@ use \Temma\Exceptions\Application as TµApplicationException;
 
 // initialization
 \Temma\Base\Autoload::autoload(__DIR__ . '/../lib');
+date_default_timezone_set('UTC'); // expected date/time outputs are in UTC
 $loader = new \Temma\Base\Loader();
 TµDataFilter::setLoader($loader);
 
@@ -22,6 +23,10 @@ $gif = base64_decode('R0lGODdhAQABAIAAAAAAAAAAACwAAAAAAQABAAACAkQBADs=');
 
 // contract registration
 TµDataFilter::registerAlias('user', 'assoc; keys: id, login, name');
+TµDataFilter::registerAlias([
+	'point'    => ['x' => 'int', 'y' => 'int'],
+	'anything' => ['type' => null],
+]);
 class DbMock {
 	public function getCategory(int $id) : array {
 		return [
@@ -2276,6 +2281,41 @@ $tests = [
 		'user', ['id' => 3, 'login' => 'toto', 'name' => 'Mister Toto', 'age' => 33],
 		'strict' => true,
 		'expect' => 'app',
+	],
+	'alias without type',
+	[
+		'point', ['x' => '1', 'y' => 2],
+		'strict' => false,
+		'expect' => true,
+		'res' => ['x' => 1, 'y' => 2],
+	],
+	[
+		'point', ['x' => 1, 'y' => 2],
+		'strict' => true,
+		'expect' => true,
+		'res' => ['x' => 1, 'y' => 2],
+	],
+	[
+		'?point', null,
+		'strict' => true,
+		'expect' => true,
+		'res' => null,
+	],
+	[
+		'point', ['x' => 1],
+		'strict' => false,
+		'expect' => 'app',
+	],
+	[
+		'point', ['x' => 1, 'y' => 2, 'z' => 3],
+		'strict' => true,
+		'expect' => 'app',
+	],
+	[
+		'anything', ['abc' => 3],
+		'strict' => true,
+		'expect' => true,
+		'res' => ['abc' => 3],
 	],
 	'category',
 	[

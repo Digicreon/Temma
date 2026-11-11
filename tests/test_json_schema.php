@@ -16,7 +16,9 @@ use \Temma\Exceptions\IO as TµIOException;
 TµDataFilter::registerAlias('user', 'assoc; keys: id, login; description: A user');
 TµDataFilter::registerAlias('flag', 'bool; default: false');
 TµDataFilter::registerAlias([
-	'node' => [
+	'point'    => ['x' => 'int', 'y' => 'int'],
+	'anything' => ['type' => null],
+	'node'     => [
 		'type' => 'assoc',
 		'keys' => [
 			'name'      => 'string',
@@ -148,6 +150,11 @@ $tests = [
 	],
 	['assoc', 'io'],
 	'aliases',
+	[
+		'point',
+		['type' => 'object', 'properties' => ['x' => ['type' => 'integer'], 'y' => ['type' => 'integer']], 'required' => ['x', 'y'], 'additionalProperties' => false],
+	],
+	['anything', []],
 	[
 		'?user',
 		['description' => 'A user', 'type' => ['object', 'null'], 'properties' => ['id' => new \stdClass(), 'login' => new \stdClass()], 'required' => ['id', 'login'], 'additionalProperties' => false],
