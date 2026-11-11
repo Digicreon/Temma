@@ -14,7 +14,7 @@ Documentation pages: `https://www.temma.net/en/documentation/datasource-<name>`.
 
 | Connector | DSN | Notes |
 |---|---|---|
-| File | `file:///path/to/dir`, `file://0007/path/to/dir` (umask) | keys are relative file paths; doc: `datasource-file` |
+| File | `file:///path/to/dir`, `file://0007/path/to/dir` (umask) | keys are relative file paths; recursive search like on S3 (`*` also matches `/`, only files are returned); doc: `datasource-file` |
 | S3 | `s3://ACCESS_KEY:SECRET_KEY@REGION/BUCKET[:private]` | `$options` for ACL/mimetype; doc: `datasource-s3` |
 
 ## Queues and sockets
