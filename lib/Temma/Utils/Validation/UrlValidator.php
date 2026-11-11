@@ -16,7 +16,7 @@ use \Temma\Exceptions\IO as TµIOException;
 /**
  * Validator for URLs.
  */
-class UrlValidator implements Validator {
+class UrlValidator implements Validator, JsonSchemaExportable {
 	/**
 	 * Validate data.
 	 * @param	mixed	$data		Data to validate.
@@ -76,6 +76,32 @@ class UrlValidator implements Validator {
 		}
 		$output = $urlData;
 		return ($data);
+	}
+	/**
+	 * Convert a contract to JSON Schema.
+	 * @param	array	$contract	Contract parameters.
+	 * @return	array	The JSON Schema.
+	 */
+	public function toJsonSchema(array $contract) : array {
+		$schema = [
+			'type'   => 'string',
+			'format' => 'uri',
+		];
+		$minLen = TµText::parseSize($contract['minLen'] ?? null);
+		$maxLen = TµText::parseSize($contract['maxLen'] ?? null);
+		if (isset($minLen))
+			$schema['minLength'] = $minLen;
+		if (isset($maxLen))
+			$schema['maxLength'] = $maxLen;
+		if (!empty($contract['mask'])) {
+			$schema['pattern'] = $contract['mask'];
+		} else if (!empty($contract['scheme']) && is_string($contract['scheme'])) {
+			// pattern built from the list of accepted schemes
+			$schemes = array_map('trim', explode(',', $contract['scheme']));
+			$schemes = array_map(fn($s) => preg_replace('/[.+]/', '\\\\$0', $s), $schemes);
+			$schema['pattern'] = '^(?:' . implode('|', $schemes) . '):';
+		}
+		return ($schema);
 	}
 	/**
 	 * Manage default value.

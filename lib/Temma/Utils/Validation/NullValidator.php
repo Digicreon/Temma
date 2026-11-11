@@ -15,7 +15,7 @@ use \Temma\Exceptions\Application as TµApplicationException;
 /**
  * Validator for null values.
  */
-class NullValidator implements Validator {
+class NullValidator implements Validator, JsonSchemaExportable {
 	/**
 	 * Validate data.
 	 * @param	mixed	$data		Data to validate.
@@ -39,6 +39,14 @@ class NullValidator implements Validator {
 			throw new TµIOException("Bad contract 'default' value.", TµIOException::BAD_FORMAT);
 		}
 		throw new TµApplicationException("Data is not null.", TµApplicationException::API);
+	}
+	/**
+	 * Convert a contract to JSON Schema.
+	 * @param	array	$contract	Contract parameters.
+	 * @return	array	The JSON Schema.
+	 */
+	public function toJsonSchema(array $contract) : array {
+		return (['type' => 'null']);
 	}
 }
 

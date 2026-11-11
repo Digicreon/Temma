@@ -16,7 +16,7 @@ use \Temma\Exceptions\Application as TµApplicationException;
 /**
  * Validator for binary data.
  */
-class BinaryValidator implements Validator {
+class BinaryValidator implements Validator, JsonSchemaExportable {
 	/**
 	 * Validate data.
 	 * @param	mixed	$data		Data to validate.
@@ -122,6 +122,21 @@ class BinaryValidator implements Validator {
 			'charset' => $detectedCharset,
 		];
 		return ($data);
+	}
+	/**
+	 * Convert a contract to JSON Schema.
+	 * @param	array	$contract	Contract parameters.
+	 * @return	array	The JSON Schema.
+	 */
+	public function toJsonSchema(array $contract) : array {
+		$schema = ['type' => 'string'];
+		// MIME type (only if there is one complete type)
+		$mime = $contract['mime'] ?? null;
+		if (is_string($mime))
+			$mime = array_map('trim', explode(',', $mime));
+		if (is_array($mime) && count($mime) == 1 && str_contains(current($mime), '/'))
+			$schema['contentMediaType'] = current($mime);
+		return ($schema);
 	}
 	/**
 	 * Manage default value.

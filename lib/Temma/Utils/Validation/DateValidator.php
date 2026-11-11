@@ -28,4 +28,13 @@ class DateValidator extends DateTimeValidator {
 		$contract['outFormat'] = $contract['outFormat'] ?? $contract['format'] ?? 'Y-m-d';
 		return parent::validate($data, $contract, $output);
 	}
+	/**
+	 * Convert a contract to JSON Schema.
+	 * @param	array	$contract	Contract parameters.
+	 * @return	array	The JSON Schema.
+	 */
+	public function toJsonSchema(array $contract) : array {
+		$contract['inFormat'] = $contract['inFormat'] ?? $contract['format'] ?? 'Y-m-d';
+		return parent::toJsonSchema($contract);
+	}
 }

@@ -16,7 +16,7 @@ use \Temma\Exceptions\Application as TµApplicationException;
 /**
  * Validator for hashes.
  */
-class HashValidator implements Validator {
+class HashValidator implements Validator, JsonSchemaExportable {
 	/**
 	 * Validate data.
 	 * @param	mixed	$data		Data to validate.
@@ -65,6 +65,35 @@ class HashValidator implements Validator {
 			}
 		}
 		return $this->_processDefault($contract, "Data doesn't respect any given contract.", $output);
+	}
+	/**
+	 * Convert a contract to JSON Schema.
+	 * @param	array	$contract	Contract parameters.
+	 * @return	array	The JSON Schema.
+	 * @throws	\Temma\Exceptions\IO	If the contract is invalid.
+	 */
+	public function toJsonSchema(array $contract) : array {
+		$algorithms = $contract['algo'] ?? null;
+		if (!$algorithms)
+			throw new TµIOException("Empty hash algorithm.", TµIOException::BAD_FORMAT);
+		if (is_string($algorithms))
+			$algorithms = array_map('trim', explode(',', $algorithms));
+		else if (!is_array($algorithms))
+			throw new TµIOException("Bad contract 'algo' parameter.", TµIOException::BAD_FORMAT);
+		// get the length of each algorithm's hashes
+		$masks = [];
+		foreach ($algorithms as $algo) {
+			try {
+				$length = mb_strlen(\hash($algo, 'a'), 'ascii');
+			} catch (\ValueError $ve) {
+				throw new TµIOException("Unknown hash algorithm '$algo'.", TµIOException::BAD_FORMAT);
+			}
+			$masks[$length] = "[0-9a-fA-F]{{$length}}";
+		}
+		return ([
+			'type'    => 'string',
+			'pattern' => ((count($masks) == 1) ? ('^' . current($masks) . '$') : ('^(?:' . implode('|', $masks) . ')$')),
+		]);
 	}
 	/**
 	 * Manage default value.

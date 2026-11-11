@@ -15,7 +15,7 @@ use \Temma\Exceptions\Application as TµApplicationException;
 /**
  * Validator for date/time values.
  */
-class DateTimeValidator implements Validator {
+class DateTimeValidator implements Validator, JsonSchemaExportable {
 	/**
 	 * Validate data.
 	 * @param	mixed	$data		Data to validate.
@@ -79,6 +79,25 @@ class DateTimeValidator implements Validator {
 			'micro'     => (int)$d->format('u'),
 		];
 		return ($d->format($outFormat));
+	}
+	/**
+	 * Convert a contract to JSON Schema.
+	 * @param	array	$contract	Contract parameters.
+	 * @return	array	The JSON Schema.
+	 */
+	public function toJsonSchema(array $contract) : array {
+		$format = $contract['inFormat'] ?? $contract['format'] ?? 'Y-m-d H:i:s';
+		$schema = ['type' => 'string'];
+		// standard formats (RFC 3339)
+		if (in_array($format, ['Y-m-d\TH:i:sP', 'Y-m-d\TH:i:sp', 'Y-m-d\TH:i:s.vP', 'Y-m-d\TH:i:s.vp', 'Y-m-d\TH:i:s.uP', 'Y-m-d\TH:i:s.up']))
+			$schema['format'] = 'date-time';
+		else if ($format == 'Y-m-d')
+			$schema['format'] = 'date';
+		else if (in_array($format, ['H:i:sP', 'H:i:sp']))
+			$schema['format'] = 'time';
+		else // other formats: an example gives the expected format
+			$schema['examples'] = [(new \DateTimeImmutable('2026-01-31 14:30:00'))->format($format)];
+		return ($schema);
 	}
 	/**
 	 * Manage default value.

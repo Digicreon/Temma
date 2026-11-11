@@ -16,7 +16,7 @@ use \Temma\Exceptions\IO as TµIOException;
 /**
  * Validator for slugs.
  */
-class SlugValidator implements Validator {
+class SlugValidator implements Validator, JsonSchemaExportable {
 	/**
 	 * Validate data.
 	 * @param	mixed	$data		Data to validate.
@@ -56,6 +56,24 @@ class SlugValidator implements Validator {
 			return $this->_processDefault($contract, "Data is not a valid slug.", $output);
 		$output = $slug;
 		return ($data);
+	}
+	/**
+	 * Convert a contract to JSON Schema.
+	 * @param	array	$contract	Contract parameters.
+	 * @return	array	The JSON Schema.
+	 */
+	public function toJsonSchema(array $contract) : array {
+		$schema = [
+			'type'    => 'string',
+			'pattern' => '^[a-z0-9-]+$',
+		];
+		$minLen = TµText::parseSize($contract['minLen'] ?? null);
+		$maxLen = TµText::parseSize($contract['maxLen'] ?? null);
+		if (isset($minLen))
+			$schema['minLength'] = $minLen;
+		if (isset($maxLen))
+			$schema['maxLength'] = $maxLen;
+		return ($schema);
 	}
 	/**
 	 * Manage default value.

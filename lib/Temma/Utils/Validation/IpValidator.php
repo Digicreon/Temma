@@ -14,7 +14,7 @@ use \Temma\Exceptions\Application as TµApplicationException;
 /**
  * Validator for IP addresses (v4 and v6).
  */
-class IpValidator implements Validator {
+class IpValidator implements Validator, JsonSchemaExportable {
 	/**
 	 * Validate data.
 	 * @param	mixed	$data		Data to validate.
@@ -48,6 +48,27 @@ class IpValidator implements Validator {
 		else if ($type === 'ipv6')
 			$msg = "Data is not a valid IPv6 address.";
 		throw new TµApplicationException($msg, TµApplicationException::API);
+	}
+	/**
+	 * Convert a contract to JSON Schema.
+	 * @param	array	$contract	Contract parameters.
+	 * @return	array	The JSON Schema.
+	 */
+	public function toJsonSchema(array $contract) : array {
+		$type = $contract['currentType'] ?? 'ip';
+		if ($type === 'ipv4' || $type === 'ipv6') {
+			return ([
+				'type'   => 'string',
+				'format' => $type,
+			]);
+		}
+		return ([
+			'type'  => 'string',
+			'anyOf' => [
+				['format' => 'ipv4'],
+				['format' => 'ipv6'],
+			],
+		]);
 	}
 }
 

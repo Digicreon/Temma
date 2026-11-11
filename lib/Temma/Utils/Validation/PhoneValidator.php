@@ -14,7 +14,7 @@ use \Temma\Exceptions\Application as TµApplicationException;
 /**
  * Validator for phone numbers.
  */
-class PhoneValidator implements Validator {
+class PhoneValidator implements Validator, JsonSchemaExportable {
 	/**
 	 * Validate data.
 	 * @param	mixed	$data		Data to validate.
@@ -38,6 +38,17 @@ class PhoneValidator implements Validator {
 		if ($strict)
 			return ($clean);
 		return ($data);
+	}
+	/**
+	 * Convert a contract to JSON Schema.
+	 * @param	array	$contract	Contract parameters.
+	 * @return	array	The JSON Schema.
+	 */
+	public function toJsonSchema(array $contract) : array {
+		return ([
+			'type'    => 'string',
+			'pattern' => '^\+?[0-9 .()-]+$',
+		]);
 	}
 	/**
 	 * Manage default value.

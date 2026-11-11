@@ -17,6 +17,8 @@ use \Temma\Exceptions\Application as TµApplicationException;
  * This class acts as an orchestrator for specific Validator classes.
  */
 class DataFilter {
+	/** JSON Schema dialect used by the toJsonSchema() method (the one used by MCP). */
+	const JSON_SCHEMA_DIALECT = 'https://json-schema.org/draft/2020-12/schema';
 	/** Loader instance. */
 	static protected ?\Temma\Base\Loader $_loader = null;
 	/** Cache of validator instances. */
@@ -57,9 +59,11 @@ class DataFilter {
 		'hash'     => \Temma\Utils\Validation\HashValidator::class,
 		'md5'      => ['type' => \Temma\Utils\Validation\HashValidator::class, 'algo' => 'md5'],
 		'sha1'     => ['type' => \Temma\Utils\Validation\HashValidator::class, 'algo' => 'sha1'],
-		'sha256'   => ['type' => \Temma\Utils\Validation\HashValidator::class, 'algo' => 'shai256'],
+		'sha256'   => ['type' => \Temma\Utils\Validation\HashValidator::class, 'algo' => 'sha256'],
 		'sha512'   => ['type' => \Temma\Utils\Validation\HashValidator::class, 'algo' => 'sha512'],
 	];
+	/** Stack of contract aliases being converted to JSON Schema (used to detect recursive aliases). */
+	static protected array $_jsonSchemaAliases = [];
 
 	/**
 	 * Set the loader instance.
@@ -200,6 +204,31 @@ class DataFilter {
 		throw new TµApplicationException("Data doesn't validate the contract.", TµApplicationException::API);
 	}
 	/**
+	 * Convert a contract to a JSON Schema (draft 2020-12, as used by MCP).
+	 * The generated schema describes the data expected by the contract (as in strict mode).
+	 * It is less precise than the validation done by Temma (no data conversion, no checksum
+	 * verification, etc.), its purpose is to give information about the expected data.
+	 * Custom validators which don't implement the JsonSchemaExportable interface accept any value.
+	 * @param	null|string|array	$contract	The contract. If set to null, any value is accepted.
+	 * @return	array	The JSON Schema, as an associative array (to be encoded using json_encode()).
+	 * @throws	\Temma\Exceptions\IO	If the contract is not well formed (BAD_FORMAT).
+	 */
+	static public function toJsonSchema(null|string|array $contract) : array {
+		return (['$schema' => self::JSON_SCHEMA_DIALECT] + self::_buildJsonSchema($contract));
+	}
+	/**
+	 * Convert a contract to a JSON sub-schema, without the '$schema' keyword.
+	 * Used for nested contracts. An empty schema (any value accepted) is returned as an empty
+	 * object, to be encoded as '{}' by json_encode().
+	 * @param	null|string|array	$contract	The contract.
+	 * @return	array|\stdClass	The JSON Schema, as an associative array or an empty object.
+	 * @throws	\Temma\Exceptions\IO	If the contract is not well formed (BAD_FORMAT).
+	 */
+	static public function toJsonSubSchema(null|string|array $contract) : array|\stdClass {
+		$schema = self::_buildJsonSchema($contract);
+		return ($schema ?: new \stdClass());
+	}
+	/**
 	 * Get a validator instance.
 	 * @param	string	$type	The validator type (alias or class name).
 	 * @return	\Temma\Utils\Validation\Validator	The validator instance.
@@ -292,12 +321,214 @@ class DataFilter {
 					$escaped = true;
 					continue;
 				}
+				// unknown escape sequence: kept as is (useful for regular expressions)
+				if ($escaped) {
+					$value .= '\\';
+					$escaped = false;
+				}
 				$value .= $char;
 			}
 		}
 		if ($labelFound)
 			$res[$label] = trim($value);
 		return ($res);
+	}
+	/**
+	 * Build the JSON Schema of a contract.
+	 * @param	null|string|array	$contract	The contract.
+	 * @return	array	The JSON Schema (empty array if any value is accepted).
+	 * @throws	\Temma\Exceptions\IO	If the contract is not well formed (BAD_FORMAT).
+	 */
+	static private function _buildJsonSchema(null|string|array $contract) : array {
+		// manage pass-thru
+		if ($contract === null || $contract === '')
+			return ([]);
+		if (is_string($contract))
+			$contract = self::_parseContractString($contract);
+		if (array_key_exists('type', $contract) &&
+		    ($contract['type'] === null || $contract['type'] === ''))
+			return (self::_addJsonSchemaAnnotations([], $contract));
+		// assume "assoc" contract if no type is defined
+		if (!isset($contract['type']) || empty($contract['type'])) {
+			$contract = [
+				'type' => 'assoc',
+				'keys' => $contract,
+			];
+		}
+		// get the list of types
+		if (is_string($contract['type'])) {
+			$typeString = $contract['type'];
+			// remove forced (un)strictness
+			if (str_starts_with($typeString, '~') || str_starts_with($typeString, '='))
+				$typeString = mb_substr($typeString, 1);
+			// search for nullable type
+			$nullable = false;
+			if (str_starts_with($typeString, '?')) {
+				$nullable = true;
+				$typeString = mb_substr($typeString, 1);
+			}
+			$types = array_map('trim', explode('|', $typeString));
+			if ($nullable && !in_array('null', array_map('mb_strtolower', $types)))
+				array_unshift($types, 'null');
+		} else {
+			$types = (array)$contract['type'];
+		}
+		// conversion of each type
+		$schemas = [];
+		foreach ($types as $type)
+			$schemas[] = self::_typeToJsonSchema($type, $contract);
+		$schema = self::_combineJsonSchemas($schemas);
+		return (self::_addJsonSchemaAnnotations($schema, $contract));
+	}
+	/**
+	 * Convert one type of a contract to JSON Schema.
+	 * @param	string	$type		The type (alias or class name).
+	 * @param	array	$contract	The contract parameters.
+	 * @return	array	The JSON Schema (empty array if any value is accepted).
+	 * @throws	\Temma\Exceptions\IO	If the contract is not well formed (BAD_FORMAT).
+	 */
+	static private function _typeToJsonSchema(string $type, array $contract) : array {
+		if (mb_strtolower($type) == 'null')
+			$type = 'null';
+		// check for contract alias
+		if (isset(self::$_aliases[$type])) {
+			$target = self::$_aliases[$type];
+			if (is_array($target) || (is_string($target) && !class_exists($target))) {
+				// recursive alias: any value is accepted
+				if (in_array($type, self::$_jsonSchemaAliases))
+					return ([]);
+				$targetArray = is_string($target) ? self::_parseContractString($target) : $target;
+				// alias without type: associative array
+				if (!isset($targetArray['type']) || empty($targetArray['type']))
+					$targetArray = ['type' => 'assoc', 'keys' => $targetArray];
+				// usage parameters override the definition, except the type
+				$mergedContract = array_merge($targetArray, $contract);
+				$mergedContract['type'] = $targetArray['type'];
+				self::$_jsonSchemaAliases[] = $type;
+				try {
+					return (self::_buildJsonSchema($mergedContract));
+				} finally {
+					array_pop(self::$_jsonSchemaAliases);
+				}
+			}
+		}
+		// get validator
+		$validator = self::_getValidatorInstance($type);
+		if (!($validator instanceof \Temma\Utils\Validation\JsonSchemaExportable))
+			return ([]);
+		$contract['currentType'] = $type;
+		return ($validator->toJsonSchema($contract));
+	}
+	/**
+	 * Combine the JSON Schemas of the multiple types of a contract.
+	 * @param	array	$schemas	List of JSON Schemas.
+	 * @return	array	The combined JSON Schema.
+	 */
+	static private function _combineJsonSchemas(array $schemas) : array {
+		// separate the null type from the other types
+		$hasNull = false;
+		$others = [];
+		foreach ($schemas as $schema) {
+			// a type accepts any value
+			if (!$schema)
+				return ([]);
+			if ($schema === ['type' => 'null'])
+				$hasNull = true;
+			else
+				$others[] = $schema;
+		}
+		if (!$others)
+			return (['type' => 'null']);
+		// merge the non-null types
+		if (count($others) == 1)
+			$res = $others[0];
+		else
+			$res = self::_mergeJsonSchemas($others) ?? ['anyOf' => $others];
+		if (!$hasNull)
+			return ($res);
+		// manage null type
+		if (!isset($res['type'])) {
+			if (array_keys($res) == ['anyOf']) {
+				$res['anyOf'][] = ['type' => 'null'];
+				return ($res);
+			}
+			return (['anyOf' => [$res, ['type' => 'null']]]);
+		}
+		$res['type'] = array_values(array_unique(array_merge((array)$res['type'], ['null'])));
+		if (array_key_exists('const', $res)) {
+			$res['enum'] = [$res['const']];
+			unset($res['const']);
+		}
+		if (isset($res['enum']) && !in_array(null, $res['enum'], true))
+			$res['enum'][] = null;
+		return ($res);
+	}
+	/**
+	 * Merge JSON Schemas of different types into one schema, if possible
+	 * (most JSON Schema keywords apply to only one type).
+	 * @param	array	$schemas	List of JSON Schemas.
+	 * @return	?array	The merged schema, or null if the schemas can't be merged.
+	 */
+	static private function _mergeJsonSchemas(array $schemas) : ?array {
+		$res = [];
+		$types = [];
+		foreach ($schemas as $schema) {
+			if (!isset($schema['type']) || array_key_exists('const', $schema) ||
+			    isset($schema['enum']) || isset($schema['anyOf']))
+				return (null);
+			$types = array_merge($types, (array)$schema['type']);
+			unset($schema['type']);
+			foreach ($schema as $key => $value) {
+				// loose comparison (an integer and a float with the same value are equal)
+				if (array_key_exists($key, $res) && $res[$key] != $value)
+					return (null);
+				$res[$key] = $value;
+			}
+		}
+		$types = array_values(array_unique($types));
+		$res = ['type' => ((count($types) == 1) ? $types[0] : $types)] + $res;
+		return ($res);
+	}
+	/**
+	 * Add annotations (title, description, default value, examples) to a JSON Schema.
+	 * @param	array	$schema		The JSON Schema.
+	 * @param	array	$contract	The contract.
+	 * @return	array	The annotated JSON Schema.
+	 */
+	static private function _addJsonSchemaAnnotations(array $schema, array $contract) : array {
+		$head = [];
+		if (isset($contract['title']) && is_string($contract['title']))
+			$head['title'] = $contract['title'];
+		if (isset($contract['description']) && is_string($contract['description']))
+			$head['description'] = $contract['description'];
+		$schema = $head + $schema;
+		if (isset($contract['default']))
+			$schema['default'] = self::_typeJsonSchemaDefault($contract['default'], $schema);
+		if (isset($contract['examples'])) {
+			$examples = is_array($contract['examples']) ? array_values($contract['examples']) : [$contract['examples']];
+			$schema['examples'] = array_map(fn($example) => self::_typeJsonSchemaDefault($example, $schema), $examples);
+		}
+		return ($schema);
+	}
+	/**
+	 * Give the right JSON type to a default value or an example (they are strings in string contracts).
+	 * @param	mixed	$default	The default value.
+	 * @param	array	$schema		The JSON Schema.
+	 * @return	mixed	The typed default value.
+	 */
+	static private function _typeJsonSchemaDefault(mixed $default, array $schema) : mixed {
+		if (!is_string($default))
+			return ($default);
+		$types = (array)($schema['type'] ?? []);
+		if (in_array('null', $types) && $default === 'null')
+			return (null);
+		if (in_array('boolean', $types) && ($default === 'true' || $default === 'false'))
+			return ($default === 'true');
+		if (in_array('integer', $types) && filter_var($default, FILTER_VALIDATE_INT) !== false)
+			return ((int)$default);
+		if (in_array('number', $types) && is_numeric($default))
+			return ((float)$default);
+		return ($default);
 	}
 }
 

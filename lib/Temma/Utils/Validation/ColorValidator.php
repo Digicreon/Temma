@@ -14,7 +14,7 @@ use \Temma\Exceptions\Application as TµApplicationException;
 /**
  * Validator for hexadecimal colors.
  */
-class ColorValidator implements Validator {
+class ColorValidator implements Validator, JsonSchemaExportable {
 	/**
 	 * Validate data.
 	 * @param	mixed	$data		Data to validate.
@@ -40,6 +40,17 @@ class ColorValidator implements Validator {
 		}
 		$output = $data;
 		return ($data);
+	}
+	/**
+	 * Convert a contract to JSON Schema.
+	 * @param	array	$contract	Contract parameters.
+	 * @return	array	The JSON Schema.
+	 */
+	public function toJsonSchema(array $contract) : array {
+		return ([
+			'type'    => 'string',
+			'pattern' => '^#?(?:[0-9A-Fa-f]{3}){1,2}$',
+		]);
 	}
 }
 
