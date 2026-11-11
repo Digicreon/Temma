@@ -15,7 +15,7 @@ use \Temma\Exceptions\Application as TµApplicationException;
 /**
  * Validator for boolean values.
  */
-class BoolValidator implements Validator {
+class BoolValidator implements Validator, JsonSchemaExportable {
 	/**
 	 * Validate data.
 	 * @param	mixed	$data		Data to validate.
@@ -82,6 +82,19 @@ class BoolValidator implements Validator {
 			throw new TµIOException("Bad contract 'default' parameter.", TµIOException::BAD_FORMAT);
 		}
 		throw new TµApplicationException("Data is not boolean.", TµApplicationException::API);
+	}
+	/**
+	 * Convert a contract to JSON Schema.
+	 * @param	array	$contract	Contract parameters.
+	 * @return	array	The JSON Schema.
+	 */
+	public function toJsonSchema(array $contract) : array {
+		$type = $contract['currentType'] ?? 'bool';
+		if ($type === 'false')
+			return (['type' => 'boolean', 'const' => false]);
+		if ($type === 'true')
+			return (['type' => 'boolean', 'const' => true]);
+		return (['type' => 'boolean']);
 	}
 }
 

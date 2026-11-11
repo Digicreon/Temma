@@ -15,7 +15,7 @@ use \Temma\Utils\Text as TµText;
 /**
  * Validator for email addresses.
  */
-class EmailValidator implements Validator {
+class EmailValidator implements Validator, JsonSchemaExportable {
 	/**
 	 * Validate data.
 	 * @param	mixed	$data		Data to validate.
@@ -42,6 +42,26 @@ class EmailValidator implements Validator {
 		}
 		$output = $data;
 		return ($data);
+	}
+	/**
+	 * Convert a contract to JSON Schema.
+	 * @param	array	$contract	Contract parameters.
+	 * @return	array	The JSON Schema.
+	 */
+	public function toJsonSchema(array $contract) : array {
+		$schema = [
+			'type'   => 'string',
+			'format' => 'email',
+		];
+		$minLen = TµText::parseSize($contract['minLen'] ?? null);
+		$maxLen = TµText::parseSize($contract['maxLen'] ?? null);
+		if (isset($minLen))
+			$schema['minLength'] = $minLen;
+		if (isset($maxLen))
+			$schema['maxLength'] = $maxLen;
+		if (!empty($contract['mask']))
+			$schema['pattern'] = $contract['mask'];
+		return ($schema);
 	}
 	/**
 	 * Manage default value.

@@ -16,7 +16,7 @@ use \Temma\Utils\DataFilter as TµDataFilter;
 /**
  * Validator for associative arrays.
  */
-class AssocValidator implements Validator {
+class AssocValidator implements Validator, JsonSchemaExportable {
 	/**
 	 * Validate data.
 	 * @param	mixed	$data		Data to validate.
@@ -114,6 +114,65 @@ class AssocValidator implements Validator {
 		}
 		$output = $out;
 		return ($out);
+	}
+	/**
+	 * Convert a contract to JSON Schema.
+	 * @param	array	$contract	Contract parameters.
+	 * @return	array	The JSON Schema.
+	 * @throws	\Temma\Exceptions\IO	If the contract is invalid.
+	 */
+	public function toJsonSchema(array $contract) : array {
+		$keys = $contract['keys'] ?? null;
+		if (is_string($keys))
+			$keys = array_map('trim', explode(',', $keys));
+		else if (!is_array($keys) && $keys !== null)
+			throw new TµIOException("Bad contract 'keys' parameter.", TµIOException::BAD_FORMAT);
+		if (!$keys)
+			throw new TµIOException("Associative array without sub-keys contract.", TµIOException::BAD_FORMAT);
+		$properties = [];
+		$required = [];
+		$wildcard = false;
+		$wildcardContract = null;
+		foreach ($keys as $k => $v) {
+			if (is_int($k)) {
+				$key = $v;
+				$subcontract = null;
+			} else {
+				$key = $k;
+				$subcontract = $v;
+			}
+			// check for wildcard (as key or as value)
+			if ($key === '...' || $key === '…') {
+				$wildcard = true;
+				$wildcardContract = ($subcontract !== '...' && $subcontract !== '…') ? $subcontract : null;
+				continue;
+			}
+			if ($subcontract === '...' || $subcontract === '…') {
+				$wildcard = true;
+				continue;
+			}
+			// check for optional key
+			$mandatory = true;
+			if (str_ends_with($key, '?')) {
+				$mandatory = false;
+				$key = mb_substr($key, 0, -1);
+			} else if (is_array($subcontract) && isset($subcontract['mandatory'])) {
+				$mandatory = (bool)$subcontract['mandatory'];
+			}
+			$properties[$key] = TµDataFilter::toJsonSubSchema($subcontract);
+			if ($mandatory)
+				$required[] = $key;
+		}
+		$schema = ['type' => 'object'];
+		if ($properties) // object cast, to avoid a JSON list if keys are numeric
+			$schema['properties'] = array_is_list($properties) ? (object)$properties : $properties;
+		if ($required)
+			$schema['required'] = $required;
+		if (!$wildcard)
+			$schema['additionalProperties'] = false;
+		else if ($wildcardContract !== null)
+			$schema['additionalProperties'] = TµDataFilter::toJsonSubSchema($wildcardContract);
+		return ($schema);
 	}
 	/**
 	 * Manage default value.

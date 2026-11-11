@@ -17,7 +17,7 @@ use \Temma\Utils\Text as TµText;
 /**
  * Validator for JSON strings.
  */
-class JsonValidator implements Validator {
+class JsonValidator implements Validator, JsonSchemaExportable {
 	/**
 	 * Validate data.
 	 * @param	mixed	$data		Data to validate.
@@ -59,6 +59,27 @@ class JsonValidator implements Validator {
 		} catch (TµApplicationException $e) {
 			return $this->_processDefault($contract, $e->getMessage(), $output);
 		}
+	}
+	/**
+	 * Convert a contract to JSON Schema.
+	 * @param	array	$contract	Contract parameters.
+	 * @return	array	The JSON Schema.
+	 * @throws	\Temma\Exceptions\IO	If the contract is invalid.
+	 */
+	public function toJsonSchema(array $contract) : array {
+		$schema = [
+			'type'             => 'string',
+			'contentMediaType' => 'application/json',
+		];
+		$minLen = TµText::parseSize($contract['minLen'] ?? null);
+		$maxLen = TµText::parseSize($contract['maxLen'] ?? null);
+		if (isset($minLen))
+			$schema['minLength'] = $minLen;
+		if (isset($maxLen))
+			$schema['maxLength'] = $maxLen;
+		if (!empty($contract['contract']))
+			$schema['contentSchema'] = TµDataFilter::toJsonSubSchema($contract['contract']);
+		return ($schema);
 	}
 	/**
 	 * Manage default value.

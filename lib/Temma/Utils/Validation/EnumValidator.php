@@ -15,7 +15,7 @@ use \Temma\Exceptions\Application as TµApplicationException;
 /**
  * Validator for enumeration values.
  */
-class EnumValidator implements Validator {
+class EnumValidator implements Validator, JsonSchemaExportable {
 	/**
 	 * Validate data.
 	 * @param	mixed	$data		Data to validate.
@@ -45,6 +45,25 @@ class EnumValidator implements Validator {
 		}
 		// error
 		return $this->_processDefault($contract, "Data doesn't respect contract (bad enum value '$data').", $output);
+	}
+	/**
+	 * Convert a contract to JSON Schema.
+	 * @param	array	$contract	Contract parameters.
+	 * @return	array	The JSON Schema.
+	 * @throws	\Temma\Exceptions\IO	If the contract is invalid.
+	 */
+	public function toJsonSchema(array $contract) : array {
+		$values = $contract['values'] ?? null;
+		if (is_string($values))
+			$values = array_map('trim', explode(',', $values));
+		else if (!is_array($values))
+			throw new TµIOException("Bad contract 'values' parameter.", TµIOException::BAD_FORMAT);
+		if (!$values)
+			throw new TµIOException("Enum without values.", TµIOException::BAD_FORMAT);
+		return ([
+			'type' => 'string',
+			'enum' => array_values($values),
+		]);
 	}
 	/**
 	 * Manage default value.

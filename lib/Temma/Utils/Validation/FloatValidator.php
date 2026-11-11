@@ -15,7 +15,7 @@ use \Temma\Exceptions\Application as TµApplicationException;
 /**
  * Validator for float values.
  */
-class FloatValidator implements Validator {
+class FloatValidator implements Validator, JsonSchemaExportable {
 	/**
 	 * Validate data.
 	 * @param	mixed	$data		Data to validate.
@@ -77,6 +77,21 @@ class FloatValidator implements Validator {
 			$data = min($data, (float)$max);
 		$output = $data;
 		return ($data);
+	}
+	/**
+	 * Convert a contract to JSON Schema.
+	 * @param	array	$contract	Contract parameters.
+	 * @return	array	The JSON Schema.
+	 */
+	public function toJsonSchema(array $contract) : array {
+		$min = $contract['min'] ?? null;
+		$max = $contract['max'] ?? null;
+		$schema = ['type' => 'number'];
+		if (is_numeric($min))
+			$schema['minimum'] = (float)$min;
+		if (is_numeric($max))
+			$schema['maximum'] = (float)$max;
+		return ($schema);
 	}
 	/**
 	 * Manage default value.

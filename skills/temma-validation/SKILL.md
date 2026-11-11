@@ -44,6 +44,17 @@ make nullable with `?` (`'?bool'`).
 `contract` (element contract of a `list` or `json`), `keys` (for `assoc`), `mime`
 (for `binary`/`base64`), `format`/`inFormat`/`outFormat` (dates).
 
+**Annotations** (no effect on validation, used by the JSON Schema conversion):
+`description`, `title`, `examples`. `'bool; default: false; description: True to delete the document.'`
+or `['type' => 'bool', 'default' => false, 'description' => 'True to delete the document.']`.
+On an associative array contract, the `type` must be explicit
+(`['type' => 'assoc', 'keys' => [...], 'description' => '...']`); otherwise `description`
+would be taken as a key.
+
+**Quoting in string contracts**: a parameter value containing a semicolon must be
+quoted (`description: "First; second"`). Inside quotes, `\"` is a quote and `\\` a
+backslash; any other backslash sequence is kept as is (`mask: "^\d+;\w*$"`).
+
 **Strict vs non-strict**: by default validation is non-strict (converts `"42"` to 42,
 clamps out-of-range numbers, truncates long strings). Strict mode requires exact types
 and errors on violations. Control it globally (`$strict` parameter) or per contract with
@@ -142,6 +153,26 @@ $clean = \Temma\Utils\DataFilter::process($data, ['type' => 'list', 'contract' =
 **template variables** produced by the action (no redirection parameters); the same
 contract can be set programmatically with `$this->_response->setValidationContract($contract)`.
 The view then validates/filters outgoing data before sending it.
+
+## JSON Schema conversion
+
+`\Temma\Utils\DataFilter::toJsonSchema($contract)` converts a contract to a JSON Schema
+(draft 2020-12, as used by MCP), returned as an associative array to be encoded with
+`json_encode()`. The schema describes the expected data (as in strict mode) and is
+less precise than Temma's validation (no conversion, no checksum, approximate
+patterns); its goal is to give information to the client. Optional keys (`key?` or
+`'mandatory' => false`) are not listed in `required`; nullable types add `null` to the
+allowed types; `description`, `title`, `default` and `examples` become annotations.
+Custom validators accept any value unless they implement
+`\Temma\Utils\Validation\JsonSchemaExportable`.
+
+```php
+$schema = \Temma\Utils\DataFilter::toJsonSchema([
+	'id'      => 'int; min: 1; description: Document identifier',
+	'delete?' => 'bool; default: false; description: True to delete the document.',
+]);
+print(json_encode($schema));
+```
 
 ## Further reading
 

@@ -14,7 +14,7 @@ use \Temma\Exceptions\Application as TµApplicationException;
 /**
  * Validator for EANs.
  */
-class EanValidator implements Validator {
+class EanValidator implements Validator, JsonSchemaExportable {
 	/**
 	 * Validate data.
 	 * @param	mixed	$data		Data to validate.
@@ -38,6 +38,17 @@ class EanValidator implements Validator {
 			return $this->_processDefault($contract, "Data is not a valid EAN.", $output);
 		$output = $data;
 		return ($data);
+	}
+	/**
+	 * Convert a contract to JSON Schema.
+	 * @param	array	$contract	Contract parameters.
+	 * @return	array	The JSON Schema.
+	 */
+	public function toJsonSchema(array $contract) : array {
+		return ([
+			'type'    => ['string', 'integer'],
+			'pattern' => '^(?:[0-9]{8}|[0-9]{13})$',
+		]);
 	}
 	/**
 	 * Manage default value.

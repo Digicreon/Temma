@@ -950,6 +950,23 @@ $tests = [
 		'res' => md5('abc'),
 		'output' => md5('abc'),
 	],
+	[
+		'md5', md5('abc'),
+		'strict' => true,
+		'expect' => true,
+		'res' => md5('abc'),
+	],
+	[
+		'sha256', hash('sha256', 'abc'),
+		'strict' => true,
+		'expect' => true,
+		'res' => hash('sha256', 'abc'),
+	],
+	[
+		'sha256', md5('abc'),
+		'strict' => true,
+		'expect' => 'app',
+	],
 	'binary',
 	[
 		'binary', 'aqwzsxedcrfv',
@@ -2272,6 +2289,66 @@ $tests = [
 		'category', 'toto',
 		'strict' => false,
 		'expect' => 'app',
+	],
+	'description',
+	[
+		'bool; default: false; description: True pour effacer le document.', null,
+		'strict' => true,
+		'expect' => true,
+		'res' => false,
+	],
+	[
+		'bool; description: "Efface: oui; ou non"; default: true', null,
+		'strict' => true,
+		'expect' => true,
+		'res' => true,
+	],
+	[
+		['type' => 'bool', 'default' => false, 'description' => 'True pour effacer le document.'], true,
+		'strict' => true,
+		'expect' => true,
+		'res' => true,
+	],
+	[
+		[
+			'type'        => 'assoc',
+			'description' => 'Document',
+			'keys'        => [
+				'id'      => 'int; description: Identifiant',
+				'delete?' => ['type' => 'bool', 'description' => 'Effacement'],
+			],
+		],
+		['id' => 3],
+		'strict' => true,
+		'expect' => true,
+		'res' => ['id' => 3],
+	],
+	[
+		'user; description: Utilisateur', ['id' => 3, 'login' => 'toto', 'name' => 'Toto'],
+		'strict' => true,
+		'expect' => true,
+		'res' => ['id' => 3, 'login' => 'toto', 'name' => 'Toto'],
+	],
+	'escaping',
+	[
+		'string; mask: "^\\d+;\\w*$"', '123;abc',
+		'strict' => true,
+		'expect' => true,
+	],
+	[
+		'string; mask: "^\\d+;\\w*$"', 'abc;123',
+		'strict' => true,
+		'expect' => 'app',
+	],
+	[
+		'string; mask: "^a\\\\\\\\b$"', 'a\\b',
+		'strict' => true,
+		'expect' => true,
+	],
+	[
+		'string; mask: "^a\\"b$"', 'a"b',
+		'strict' => true,
+		'expect' => true,
 	],
 ];
 

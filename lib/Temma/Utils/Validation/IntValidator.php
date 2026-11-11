@@ -15,7 +15,7 @@ use \Temma\Exceptions\Application as TµApplicationException;
 /**
  * Validator for integer values.
  */
-class IntValidator implements Validator {
+class IntValidator implements Validator, JsonSchemaExportable {
 	/**
 	 * Validate data.
 	 * @param	mixed	$data		Data to validate.
@@ -93,6 +93,27 @@ class IntValidator implements Validator {
 		}
 		$output = $data;
 		return ($data);
+	}
+	/**
+	 * Convert a contract to JSON Schema.
+	 * @param	array	$contract	Contract parameters.
+	 * @return	array	The JSON Schema.
+	 */
+	public function toJsonSchema(array $contract) : array {
+		$type = $contract['currentType'] ?? 'int';
+		$min = $contract['min'] ?? null;
+		$max = $contract['max'] ?? null;
+		// manage port type
+		if ($type === 'port') {
+			$min ??= 1;
+			$max = min(($max ?? 65535), 65535);
+		}
+		$schema = ['type' => 'integer'];
+		if (is_numeric($min))
+			$schema['minimum'] = (int)$min;
+		if (is_numeric($max))
+			$schema['maximum'] = (int)$max;
+		return ($schema);
 	}
 	/**
 	 * Manage default value.

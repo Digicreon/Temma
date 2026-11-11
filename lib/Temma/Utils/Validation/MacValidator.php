@@ -14,7 +14,7 @@ use \Temma\Exceptions\Application as TµApplicationException;
 /**
  * Validator for MAC addresses.
  */
-class MacValidator implements Validator {
+class MacValidator implements Validator, JsonSchemaExportable {
 	/**
 	 * Validate data.
 	 * @param	mixed	$data		Data to validate.
@@ -35,6 +35,17 @@ class MacValidator implements Validator {
 			throw new TµApplicationException("Data is not a valid MAC address.", TµApplicationException::API);
 		$contract['default'] = null;
 		return $this->validate($default, $contract, $output);
+	}
+	/**
+	 * Convert a contract to JSON Schema.
+	 * @param	array	$contract	Contract parameters.
+	 * @return	array	The JSON Schema.
+	 */
+	public function toJsonSchema(array $contract) : array {
+		return ([
+			'type'    => 'string',
+			'pattern' => '^(?:[0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$|^(?:[0-9A-Fa-f]{4}\.){2}[0-9A-Fa-f]{4}$',
+		]);
 	}
 }
 

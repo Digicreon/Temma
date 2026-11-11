@@ -17,7 +17,7 @@ use \Temma\Utils\Text as TµText;
 /**
  * Validator for lists (indexed arrays).
  */
-class ListValidator implements Validator {
+class ListValidator implements Validator, JsonSchemaExportable {
 	/**
 	 * Validate data.
 	 * @param	mixed	$data		Data to validate.
@@ -96,6 +96,50 @@ class ListValidator implements Validator {
 		}
 		$output = $data;
 		return ($data);
+	}
+	/**
+	 * Convert a contract to JSON Schema.
+	 * @param	array	$contract	Contract parameters.
+	 * @return	array	The JSON Schema.
+	 * @throws	\Temma\Exceptions\IO	If the contract is invalid.
+	 */
+	public function toJsonSchema(array $contract) : array {
+		$schema = ['type' => 'array'];
+		$minLen = TµText::parseSize($contract['minLen'] ?? null);
+		$maxLen = TµText::parseSize($contract['maxLen'] ?? null);
+		$subcontract = $contract['contract'] ?? null;
+		$values = $contract['values'] ?? null;
+		if ($values) {
+			// typed elements
+			if (is_string($values))
+				$values = str_getcsv($values, ',', '"', '\\');
+			else if (!is_array($values))
+				throw new TµIOException("Bad contract 'values' parameter.", TµIOException::BAD_FORMAT);
+			$prefixItems = [];
+			$open = false;
+			foreach ($values as $value) {
+				if (is_string($value))
+					$value = trim($value);
+				if ($value === '...' || $value === '…') {
+					$open = true;
+					break;
+				}
+				$prefixItems[] = TµDataFilter::toJsonSubSchema($value);
+			}
+			if ($prefixItems) {
+				$schema['prefixItems'] = $prefixItems;
+				$minLen ??= count($prefixItems);
+			}
+			if (!$open)
+				$schema['items'] = false;
+		} else if ($subcontract !== null) {
+			$schema['items'] = TµDataFilter::toJsonSubSchema($subcontract);
+		}
+		if ($minLen)
+			$schema['minItems'] = $minLen;
+		if (isset($maxLen))
+			$schema['maxItems'] = $maxLen;
+		return ($schema);
 	}
 	/**
 	 * Manage default value.
