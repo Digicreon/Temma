@@ -3,7 +3,7 @@
 /**
  * Serializer
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2023-2024, Amaury Bouchard
+ * @copyright	© 2023-2026, Amaury Bouchard
  * @link	https://www.temma.net/documentation/helper-serializer
  */
 
@@ -222,7 +222,10 @@ class Serializer {
 	}
 	/**
 	 * Serialize data to INI stream.
-	 * @param	mixed	$data	The data to encode.
+	 * First-level scalar values are written before the sections. First-level arrays become sections, whose
+	 * scalar values are written as "key=value" lines, and whose array values are written as "key[]=value"
+	 * (or "key[subkey]=value") lines.
+	 * @param	mixed	$data	The data to encode (associative array).
 	 * @return	string	The INI stream.
 	 * @throws	\Temma\Exceptions\IO	If the format is not correct.
 	 */
@@ -230,49 +233,38 @@ class Serializer {
 		if (!is_array($data))
 			throw new TµIOException("Unable to encode INI stream.", TµIOException::BAD_FORMAT);
 		$stream = '';
+		$sections = '';
 		// first level
 		foreach ($data as $key1 => $value1) {
 			if (is_int($key1))
 				throw new TµIOException("Unable to encode INI stream.", TµIOException::BAD_FORMAT);
-			if (is_null($value1))
-				$stream .= "$key1=null\n";
-			else if (is_bool($value1))
-				$stream .= "$key1=" . ($value1 ? 'true' : 'false') . "\n";
-			else if (is_string($value1) || is_numeric($value1) || (is_object($value1) && $value1 instanceof \Stringable))
-				$stream .= "$key1=\"" . addcslashes($value1, '\"') . "\"\n";
-			else if (!is_array($value1))
-				throw new TµIOException("Unable to encode INI stream.", TµIOException::BAD_FORMAT);
-			$stream .= "[$key1]\n";
+			// scalar value (written before the sections)
+			if (!is_array($value1)) {
+				$stream .= "$key1=" . self::_encodeIniValue($value1) . "\n";
+				continue;
+			}
+			// section
+			$sections .= "[$key1]\n";
 			// second level
 			foreach ($value1 as $key2 => $value2) {
-				if (is_null($value2))
-					$stream .= "$key2=null\n";
-				else if (is_bool($value2))
-					$stream .= "$key2=" . ($value2 ? 'true' : 'false') . "\n";
-				else if (is_string($value2) || is_numeric($value2) || (is_object($value1) && $value1 instanceof \Stringable))
-					$stream .= "$key2=\"$value2\"\n";
-				else if (!is_array($value2))
-					throw new TµIOException("Unable to encode INI stream.", TµIOException::BAD_FORMAT);
+				if (!is_array($value2)) {
+					$sections .= "$key2=" . self::_encodeIniValue($value2) . "\n";
+					continue;
+				}
 				// third level
 				$index3 = 0;
 				foreach ($value2 as $key3 => $value3) {
 					if (is_int($key3) && $key3 == $index3) {
-						$stream .= $key2 . '[]=';
+						$sections .= $key2 . '[]=';
 						$index3++;
-					} else
-						$stream .= $key2 . "[$key3]=";
-					if (is_null($value3))
-						$stream .= "null\n";
-					else if (is_bool($value3))
-						$stream .= $value3 ? 'true' : 'false';
-					else if (is_string($value3) || is_numeric($value3) || (is_object($value1) && $value1 instanceof \Stringable))
-						$stream .= "$value3\n";
-					else
-						throw new TµIOException("Unable to encode INI stream.", TµIOException::BAD_FORMAT);
+					} else {
+						$sections .= $key2 . "[$key3]=";
+					}
+					$sections .= self::_encodeIniValue($value3) . "\n";
 				}
 			}
 		}
-		return ($stream);
+		return ($stream . $sections);
 	}
 	/**
 	 * Serialize data to YAML stream.
@@ -641,5 +633,26 @@ class Serializer {
 			throw new TµIOException("Unable to code XML stream.", TµIOException::BAD_FORMAT);
 		return ($data);
 	}
-}
 
+	/* ********** PRIVATE METHODS ********** */
+	/**
+	 * Encode a scalar value for an INI stream.
+	 * Strings are written between double quotes, with escaped double quotes, backslashes and dollar signs
+	 * (to avoid the interpolation of "${...}" expressions when the stream is read),
+	 * numbers are written as is, booleans and null values are written as "true", "false" and "null".
+	 * @param	mixed	$value	The value to encode.
+	 * @return	string	The encoded value.
+	 * @throws	\Temma\Exceptions\IO	If the value can't be encoded.
+	 */
+	static private function _encodeIniValue(mixed $value) : string {
+		if (is_null($value))
+			return ('null');
+		if (is_bool($value))
+			return ($value ? 'true' : 'false');
+		if (is_int($value) || is_float($value))
+			return ((string)$value);
+		if (is_string($value) || $value instanceof \Stringable)
+			return ('"' . addcslashes((string)$value, '"\\$') . '"');
+		throw new TµIOException("Unable to encode INI stream.", TµIOException::BAD_FORMAT);
+	}
+}

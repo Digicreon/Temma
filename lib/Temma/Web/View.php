@@ -3,10 +3,13 @@
 /**
  * View
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2007-2024, Amaury Bouchard
+ * @copyright	© 2007-2026, Amaury Bouchard
  */
 
 namespace Temma\Web;
+
+use \Temma\Utils\DataFilter as TµDataFilter;
+use \Temma\Exceptions\Framework as TµFrameworkException;
 
 /**
  * Object used to manage views.
@@ -125,5 +128,61 @@ abstract class View {
 	}
 	/** Write the document body on stdout. */
 	abstract public function sendBody() : void;
+
+	/* ********** PROTECTED METHODS ********** */
+	/**
+	 * Returns the data used by template-based views (Smarty, PHP...).
+	 * Data come from the "@output" template variable or, if it is not defined, from all template variables.
+	 * Variables whose name starts with an underscore are removed (except those starting with two underscores).
+	 * If an output validation contract is defined, data are validated with it.
+	 * @return	array	Associative array of template variables.
+	 * @throws	\Temma\Exceptions\Framework	If data are not an associative array.
+	 * @throws	\Temma\Exceptions\Application	If data don't respect the validation contract.
+	 */
+	protected function _getTemplateData() : array {
+		// get data
+		$data = $this->_response->getData('@output');
+		if (is_null($data)) {
+			$data = $this->_response->getData();
+			unset($data['@output']);
+		} else if (!is_array($data)) {
+			throw new TµFrameworkException("The '@output' template variable must be an associative array.", TµFrameworkException::BAD_OUTPUT);
+		}
+		// remove private variables
+		$data = array_filter($data, fn($key) => (!str_starts_with($key, '_') || str_starts_with($key, '__')), ARRAY_FILTER_USE_KEY);
+		// data validation
+		$validationContract = $this->_response->getValidationContract();
+		if (!$validationContract)
+			return ($data);
+		$data = TµDataFilter::process($data, $validationContract);
+		if (!is_array($data))
+			throw new TµFrameworkException("Validated template data must be an associative array.", TµFrameworkException::BAD_OUTPUT);
+		return ($data);
+	}
+	/**
+	 * Returns the data used by serialization views (JSON, INI...).
+	 * Data come from the "@output" template variable or, if it is not defined, from the view-specific template variable.
+	 * If none of them is defined, all template variables are used, except "URL", "CONTROLLER", "ACTION",
+	 * the variables whose name starts with an underscore, the view-specific variable and the given excluded variables.
+	 * If an output validation contract is defined, data are validated with it.
+	 * @param	string	$name		Name of the view-specific template variable.
+	 * @param	array	$excluded	(optional) List of variables that must not be used when all template variables are used.
+	 * @return	mixed	The data.
+	 * @throws	\Temma\Exceptions\Application	If data don't respect the validation contract.
+	 */
+	protected function _getSerializationData(string $name, array $excluded=[]) : mixed {
+		// get data
+		$data = $this->_response->getData('@output') ??
+		        $this->_response->getData($name);
+		if (is_null($data)) {
+			$excluded = array_merge(['@output', 'URL', 'CONTROLLER', 'ACTION', $name], $excluded);
+			$data = array_filter($this->_response->getData(), fn($key) => (!str_starts_with($key, '_') && !in_array($key, $excluded)), ARRAY_FILTER_USE_KEY);
+		}
+		// data validation
+		$validationContract = $this->_response->getValidationContract();
+		if ($validationContract)
+			$data = TµDataFilter::process($data, $validationContract);
+		return ($data);
+	}
 }
 

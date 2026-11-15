@@ -43,18 +43,21 @@ Built-in views and the reference file describing each one:
 | View | Data variable | Reference |
 |---|---|---|
 | `~Smarty` (default) | all template variables | this file |
-| `~Json` | `json` | [references/json.md](references/json.md) |
+| `~Json` | `json` (or all template variables) | [references/json.md](references/json.md) |
 | `~Csv` | `csv` | [references/csv.md](references/csv.md) |
 | `~Rss` | `title`, `description`, `domain`, `articles`... | [references/rss.md](references/rss.md) |
-| `~ICal` | `ical` | [references/ical.md](references/ical.md) |
-| `~Ini` | `data` | [references/ini.md](references/ini.md) |
+| `~ICal` | `ical` (or `name`, `description`, `events`) | [references/ical.md](references/ical.md) |
+| `~Ini` | `data` (or all template variables) | [references/ini.md](references/ini.md) |
 | `~Php` | all template variables | [references/php.md](references/php.md) |
 
 Data is passed through template variables (`$this['name'] = $value;` in the controller).
 Template-based views (Smarty, PHP) receive all variables not starting with `_`; other
 views read their specific variable (see table). Alternatively, assigning `$this['@output']`
-takes priority: an associative array of template variables for template-based views, or
-the raw data to serialize for the other views. Most non-template views also honor a
+takes priority: an associative array of template variables for template-based views (an
+exception is raised if it is not an array), or the raw data to serialize for the other views.
+When neither `@output` nor their specific variable is defined, the JSON and INI views use all
+template variables except `URL`, `CONTROLLER`, `ACTION` and those starting with `_`, and the
+iCal view uses the `name`, `description` and `events` variables. Most non-template views also honor a
 `filename` variable to send the stream as a downloadable attachment.
 
 ## Content type

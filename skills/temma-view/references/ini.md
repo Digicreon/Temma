@@ -15,6 +15,8 @@ class Api extends \Temma\Web\Controller {
 }
 ```
 
-- Data variable: `data` (or `@output`, which takes priority).
+- Data variable: `data` (or `@output`, which takes priority). If neither is defined, all
+  template variables are used, except `URL`, `CONTROLLER`, `ACTION`, `filename` and the
+  variables whose name starts with `_`.
 
 Reference: https://www.temma.net/en/documentation/view-ini

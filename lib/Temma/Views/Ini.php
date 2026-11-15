@@ -8,12 +8,12 @@
 
 namespace Temma\Views;
 
-use \Temma\Utils\DataFilter as TµDataFilter;
-
 /**
  * View for INI export.
  *
- * The INI encoded data is fetched from the "data" template variable.
+ * The INI encoded data is fetched from the "@output" template variable or, if it is not defined,
+ * from the "data" template variable. If none of them is defined, all template variables are used,
+ * except "URL", "CONTROLLER", "ACTION", "filename" and the variables whose name starts with an underscore.
  * The name of the downloaded file is fetched from the "filename" template variable.
  */
 class Ini extends \Temma\Web\View {
@@ -26,13 +26,8 @@ class Ini extends \Temma\Web\View {
 
 	/** Init. */
 	public function init() : void {
-		$this->_data = $this->_response->getData('@output') ??
-		               $this->_response->getData('data');
 		$this->_filename = $this->_response->getData('filename');
-		// data validation
-		$validationContract = $this->_response->getValidationContract();
-		if ($validationContract)
-			$this->_data = TµDataFilter::process($this->_data, $validationContract);
+		$this->_data = $this->_getSerializationData('data', ['filename']);
 	}
 	/** Write HTTP headers. */
 	public function sendHeaders(?array $headers=null) : void {

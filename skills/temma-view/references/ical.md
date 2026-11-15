@@ -24,7 +24,8 @@ class Agenda extends \Temma\Web\Controller {
 }
 ```
 
-- Data variable: `ical` (or `@output`, which takes priority).
+- Data variable: `ical` (or `@output`, which takes priority). If neither is defined, the view
+  uses the `name` (optional), `description` (optional) and `events` (mandatory) template variables.
 - Each event needs either `date` (all-day, `YYYY-MM-DD`) or `dateStart` + `dateEnd`
   (`YYYY-MM-DD hh:mm:ss` with timezone offset or `Z`).
 - `$this['filename'] = 'event.ics';` sends the stream as a downloadable attachment.
