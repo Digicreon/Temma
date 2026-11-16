@@ -10,7 +10,9 @@ namespace Temma\Views;
 
 /**
  * View for iCal calendars.
- * Get its data from an "ical" template variable.
+ * Get its data from the "@output" template variable or, if it is not defined, from the "ical" template variable.
+ * If none of them is defined, the data are fetched from the "name" (optional), "description" (optional)
+ * and "events" (mandatory) template variables.
  * The name of the downloaded file is fetched from the "filename" template variable.
  */
 class ICal extends \Temma\Web\View {
@@ -26,6 +28,14 @@ class ICal extends \Temma\Web\View {
 		$this->_ical = $this->_response->getData('@output') ??
 		               $this->_response->getData('ical');
 		$this->_filename = $this->_response->getData('filename');
+		// fallback on the "name", "description" and "events" template variables
+		if (is_null($this->_ical)) {
+			$this->_ical = [
+				'name'        => $this->_response->getData('name'),
+				'description' => $this->_response->getData('description'),
+				'events'      => $this->_response->getData('events'),
+			];
+		}
 	}
 	/** Write HTTP headers. */
 	public function sendHeaders(?array $headers=null) : void {
@@ -61,11 +71,11 @@ class ICal extends \Temma\Web\View {
 				print("$organizer\r\n");
 			}
 			if (isset($event['date'])) {
-				$this->_print('DTSTART;VALUE=DATE:', gmdate('Ymd', strtotime($event['date'])));
-				$this->_print('DTEND;VALUE=DATE:', gmdate('Ymd', strtotime($event['date'] . ' +1 day')));
+				$this->_print('DTSTART;VALUE=DATE:', date('Ymd', strtotime($event['date'])));
+				$this->_print('DTEND;VALUE=DATE:', date('Ymd', strtotime($event['date'] . ' +1 day')));
 			} else {
 				$this->_print('DTSTART:', gmdate('Ymd', strtotime($event['dateStart'])) . 'T' . gmdate('His', strtotime($event['dateStart'])) . 'Z');
-				$this->_print('DTEND:', gmdate('Ymd' . strtotime($event['dateEnd'])) . 'T' . gmdate('His', strtotime($event['dateEnd'])) . 'Z');
+				$this->_print('DTEND:', gmdate('Ymd', strtotime($event['dateEnd'])) . 'T' . gmdate('His', strtotime($event['dateEnd'])) . 'Z');
 			}
 			$this->_print('DTSTAMP:', gmdate('Ymd') . 'T' . gmdate('His') . 'Z');
 			if (isset($event['dateCreation'])) {

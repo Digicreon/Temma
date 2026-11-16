@@ -24,7 +24,8 @@ variables, exposed as regular PHP variables.
 ```
 
 - All template variables not starting with `_` become PHP variables in the template
-  (or the key-value pairs of `@output` when defined).
+  (or the key-value pairs of `@output` when defined; an exception is raised if `@output`
+  is not an array).
 - **No auto-escaping**: unlike the Smarty view, nothing is escaped automatically. Always
   escape displayed values with `htmlspecialchars()`.
 

@@ -104,7 +104,7 @@ class Rss extends \Temma\Web\View {
 			print("\t<category>" . htmlspecialchars($this->_category, ENT_COMPAT, 'UTF-8') . "</category>\n");
 		else
 			print("\t<category>Blog</category>\n");
-		foreach ($this->_articles as $article) {
+		foreach (($this->_articles ?? []) as $article) {
 			if (!($article['url'] ?? false) || !trim($article['title'] ?? ''))
 				continue;
 			print("\t<item>\n");
@@ -141,7 +141,7 @@ class Rss extends \Temma\Web\View {
 				else if (($article['imageType'] ?? null) === 'gif')
 					$mimetype = 'image/gif';
 				else if (($article['imageType'] ?? null) === 'webp')
-					$mimietype = 'image/webp';
+					$mimetype = 'image/webp';
 				print("\t\t<enclosure type=\"$mimetype\" length=\"10000\" url=\"" . htmlspecialchars($article['image'], ENT_COMPAT, 'UTF-8') . "\"/>\n");
 			}
 			// description

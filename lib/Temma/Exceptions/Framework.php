@@ -3,7 +3,7 @@
 /**
  * Framework
  * @author      Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2007-2023, Amaury Bouchard
+ * @copyright	© 2007-2026, Amaury Bouchard
  */
 
 namespace Temma\Exceptions;
@@ -24,5 +24,7 @@ class Framework extends \Exception {
 	const NO_TEMPLATE = 4;
 	/** Routing error. */
 	const ROUTE = 5;
+	/** Bad output data. */
+	const BAD_OUTPUT = 6;
 }
 

@@ -43,6 +43,8 @@ class Csv extends \Temma\Web\View {
 	}
 	/** Write body. */
 	public function sendBody() : void {
+		if (!$this->_csv)
+			return;
 		$stdout = fopen('php://output', 'w');
 		foreach ($this->_csv as $line) {
 			fputcsv($stdout, $line, $this->_separator);

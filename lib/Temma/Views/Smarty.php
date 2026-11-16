@@ -10,11 +10,14 @@ namespace Temma\Views;
 
 use \Temma\Base\Log as TµLog;
 use \Temma\Exceptions\IO as TµIOException;
-use \Temma\Utils\DataFilter as TµDataFilter;
 use \Temma\Utils\Smarty as TµSmarty;
 
 /**
  * View used for Smarty templates.
+ *
+ * Template data are fetched from the "@output" template variable (which must be an associative array)
+ * or, if it is not defined, from all template variables. Variables whose name starts with an underscore
+ * are not transmitted to the template (except those starting with two underscores).
  *
  * @link	http://smarty.net/
  */
@@ -69,30 +72,16 @@ class Smarty extends \Temma\Web\View {
 		TµLog::log('Temma/Web', 'WARN', "No one template found with name '$template'.");
 		throw new TµIOException("Can't find template '$template'.", TµIOException::NOT_FOUND);
 	}
-	/** Init. */
+	/**
+	 * Init.
+	 * @throws	\Temma\Exceptions\Framework	If the "@output" template variable is not an associative array.
+	 * @throws	\Temma\Exceptions\Application	If data don't respect the validation contract.
+	 */
 	public function init() : void {
-		// get data (from "@output" template variable, or from all template variables)
-		$data = $this->_response->getData('@output') ??
-		        $this->_response->getData();
-		// data validation contract
-		$validationContract = $this->_response->getValidationContract();
-		// clean data
-		foreach ($data as $key => &$value) {
-			if (str_starts_with($key, '_') && !str_starts_with($key, '__')) {
-				if ($key == '_temmaCacheable' && $value === true)
-					$this->_isCacheable = true;
-				unset($data[$key]);
-			} else if (!$validationContract) {
-				// transfer data to Smarty
-				$this->_smarty->assign($key, $value);
-			}
-		}
-		if (!$validationContract)
-			return;
-		// data filtering
-		$data = TµDataFilter::process($data, $validationContract);
+		// check if the page could be stored in cache
+		$this->_isCacheable = ($this->_response->getData('_temmaCacheable') === true);
 		// transfer data to Smarty
-		foreach ($data as $key => $value) {
+		foreach ($this->_getTemplateData() as $key => $value) {
 			$this->_smarty->assign($key, $value);
 		}
 	}

@@ -8,12 +8,14 @@
 
 namespace Temma\Views;
 
-use \Temma\Utils\DataFilter as TµDataFilter;
-
 /**
  * View for JSON export.
  *
- * The JSON encoded data is fetched from the "json" template variable.
+ * The JSON encoded data is fetched from the "@output" template variable or, if it is not defined,
+ * from the "json" template variable. If none of them is defined, all template variables are sent,
+ * except "URL", "CONTROLLER", "ACTION", "filename", "jsonDebug" and the variables whose name starts
+ * with an underscore.
+ * The name of the downloaded file is fetched from the "filename" template variable.
  * To activate the debug mode (user-readable JSON), set the "jsonDebug" template variable to true.
  *
  * @link	http://json.org/
@@ -30,25 +32,9 @@ class Json extends \Temma\Web\View {
 
 	/** Init. */
 	public function init() : void {
-		// get data
-		$this->_data = $this->_response->getData('@output') ??
-		               $this->_response->getData('json');
 		$this->_filename = $this->_response->getData('filename');
 		$this->_debug = $this->_response->getData('jsonDebug', false);
-		if (is_null($this->_data)) {
-		        $this->_data = $this->_response->getData();
-			unset($this->_data['filename']);
-			unset($this->_data['jsonDebug']);
-		}
-		// data validation
-		$validationContract = $this->_response->getValidationContract();
-		if ($validationContract)
-			$this->_data = TµDataFilter::process($this->_data, $validationContract);
-
-
-		$this->_data = $this->_response->getData('json');
-		$this->_filename = $this->_response->getData('filename');
-		$this->_debug = $this->_response->getData('jsonDebug', false);
+		$this->_data = $this->_getSerializationData('json', ['filename', 'jsonDebug']);
 	}
 	/** Write HTTP headers. */
 	public function sendHeaders(?array $headers=null) : void {
