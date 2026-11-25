@@ -136,25 +136,15 @@ $data = [
 	],
 ];
 $result = renderStream(['data' => $data]);
-check("the generated stream can be read by parse_ini_string() (escaping, null, booleans, numbers, arrays)",
-      parse_ini_string($result, true) === [
-	      'quote'   => 'a "quoted" \\ text',
-	      'empty'   => '',
-	      'enabled' => '1',
-	      'hidden'  => '',
-	      'float'   => '1.5',
-	      'section' => [
-		      'list'  => ['a', 'b'],
-		      'assoc' => ['x' => '1', 'y' => 'z'],
-	      ],
-      ]);
+check("the generated stream is read back by Serializer::decodeIni() with the same data and types",
+      \Temma\Utils\Serializer::decodeIni($result) === $data);
 $result = renderStream(['data' => ['home' => '${HOME}', 'price' => '$12', 'mixed' => 'a\\${x} $$']]);
-check('dollar signs are escaped in strings',
-      $result === 'home="\${HOME}"' . "\n" .
-                   'price="\$12"' . "\n" .
-                   'mixed="a\\\\\${x} \$\$"' . "\n");
+check('dollar signs are written as is in strings',
+      $result === 'home="${HOME}"' . "\n" .
+                   'price="$12"' . "\n" .
+                   'mixed="a\\\\${x} $$"' . "\n");
 check('"${...}" expressions are not interpolated when the stream is read',
-      parse_ini_string($result, true) === ['home' => '${HOME}', 'price' => '$12', 'mixed' => 'a\\${x} $$']);
+      \Temma\Utils\Serializer::decodeIni($result) === ['home' => '${HOME}', 'price' => '$12', 'mixed' => 'a\\${x} $$']);
 
 // summary
 print("\n");

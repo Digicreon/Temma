@@ -3,7 +3,7 @@
 /**
  * Registry
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2007-2025, Amaury Bouchard
+ * @copyright	© 2007-2026, Amaury Bouchard
  * @link	https://www.temma.net/documentation/helper-registry
  */
 
@@ -293,8 +293,14 @@ class Registry implements \Iterator, \ArrayAccess {
 	 * @throws	\Temma\Exceptions\IO	If the XML file can't be read.
 	 */
 	public function readXml(string $path, string $key) : \Temma\Utils\Registry {
-		// read XML file
-		$xml = simplexml_load_file($path);
+		// read XML file (libxml errors are collected instead of raising PHP warnings)
+		$useErrors = libxml_use_internal_errors(true);
+		try {
+			$xml = is_file($path) ? simplexml_load_file($path) : false;
+		} finally {
+			libxml_clear_errors();
+			libxml_use_internal_errors($useErrors);
+		}
 		if ($xml === false) {
 			TµLog::log('Temma/Utils', 'WARN', "Unable to read XML file '$path'.");
 			throw new TµIOException("Unable to read XML file '$path'.", TµIOException::BAD_FORMAT);
