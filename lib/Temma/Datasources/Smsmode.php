@@ -19,7 +19,9 @@ use \Temma\Base\Log as TµLog;
  * API key; you can create it on the smsmode.com user settings page
  * (https://ui.smsmode.com/settings/keys).
  *
- * For API details, please refer to its documentation (https://dev.smsmode.com/http-api/reference/).
+ * For API details, please refer to its documentation (https://dev.smsmode.com/api-http/).
+ * Texts compatible with the ISO-8859-15 character set are sent as standard messages (160 characters
+ * per message); other texts are sent as Unicode messages (70 characters per message).
  *
  * <b>Usage</b>
  * <code>
@@ -62,10 +64,10 @@ use \Temma\Base\Log as TµLog;
  *     // ...
  * } else if ($status == \Temma\Datasources\Smsmode::STATUS_MSG_RECEIVED) {
  *     // ...
- * } else if ($status == \Temma\Datasources\Smsmode::STATUS_GATEWAY_RECEIVED ||
- *            $status == \Temma\Datasources\Smsmode::STATUS_GATEWAY_DELIVERED) {
+ * } else if ($status == \Temma\Datasources\Smsmode::STATUS_GATEWAY_RECEIVED) {
  *     // ...
  * } else if ($status == \Temma\Datasources\Smsmode::STATUS_MSG_INTERNAL_ERROR ||
+ *            $status == \Temma\Datasources\Smsmode::STATUS_ROUTING_ERROR ||
  *            $status == \Temma\Datasources\Smsmode::STATUS_DELIVERY_ERROR) {
  *     // ...
  * }
@@ -81,23 +83,33 @@ use \Temma\Base\Log as TµLog;
 class Smsmode extends \Temma\Base\Datasource {
 	/** URL of smsmode.com API. */
 	const API_URL = 'https://api.smsmode.com/http/1.6/';
-	/** URL of smsmode.com API in Unicode mode. */
-	const API_URL_UNICODE = 'https://api.smsmode.com/http/1.6/';
+	/** URL of smsmode.com API in Unicode mode (as written in smsmode's documentation). */
+	const API_URL_UNICODE = 'https://api.smsmode.com/http:1.6/';
+	/** Message class used to send Unicode text messages. */
+	const UNICODE_MESSAGE_CLASS = 9;
+	/** Maximum length of the sender name. */
+	const SENDER_MAX_LENGTH = 11;
 	/** Request statuses. */
 	const STATUS_SUCCESS = 0;
 	const STATUS_INTERNAL_ERROR = 31;
 	const STATUS_AUTHENTICATION_ERROR = 32;
 	const STATUS_INSUFFICIENTE_BALANCE = 33;
 	const STATUS_INVALID_PARAMETERS = 35;
+	const STATUS_UNAUTHORIZED_IP = 42;
 	const STATUS_TEMPORARY_UNAVAILABLE = 50;
 	const STATUS_SMS_NOT_FOUND = 61;
 	const STATUS_MESSAGE_NOT_FOUND = 65;
-	/** Message statuses. */
+	/** Message statuses (status returned by the API, plus 100). */
 	const STATUS_SENT = 100;
 	const STATUS_MSG_INTERNAL_ERROR = 102;
 	const STATUS_MSG_RECEIVED = 111;
+	/** Message delivered to the recipient's operator (phone switched off or out of network). */
 	const STATUS_GATEWAY_RECEIVED = 113;
+	/** Routing error (recipient's network not recognized). */
+	const STATUS_ROUTING_ERROR = 134;
+	/** @deprecated	Wrong name, this status is a routing error. Use STATUS_ROUTING_ERROR instead. */
 	const STATUS_GATEWAY_DELIVERED = 134;
+	/** Reception error (message not delivered by the operator to the recipient's phone). */
 	const STATUS_DELIVERY_ERROR = 135;
 	/** API key. */
 	private ?string $_apiKey = null;
@@ -112,15 +124,15 @@ class Smsmode extends \Temma\Base\Datasource {
 	 * @throws	\Temma\Exceptions\Database	If the DSN is invalid.
 	 */
 	static public function factory(string $dsn) : \Temma\Datasources\Smsmode {
-		TµLog::log('Temma/Base', 'DEBUG', "\\Temma\\Datasources\\Smsmode object creation with DSN: '$dsn'.");
+		TµLog::log('Temma/Base', 'DEBUG', "\\Temma\\Datasources\\Smsmode object creation with DSN: '" . self::_maskDsn($dsn) . "'.");
 		if (!preg_match('/^smsmode:\/\/(([^:]*):)?(.+)$/', $dsn, $matches)) {
-			TµLog::log('Temma/Base', 'WARN', "Invalid Smsmode DSN '$dsn'.");
-			throw new \Temma\Exceptions\Database("Invalid Smsmode DSN '$dsn'.", \Temma\Exceptions\Database::FUNDAMENTAL);
+			TµLog::log('Temma/Base', 'WARN', "Invalid Smsmode DSN '" . self::_maskDsn($dsn) . "'.");
+			throw new \Temma\Exceptions\Database("Invalid Smsmode DSN '" . self::_maskDsn($dsn) . "'.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		}
 		$sender = $matches[2] ?? null;
 		$apiKey = $matches[3] ?? '';
-		if (!$apiKey || ($sender && !preg_match('/^[a-zA-Z0-9]+$/', $sender)))
-			throw new \Temma\Exceptions\Database("Invalid Smsmode DSN '$dsn'.", \Temma\Exceptions\Database::FUNDAMENTAL);
+		if (!$apiKey || ($sender && !preg_match('/^[a-zA-Z0-9]{1,' . self::SENDER_MAX_LENGTH . '}$/', $sender)))
+			throw new \Temma\Exceptions\Database("Invalid Smsmode DSN '" . self::_maskDsn($dsn) . "'.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		return (new self($apiKey, $sender));
 	}
 	/**
@@ -140,7 +152,7 @@ class Smsmode extends \Temma\Base\Datasource {
 	 * @param	string|array	$recipient	Phone number or list of phone numbers.
 	 * @param	?string		$text		Text message.
 	 * @param	?string		$sendDate	(optional) Sending date (format 'DDMMYYYY-HH:mm').
-	 * @param	?string		$reference	(optional) Internal reference.
+	 * @param	?string		$reference	(optional) Internal reference, sent back in the delivery report notifications.
 	 * @return	?string	Message identifier or null if an error occurred.
 	 * @throws	\Temma\Exceptions\Database	If the request to the API failed.
 	 */
@@ -149,29 +161,31 @@ class Smsmode extends \Temma\Base\Datasource {
 			return (null);
 		// text
 		$text = trim($text ?? '');
-		if (!$text)
+		if ($text === '')
 			return (null);
-		// unicode
-		$unicode = true;
-		if (\Temma\Utils\Text::encodingCompatible($text, 'iso-8859-15')) {
-			$unicode = false;
-			$text = mb_convert_encoding($text, 'iso-8859-15', 'utf-8');
-		}
 		// parameters
 		$params = [
 			'numero'  => is_array($recipient) ? implode(',', $recipient) : $recipient,
 			'message' => $text,
 		];
+		// text compatible with ISO-8859-15: converted; otherwise: sent in UTF-8 as a Unicode message
+		$unicode = false;
+		if (\Temma\Utils\Text::encodingCompatible($text, 'iso-8859-15')) {
+			$params['message'] = mb_convert_encoding($text, 'iso-8859-15', 'utf-8');
+		} else {
+			$unicode = true;
+			$params['classe_msg'] = self::UNICODE_MESSAGE_CLASS;
+		}
 		if ($sendDate)
-			$params['sendDate'] = $sendDate;
+			$params['date_envoi'] = $sendDate;
 		if ($reference)
-			$params['reference'] = $reference;
+			$params['refClient'] = $reference;
 		if ($this->_sender)
 			$params['emetteur'] = $this->_sender;
 		// request
 		$response = $this->_request('sendSMS.do', $params, $unicode);
 		// response ("code | description | message identifier")
-		if (!preg_match('/^(\d+)\s*\|[^|]*\|\s*(\S+)/', $response, $matches) || $matches[1] !== '0')
+		if (!preg_match('/^(\d+)\s*\|[^|]*\|\s*(\S+)/', $response, $matches) || ($matches[1] !== '0'))
 			return (null);
 		return ($matches[2]);
 	}
@@ -183,8 +197,9 @@ class Smsmode extends \Temma\Base\Datasource {
 	public function getBalance() : ?float {
 		if (!$this->_enabled)
 			return (null);
-		$response = $this->_request('credit.do');
-		if (!mb_strlen($response))
+		$response = trim($this->_request('credit.do'));
+		// the response is a number (negative for a post-paid account); anything else is an error
+		if (!preg_match('/^-?\d+(\.\d+)?$/', $response))
 			return (null);
 		return ((float)$response);
 	}
@@ -199,7 +214,8 @@ class Smsmode extends \Temma\Base\Datasource {
 		if (!$this->_enabled)
 			return;
 		$response = $this->_request('deleteSMS.do', ['smsID' => $msgId]);
-		if (!mb_strlen($response) || $response !== '0')
+		// return code 0 alone, or followed by a description ("0 | description")
+		if (!preg_match('/^0\s*(\||$)/', trim($response)))
 			throw new \Temma\Exceptions\Database("Unable to delete text message identified by '$msgId'.", \Temma\Exceptions\Database::FUNDAMENTAL);
 	}
 	/**
@@ -217,21 +233,21 @@ class Smsmode extends \Temma\Base\Datasource {
 	 * @param	string	$msgId			Message identifier.
 	 * @param	mixed	$defaultOrCallback	(optional) Not used.
 	 * @param	mixed	$options		(optional) Not used.
-	 * @return	mixed	A status code or null if an error occurred.
+	 * @return	?int	A message status (STATUS_SENT, STATUS_MSG_RECEIVED...; status of the first recipient if the message
+	 *			was sent to several recipients), a request status if the API returned an error (STATUS_SMS_NOT_FOUND...),
+	 *			or null if the response is not understood.
 	 * @throws	\Temma\Exceptions\Database	If the request to the API failed.
 	 */
-	public function read(string $msgId, mixed $defaultOrCallback=null, mixed $options=null) : mixed {
+	public function read(string $msgId, mixed $defaultOrCallback=null, mixed $options=null) : ?int {
 		if (!$this->_enabled)
 			return (null);
-		$response = $this->_request('compteRendu.do', ['smsID' => $msgId]);
-		if (ctype_digit($response))
-			return ($response);
-		if (!preg_match('/^[^ ]+ (\d+)/', $response, $matches))
+		// response: "phone_number status | phone_number status | ...", or an error code
+		$response = trim($this->_request('compteRendu.do', ['smsID' => $msgId]));
+		if (preg_match('/^(\d+)\s*(\||$)/', $response, $matches))
+			return (intval($matches[1]));
+		if (!preg_match('/^\S+\s+(\d+)/', $response, $matches))
 			return (null);
-		$status = $matches[1] ?? null;
-		if (!mb_strlen($status))
-			return (null);
-		return (intval($status) + 100);
+		return (intval($matches[1]) + 100);
 	}
 	/**
 	 * Send a text message. Alias to send() method.
@@ -309,7 +325,7 @@ class Smsmode extends \Temma\Base\Datasource {
 		return ($this->mWrite($data, $options));
 	}
 
-	/* ********** PRIVATE METHODS ********** */
+	/* ********** PROTECTED METHODS ********** */
 	/**
 	 * Send a request to smsmode.com API.
 	 * @param	string	$endpoint	Last chunk of the URL.
@@ -318,13 +334,13 @@ class Smsmode extends \Temma\Base\Datasource {
 	 * @return	string	The request answer.
 	 * @throws	\Temma\Exceptions\Database	If the request failed.
 	 */
-	private function _request(string $endpoint, array $parameters=[], bool $unicode=false) : string {
+	protected function _request(string $endpoint, array $parameters=[], bool $unicode=false) : string {
 		$url = ($unicode ? self::API_URL_UNICODE : self::API_URL) . $endpoint;
 		$query = '';
 		foreach ($parameters as $param => $value)
 			$query .= "&$param=" . urlencode($value);
-		// the access token is not written in the log
-		TµLog::log('Temma/Base', 'DEBUG', "Smsmode request: '$url?accessToken=***$query'.");
+		// the access token and the parameters (phone numbers, messages) are not written in the log
+		TµLog::log('Temma/Base', 'DEBUG', "Smsmode request: '$url'.");
 		$curl = curl_init("$url?accessToken=" . urlencode($this->_apiKey) . $query);
 		curl_setopt_array($curl, [
 			CURLOPT_RETURNTRANSFER => true,

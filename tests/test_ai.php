@@ -7,7 +7,11 @@
  * - the DSN parsing (type prefix, built-in providers, OpenAI-compatible URL, custom provider class);
  * - the requests built for each type of API (chat, transcript, embedding);
  * - the management of the responses (JSON, raw content, HTTP errors);
- * - the path to a file given as options.
+ * - the path to a file given as options;
+ * - the default values and callbacks of read() and get() (never JSON-decoded, strings never called as functions);
+ * - the disabled data source;
+ * - the API keys masked in the logs and exception messages;
+ * - the deprecated OpenAi data source (HTTP status and JSON validity checks).
  */
 
 require_once(__DIR__ . '/../lib/Temma/Base/Autoload.php');
@@ -17,7 +21,12 @@ use \Temma\Datasources\Ai as TµAi;
 use \Temma\Datasources\Ai\Type as TµAiType;
 
 \Temma\Base\Autoload::autoload(__DIR__ . '/../lib');
-\Temma\Base\Log::disable();
+// the logs are captured, to check that they don't contain secrets
+$logs = [];
+\Temma\Base\Log::setThreshold('DEBUG');
+\Temma\Base\Log::addCallback(function($requestId, $message) use (&$logs) {
+	$logs[] = $message;
+});
 
 /* ********** FAKE AI SERVER ********** */
 $serverPath = sys_get_temp_dir() . '/temma-ai-test-' . getmypid();
@@ -43,6 +52,11 @@ file_put_contents("$serverPath/router.php", <<<'EOT'
 		'/text-error'    => [422, 'text/plain; charset=utf-8', 'Failed to deserialize the JSON body'],
 		'/json-error'    => [401, 'application/json', json_encode(['error' => ['message' => 'Invalid API key']])],
 		'/unknown-error' => [401, 'application/json', json_encode(['detail' => 'Unauthorized'])],
+		'/text'          => [200, 'application/json', json_encode(['choices' => [['message' => ['content' => 'plain text answer']]]])],
+		'/bad-gateway'   => [502, 'application/json', '<html>Bad gateway</html>'],
+		'/openai-ok'     => [200, 'application/json', json_encode(['choices' => [['message' => ['content' => 'Paris']]]])],
+		'/openai-error'  => [500, 'text/html', '<html>Internal error</html>'],
+		'/openai-text'   => [200, 'text/plain', 'not JSON'],
 		default          => [404, 'text/plain', 'Not found'],
 	};
 	http_response_code($code);
@@ -102,6 +116,22 @@ class TestProvider implements \Temma\Datasources\Ai\Provider {
 	public function parseResponse(array $data) : mixed {
 		return ($data);
 	}
+}
+
+/** OpenAi data source which uses the fake server. */
+class TestOpenAi extends \Temma\Datasources\OpenAi {
+	/** URL of the API. */
+	const string API_URL = BASE_URL . '/openai-ok';
+}
+/** OpenAi data source which receives an HTTP error. */
+class TestOpenAiError extends \Temma\Datasources\OpenAi {
+	/** URL of the API. */
+	const string API_URL = BASE_URL . '/openai-error';
+}
+/** OpenAi data source which receives a non-JSON response. */
+class TestOpenAiText extends \Temma\Datasources\OpenAi {
+	/** URL of the API. */
+	const string API_URL = BASE_URL . '/openai-text';
 }
 
 /* ********** TEST MICRO-FRAMEWORK ********** */
@@ -232,10 +262,104 @@ check("missing file: IO exception",
       $e instanceof \Temma\Exceptions\IO);
 check("missing file: default value",
       TµAi::factory('ai://[' . BASE_URL . '/chat]/model')->read('Hello', 'fallback', "$serverPath/missing.wav") === 'fallback');
+
+print("\n" . TµAnsi::bold("Default values and callbacks\n"));
+$failing = TµAi::factory('ai://[' . BASE_URL . '/text-error]/model');
+check('get(): string default value returned as is',
+      ($failing->get('Hello', 'fallback') === 'fallback') && ($failing->get('Hello', '0') === '0'));
+check('get(): callback value returned as is (not JSON-decoded)',
+      $failing->get('Hello', fn() => '[1]') === '[1]');
+check('read() and get(): string default value never called as a function',
+      ($failing->read('Hello', 'date') === 'date') && ($failing->get('Hello', 'date') === 'date'));
+check('get(): JSON response decoded',
+      is_array(TµAi::factory('ai://[' . BASE_URL . '/chat]/model')->get('Hello')));
+check('get(): non-JSON response, default value',
+      TµAi::factory('ai://[' . BASE_URL . '/text]/model')->get('Hello', 'fallback') === 'fallback');
+$e = exception(fn() => TµAi::factory('ai://[' . BASE_URL . '/text]/model')->get('Hello'));
+check('get(): non-JSON response without default value: exception',
+      $e instanceof \Temma\Exceptions\Database && str_contains($e->getMessage(), 'invalid JSON'));
+$result = TµAi::factory('ai://[' . BASE_URL . '/chat]/model')->mGet(['Hello']);
+check('mGet(): responses decoded like get()',
+      is_array($result['Hello'] ?? null));
+$e = exception(fn() => TµAi::factory('ai://[' . BASE_URL . '/bad-gateway]/model')->read('Hello'));
+check('HTTP error with an invalid JSON response: exception with the HTTP code',
+      $e instanceof \Temma\Exceptions\Database && str_contains($e->getMessage(), 'HTTP error 502'));
+$calls = 0;
+$callback = function() use (&$calls) {
+	$calls++;
+	return ('CB');
+};
+$disabled = TµAi::factory('ai://[' . BASE_URL . '/chat]/model')->disable();
+check('disabled data source: read() and get() return null, without calling the callback',
+      ($disabled->read('Hello', $callback) === null) && ($disabled->get('Hello', 'fallback') === null) && $calls === 0);
+
+print("\n" . TµAnsi::bold("Secrets\n"));
+$logs = [];
+TµAi::factory('ai://transcript@openai/whisper-1#SECRET-KEY-1');
+TµAi::factory('ai://[https://user:SECRET-PASSWORD@example.com/v1/chat/completions]/model#SECRET-KEY-2');
+check('API keys and URL credentials not written in the logs',
+      (count($logs) === 2) && !array_filter($logs, fn($log) => str_contains($log, 'SECRET')));
+$logs = [];
+$e = exception(fn() => TµAi::factory('ai://openai#SECRET-KEY-3'));
+check('API key not written in the exception message and the logs of an invalid DSN',
+      $e instanceof \Temma\Exceptions\Database && !str_contains($e->getMessage(), 'SECRET') &&
+      !array_filter($logs, fn($log) => str_contains($log, 'SECRET')));
+$logs = [];
+TµAi::factory('ai://openai/gpt-4o/SECRET-KEY-6');
+TµAi::factory('ai://[https://example.com/v1/chat/completions?key=SECRET-KEY-7&x=1]/model#SECRET-KEY-8');
+TµAi::factory('ai://embedding@[https://u:p?SECRET-PASSWORD@example.com/v1?key=SECRET-KEY-9]/model');
+check('old format (API key as last path segment) and query string between brackets: not written in the logs',
+      (count($logs) === 3) && !array_filter($logs, fn($log) => str_contains($log, 'SECRET')));
+// masked DSNs (the useful parts are kept)
+$maskAiDsn = fn(string $dsn) => (new \ReflectionMethod(TµAi::class, '_maskAiDsn'))->invoke(null, $dsn);
+$masks = [
+	'ai://openai/gpt-4o#sk-proj-XXX'                    => 'ai://openai/gpt-4o#***',
+	'ai://openai/gpt-4o/sk-XXX'                         => 'ai://openai/gpt-4o/***',
+	'ai://transcript@openai/whisper-1/sk-XXX'           => 'ai://transcript@openai/whisper-1/***',
+	'ai://openrouter/openai/gpt-4o#sk-or-XXX'           => 'ai://openrouter/openai/gpt-4o#***',
+	'ai://ollama/llama3:70b'                            => 'ai://ollama/llama3:70b',
+	'ai://[https://h/v1/chat]/model'                    => 'ai://[https://h/v1/chat]/model',
+	'ai://[https://h/v1/chat]/model/XXX'                => 'ai://[https://h/v1/chat]/model/***',
+	'ai://[https://h/v1?key=XXX]/model#XXX'             => 'ai://[https://h/v1?***]/model#***',
+	'ai://chat@[https://u:XXX@h/v1?key=XXX&a=b]/model'  => 'ai://chat@[https://***@h/v1?***]/model',
+	'ai://[\App\MyProvider]/model#XXX'                  => 'ai://[\App\MyProvider]/model#***',
+];
+$wrong = array_filter($masks, fn($expected, $dsn) => ($maskAiDsn($dsn) !== $expected), ARRAY_FILTER_USE_BOTH);
+check('masked DSNs: API key, credentials and query string masked, provider and model kept',
+      !$wrong);
+foreach ($wrong as $dsn => $expected)
+	print('   ' . TµAnsi::faint("$dsn => " . $maskAiDsn($dsn) . " (expected $expected)") . "\n");
+
+print("\n" . TµAnsi::bold("OpenAi data source (deprecated)\n"));
+check('response text',
+      (new TestOpenAi('KEY', 'model'))->read('Hello') === 'Paris');
+check('mGet(): response texts (not JSON-decoded)',
+      (new TestOpenAi('KEY', 'model'))->mGet(['Hello']) === ['Hello' => 'Paris']);
+$e = exception(fn() => (new TestOpenAiError('KEY', 'model'))->read('Hello'));
+check('HTTP error: exception',
+      $e instanceof \Temma\Exceptions\Database && str_contains($e->getMessage(), 'HTTP error 500'));
+check('HTTP error: default value, string never called as a function',
+      (new TestOpenAiError('KEY', 'model'))->read('Hello', 'date') === 'date');
+check('HTTP error: callback',
+      (new TestOpenAiError('KEY', 'model'))->read('Hello', fn() => 'CB') === 'CB');
+$e = exception(fn() => (new TestOpenAiText('KEY', 'model'))->read('Hello'));
+check('non-JSON response: exception',
+      $e instanceof \Temma\Exceptions\Database && str_contains($e->getMessage(), 'invalid response'));
+$calls = 0;
+check('disabled data source: read() returns null, without calling the callback',
+      ((new TestOpenAi('KEY', 'model'))->disable()->read('Hello', $callback) === null) && $calls === 0);
+$logs = [];
+\Temma\Datasources\OpenAi::factory('openai://chat/model/SECRET-KEY-4');
+$e = exception(fn() => \Temma\Datasources\OpenAi::factory('openai://model/SECRET-KEY-5'));
+check('API key not written in the logs and the exception messages',
+      $logs && $e instanceof \Temma\Exceptions\Database && !str_contains($e->getMessage(), 'SECRET') &&
+      !array_filter($logs, fn($log) => str_contains($log, 'SECRET')));
+
 // must be the last test (the PHP built-in server processes one request at a time)
 $start = microtime(true);
-check("timeout option: default value",
-      TµAi::factory('ai://[' . BASE_URL . '/slow]/model')->read('Hello', 'fallback', ['timeout' => 1]) === 'fallback' && (microtime(true) - $start) < 2.5);
+check('timeout option: default value',
+      (TµAi::factory('ai://[' . BASE_URL . '/slow]/model')->read('Hello', 'fallback', ['timeout' => 1]) === 'fallback') &&
+      ((microtime(true) - $start) < 2.5));
 
 // summary
 print("\n");

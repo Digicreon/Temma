@@ -71,6 +71,8 @@ class File extends \Temma\Base\Datasource {
 	protected string $_rootPath;
 	/** Default umask. */
 	protected int $_umask;
+	/** Key-value data source. */
+	protected bool $_keyValue = true;
 
 	/* ********** CONSTRUCTION ********** */
 	/**
@@ -80,12 +82,12 @@ class File extends \Temma\Base\Datasource {
 	 * @throws	\Temma\Exceptions\Database	If the DSN is invalid.
 	 */
 	static public function factory(string $dsn) : \Temma\Datasources\File {
-		TµLog::log('Temma/Base', 'DEBUG', "\\Temma\\Datasources\\File object creation with DSN: '$dsn'.");
+		TµLog::log('Temma/Base', 'DEBUG', "\\Temma\\Datasources\\File object creation with DSN: '" . self::_maskDsn($dsn) . "'.");
 		// optional umask (4 octal digits, starting with a zero), followed by an absolute path
 		if (!preg_match('/^file:\/\/(0[0-7]{3})?(\/.+)$/', $dsn, $matches) ||
 		    !($rootPath = rtrim($matches[2], '/'))) {
-			TµLog::log('Temma/Base', 'WARN', "Invalid File DSN '$dsn'.");
-			throw new \Temma\Exceptions\Database("Invalid File DSN '$dsn'.", \Temma\Exceptions\Database::FUNDAMENTAL);
+			TµLog::log('Temma/Base', 'WARN', "Invalid File DSN '" . self::_maskDsn($dsn) . "'.");
+			throw new \Temma\Exceptions\Database("Invalid File DSN '" . self::_maskDsn($dsn) . "'.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		}
 		return (new self($rootPath, $matches[1]));
 	}
@@ -225,8 +227,10 @@ class File extends \Temma\Base\Datasource {
 	 * @param	mixed	$defaultOrCallback	(optional) Default scalar value or function called if the data is not found.
 	 *						If scalar: the value is returned.
 	 *						If callback: the value returned by the function is stored in the data source, and returned.
-	 * @param	mixed	$options		(optional) Umask used if the file is created.
+	 * @param	mixed	$options		(optional) Permissions used if the file is created.
 	 * @return	?string	The data fetched from the file, or null.
+	 * @throws	\Temma\Exceptions\IO	If the file exists but can't be read.
+	 * @throws	\Temma\Exceptions\Database	If the default value or the value returned by the callback is not a string.
 	 * @throws	\Exception	If an error occured.
 	 */
 	public function read(string $path, mixed $defaultOrCallback=null, mixed $options=null) : ?string {
@@ -234,18 +238,16 @@ class File extends \Temma\Base\Datasource {
 		$fullPath = $this->_rootPath . '/' . $path;
 		// fetch the file content
 		if ($this->_enabled && is_file($fullPath)) {
-			$data = file_get_contents($fullPath);
+			if (($data = file_get_contents($fullPath)) === false)
+				throw new \Temma\Exceptions\IO("Unable to read file '$path'.", \Temma\Exceptions\IO::UNREADABLE);
 			return ($data);
 		}
 		// manage default value
-		if ($defaultOrCallback === null)
-			return (null);
-		$value = $defaultOrCallback;
-		if (is_callable($defaultOrCallback)) {
-			$value = $defaultOrCallback();
-			if ($value !== null)
-				$this->write($path, $value, $options);
-		}
+		if (!self::_isCallback($defaultOrCallback))
+			return (self::_toRawValue($defaultOrCallback));
+		$value = self::_toRawValue($defaultOrCallback());
+		if ($value !== null)
+			$this->write($path, $value, $options);
 		return ($value);
 	}
 	/**
@@ -255,7 +257,7 @@ class File extends \Temma\Base\Datasource {
 	 * @param	mixed	$defaultOrCallback	(optional) Default scalar value or function called if the data is not found.
 	 *						If scalar: the value is written in the local file.
 	 *						If callback: the value returned by the function is stored in the data source, and written in the file.
-	 * @param	mixed	$options		(optional) Permission used if the file is created.
+	 * @param	mixed	$options		(optional) Permissions used if the file is created.
 	 * @return	bool	True if the file exists and has been written locally.
 	 * @throws	\Temma\Exceptions\IO	If the destination path is not writable.
 	 * @throws	\Exception		If an error occured.
@@ -269,11 +271,10 @@ class File extends \Temma\Base\Datasource {
 		if ($this->_enabled && is_file($fullPath) && is_readable($fullPath) && copy($fullPath, $localPath))
 			return (true);
 		// manage default value
-		if ($defaultOrCallback === null)
-			return (false);
-		$value = $defaultOrCallback;
-		if (is_callable($defaultOrCallback)) {
-			$value = $defaultOrCallback();
+		if (!self::_isCallback($defaultOrCallback))
+			$value = self::_toRawValue($defaultOrCallback);
+		else {
+			$value = self::_toRawValue($defaultOrCallback());
 			if ($value !== null)
 				$this->write($path, $value, $options);
 		}

@@ -60,14 +60,14 @@ class Pushover extends \Temma\Base\Datasource {
 	 * @throws	\Temma\Exceptions\Database	If the DSN is invalid.
 	 */
 	static public function factory(string $dsn) : \Temma\Datasources\Pushover {
-		TµLog::log('Temma/Base', 'DEBUG', "\\Temma\\Datasources\\Pushover object creation with DSN: '$dsn'.");
+		TµLog::log('Temma/Base', 'DEBUG', "\\Temma\\Datasources\\Pushover object creation with DSN: '" . self::_maskDsn($dsn) . "'.");
 		if (!str_starts_with($dsn, 'pushover://')) {
-			TµLog::log('Temma/Base', 'WARN', "Invalid Pushover DSN '$dsn'.");
-			throw new \Temma\Exceptions\Database("Invalid Pushover DSN '$dsn'.", \Temma\Exceptions\Database::FUNDAMENTAL);
+			TµLog::log('Temma/Base', 'WARN', "Invalid Pushover DSN '" . self::_maskDsn($dsn) . "'.");
+			throw new \Temma\Exceptions\Database("Invalid Pushover DSN '" . self::_maskDsn($dsn) . "'.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		}
 		$appToken = mb_substr($dsn, mb_strlen('pushover://'));
 		if (!$appToken)
-			throw new \Temma\Exceptions\Database("Invalid Pushover DSN '$dsn'.", \Temma\Exceptions\Database::FUNDAMENTAL);
+			throw new \Temma\Exceptions\Database("Invalid Pushover DSN '" . self::_maskDsn($dsn) . "'.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		return (new self($appToken));
 	}
 	/**
@@ -92,7 +92,7 @@ class Pushover extends \Temma\Base\Datasource {
 	/**
 	 * Send a push message. By default, HTML content option is activated.
 	 * @param	string	$userKey	Recipient's user key.
-	 * @param	string	$text		Text message.
+	 * @param	?string	$text		Text message.
 	 * @param	mixed	$options	(optional) Associative array with some of the following keys:
 	 * 					- title: Set the notification's title.
 	 *					- html: Set to false to disable the HTML content option.
@@ -111,10 +111,12 @@ class Pushover extends \Temma\Base\Datasource {
 	 *					- ttl: Number of seconds before the message disappear.
 	 *					- url: URL added under the text message.
 	 *					- urlTitle: Title of the URL (otherwise, the URL will appear as-is).
-	 * @return	bool	Always true.
+	 * @return	bool	True if the message was sent, false if the datasource is disabled.
 	 * @throws	\Temma\Exceptions\Database	If an error occured.
 	 */
 	public function write(string $userKey, ?string $text=null, mixed $options=null) : bool {
+		if (!$this->_enabled)
+			return (false);
 		$curl = curl_init();
 		$post = [
 			'token'   => $this->_appToken,
@@ -123,8 +125,8 @@ class Pushover extends \Temma\Base\Datasource {
 		];
 		if (($options['title'] ?? null))
 			$post['title'] = $options['title'];
-		$monospace = (($options['monospace'] ?? null) === true) ? true : false;
-		$html = ($monospace || ($options['html'] ?? null) === false) ? false : true;
+		$monospace = (($options['monospace'] ?? null) === true);
+		$html = (!$monospace && (($options['html'] ?? null) !== false));
 		if ($monospace)
 			$post['monospace'] = '1';
 		if ($html)
@@ -150,7 +152,8 @@ class Pushover extends \Temma\Base\Datasource {
 			CURLOPT_SAFE_UPLOAD    => true,
 			CURLOPT_RETURNTRANSFER => true,
 			CURLOPT_CONNECTTIMEOUT => 5,
-			CURLOPT_TIMEOUT        => 10,
+			// longer timeout when an image is attached (up to 5 MB)
+			CURLOPT_TIMEOUT        => (isset($post['attachment_base64']) ? 60 : 10),
 		]);
 		$result = curl_exec($curl);
 		if ($result === false) {
@@ -191,7 +194,7 @@ class Pushover extends \Temma\Base\Datasource {
 	 *					- ttl: Number of seconds before the message disappear.
 	 *					- url: URL added under the text message.
 	 *					- urlTitle: Title of the URL (otherwise, the URL will appear as-is).
-	 * @return	bool	always true.
+	 * @return	bool	True if the message was sent, false if the datasource is disabled.
 	 * @throws	\Temma\Exceptions\Database	If an error occured.
 	 */
 	public function set(string $userKey, mixed $text=null, mixed $options=null) : bool {

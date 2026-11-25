@@ -61,17 +61,17 @@ class Slack extends \Temma\Base\Datasource {
 	 * @throws	\Temma\Exceptions\Database	If the DSN is invalid.
 	 */
 	static public function factory(string $dsn) : \Temma\Datasources\Slack {
-		TµLog::log('Temma/Base', 'DEBUG', "\\Temma\\Datasources\\Slack object creation with DSN: '$dsn'.");
+		TµLog::log('Temma/Base', 'DEBUG', "\\Temma\\Datasources\\Slack object creation with DSN: '" . self::_maskDsn($dsn) . "'.");
 		$webhook = null;
 		if (!str_starts_with($dsn, 'slack://')) {
-			TµLog::log('Temma/Base', 'WARN', "Invalid Slack DSN '$dsn'.");
-			throw new \Temma\Exceptions\Database("Invalid Slack DSN '$dsn'.", \Temma\Exceptions\Database::FUNDAMENTAL);
+			TµLog::log('Temma/Base', 'WARN', "Invalid Slack DSN '" . self::_maskDsn($dsn) . "'.");
+			throw new \Temma\Exceptions\Database("Invalid Slack DSN '" . self::_maskDsn($dsn) . "'.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		}
 		$dsn = mb_substr($dsn, mb_strlen('slack://'));
 		if (($pos = mb_strpos($dsn, '@')) !== false)
 			$dsn = mb_substr($dsn, $pos + 1);
 		if (!str_starts_with($dsn, 'hooks.slack.com/services/'))
-			throw new \Temma\Exceptions\Database("Invalid Slack webhook '$dsn'.", \Temma\Exceptions\Database::FUNDAMENTAL);
+			throw new \Temma\Exceptions\Database("Invalid Slack webhook '" . self::_maskDsn($dsn) . "'.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		$webhook = "https://$dsn";
 		return (new self($webhook));
 	}
@@ -97,25 +97,23 @@ class Slack extends \Temma\Base\Datasource {
 	/**
 	 * Send a Slack notification.
 	 * @param	string	$channel	Not used.
-	 * @param	string	$text		Text message, or array of text messages, or an associative array with formatted message data,
-	 *					or a list of associative arrays.
+	 * @param	?string	$text		Text message (use set() to send formatted messages).
 	 * @param	mixed	$options	Not used.
-	 * @return	bool	Always true.
+	 * @return	bool	True if the message was sent, false if the data source is disabled.
 	 * @throws	\Temma\Exceptions\Database	If an error occured.
 	 */
-	public function write(string $channel, string $text=null, mixed $options=null) : bool {
-		$this->set($channel, $text, $options);
-		return (true);
+	public function write(string $channel, ?string $text=null, mixed $options=null) : bool {
+		return ($this->set($channel, $text, $options));
 	}
 
 	/* ********** KEY-VALUE REQUESTS ********** */
 	/**
 	 * Send a notification to Slack.
 	 * @param	string		$channel	Not used.
-	 * @param	string|array	$message	Text message, or array of text messages, or an associative array with formatted message data,
-	 *						or a list of associative arrays.
+	 * @param	string|array	$message	Text message, or an associative array with formatted message data
+	 *						('text' and 'attachments' keys, see the class documentation).
 	 * @param	mixed		$options	Not used.
-	 * @return	bool	always true.
+	 * @return	bool	True if the message was sent, false if the data source is disabled.
 	 * @throws	\Temma\Exceptions\Database	If an error occured.
 	 */
 	public function set(string $channel, mixed $message=null, mixed $options=null) : bool {
@@ -126,7 +124,7 @@ class Slack extends \Temma\Base\Datasource {
 			$data['text'] = $message;
 		else if (is_array($message)) {
 			$data['text'] = $message['text'] ?? '';
-			if (is_array($message['attachments'])) {
+			if (is_array($message['attachments'] ?? null)) {
 				$data['attachments'] = [];
 				foreach ($message['attachments'] as $attachment) {
 					if (is_string($attachment)) {
@@ -176,10 +174,10 @@ class Slack extends \Temma\Base\Datasource {
 		return (true);
 	}
 	/**
-	 * Disable mSet().
-	 * @param	array	$data		Associative array with keys (recipients' user key) and their associated values (text messages).
-	 * @param	mixed	$options	(optional) Options.
-	 * @return	int	The number of sent messages.
+	 * Disabled mSet().
+	 * @param	array	$data		Not used.
+	 * @param	mixed	$options	(optional) Not used.
+	 * @throws	\Temma\Exceptions\Database	Always throws an exception.
 	 */
 	public function mSet(array $data, mixed $options=null) : int {
 		throw new \Temma\Exceptions\Database("No mSet() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);

@@ -93,7 +93,8 @@ class Gemini implements \Temma\Datasources\Ai\Provider {
 	 */
 	public function parseResponse(array $data) : ?string {
 		if (isset($data['error'])) {
-			$msg = $data['error']['message'] ?? 'Unknown error.';
+			// the error may be an object with a message, or a simple string
+			$msg = is_array($data['error']) ? ($data['error']['message'] ?? 'Unknown error.') : (string)$data['error'];
 			throw new \Temma\Exceptions\Database("Gemini API error: $msg", \Temma\Exceptions\Database::FUNDAMENTAL);
 		}
 		return ($data['candidates'][0]['content']['parts'][0]['text'] ?? null);

@@ -88,6 +88,8 @@ if (!class_exists('\Aws\S3\S3Client')) {
  * </code>
  */
 class S3 extends \Temma\Base\Datasource {
+	/** Key-value data source. */
+	protected bool $_keyValue = true;
 	/** AWS S3 client object. */
 	private $_s3Client = null;
 	/** Access key. */
@@ -109,10 +111,10 @@ class S3 extends \Temma\Base\Datasource {
 	 * @throws	\Temma\Exceptions\Database	If the DSN is invalid.
 	 */
 	static public function factory(string $dsn) : \Temma\Datasources\S3 {
-		TµLog::log('Temma/Base', 'DEBUG', "\\Temma\\Datasources\\S3 object creation with DSN: '$dsn'.");
+		TµLog::log('Temma/Base', 'DEBUG', "\\Temma\\Datasources\\S3 object creation with DSN: '" . self::_maskDsn($dsn) . "'.");
 		if (!preg_match("/^([^:]+):\/\/([^:]+):([^@]+)@([^\/]+)\/([^:]+):?(.*)$/", $dsn, $matches)) {
-			TµLog::log('Temma/Base', 'WARN', "Invalid S3 DSN '$dsn'.");
-			throw new \Temma\Exceptions\Database("Invalid S3 DSN '$dsn'.", \Temma\Exceptions\Database::FUNDAMENTAL);
+			TµLog::log('Temma/Base', 'WARN', "Invalid S3 DSN '" . self::_maskDsn($dsn) . "'.");
+			throw new \Temma\Exceptions\Database("Invalid S3 DSN '" . self::_maskDsn($dsn) . "'.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		}
 		$type = $matches[1] ?? null;
 		$accessKey = $matches[2] ?? '';
@@ -122,7 +124,7 @@ class S3 extends \Temma\Base\Datasource {
 		$access = $matches[6] ?? 'private';
 		if ($type != 's3' ||
 		    ($access && $access != 'private' && $access != 'public'))
-			throw new \Temma\Exceptions\Database("Invalid S3 DSN '$dsn'.", \Temma\Exceptions\Database::FUNDAMENTAL);
+			throw new \Temma\Exceptions\Database("Invalid S3 DSN '" . self::_maskDsn($dsn) . "'.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		$publicAccess = false;
 		if ($access == 'public')
 			$publicAccess = true;
@@ -171,6 +173,10 @@ class S3 extends \Temma\Base\Datasource {
 			'credentials' => [
 				'key'    => $this->_accessKey,
 				'secret' => $this->_privateKey,
+			],
+			// no global timeout, because transfers of big files can be long
+			'http'        => [
+				'connect_timeout' => 10,
 			],
 		]);
 	}
@@ -397,6 +403,7 @@ class S3 extends \Temma\Base\Datasource {
 	 *						If a boolean: true for public access, false for private access.
 	 *						If an array: 'public' (bool) and/or 'mimetype' (string) keys.
 	 * @return	?string	The data fetched from the S3 file, or null.
+	 * @throws	\Temma\Exceptions\Database	If the default value or the value returned by the callback is not a string.
 	 * @throws	\Exception	If an error occured.
 	 */
 	public function read(string $s3Path, mixed $defaultOrCallback=null, mixed $options=null) : ?string {
@@ -414,14 +421,11 @@ class S3 extends \Temma\Base\Datasource {
 			}
 		}
 		// manage default value
-		if ($defaultOrCallback === null)
-			return (null);
-		$value = $defaultOrCallback;
-		if (is_callable($defaultOrCallback)) {
-			$value = $defaultOrCallback();
-			if ($value !== null)
-				$this->write($s3Path, $value, $options);
-		}
+		if (!self::_isCallback($defaultOrCallback))
+			return (self::_toRawValue($defaultOrCallback));
+		$value = self::_toRawValue($defaultOrCallback());
+		if ($value !== null)
+			$this->write($s3Path, $value, $options);
 		return ($value);
 	}
 	/**
@@ -458,11 +462,10 @@ class S3 extends \Temma\Base\Datasource {
 			}
 		}
 		// manage default value
-		if ($defaultOrCallback === null)
-			return (false);
-		$value = $defaultOrCallback;
-		if (is_callable($defaultOrCallback)) {
-			$value = $defaultOrCallback();
+		if (!self::_isCallback($defaultOrCallback))
+			$value = self::_toRawValue($defaultOrCallback);
+		else {
+			$value = self::_toRawValue($defaultOrCallback());
 			if ($value !== null)
 				$this->write($s3Path, $value, $options);
 		}
@@ -564,32 +567,29 @@ class S3 extends \Temma\Base\Datasource {
 	 *						If scalar: the value is returned.
 	 *						If callback: the value returned by the function is stored JSON-encoded in the
 	 *						data source, and returned.
-	 * @param	mixed	$options	(optional) Options used if the file is created.
-	 *					If a boolean: true for public access, false for private access.
-	 *					If an array: 'public' (bool).
+	 * @param	mixed	$options	(optional) Options used if the file is created (see set() method).
 	 * @return	mixed	The fetched data.
 	 */
 	public function get(string $s3Path, mixed $defaultOrCallback=null, mixed $options=null) : mixed {
-		if (!$this->_enabled)
-			return (null);
 		// read the data (the callback is not given to read(), which would store the raw value)
+		// if the data source is disabled, read() returns null and nothing is stored by set()
 		$data = $this->read($s3Path);
 		if ($data !== null)
 			return (json_decode($data, true));
 		// manage default value
-		if (!is_callable($defaultOrCallback))
+		if (!self::_isCallback($defaultOrCallback))
 			return ($defaultOrCallback);
 		$value = $defaultOrCallback();
 		$this->set($s3Path, $value, $options);
 		return ($value);
 	}
 	/**
-	 * Store serialized data in a S3 file.
+	 * Store serialized data in a S3 file. The file's MIME type is always 'application/json'.
 	 * @param	string	$s3Path		File path on S3.
 	 * @param	mixed	$value		Value of the data. Remove the file if null.
-	 * @param	mixed	$options	(optional) If a string: mime type.
-	 *					If a boolean: true for public access, false for private access.
+	 * @param	mixed	$options	(optional) If a boolean: true for public access, false for private access.
 	 *					If an array: 'public' (bool).
+	 *					By default, the access defined in the DSN is used.
 	 * @return	bool	Always true.
 	 * @throws	\Exception	If an error occured.
 	 */
@@ -600,14 +600,7 @@ class S3 extends \Temma\Base\Datasource {
 			$this->remove($s3Path);
 			return (true);
 		}
-		$public = false;
-		if ($options === true || ($options['public'] ?? null) === true)
-			$public = true;
-		$options = [
-			'public'   => $public,
-			'mimetype' => 'application/json',
-		];
-		$this->write($s3Path, json_encode($value), $options);
+		$this->write($s3Path, json_encode($value), $this->_getJsonOptions($options));
 		return (true);
 	}
 	/**
@@ -619,17 +612,30 @@ class S3 extends \Temma\Base\Datasource {
 	public function mSet(array $data, mixed $options=null) : int {
 		if (!$this->_enabled)
 			return (0);
-		$public = false;
-		if ($options === true || ($options['public'] ?? null) === true)
-			$public = true;
-		$options = [
+		// null values are not encoded, so mWrite() removes them
+		array_walk($data, function(&$value, $key) {
+			if ($value !== null)
+				$value = json_encode($value);
+		});
+		return ($this->mWrite($data, $this->_getJsonOptions($options)));
+	}
+
+	/* ********** PRIVATE METHODS ********** */
+	/**
+	 * Returns the writing options of the JSON files created by set() and mSet().
+	 * @param	mixed	$options	Options given to set() or mSet(): a boolean or an array with a 'public' key.
+	 * @return	array	Associative array with the 'public' and 'mimetype' keys.
+	 */
+	private function _getJsonOptions(mixed $options) : array {
+		$public = $this->_publicAccess;
+		if (is_bool($options))
+			$public = $options;
+		else if (is_array($options) && isset($options['public']))
+			$public = (bool)$options['public'];
+		return ([
 			'public'   => $public,
 			'mimetype' => 'application/json',
-		];
-		array_walk($data, function(&$value, $key) {
-			$value = json_encode($value);
-		});
-		return ($this->mWrite($data, $options));
+		]);
 	}
 }
 

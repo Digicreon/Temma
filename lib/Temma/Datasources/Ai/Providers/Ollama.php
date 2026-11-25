@@ -31,18 +31,22 @@ use \Temma\Datasources\Ai\Type as TµAiType;
 class Ollama implements \Temma\Datasources\Ai\Provider {
 	/** Default API endpoint URL. */
 	const string API_URL = 'http://localhost:11434/v1/chat/completions';
+	/** API endpoint URL. */
+	private string $_apiUrl;
 
 	/**
 	 * Constructor.
 	 * @param	string		$apiKey		(optional) API key (usually empty for local Ollama, not used).
-	 * @param	string		$endpointUrl	(optional) Not used.
+	 * @param	string		$endpointUrl	(optional) Endpoint URL (for an Ollama server which is not on localhost).
+	 *					Defaults to the API_URL constant.
 	 * @param	TµAiType	$type		(optional) Type of API. Only chat is supported.
 	 * @throws	\Temma\Exceptions\Database	If the type is not supported.
 	 */
-	// @phpstan-ignore-next-line (unused parameters required by the Provider interface)
+	// @phpstan-ignore-next-line (unused parameter required by the Provider interface)
 	public function __construct(string $apiKey='', string $endpointUrl='', TµAiType $type=TµAiType::Chat) {
 		if ($type !== TµAiType::Chat)
 			throw new \Temma\Exceptions\Database("Ollama provider doesn't support the '{$type->value}' type.", \Temma\Exceptions\Database::FUNDAMENTAL);
+		$this->_apiUrl = $endpointUrl ?: self::API_URL;
 	}
 	/**
 	 * Build the API request payload.
@@ -81,7 +85,7 @@ class Ollama implements \Temma\Datasources\Ai\Provider {
 		if (($options['output'] ?? null) === 'application/json')
 			$payload['format'] = 'json';
 		return ([
-			'url'     => self::API_URL,
+			'url'     => $this->_apiUrl,
 			'headers' => [],
 			'body'    => $payload,
 		]);
@@ -94,7 +98,8 @@ class Ollama implements \Temma\Datasources\Ai\Provider {
 	 */
 	public function parseResponse(array $data) : ?string {
 		if (isset($data['error'])) {
-			$msg = $data['error']['message'] ?? 'Unknown error.';
+			// the error may be an object with a message, or a simple string
+			$msg = is_array($data['error']) ? ($data['error']['message'] ?? 'Unknown error.') : (string)$data['error'];
 			throw new \Temma\Exceptions\Database("Ollama API error: $msg", \Temma\Exceptions\Database::FUNDAMENTAL);
 		}
 		return ($data['choices'][0]['message']['content'] ?? null);

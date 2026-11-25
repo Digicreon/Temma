@@ -27,27 +27,28 @@ class ZeroMQ extends \Temma\Base\Datasource {
 	protected string $_socketType;
 	/** Hosts list. */
 	protected array $_hosts;
+	/** List of the endpoints on which the socket is bound (with the real port numbers, if wildcards were used). */
+	protected array $_boundEndpoints = [];
 
 	/* ********** CONSTRUCTION ********** */
 	/**
 	 * Factory
 	 * @param	string	$dsn	Connection string.
 	 * @return	\Temma\Datasources\ZeroMQ	The created object.
-	 * @throws	\Exception	If the DSN is not correct.
+	 * @throws	\Temma\Exceptions\Database	If the DSN is not correct.
 	 */
 	static public function factory(string $dsn) : \Temma\Datasources\ZeroMQ {
-		TµLog::log('Temma/Base', 'DEBUG', "\\Temma\\Datasources\\oobject creation with DSN: '$dsn'.");
+		$maskedDsn = self::_maskDsn($dsn);
+		TµLog::log('Temma/Base', 'DEBUG', "\\Temma\\Datasources\\ZeroMQ object creation with DSN: '$maskedDsn'.");
 		// extraction of connection parameters
-		$connectionType = $socketType = $host = null;
-		if (preg_match("/^zmq([^:]*):\/\/([^@]+)@(.*)$/", $dsn, $matches)) {
-			if ($matches[1] && $matches[1] != '-bind')
-				throw new \Exception("DSN '$dsn' is not valid.");
-			$connectionType = ($matches[1] == '-bind') ? 'bind' : 'connect';
-			$socketType= $matches[2];
-			$host = $matches[3];
-		} else
-			throw new \Exception("DSN '$dsn' is not valid.");
-		$hosts = explode(';', $host);
+		if (!preg_match('/^zmq([^:]*):\/\/([^@]+)@(.+)$/', $dsn, $matches) ||
+		    ($matches[1] !== '' && $matches[1] != '-bind')) {
+			TµLog::log('Temma/Base', 'WARN', "Invalid ZeroMQ DSN '$maskedDsn'.");
+			throw new \Temma\Exceptions\Database("Invalid ZeroMQ DSN '$maskedDsn'.", \Temma\Exceptions\Database::FUNDAMENTAL);
+		}
+		$connectionType = ($matches[1] == '-bind') ? 'bind' : 'connect';
+		$socketType = $matches[2];
+		$hosts = explode(';', $matches[3]);
 		// instance creation
 		$instance = new self($connectionType, $socketType, $hosts);
 		return ($instance);
@@ -57,29 +58,26 @@ class ZeroMQ extends \Temma\Base\Datasource {
 	 * @param	string	$connectionType	'bind' or 'connect'.
 	 * @param	string	$socketType	'REQ', 'REP', 'PUSH', 'PULL', 'PUB' or 'SUB'.
 	 * @param	array	$hosts		Array of IP addess + ':' + port number.
-	 * @throws	\Exception	If the parameters are not correct.
+	 * @throws	\Temma\Exceptions\Database	If the parameters are not correct.
 	 */
 	public function __construct(string $connectionType, string $socketType, array $hosts) {
 		if (!in_array($connectionType, ['bind', 'connect']) ||
 		    !in_array($socketType, ['REQ', 'REP', 'PUSH', 'PULL', 'PUB', 'SUB']) ||
 		    !$hosts)
-			throw new \Exception("Bad parameters.");
+			throw new \Temma\Exceptions\Database('Bad ZeroMQ parameters.', \Temma\Exceptions\Database::FUNDAMENTAL);
 		$this->_connectionType = $connectionType;
 		$this->_socketType = $socketType;
 		$this->_hosts = $hosts;
 	}
 	/** Destructor. Close the connection. */
 	public function __destruct() {
-		if (!$this->_socket)
-			return;
-		unset($this->_socket);
-		$this->_socket = null;
+		$this->disconnect();
 	}
 
 	/* ********** CONNECTION ********** */
 	/**
 	 * Open the connection.
-	 * @throws	\Exception	If something went wrong.
+	 * @throws	\ZMQSocketException	If something went wrong.
 	 */
 	public function connect() : void {
 		if (!$this->_enabled || $this->_socket)
@@ -110,30 +108,49 @@ class ZeroMQ extends \Temma\Base\Datasource {
 		// connection or binding
 		foreach ($this->_hosts as $host) {
 			$host = trim($host);
-			if ($this->_connectionType == 'connect')
+			if ($this->_connectionType == 'connect') {
 				$this->_socket->connect("tcp://$host");
-			else
-				$this->_socket->bind("tcp://$host");
+				continue;
+			}
+			$this->_socket->bind("tcp://$host");
+			// keep the real endpoint (the port number may be a wildcard), to unbind the socket at disconnection
+			$this->_boundEndpoints[] = $this->_socket->getSockOpt(\ZMQ::SOCKOPT_LAST_ENDPOINT);
 		}
 	}
-	/** Reconnection. */
+	/**
+	 * Reconnection.
+	 * @throws	\ZMQSocketException	If something went wrong.
+	 */
 	public function reconnect() {
 		$this->disconnect();
+		$this->connect();
 	}
-	/** Disconnection. */
+	/**
+	 * Disconnection. A bound socket is unbound first, so it can be bound again immediately on the same address.
+	 */
 	public function disconnect() {
+		if (!$this->_socket)
+			return;
+		foreach ($this->_boundEndpoints as $endpoint) {
+			try {
+				$this->_socket->unbind($endpoint);
+			} catch (\ZMQSocketException $e) {
+				TµLog::log('Temma/Base', 'INFO', "Unable to unbind ZeroMQ socket from '$endpoint'.");
+			}
+		}
+		$this->_boundEndpoints = [];
 		unset($this->_socket);
 		$this->_socket = null;
 	}
 
 	/* ********** STANDARD REQUESTS ********** */
 	/**
-	 * Disbled clear.
+	 * Disabled clear.
 	 * @param	string	$pattern	Not used.
 	 * @throws	\Temma\Exceptions\Database	Always throws an exception.
 	 */
 	public function clear(string $pattern) : void {
-		throw new \Temma\Exceptions\Database("No clear() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);
+		throw new \Temma\Exceptions\Database('No clear() method on this object.', \Temma\Exceptions\Database::FUNDAMENTAL);
 	}
 
 	/* ********** RAW REQUESTS ********** */
@@ -142,7 +159,8 @@ class ZeroMQ extends \Temma\Base\Datasource {
 	 * @param	string	$key			Not used, should be an empty string.
 	 * @param	mixed	$defaultOrCallback	(optional) Not used.
 	 * @param	mixed	$options		(optional) Not used.
-	 * @return	string	The received message.
+	 * @return	string	The received message (empty string if the datasource is disabled).
+	 * @throws	\ZMQSocketException	If something went wrong.
 	 */
 	public function read(string $key, mixed $defaultOrCallback=null, mixed $options=null) : string {
 		if (!$this->_enabled)
@@ -153,10 +171,11 @@ class ZeroMQ extends \Temma\Base\Datasource {
 	}
 	/**
 	 * Send a message over a ZeroMQ socket.
-	 * @param	string	$id		Not usedi, should be an empty string.
+	 * @param	string	$id		Not used, should be an empty string.
 	 * @param	string	$data		Message data.
 	 * @param	mixed	$options	(optional) Not used.
 	 * @return	mixed	Always null.
+	 * @throws	\ZMQSocketException	If something went wrong.
 	 */
 	public function write(string $id, string $data, mixed $options=null) : mixed {
 		if (!$this->_enabled)
@@ -166,20 +185,23 @@ class ZeroMQ extends \Temma\Base\Datasource {
 		return (null);
 	}
 	/**
-	 * Multiple write.
-	 * @param	array	$data		List of string messages to send.
+	 * Multiple write. The strings are sent as the parts of a single multipart message.
+	 * @param	array	$data		List of string messages to send. Values which are not strings are ignored.
 	 * @param	mixed	$options	(optional) Not used.
-	 * @return	int	The number of set data.
+	 * @return	int	The number of sent strings.
+	 * @throws	\ZMQSocketException	If something went wrong.
 	 */
 	public function mWrite(array $data, mixed $options=null) : int {
 		if (!$this->_enabled)
 			return (0);
-		$this->connect();
 		$output = [];
 		foreach ($data as $datum) {
 			if (is_string($datum))
 				$output[] = $datum;
 		}
+		if (!$output)
+			return (0);
+		$this->connect();
 		$this->_socket->sendmulti($output);
 		return (count($output));
 	}
@@ -196,7 +218,7 @@ class ZeroMQ extends \Temma\Base\Datasource {
 	 * @throws	\Temma\Exceptions\Database	Always throws an exception.
 	 */
 	public function search(string $pattern, bool $getValues=false, null|bool|string|array $sort=null, int $offset=0, int $limit=0) : array {
-		throw new \Temma\Exceptions\Database("No search() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);
+		throw new \Temma\Exceptions\Database('No search() method on this object.', \Temma\Exceptions\Database::FUNDAMENTAL);
 	}
 	/**
 	 * Get a JSON-serialized message from a ZeroMQ socket.
@@ -204,21 +226,27 @@ class ZeroMQ extends \Temma\Base\Datasource {
 	 * @param	mixed	$defaultOrCallback	(optional) Not used.
 	 * @param	mixed	$options		(optional) Not used.
 	 * @return	mixed	The JSON-decoded message.
+	 * @throws	\Temma\Exceptions\Database	If the message is not valid JSON.
+	 * @throws	\ZMQSocketException	If something went wrong.
 	 */
 	public function get(string $key, mixed $defaultOrCallback=null, mixed $options=null) : mixed {
 		if (!$this->_enabled)
 			return (null);
-		$this->connect();
 		$message = $this->read('');
-		$message = json_decode($message, true, JSON_THROW_ON_ERROR);
-		return ($message);
+		try {
+			return (json_decode($message, true, 512, JSON_THROW_ON_ERROR));
+		} catch (\JsonException $e) {
+			TµLog::log('Temma/Base', 'WARN', 'Invalid JSON message received from ZeroMQ socket.');
+			throw new \Temma\Exceptions\Database('Invalid JSON message received from ZeroMQ socket.', \Temma\Exceptions\Database::TYPE);
+		}
 	}
 	/**
 	 * Send a JSON-serialized message to a ZeroMQ socket.
 	 * @param	string	$key		Not used, should be an empty string.
 	 * @param	mixed	$data		(optional) Data to send.
 	 * @param	mixed	$options	(optional) Not used.
-	 * @return	bool	Always true.
+	 * @return	bool	True, or false if the datasource is disabled.
+	 * @throws	\ZMQSocketException	If something went wrong.
 	 */
 	public function set(string $key, mixed $data=null, mixed $options=0) : bool {
 		if (!$this->_enabled)
@@ -229,17 +257,16 @@ class ZeroMQ extends \Temma\Base\Datasource {
 		return (true);
 	}
 	/**
-	 * Multiple set.
+	 * Multiple set. The JSON-encoded data are sent as the parts of a single multipart message.
 	 * @param	array	$data		List of data to send.
 	 * @param	mixed	$timeout	(optional) Not used.
-	 * @return	int	The number of set data.
+	 * @return	int	The number of sent data.
+	 * @throws	\ZMQSocketException	If something went wrong.
 	 */
 	public function mSet(array $data, mixed $timeout=0) : int {
 		if (!$this->_enabled)
 			return (0);
-		$this->connect();
 		$data = array_map('json_encode', $data);
-		return ($this->mwrite($data));
+		return ($this->mWrite($data));
 	}
 }
-

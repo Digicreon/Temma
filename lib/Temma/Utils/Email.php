@@ -161,10 +161,8 @@ class Email implements \Temma\Base\Loadable {
 		$to = $this->_filterRecipients($to);
 		if (!$to)
 			return;
-		$cc = is_array($cc) ? $cc : [$cc];
-		$cc = array_merge($cc, $this->_cc);
-		$bcc = is_array($bcc) ? $bcc : [$bcc];
-		$bcc = array_merge($bcc, $this->_bcc);
+		$cc = $this->_filterRecipients(array_merge((array)$cc, $this->_cc));
+		$bcc = $this->_filterRecipients(array_merge((array)$bcc, $this->_bcc));
 		$envelopeSender = $envelopeSender ?: $this->_envelopeSender;
 		$this->_deliver($from, $to, $title, '', $message, null, $cc, $bcc, null, $envelopeSender);
 	}
@@ -193,10 +191,8 @@ class Email implements \Temma\Base\Loadable {
 		$to = $this->_filterRecipients($to);
 		if (!$to)
 			return;
-		$cc = is_array($cc) ? $cc : [$cc];
-		$cc = array_merge($cc, $this->_cc);
-		$bcc = is_array($bcc) ? $bcc : [$bcc];
-		$bcc = array_merge($bcc, $this->_bcc);
+		$cc = $this->_filterRecipients(array_merge((array)$cc, $this->_cc));
+		$bcc = $this->_filterRecipients(array_merge((array)$bcc, $this->_bcc));
 		$envelopeSender = $envelopeSender ?: $this->_envelopeSender;
 		$this->_deliver($from, $to, $title, $html, $text, $attachments, $cc, $bcc, $unsubscribe, $envelopeSender);
 	}
@@ -272,9 +268,7 @@ class Email implements \Temma\Base\Loadable {
 		if ($bcc)
 			$headers['Bcc'] = $bcc;
 		// management of the envelope sender
-		$params = '';
-		if ($envelopeSender)
-			$params = "-f$envelopeSender";
+		$params = self::_envelopeSenderParameter($envelopeSender);
 		// send the message
 		mail($to, $title, $message, $headers, $params);
 	}
@@ -329,9 +323,7 @@ class Email implements \Temma\Base\Loadable {
 		$headers = array_merge($headers, $content['headers']);
 		$message = $content['body'];
 		// management of the envelope sender
-		$params = '';
-		if ($envelopeSender)
-			$params = "-f$envelopeSender";
+		$params = self::_envelopeSenderParameter($envelopeSender);
 		// send the message
 		mail($to, $title, $message, $headers, $params);
 	}
@@ -400,6 +392,30 @@ class Email implements \Temma\Base\Loadable {
 		return ($datasource instanceof \Temma\Base\Datasource ? $datasource : null);
 	}
 	/**
+	 * Split a list of recipients into individual recipients, and filter them using the list of allowed domains.
+	 * @param	string|array	$recipients	Recipient, or list of recipients (each one in the form "Name <address@domain>"
+	 *					or "address@domain"). A string may contain several comma-separated recipients.
+	 * @return	array	The list of recipients. If allowed domains are defined, only the recipients made of exactly one
+	 *			address whose domain is allowed (compared case-insensitively) are kept.
+	 */
+	private function _filterRecipients(string|array $recipients) : array {
+		$list = self::_splitRecipients($recipients);
+		if (!$this->_allowedDomains)
+			return ($list);
+		$allowedDomains = array_map('mb_strtolower', $this->_allowedDomains);
+		$filtered = [];
+		foreach ($list as $recipient) {
+			// the recipient must be exactly one address (other characters could hide other recipients)
+			if (!self::_isSingleAddress($recipient))
+				continue;
+			$address = self::_cleanAddress($recipient);
+			$domain = mb_strtolower(mb_substr($address, mb_strrpos($address, '@') + 1));
+			if (in_array($domain, $allowedDomains, true))
+				$filtered[] = $recipient;
+		}
+		return ($filtered);
+	}
+	/**
 	 * Build the content-type header and body of a message (shared by the mail() and transport paths).
 	 * @param	string	$html		HTML content (empty for a plain-text message).
 	 * @param	?string	$text		Raw text content.
@@ -454,10 +470,13 @@ class Email implements \Temma\Base\Loadable {
 					$attachment['mimetype'] ??= 'application/octet-stream';
 					$attachment['filename'] ??= 'unnamed_file.bin';
 					$attachment['data'] ??= '';
+					// control characters are removed from the MIME type and the file name, quotes are escaped (header injection)
+					$mimetype = self::_cleanHeaderValue((string)$attachment['mimetype']);
+					$filename = addcslashes(self::_cleanHeaderValue((string)$attachment['filename']), '"\\');
 					$message[] = "--$mixedBoundary";
-					$message[] = "Content-Type: " . $attachment['mimetype'] . ";";
+					$message[] = "Content-Type: $mimetype;";
 					$message[] = "Content-Transfer-Encoding: base64";
-					$message[] = "Content-Disposition: attachment;  filename=\"" . $attachment['filename'] . "\"";
+					$message[] = "Content-Disposition: attachment;  filename=\"$filename\"";
 					$message[] = '';
 					$message[] = chunk_split(base64_encode($attachment['data']));
 					$message[] = '';
@@ -473,6 +492,7 @@ class Email implements \Temma\Base\Loadable {
 	}
 	/**
 	 * Build a complete RFC 5322 message stream for the transport path (no Bcc header).
+	 * Control characters (like CR and LF) are replaced by spaces in the header values, to prevent header injection.
 	 * @param	string	$from		Sender.
 	 * @param	array	$toList		List of recipients.
 	 * @param	array	$ccList		List of carbon-copy recipients.
@@ -485,19 +505,19 @@ class Email implements \Temma\Base\Loadable {
 	static protected function _composeMessage(string $from, array $toList, array $ccList, string $title,
 	                                          ?string $unsubscribe, array $content, string $messageId) : string {
 		$lines = [];
-		$lines[] = 'From: ' . $from;
-		$to = implode(', ', array_filter($toList));
+		$lines[] = 'From: ' . self::_cleanHeaderValue($from);
+		$to = self::_cleanHeaderValue(implode(', ', array_filter($toList)));
 		if ($to !== '')
 			$lines[] = 'To: ' . $to;
-		$cc = implode(', ', array_filter($ccList));
+		$cc = self::_cleanHeaderValue(implode(', ', array_filter($ccList)));
 		if ($cc !== '')
 			$lines[] = 'Cc: ' . $cc;
-		$lines[] = 'Subject: ' . self::_encodeHeader($title);
+		$lines[] = 'Subject: ' . self::_encodeHeader(self::_cleanHeaderValue($title));
 		$lines[] = 'Date: ' . date('r');
 		$lines[] = 'Message-ID: ' . $messageId;
 		$lines[] = 'MIME-Version: 1.0';
 		if ($unsubscribe)
-			$lines[] = 'List-Unsubscribe: ' . $unsubscribe;
+			$lines[] = 'List-Unsubscribe: ' . self::_cleanHeaderValue($unsubscribe);
 		foreach ($content['headers'] as $name => $value)
 			$lines[] = "$name: $value";
 		return (implode("\r\n", $lines) . "\r\n\r\n" . $content['body']);
@@ -527,31 +547,73 @@ class Email implements \Temma\Base\Loadable {
 	/**
 	 * Extract a bare email address from a "Name <address>" or "address" string.
 	 * @param	string	$address	Address, possibly with a display name.
-	 * @return	string	The bare email address.
+	 * @return	string	The bare email address, or an empty string if the string contains control characters (like
+	 *			CR or LF) or if the address contains angle brackets (they could be used to inject headers or
+	 *			SMTP commands).
 	 */
 	static private function _cleanAddress(string $address) : string {
-		if (preg_match('/<([^>]+)>/', $address, $matches))
-			return (trim($matches[1]));
-		return (trim($address));
+		$address = trim($address);
+		if (!preg_match('/[\x00-\x1F\x7F]/', $address)) {
+			if (preg_match('/<([^>]*)>/', $address, $matches))
+				$address = trim($matches[1]);
+			if (!preg_match('/[<>]/', $address))
+				return ($address);
+		}
+		TµLog::log('Temma/Base', 'WARN', "Invalid email address '" . addcslashes($address, "\0..\37\177") . "'.");
+		return ('');
 	}
 	/**
-	 * Filter the list of recipients using the list of allowedDomains.
-	 * @param	string|array	$to	Recipient of the message, or list of recipients (each recipient in the form "Name <address@domain>" or "address@domain").
-	 * @return	array	The filtered list of recipients.
+	 * Clean a header value: control characters (like CR and LF, which could be used to inject headers)
+	 * are replaced by spaces.
+	 * @param	string	$value	Header value.
+	 * @return	string	The cleaned value.
 	 */
-	private function _filterRecipients(string|array $to) : array {
-		$to = is_array($to) ? $to : [$to];
-		if (!$this->_allowedDomains)
-			return ($to);
-		$filtered = [];
-		foreach ($this->_allowedDomains as $domain) {
-			foreach ($to as $recipient) {
-				if (str_ends_with($recipient, "@$domain") || str_ends_with($recipient, "@$domain>")) {
-					$filtered[] = $recipient;
-				}
+	static private function _cleanHeaderValue(string $value) : string {
+		return (preg_replace('/[\x00-\x1F\x7F]/', ' ', $value));
+	}
+	/**
+	 * Build the additional parameter given to sendmail by mail(), to define the envelope sender.
+	 * The envelope sender is not used if it is not a simple email address, because the parameter is
+	 * given on the sendmail command line (an address containing spaces could add other sendmail options).
+	 * @param	?string	$envelopeSender	Envelope sender ("address@domain" or "Name <address@domain>").
+	 * @return	string	The parameter, or an empty string.
+	 */
+	static private function _envelopeSenderParameter(?string $envelopeSender) : string {
+		if (!$envelopeSender)
+			return ('');
+		$address = self::_cleanAddress($envelopeSender);
+		if (!preg_match('/^[a-zA-Z0-9._%+=\-]+@[a-zA-Z0-9.\-]+$/', $address)) {
+			TµLog::log('Temma/Base', 'WARN', "Envelope sender '" . addcslashes($address, "\0..\37\177") . "' not used (not a simple email address).");
+			return ('');
+		}
+		return ("-f$address");
+	}
+	/**
+	 * Split a list of recipients into individual recipients.
+	 * @param	string|array	$recipients	Recipient, or list of recipients. A string may contain several comma-separated
+	 *					recipients (commas between double quotes are part of a display name).
+	 * @return	array	The list of recipients, without empty values.
+	 */
+	static private function _splitRecipients(string|array $recipients) : array {
+		$list = [];
+		foreach ((is_array($recipients) ? $recipients : [$recipients]) as $chunk) {
+			foreach (preg_split('/,(?=(?:[^"]*"[^"]*")*[^"]*$)/', (string)$chunk) as $recipient) {
+				if (($recipient = trim($recipient)) !== '')
+					$list[] = $recipient;
 			}
 		}
-		return ($filtered);
+		return ($list);
+	}
+	/**
+	 * Tell if a recipient is made of exactly one email address, in the form "address@domain",
+	 * "Name <address@domain>" or '"Name" <address@domain>'.
+	 * @param	string	$recipient	The recipient.
+	 * @return	bool	True if the recipient is valid.
+	 */
+	static private function _isSingleAddress(string $recipient) : bool {
+		$address = '[^\s@<>()",;:\\\\\[\]\x00-\x1F\x7F]+@[\p{L}\p{N}.\-]+';
+		$name = '(?:"[^"\\\\<>\x00-\x1F\x7F]*"|[^"<>()@,;:\\\\\[\]\x00-\x1F\x7F]*)';
+		return ((bool)preg_match('/^(?:' . $address . '|' . $name . '\s*<' . $address . '>)$/u', $recipient));
 	}
 }
 

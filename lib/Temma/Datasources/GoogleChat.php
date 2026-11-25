@@ -85,17 +85,17 @@ class GoogleChat extends \Temma\Base\Datasource {
 	 * @throws	\Temma\Exceptions\Database	If the DSN is invalid.
 	 */
 	static public function factory(string $dsn) : \Temma\Datasources\GoogleChat {
-		TµLog::log('Temma/Base', 'DEBUG', "\\Temma\\Datasources\\GoogleChat object creation with DSN: '$dsn'.");
+		TµLog::log('Temma/Base', 'DEBUG', "\\Temma\\Datasources\\GoogleChat object creation with DSN: '" . self::_maskDsn($dsn) . "'.");
 		$webhook = null;
 		if (!str_starts_with($dsn, 'googlechat://')) {
-			TµLog::log('Temma/Base', 'WARN', "Invalid Google Chat DSN '$dsn'.");
-			throw new \Temma\Exceptions\Database("Invalid Google Chat DSN '$dsn'.", \Temma\Exceptions\Database::FUNDAMENTAL);
+			TµLog::log('Temma/Base', 'WARN', "Invalid Google Chat DSN '" . self::_maskDsn($dsn) . "'.");
+			throw new \Temma\Exceptions\Database("Invalid Google Chat DSN '" . self::_maskDsn($dsn) . "'.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		}
 		$dsn = mb_substr($dsn, mb_strlen('googlechat://'));
 		if (($pos = mb_strpos($dsn, '@')) !== false)
 			$dsn = mb_substr($dsn, $pos + 1);
 		if (!str_starts_with($dsn, 'chat.googleapis.com/v1/spaces/'))
-			throw new \Temma\Exceptions\Database("Invalid Google Chat webhook '$dsn'.", \Temma\Exceptions\Database::FUNDAMENTAL);
+			throw new \Temma\Exceptions\Database("Invalid Google Chat webhook '" . self::_maskDsn($dsn) . "'.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		$webhook = "https://$dsn";
 		return (new self($webhook));
 	}
@@ -121,14 +121,13 @@ class GoogleChat extends \Temma\Base\Datasource {
 	/**
 	 * Send a Google Chat notification.
 	 * @param	string	$channel	Not used.
-	 * @param	string	$text		Text message.
+	 * @param	?string	$text		Text message.
 	 * @param	mixed	$options	Not used.
-	 * @return	bool	Always true.
+	 * @return	bool	True if the message was sent, false if the data source is disabled.
 	 * @throws	\Temma\Exceptions\Database	If an error occured.
 	 */
-	public function write(string $channel, string $text=null, mixed $options=null) : bool {
-		$this->set($channel, $text, $options);
-		return (true);
+	public function write(string $channel, ?string $text=null, mixed $options=null) : bool {
+		return ($this->set($channel, $text, $options));
 	}
 
 	/* ********** KEY-VALUE REQUESTS ********** */
@@ -137,7 +136,7 @@ class GoogleChat extends \Temma\Base\Datasource {
 	 * @param	string		$channel	Not used.
 	 * @param	string|array	$message	Text message, or an associative array with formatted message data.
 	 * @param	mixed		$options	Not used.
-	 * @return	bool	Always true.
+	 * @return	bool	True if the message was sent, false if the data source is disabled.
 	 * @throws	\Temma\Exceptions\Database	If an error occured.
 	 */
 	public function set(string $channel, mixed $message=null, mixed $options=null) : bool {
@@ -162,7 +161,7 @@ class GoogleChat extends \Temma\Base\Datasource {
 				$widget = [];
 				if (($msgSection['html'] ?? null)) {
 					if (($msgSection['icon'] ?? null) ||
-					    ($msgSection['topLoabel'] ?? null) ||
+					    ($msgSection['topLabel'] ?? null) ||
 					    ($msgSection['bottomLabel'] ?? null)) {
 						$widget = [];
 						if (($msgSection['icon'] ?? null))
@@ -246,10 +245,10 @@ class GoogleChat extends \Temma\Base\Datasource {
 		return (true);
 	}
 	/**
-	 * Disable mSet().
-	 * @param	array	$data		Associative array with keys (recipients' user key) and their associated values (text messages).
-	 * @param	mixed	$options	(optional) Options.
-	 * @return	int	The number of sent messages.
+	 * Disabled mSet().
+	 * @param	array	$data		Not used.
+	 * @param	mixed	$options	(optional) Not used.
+	 * @throws	\Temma\Exceptions\Database	Always throws an exception.
 	 */
 	public function mSet(array $data, mixed $options=null) : int {
 		throw new \Temma\Exceptions\Database("No mSet() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);
