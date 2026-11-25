@@ -92,13 +92,21 @@ use \Temma\Exceptions\Database as TµDatabaseException;
  * }
  * </code>
  *
- * For use as a regular datasource, you must create a table named 'TemmaData':
+ * For use as a regular datasource (key-value mode, available with MySQL/MariaDB, PostgreSQL and SQLite),
+ * you must create a table named 'TemmaData'. Keys are case-sensitive. With MySQL/MariaDB, keys must
+ * be ASCII strings (the 'key' column uses the ASCII character set).
  * <code>
+ * -- MySQL/MariaDB
  * CREATE TABLE TemmaData (
- *     key    CHAR(255) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
+ *     `key`  VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
  *     data   LONGTEXT,
- *     PRIMARY KEY (key)
+ *     PRIMARY KEY (`key`)
  * ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+ * -- PostgreSQL and SQLite
+ * CREATE TABLE TemmaData (
+ *     "key"  VARCHAR(255) NOT NULL PRIMARY KEY,
+ *     data   TEXT
+ * );
  * </code>
  */
 class Sql extends \Temma\Base\Datasource {
@@ -139,6 +147,8 @@ class Sql extends \Temma\Base\Datasource {
 	protected ?string $_socket = null;
 	/** Array of buffered requests. */
 	protected array $_bufferedRequests = [];
+	/** Key-value data source (used in key-value mode). */
+	protected bool $_keyValue = true;
 
 	/* ********** CONSTRUCTION ********** */
 	/**
@@ -154,7 +164,7 @@ class Sql extends \Temma\Base\Datasource {
 		// parameters extraction
 		$params = null;
 		if (!preg_match("/^([^:]+):\/\/([^:@]+):?([^@]+)?@([^\/:]+):?(\d+)?\/([^#]*)#?(.*)$/", $dsn, $matches)) {
-			throw new \Temma\Exceptions\Database("Invalid SQL DSN '$dsn'.", \Temma\Exceptions\Database::FUNDAMENTAL);
+			throw new \Temma\Exceptions\Database("Invalid SQL DSN '" . self::_maskDsn($dsn) . "'.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		}
 		$type = $matches[1];
 		$login = $matches[2];
@@ -593,9 +603,9 @@ class Sql extends \Temma\Base\Datasource {
 		$sql = "SELECT COUNT(*) AS cnt
 		        FROM TemmaData";
 		if ($pattern !== null)
-			$sql .= " WHERE key LIKE " . $this->quote("$pattern%");
+			$sql .= " WHERE " . $this->_getPrefixCondition($pattern);
 		$res = $this->queryOne($sql);
-		return ($res['cnt']);
+		return ((int)$res['cnt']);
 	}
 
 	/* ********** STANDARD REQUESTS ********** */
@@ -609,7 +619,7 @@ class Sql extends \Temma\Base\Datasource {
 			return (false);
 		$sql = "SELECT COUNT(*) AS cnt
 		        FROM TemmaData
-		        WHERE key = " . $this->quote($key);
+		        WHERE " . $this->_getKeyField() . " = " . $this->quote($key);
 		$res = $this->queryOne($sql);
 		return ($res['cnt'] != 0);
 	}
@@ -621,7 +631,7 @@ class Sql extends \Temma\Base\Datasource {
 		if (!$this->_enabled)
 			return;
 		$sql = "DELETE FROM TemmaData
-		        WHERE key = " . $this->quote($key);
+		        WHERE " . $this->_getKeyField() . " = " . $this->quote($key);
 		$this->exec($sql);
 	}
 	/**
@@ -629,24 +639,24 @@ class Sql extends \Temma\Base\Datasource {
 	 * @param	array	$keys	List of keys to remove.
 	 */
 	public function mRemove(array $keys) : void {
-		if (!$this->_enabled)
+		if (!$this->_enabled || !$keys)
 			return;
 		array_walk($keys, function(&$value, $key) {
 			$value = $this->quote($value);
 		});
 		$sql = "DELETE FROM TemmaData
-		        WHERE key IN (" . implode(', ', $keys) . ")";
+		        WHERE " . $this->_getKeyField() . " IN (" . implode(', ', $keys) . ")";
 		$this->exec($sql);
 	}
 	/**
-	 * Remove all keys matching a given pattern.
+	 * Remove all keys starting with a given prefix.
 	 * @param	string	$prefix	The key prefix.
 	 */
 	public function clear(string $prefix) : void {
 		if (!$this->_enabled)
 			return;
 		$sql = "DELETE FROM TemmaData
-		        WHERE key LIKE " . $this->quote("$prefix%");
+		        WHERE " . $this->_getPrefixCondition($prefix);
 		$this->exec($sql);
 	}
 	/**
@@ -655,19 +665,20 @@ class Sql extends \Temma\Base\Datasource {
 	public function flush() : void {
 		if (!$this->_enabled)
 			return;
-		$sql = "TRUNCATE TABLE TemmaData";
+		// SQLite doesn't support TRUNCATE
+		$sql = $this->_isSqlite() ? 'DELETE FROM TemmaData' : 'TRUNCATE TABLE TemmaData';
 		$this->exec($sql);
 	}
 
 	/* ********** RAW REQUESTS ********** */
 	/**
-	 * Return a list of keys that match a pattern.
+	 * Return a list of keys that start with a prefix.
 	 * @param	string			$prefix		The prefix to match.
 	 * @param	bool			$getValues	(optional) True to fetch the associated values. False by default.
 	 * @param	null|bool|string|array	$sort		(optional) Sort criteria:
 	 *							- null: natural order (default).
-	 *							- true: ORDER BY key DESC.
-	 *							- false: random order (ORDER BY RAND()).
+	 *							- true: keys in descending order.
+	 *							- false: random order.
 	 *							- string/array: sort by column. Allowed fields: 'key' and 'data'.
 	 * @param	int			$offset		(optional) Number of items to skip. 0 by default.
 	 * @param	int			$limit		(optional) Maximum number of items to return. 0 means no limit.
@@ -677,23 +688,23 @@ class Sql extends \Temma\Base\Datasource {
 	public function find(string $prefix, bool $getValues=false, null|bool|string|array $sort=null, int $offset=0, int $limit=0) : array {
 		if (!$this->_enabled)
 			return ([]);
-		$sql = "SELECT key";
+		$keyField = $this->_getKeyField();
+		$sql = "SELECT $keyField";
 		if ($getValues)
 			$sql .= ", data";
 		$sql .= " FROM TemmaData
-		         WHERE key LIKE " . $this->quote("$prefix%");
+		         WHERE " . $this->_getPrefixCondition($prefix);
 		if ($sort === true)
-			$sql .= ' ORDER BY key DESC';
+			$sql .= " ORDER BY $keyField DESC";
 		else if ($sort === false)
-			$sql .= ' ORDER BY RAND()';
+			$sql .= ($this->_type == 'mysql') ? ' ORDER BY RAND()' : ' ORDER BY RANDOM()';
 		else if (is_string($sort) || is_array($sort)) {
 			$criteria = $this->_normalizeSort($sort);
-			$allowed = ['key', 'data'];
 			$parts = [];
 			foreach ($criteria as [$field, $direction]) {
-				if (!in_array($field, $allowed, true))
+				if ($field !== 'key' && $field !== 'data')
 					throw new \Temma\Exceptions\Database("Unsupported sort field '$field' for Sql datasource (allowed: key, data).", \Temma\Exceptions\Database::FUNDAMENTAL);
-				$parts[] = $field . ' ' . mb_strtoupper($direction);
+				$parts[] = (($field == 'key') ? $keyField : 'data') . ' ' . mb_strtoupper($direction);
 			}
 			if ($parts)
 				$sql .= ' ORDER BY ' . implode(', ', $parts);
@@ -713,54 +724,52 @@ class Sql extends \Temma\Base\Datasource {
 		return ($result);
 	}
 	/**
-	 * Get the value associated to a key in database.
+	 * Get the value associated to a key in database. The raw value is returned (not JSON-decoded).
 	 * @param	string	$key			Key to fetch.
 	 * @param	mixed	$defaultOrCallback	(optional) Default scalar value or function called if the data is not found.
 	 *						If scalar: the value is returned.
-	 *						If callback: the value returned by the function is stored in the database, and returned.
-	 * @param	mixed	$options		(optional) Options used if the key is added in databse.
-	 *						If a string: mime type.
-	 *						If a boolean: true for public access, false for private access.
-	 *						If an array: 'public' (bool) and/or 'mimetype' (string) keys.
-	 * @return	?string	The data fetched from the S3 file, or null.
+	 *						If callback: the value returned by the function (a string) is stored as is in the
+	 *						database, and returned.
+	 * @param	mixed	$options		Not used.
+	 * @return	?string	The data fetched from the database, or null.
+	 * @throws	\Temma\Exceptions\Database	If the default value or the value returned by the callback is not a string.
 	 * @throws	\Exception	If an error occured.
 	 */
 	public function read(string $key, mixed $defaultOrCallback=null, mixed $options=null) : ?string {
 		// fetch the data
 		if ($this->_enabled) {
 			$sql = "SELECT data
-				FROM TemmaData
-				WHERE key = " . $this->quote($key);
+			        FROM TemmaData
+			        WHERE " . $this->_getKeyField() . " = " . $this->quote($key);
 			$res = $this->queryOne($sql);
-			if (($res['data'] ?? null))
+			if (isset($res['data']))
 				return ($res['data']);
 		}
 		// manage default value
-		if (!$defaultOrCallback)
-			return (null);
-		$value = $defaultOrCallback;
-		if (is_callable($defaultOrCallback)) {
-			$value = $defaultOrCallback();
-			$this->set($key, $value, $options);
-		}
+		if (!self::_isCallback($defaultOrCallback))
+			return (self::_toRawValue($defaultOrCallback));
+		$value = self::_toRawValue($defaultOrCallback());
+		if ($value !== null)
+			$this->write($key, $value, $options);
 		return ($value);
 	}
 	/**
 	 * Multiple read.
 	 * @param	array	$keys	List of keys.
-	 * @return	array	Associative array with the keys and their associated values.
+	 * @return	array	Associative array with the keys and their associated values (null for missing keys).
 	 */
 	public function mRead(array $keys) : array {
-		if (!$this->_enabled)
+		if (!$this->_enabled || !$keys)
 			return ([]);
-		array_walk($keys, function(&$value, $key) {
-			$value = $this->quote($value);
-		});
-		$sql = "SELECT key, data
-			FROM TemmaData
-			WHERE key IN (" . implode(', ', $keys) . ")";
+		$quotedKeys = [];
+		foreach ($keys as $key)
+			$quotedKeys[] = $this->quote($key);
+		$keyField = $this->_getKeyField();
+		$sql = "SELECT $keyField, data
+		        FROM TemmaData
+		        WHERE $keyField IN (" . implode(', ', $quotedKeys) . ")";
 		$data = $this->queryAll($sql);
-		$result = [];
+		$result = array_fill_keys($keys, null);
 		foreach ($data as $line)
 			$result[$line['key']] = $line['data'];
 		return ($result);
@@ -771,40 +780,93 @@ class Sql extends \Temma\Base\Datasource {
 	 * @param	mixed	$data		(optional) Data value. The data is deleted if the value is not given or if it is null.
 	 * @param	mixed	$options	Not used.
 	 * @return	bool	Always true.
+	 * @throws	\Temma\Exceptions\Database	If the database type doesn't support the key-value mode.
 	 * @throws	\Exception	If an error occured.
 	 */
 	public function write(string $key, mixed $data=null, mixed $options=null) : bool {
 		if (!$this->_enabled)
 			return (false);
-		// remove file
+		// remove key
 		if ($data === null) {
 			$this->remove($key);
 			return (true);
 		}
 		// create or update key
-		$sql = "INSERT INTO TemmaData
-			SET data = " . $this->quote($data) . "
-			WHERE key = " . $this->quote($key) . "
-			ON DUPLICATE KEY UPDATE data = " . $this->quote($data);
-		$this->exec($sql);
+		$this->exec($this->_getUpsertRequest([$key => $data]));
 		return (true);
 	}
 	/**
 	 * Multiple write.
-	 * @param	array	$data		Associative array with keys and their associated values.
-	 * @param	mixed	$options	(optional) Options (like expiration duration).
+	 * @param	array	$data		Associative array with keys and their associated values. Keys with a null value are removed.
+	 * @param	mixed	$options	Not used.
 	 * @return	int	The number of set data.
+	 * @throws	\Temma\Exceptions\Database	If the database type doesn't support the key-value mode.
 	 */
 	public function mWrite(array $data, mixed $options=null) : int {
 		if (!$this->_enabled)
 			return (0);
+		// remove the keys with a null value
+		$removed = array_keys(array_filter($data, 'is_null'));
+		$this->mRemove($removed);
+		$data = array_diff_key($data, array_flip($removed));
+		if (!$data)
+			return (0);
+		// create or update the keys (the number of lines given by exec() counts updated lines twice)
+		$this->exec($this->_getUpsertRequest($data));
+		return (count($data));
+	}
+
+	/* ********** PRIVATE METHODS ********** */
+	/**
+	 * Tell if the database is SQLite.
+	 * @return	bool	True for SQLite.
+	 */
+	private function _isSqlite() : bool {
+		return ($this->_type == 'sqlite' || $this->_type == 'sqlite2');
+	}
+	/**
+	 * Returns the quoted name of the 'key' column of the TemmaData table ('key' is a reserved word in MySQL).
+	 * @return	string	The quoted column name.
+	 */
+	private function _getKeyField() : string {
+		return (($this->_type == 'mysql') ? '`key`' : '"key"');
+	}
+	/**
+	 * Returns the SQL condition matching the keys starting with a prefix.
+	 * The '%' and '_' characters of the prefix are not used as wildcards.
+	 * @param	string	$prefix	The prefix.
+	 * @return	string	The SQL condition.
+	 */
+	private function _getPrefixCondition(string $prefix) : string {
+		$keyField = $this->_getKeyField();
+		// SQLite: LIKE is case-insensitive, so the beginning of the key is compared
+		if ($this->_isSqlite())
+			return ("SUBSTR($keyField, 1, " . mb_strlen($prefix) . ") = " . $this->quote($prefix));
+		$pattern = str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $prefix) . '%';
+		return ("$keyField LIKE " . $this->quote($pattern) . " ESCAPE '!'");
+	}
+	/**
+	 * Returns the request which creates or updates keys in the TemmaData table.
+	 * @param	array	$data	Associative array with keys and their associated values (not null).
+	 * @return	string	The SQL request.
+	 * @throws	\Temma\Exceptions\Database	If the database type doesn't support the key-value mode.
+	 */
+	private function _getUpsertRequest(array $data) : string {
+		$keyField = $this->_getKeyField();
 		$values = [];
 		foreach ($data as $key => $value)
-			$values[] = '(' . $this->quote($key) . ', ' . $this->quote($data) . ')';
-		$sql = "INSERT INTO TemmaData (key, data)
-		        VALUES " . implode(', ', $values) . "
-		        ON DUPLICATE KEY UPDATE data = VALUES(data)";
-		return ($this->exec($sql));
+			$values[] = '(' . $this->quote($key) . ', ' . $this->quote($value) . ')';
+		$sql = "INSERT INTO TemmaData ($keyField, data)
+		        VALUES " . implode(', ', $values);
+		// MySQL/MariaDB (the "AS alias" syntax replacing VALUES() is not supported by MariaDB)
+		if ($this->_type == 'mysql') {
+			if (count($data) == 1)
+				return ("$sql ON DUPLICATE KEY UPDATE data = " . $this->quote(reset($data)));
+			return ("$sql ON DUPLICATE KEY UPDATE data = VALUES(data)");
+		}
+		// PostgreSQL and SQLite (3.24+)
+		if ($this->_type == 'pgsql' || $this->_isSqlite())
+			return ("$sql ON CONFLICT ($keyField) DO UPDATE SET data = EXCLUDED.data");
+		throw new \Temma\Exceptions\Database("The key-value mode is not supported with the '{$this->_type}' database type.", \Temma\Exceptions\Database::FUNDAMENTAL);
 	}
 }
-

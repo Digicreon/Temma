@@ -15,6 +15,7 @@ use \Temma\Utils\Email as TµEmail;
 use \Temma\Datasources\Smtp as TµSmtp;
 
 \Temma\Base\Autoload::autoload(__DIR__ . '/../lib');
+\Temma\Base\Log::disable();
 
 /* ********** TEST DOUBLES ********** */
 // "delivery" datasource: receives the structured array through set() (like the SMTP datasource)
@@ -193,6 +194,87 @@ $email->setTransport(['host' => 'smtp.example.com', 'port' => 587, 'security' =>
 $transport = $email->transport();
 check("setTransport(array): SMTP parameters",
       $transport instanceof TµSmtp && smtpProp($transport, '_host') === 'smtp.example.com');
+
+/* ********** TESTS: HEADER INJECTION ********** */
+print(TµAnsi::bold("Email: header injection\n"));
+// returns the header lines of a message
+function headerLines(string $message) : array {
+	return (explode("\r\n", explode("\r\n\r\n", $message, 2)[0]));
+}
+// tells if a header line starts with the given prefix
+function hasHeader(string $message, string $prefix) : bool {
+	return ((bool)array_filter(headerLines($message), fn($line) => str_starts_with($line, $prefix)));
+}
+$delivery = new CaptureDelivery();
+$email = new TµEmail(makeLoader());
+$email->setTransport($delivery);
+$email->textMail('s@dom.com', 'a@x.com', "Title\r\nBcc: evil1@y.com", 'x');
+$message = $delivery->captured['value']['message'] ?? '';
+check("CR/LF in the subject: no injected header",
+      !hasHeader($message, 'Bcc:') && in_array('Subject: Title  Bcc: evil1@y.com', headerLines($message)));
+$delivery = new CaptureDelivery();
+$email = new TµEmail(makeLoader());
+$email->setTransport($delivery);
+$email->textMail("s@dom.com\r\nBcc: evil2@y.com", ["a@x.com", "b@x.com\nBcc: evil3@y.com"], 'Title', 'x',
+                 ["c@x.com\r\nX-Injected: 1"]);
+$value = $delivery->captured['value'] ?? [];
+$message = $value['message'] ?? '';
+check("CR/LF in the sender and the recipients: no injected header",
+      $message && !hasHeader($message, 'Bcc:') && !hasHeader($message, 'X-Injected:'));
+check("CR/LF in the sender and the recipients: invalid addresses not used in the envelope",
+      ($value['from'] ?? null) === '' && ($value['recipients'] ?? null) === ['a@x.com']);
+$delivery = new CaptureDelivery();
+$email = new TµEmail(makeLoader());
+$email->setTransport($delivery);
+$email->mimeMail('s@dom.com', 'a@x.com', 'Title', '<p>x</p>', null,
+                 [['filename' => "a\".txt\r\nX-Injected: 1", 'mimetype' => "text/plain\r\nX-Injected: 2", 'data' => 'x']],
+                 unsubscribe: "<mailto:u@dom.com>\r\nX-Injected: 3");
+$message = $delivery->captured['value']['message'] ?? '';
+check("CR/LF in the attachment name and type, and in the unsubscribe header: no injected header",
+      $message && !preg_match('/^X-Injected/m', $message) &&
+      str_contains($message, 'filename="a\".txt  X-Injected: 1"'));
+$envelopeParameter = fn(?string $sender) => (new \ReflectionMethod(TµEmail::class, '_envelopeSenderParameter'))->invoke(null, $sender);
+check("mail() envelope sender: simple address given to sendmail",
+      $envelopeParameter('env@dom.com') === '-fenv@dom.com' && $envelopeParameter('Name <env@dom.com>') === '-fenv@dom.com');
+check("mail() envelope sender: address with spaces (sendmail options) or control characters not used",
+      $envelopeParameter('env@dom.com -X/tmp/log') === '' && $envelopeParameter("env@dom.com\n-X/tmp/log") === '' &&
+      $envelopeParameter('"a -X/tmp/log"@dom.com') === '' && $envelopeParameter(null) === '');
+
+print(TµAnsi::bold("Email: allowed domains\n"));
+$delivery = new CaptureDelivery();
+$email = new TµEmail(makeLoader());
+$email->setTransport($delivery);
+$email->setAllowedDomains(['allowed.com']);
+$email->textMail('s@dom.com', ['evil@evil.com, a@allowed.com', '"Doe, John" <j@ALLOWED.com>', 'x@sub.allowed.com'], 'Title', 'Text');
+check("each comma-separated recipient is checked, domains are case-insensitive",
+      ($delivery->captured['value']['recipients'] ?? null) === ['a@allowed.com', 'j@ALLOWED.com']);
+$delivery = new CaptureDelivery();
+$email = new TµEmail(makeLoader());
+$email->setTransport($delivery);
+$email->setAllowedDomains(['allowed.com']);
+$email->textMail('s@dom.com', ['a@evil.com b@allowed.com', 'a@evil.com;b@allowed.com', 'a@evil.com (b@allowed.com',
+                               '"a@evil.com, b@allowed.com', 'a@evil.com <b@allowed.com>', '"x <a@evil.com>" <b@allowed.com>',
+                               'ok@allowed.com'], 'Title', 'Text');
+// with an unbalanced quote, the string is split and only the valid chunk is kept
+check('a recipient hiding other addresses (space, semicolon, parenthesis, quote, address as name) is rejected',
+      (($delivery->captured['value']['recipients'] ?? null) === ['b@allowed.com', 'ok@allowed.com']));
+$delivery = new CaptureDelivery();
+$email = new TµEmail(makeLoader());
+$email->setTransport($delivery);
+$email->setAllowedDomains(['allowed.com']);
+$email->setBcc('archive@evil.com');
+$email->textMail('s@dom.com', 'a@allowed.com', 'Title', 'Text', 'c@evil.com, "C" <c@allowed.com>', 'b@evil.com');
+$value = $delivery->captured['value'] ?? [];
+check('cc and bcc recipients are filtered too',
+      ((($value['recipients'] ?? null) === ['a@allowed.com', 'c@allowed.com']) &&
+       str_contains(($value['message'] ?? ''), 'Cc: "C" <c@allowed.com>') && !str_contains(($value['message'] ?? ''), 'evil.com')));
+print(TµAnsi::bold("Email: comma-separated recipients\n"));
+$delivery = new CaptureDelivery();
+$email = new TµEmail(makeLoader());
+$email->setTransport($delivery);
+$email->textMail('s@dom.com', 'A <a@x.com>, B <b@y.com>', 'Title', 'Text', 'c@x.com, d@y.com');
+check('without allowed domains, comma-separated recipients are all delivered',
+      (($delivery->captured['value']['recipients'] ?? null) === ['a@x.com', 'b@y.com', 'c@x.com', 'd@y.com']));
 
 // summary
 print("\n");

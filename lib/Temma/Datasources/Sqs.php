@@ -27,6 +27,7 @@ require_once('aws.phar');
  * $sqs = \Temma\Datasources\Sqs::factory('sqs://ACCESS_KEY:SECRET_KEY@QUEUE_URL');
  * $sqs = \Temma\Base\Datasource::factory('sqs://ACCESS_KEY:SECRET_KEY@QUEUE_URL');
  * // QUEUE_URL is everything after the 'https://'. For example: "sqs.eu-west-3.amazonaws.com/123456789012/queue_name"
+ * // A long polling wait duration (in seconds, 20 at most) may be added at the end of the DSN: 'sqs://ACCESS_KEY:SECRET_KEY@QUEUE_URL#20'
  *
  * // send message to the queue
  * $sqs[] = $data;
@@ -46,6 +47,12 @@ require_once('aws.phar');
  * </code>
  */
 class Sqs extends \Temma\Base\Datasource {
+	/** Constant: Maximum long polling wait duration accepted by SQS, in seconds. */
+	const MAX_WAIT_POLLING = 20;
+	/** Constant: Connection timeout of the HTTP requests, in seconds. */
+	const CONNECT_TIMEOUT = 10;
+	/** Constant: Timeout of the HTTP requests, in seconds (must be greater than the maximum long polling wait duration). */
+	const REQUEST_TIMEOUT = 30;
 	/** AWS SQS client object. */
 	private $_sqsClient = null;
 	/** Access key. */
@@ -67,19 +74,20 @@ class Sqs extends \Temma\Base\Datasource {
 	 * @throws	\Temma\Exceptions\Database	If the DSN is invalid.
 	 */
 	static public function factory(string $dsn) : \Temma\Datasources\Sqs {
-		TµLog::log('Temma/Base', 'DEBUG', "\\Temma\\Datasources\\Sqs object creation with DSN: '$dsn'.");
-		if (!preg_match('/^([^:]+):\/\/([^:]+):([^@]+)@(sqs\.)?([^\.]+)\.amazonaws\.com\/(.*)#?(\d*)$/', $dsn, $matches)) {
-			TµLog::log('Temma/Base', 'WARN', "Invalid Sqs DSN '$dsn'.");
-			throw new \Temma\Exceptions\Database("Invalid Sqs DSN '$dsn'.", \Temma\Exceptions\Database::FUNDAMENTAL);
+		$maskedDsn = self::_maskDsn($dsn);
+		TµLog::log('Temma/Base', 'DEBUG', "\\Temma\\Datasources\\Sqs object creation with DSN: '$maskedDsn'.");
+		if (!preg_match('/^([^:]+):\/\/([^:]+):([^@]+)@(sqs\.)?([^\.]+)\.amazonaws\.com\/([^#]*)(?:#(\d*))?$/', $dsn, $matches)) {
+			TµLog::log('Temma/Base', 'WARN', "Invalid Sqs DSN '$maskedDsn'.");
+			throw new \Temma\Exceptions\Database("Invalid Sqs DSN '$maskedDsn'.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		}
 		$type = $matches[1] ?? null;
 		$accessKey = $matches[2] ?? '';
 		$privateKey = $matches[3] ?? '';
 		$region = $matches[5] ?? '';
 		$path = $matches[6] ?? '';
-		$waitPolling = ($matches[7] ?? null) ? intval($matches[7]) : null;
-		if ($type != 'sqs' || !$accessKey || !$privateKey || !$region || !$path)
-			throw new \Temma\Exceptions\Database("Invalid Sqs DSN '$dsn'.", \Temma\Exceptions\Database::FUNDAMENTAL);
+		$waitPolling = (($matches[7] ?? '') !== '') ? intval($matches[7]) : null;
+		if ($type != 'sqs' || $accessKey === '' || $privateKey === '' || $region === '' || $path === '')
+			throw new \Temma\Exceptions\Database("Invalid Sqs DSN '$maskedDsn'.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		$url = "https://sqs.$region.amazonaws.com/$path";
 		return (new self($accessKey, $privateKey, $region, $url, $waitPolling));
 	}
@@ -89,31 +97,24 @@ class Sqs extends \Temma\Base\Datasource {
 	 * @param	string	$privateKey	AWS private key.
 	 * @param	string	$region		SQS region.
 	 * @param	string	$url		SQS queue URL.
-	 * @param	?int	$waitPolling	(optional) Long polling wait duration in seconds.
-	 * @throws	\Temma\Exceptions\Database	If a parameter is invalid.
+	 * @param	?int	$waitPolling	(optional) Long polling wait duration in seconds (limited to 20 seconds).
 	 */
-	public function __construct(string $accessKey, string $privateKey, string $region, string $url, ?int $waitPolling) {
+	public function __construct(string $accessKey, string $privateKey, string $region, string $url, ?int $waitPolling=null) {
 		$this->_accessKey = $accessKey;
 		$this->_privateKey = $privateKey;
 		$this->_region = $region;
 		$this->_url = $url;
-		$this->_waitPolling = $waitPolling;
+		$this->_waitPolling = ($waitPolling === null) ? null : self::_limitWaitPolling($waitPolling);
 	}
 
 	/* ********** CONNECTION ********** */
-	/**
-	 * Creation of the SQS client object.
-	 * @throws	\Temma\Exceptions\Database	If the connection failed.
-	 */
+	/** Creation of the SQS client object. */
 	public function connect() {
 		if (!$this->_enabled || $this->_sqsClient)
 			return;
 		$this->reconnect();
 	}
-	/**
-	 * Reconnection.
-	 * @throws	\Temma\Exceptions\Database	If the connection failed.
-	 */
+	/** Reconnection. */
 	public function reconnect() {
 		$this->disconnect();
 		$this->_sqsClient = new \Aws\Sqs\SqsClient([
@@ -122,6 +123,10 @@ class Sqs extends \Temma\Base\Datasource {
 			'credentials' => [
 				'key'    => $this->_accessKey,
 				'secret' => $this->_privateKey,
+			],
+			'http'        => [
+				'connect_timeout' => self::CONNECT_TIMEOUT,
+				'timeout'         => self::REQUEST_TIMEOUT,
 			],
 		]);
 	}
@@ -133,8 +138,10 @@ class Sqs extends \Temma\Base\Datasource {
 
 	/* ********** ARRAY-LIKE REQUESTS ********** */
 	/**
-	 * Return the number of waiting tasks.
-	 * @return	int	The number of tasks.
+	 * Return the approximate number of waiting messages.
+	 * @param	?string	$pattern	(optional) Not used.
+	 * @return	int	The number of messages.
+	 * @throws	\Temma\Exceptions\Database	If the queue attributes couldn't be fetched.
 	 */
 	public function count(?string $pattern=null) : int {
 		if (!$this->_enabled)
@@ -146,21 +153,26 @@ class Sqs extends \Temma\Base\Datasource {
 				'AttributeNames' => ['ApproximateNumberOfMessages'],
 			]);
 		} catch (\Exception $e) {
-			throw new \Temma\Exceptions\Database("Unable to get SQS queue attributes.", \Temma\Exceptions\Database::QUERY);
+			TµLog::log('Temma/Base', 'INFO', "Unable to get AWS SQS queue attributes. Queue='{$this->_url}'.");
+			throw new \Temma\Exceptions\Database('Unable to get SQS queue attributes.', \Temma\Exceptions\Database::QUERY, $e);
 		}
-		return ($res['attributes']['ApproximateNumberOfMessages'] ?? 0);
+		return ((int)($res['Attributes']['ApproximateNumberOfMessages'] ?? 0));
 	}
 
 	/* ********** STANDARD REQUESTS ********** */
 	/**
 	 * Remove a message from SQS.
-	 * @param	string	$id	Message identifier.
+	 * @param	string	$id	Message identifier, as returned by read() or get().
+	 * @throws	\Temma\Exceptions\Database	If the identifier is not valid.
+	 * @throws	\Exception	If the message couldn't be removed.
 	 */
 	public function remove(string $id) : void {
 		if (!$this->_enabled)
 			return;
 		$this->connect();
-		if (!([$identifier, $handle] = json_decode($id, true)) || !$identifier || !$handle) {
+		$idParts = json_decode($id, true);
+		$handle = is_array($idParts) ? ($idParts[1] ?? null) : null;
+		if (!is_string($handle) || $handle === '') {
 			TµLog::log('Temma/Base', 'INFO', "Bad identifier for SQS message ('$id').");
 			throw new \Temma\Exceptions\Database("Bad identifier for SQS message ('$id').", \Temma\Exceptions\Database::QUERY);
 		}
@@ -176,6 +188,7 @@ class Sqs extends \Temma\Base\Datasource {
 	}
 	/**
 	 * Remove all messages from an SQS queue.
+	 * @throws	\Exception	If the queue couldn't be purged.
 	 */
 	public function flush() : void {
 		if (!$this->_enabled)
@@ -195,11 +208,12 @@ class Sqs extends \Temma\Base\Datasource {
 	/**
 	 * Get a message from SQS.
 	 * @param	string	$key			Not used, should be an empty string.
-	 * @param       mixed   $defaultOrCallback      (optional) Not used.
-	 * @param	mixed	$options		(optional) The number of seconds to wait for a message.
+	 * @param	mixed	$defaultOrCallback	(optional) Not used.
+	 * @param	mixed	$options		(optional) The number of seconds to wait for a message (long polling, 20 seconds at most).
+	 *						If it is not given (or zero), the wait duration given in the DSN is used.
 	 * @return	?array	An associative array with the keys "id" (temporary message identifier that can be used to delete the message)
-	 *			and "data" (raw message data).
-	 * @throws	\Exception	If an error occured.
+	 *			and "data" (raw message data), or null if there is no message (or if the datasource is disabled).
+	 * @throws	\Exception	If the message couldn't be fetched (network error, bad credentials...).
 	 */
 	public function read(string $key, mixed $defaultOrCallback=null, mixed $options=null) : ?array {
 		if (!$this->_enabled)
@@ -212,24 +226,26 @@ class Sqs extends \Temma\Base\Datasource {
 				'MaxNumberOfMessages' => 1,
 			];
 			if (is_int($options) && $options)
-				$params['WaitTimeSeconds'] = $options;
-			else if ($this->_waitPolling)
+				$params['WaitTimeSeconds'] = self::_limitWaitPolling($options);
+			else if ($this->_waitPolling !== null)
 				$params['WaitTimeSeconds'] = $this->_waitPolling;
 			$result = $this->_sqsClient->receiveMessage($params);
-			$messages = $result->get('Messages');
-			if ($messages && count($messages)) {
-				$id = [
-					$messages[0]['MessageId'],
-					$messages[0]['ReceiptHandle'],
-				];
-				return ([
-					'id'   => json_encode($id),
-					'data' => $messages[0]['Body'],
-				]);
-			}
 		} catch (\Exception $e) {
+			TµLog::log('Temma/Base', 'INFO', "Unable to read an AWS SQS message. Queue='{$this->_url}'.");
+			throw $e;
 		}
-		return (null);
+		// no message (empty queue)
+		$messages = $result->get('Messages');
+		if (!$messages)
+			return (null);
+		$id = [
+			$messages[0]['MessageId'],
+			$messages[0]['ReceiptHandle'],
+		];
+		return ([
+			'id'   => json_encode($id),
+			'data' => $messages[0]['Body'],
+		]);
 	}
 	/**
 	 * Disabled multiple read.
@@ -237,7 +253,7 @@ class Sqs extends \Temma\Base\Datasource {
 	 * @throws	\Temma\Exceptions\Database	Always throws an exception.
 	 */
 	public function mRead(array $keys) : array {
-		throw new \Temma\Exceptions\Database("No mGet() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);
+		throw new \Temma\Exceptions\Database('No mRead() method on this object.', \Temma\Exceptions\Database::FUNDAMENTAL);
 	}
 	/**
 	 * Disabled multiple copyFrom.
@@ -246,15 +262,15 @@ class Sqs extends \Temma\Base\Datasource {
 	 * @throws	\Temma\Exceptions\Database	Always throws an exception.
 	 */
 	public function mCopyFrom(array $keys) : int {
-		throw new \Temma\Exceptions\Database("No mCopyFrom() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);
+		throw new \Temma\Exceptions\Database('No mCopyFrom() method on this object.', \Temma\Exceptions\Database::FUNDAMENTAL);
 	}
 	/**
 	 * Add a message in SQS.
 	 * @param	string	$id		Not used.
 	 * @param	string	$data		Message data.
 	 * @param	mixed	$options	(optional) Not used.
-	 * @return	?string	Message identifier.
-	 * @throws	\Exception	If an error occured.
+	 * @return	?string	Message identifier (null if the datasource is disabled).
+	 * @throws	\Exception	If the message couldn't be sent.
 	 */
 	public function write(string $id, string $data, mixed $options=null) : ?string {
 		if (!$this->_enabled)
@@ -263,8 +279,8 @@ class Sqs extends \Temma\Base\Datasource {
 		// add message
 		try {
 			$result = $this->_sqsClient->sendMessage([
-				'QueueUrl' => $this->_url,
-				'Body'     => $data,
+				'QueueUrl'    => $this->_url,
+				'MessageBody' => $data,
 			]);
 		} catch (\Exception $e) {
 			TµLog::log('Temma/Base', 'INFO', "Can't send message to AWS SQS. Queue='{$this->_url}'.");
@@ -273,34 +289,49 @@ class Sqs extends \Temma\Base\Datasource {
 		return ($result['MessageId']);
 	}
 	/**
-	 * Multiple write.
-	 * @param	array	$data		List of messages to send.
+	 * Multiple write. Messages are sent by batches of 10 (SQS limit).
+	 * @param	array	$data		List of raw messages to send (strings; numbers are converted to strings).
+	 *					Null values are ignored (no message is removed).
 	 * @param	mixed	$options	(optional) Not used.
-	 * @return	int	The number of set data.
+	 * @return	int	The number of sent messages.
+	 * @throws	\Temma\Exceptions\Database	If a message is not a string or a number (nothing is sent).
+	 * @throws	\Exception	If a batch couldn't be sent (the previous batches have been sent).
 	 */
 	public function mWrite(array $data, mixed $options=null) : int {
 		if (!$this->_enabled)
 			return (0);
+		// check the messages before sending anything
+		$messages = [];
+		foreach ($data as $datum) {
+			if (($datum = self::_toRawValue($datum)) !== null)
+				$messages[] = $datum;
+		}
+		if (!$messages)
+			return (0);
 		$this->connect();
-		$params = [
-			'QueueUrl' => $this->_url,
-			'Entries'  => [],
-		];
-		foreach ($data as $key => $datum) {
-			$params['Entries'][] = [
-				'Id'          => (string)$key,
-				'MessageBody' => (string)$datum,
+		$sent = 0;
+		foreach (array_chunk($messages, 10) as $chunk) {
+			$params = [
+				'QueueUrl' => $this->_url,
+				'Entries'  => [],
 			];
+			// the identifiers must be unique in a batch (the array keys may not be valid identifiers)
+			foreach ($chunk as $i => $datum) {
+				$params['Entries'][] = [
+					'Id'          => (string)$i,
+					'MessageBody' => $datum,
+				];
+			}
+			try {
+				$result = $this->_sqsClient->sendMessageBatch($params);
+			} catch (\Exception $e) {
+				TµLog::log('Temma/Base', 'INFO', "Can't send multiple messages to AWS SQS. Queue='{$this->_url}'.");
+				throw $e;
+			}
+			if (is_array($result['Successful'] ?? null))
+				$sent += count($result['Successful']);
 		}
-		try {
-			$result = $this->_sqsClient->sendMessageBatch($params);
-			if (($result['Successful'] ?? null) && is_array($result['Successful']))
-				return (count($result['Successful']));
-		} catch (\Exception $e) {
-			TµLog::log('Temma/Base', 'INFO', "Can't send multiple messages to AWS SQS. Queue='{$this->_url}'.");
-			throw $e;
-		}
-		return (0);
+		return ($sent);
 	}
 
 	/* ********** KEY-VALUE REQUESTS ********** */
@@ -315,22 +346,23 @@ class Sqs extends \Temma\Base\Datasource {
 	 * @throws	\Temma\Exceptions\Database	Always throws an exception.
 	 */
 	public function search(string $pattern, bool $getValues=false, null|bool|string|array $sort=null, int $offset=0, int $limit=0) : array {
-		throw new \Temma\Exceptions\Database("No search() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);
+		throw new \Temma\Exceptions\Database('No search() method on this object.', \Temma\Exceptions\Database::FUNDAMENTAL);
 	}
 	/**
 	 * Get a message from SQS.
 	 * @param	string	$key			Not used, should be an empty string.
-	 * @param       mixed   $defaultOrCallback      (optional) Not used.
-	 * @param	mixed	$options		(optional) Number of seconds to wait for a message.
-	 * @return	mixed	An associative array with the keys "id" (temporary message identifier that can be used to delete the message)
-	 *			and "data" (JSON-decoded message data).
-	 * @throws	\Exception	If an error occured.
+	 * @param	mixed	$defaultOrCallback	(optional) Not used.
+	 * @param	mixed	$options		(optional) Number of seconds to wait for a message (long polling, 20 seconds at most).
+	 *						If it is not given (or zero), the wait duration given in the DSN is used.
+	 * @return	?array	An associative array with the keys "id" (temporary message identifier that can be used to delete the message)
+	 *			and "data" (JSON-decoded message data), or null if there is no message (or if the datasource is disabled).
+	 * @throws	\Exception	If the message couldn't be fetched (network error, bad credentials...).
 	 */
-	public function get(string $key, mixed $defaultOrCallback=null, mixed $options=null) : mixed {
+	public function get(string $key, mixed $defaultOrCallback=null, mixed $options=null) : ?array {
 		if (!$this->_enabled)
 			return (null);
 		$message = $this->read($key, $defaultOrCallback, $options);
-		if (($message['data'] ?? null))
+		if (is_string($message['data'] ?? null))
 			$message['data'] = json_decode($message['data'], true);
 		return ($message);
 	}
@@ -341,15 +373,15 @@ class Sqs extends \Temma\Base\Datasource {
 	 * @throws	\Temma\Exceptions\Database	Always throws an exception.
 	 */
 	public function mGet(array $keys) : array {
-		throw new \Temma\Exceptions\Database("No mGet() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);
+		throw new \Temma\Exceptions\Database('No mGet() method on this object.', \Temma\Exceptions\Database::FUNDAMENTAL);
 	}
 	/**
 	 * Add a message in SQS.
 	 * @param	string	$id		Message identifier, only used if the second parameter is null (remove the message).
 	 * @param	mixed	$data		(optional) Message data. The data is deleted if the value is not given or if it is null.
 	 * @param	mixed	$options	(optional) Not used.
-	 * @return	?string	Message identifier.
-	 * @throws	\Exception	If an error occured.
+	 * @return	?string	Message identifier (null if the message was removed or if the datasource is disabled).
+	 * @throws	\Exception	If the message couldn't be sent or removed.
 	 */
 	public function set(string $id, mixed $data=null, mixed $options=null) : ?string {
 		if (!$this->_enabled)
@@ -360,5 +392,14 @@ class Sqs extends \Temma\Base\Datasource {
 		}
 		return ($this->write($id, json_encode($data), $options));
 	}
-}
 
+	/* ********** PRIVATE METHODS ********** */
+	/**
+	 * Limit a long polling wait duration to the range accepted by SQS (0 to 20 seconds).
+	 * @param	int	$waitPolling	Wait duration, in seconds.
+	 * @return	int	The limited wait duration.
+	 */
+	static private function _limitWaitPolling(int $waitPolling) : int {
+		return (max(0, min($waitPolling, self::MAX_WAIT_POLLING)));
+	}
+}

@@ -66,31 +66,33 @@ class Redis extends \Temma\Base\Datasource {
 	protected ?\Redis $_ndb = null;
 	/** Connection parameters. */
 	protected ?array $_params = null;
+	/** Key-value data source. */
+	protected bool $_keyValue = true;
 
 	/* ********** CONSTRUCTION ********** */
 	/**
 	 * Factory
 	 * @param	string	$dsn	Connection string.
 	 * @return	\Temma\Datasources\Redis	The created object.
-	 * @throws	\Exception	If the DSN is not correct.
+	 * @throws	\Temma\Exceptions\Database	If the DSN is not correct.
 	 */
 	static public function factory(string $dsn) : \Temma\Datasources\Redis {
-		TµLog::log('Temma/Base', 'DEBUG', "\\Temma\\Datasources\\Redis object creation with DSN: '$dsn'.");
+		TµLog::log('Temma/Base', 'DEBUG', "\\Temma\\Datasources\\Redis object creation with DSN: '" . self::_maskDsn($dsn) . "'.");
 		// extraction of connection parameters
 		$type = $host = $port = null;
-		if (preg_match("/^redis-sock:\/\/([^#]+)#?(.*)$/", $dsn, $matches)) {
+		if (preg_match('/^redis-sock:\/\/([^#]+)#?(.*)$/', $dsn, $matches)) {
 			$type = 'redis';
 			$host = $matches[1];
 			$base = $matches[2];
 			$port = null;
-		} else if (preg_match("/^([^:]+):\/\/([^\/:]+):?(\d+)?\/?(.*)$/", $dsn, $matches)) {
+		} else if (preg_match('/^([^:]+):\/\/([^\/:]+):?(\d+)?\/?(.*)$/', $dsn, $matches)) {
 			$type = $matches[1];
 			$host = $matches[2];
 			$port = (!empty($matches[3]) && ctype_digit($matches[3])) ? $matches[3] : self::DEFAULT_REDIS_PORT;
 			$base = $matches[4];
 		}
 		if ($type != 'redis')
-			throw new \Exception("DSN '$dsn' is not valid.");
+			throw new \Temma\Exceptions\Database("Invalid Redis DSN '" . self::_maskDsn($dsn) . "'.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		$base = !empty($base) ? $base : self::DEFAULT_REDIS_BASE;
 		// instance creation
 		$instance = new self($host, $base, $port);
@@ -264,17 +266,17 @@ class Redis extends \Temma\Base\Datasource {
 		if (!$this->_enabled)
 			return;
 		$this->connect();
-		$this->_ndb->delete($key);
+		$this->_ndb->del($key);
 	}
 	/**
 	 * Multiple remove.
 	 * @param	array	$keys	List of keys.
 	 */
 	public function mRemove(array $keys) : void {
-		if (!$this->_enabled)
+		if (!$this->_enabled || !$keys)
 			return;
 		$this->connect();
-		$this->_ndb->delete($keys);
+		$this->_ndb->del($keys);
 	}
 	/**
 	 * Remove keys from a pattern.
@@ -284,10 +286,13 @@ class Redis extends \Temma\Base\Datasource {
 		if (!$this->_enabled)
 			return;
 		$this->connect();
+		// SCAN may return an empty batch before the end of the iteration
 		$it = null;
-		while (($keys = $this->_ndb->scan($it, $pattern))) {
-			$this->mRemove($keys);
-		}
+		do {
+			$keys = $this->_ndb->scan($it, $pattern);
+			if ($keys)
+				$this->mRemove($keys);
+		} while ($it > 0);
 	}
 	/**
 	 * Remove all data from Redis.
@@ -355,43 +360,47 @@ class Redis extends \Temma\Base\Datasource {
 		return ($result);
 	}
 	/**
-	 * Fetch a key-value pair.
+	 * Fetch a key-value pair. The raw value is returned (not JSON-decoded).
 	 * @param	string	$key			Key.
 	 * @param	mixed	$defaultOrCallback	(optional) Default scalar value or function called if the data is not found.
-	 *						If scalar: the value is written in the local file.
-	 *						If callback: the value returned by the function is stored in the data source, and written in the file.
-	 * @param	mixed	$options		(optional) Options used to store the data returned by the callback.
+	 *						If scalar: the value is returned.
+	 *						If callback: the value returned by the function (a string) is stored as is in the
+	 *						data source, and returned.
+	 * @param	mixed	$options		(optional) Key expiration timeout used to store the data returned by the callback.
 	 * @return	?string	The value associated to the key.
+	 * @throws	\Temma\Exceptions\Database	If the default value or the value returned by the callback is not a string.
 	 */
 	public function read(string $key, mixed $defaultOrCallback=null, mixed $options=null) : ?string {
-		if (!$this->_enabled)
-			return (null);
-		$this->connect();
-		$value = false;
-		if ($this->_enabled)
+		// fetch the data (a disabled data source behaves like an empty one)
+		if ($this->_enabled) {
+			$this->connect();
 			$value = $this->_ndb->get($key);
-		if ($value !== false)
-			return ($value);
-		if ($defaultOrCallback === null)
-			return (null);
-		$value = $defaultOrCallback;
-		if (is_callable($defaultOrCallback)) {
-			$value = $defaultOrCallback();
-			$this->set($key, $value, $options);
+			if ($value !== false)
+				return ($value);
 		}
+		// manage default value
+		if (!self::_isCallback($defaultOrCallback))
+			return (self::_toRawValue($defaultOrCallback));
+		$value = self::_toRawValue($defaultOrCallback());
+		if ($value !== null)
+			$this->write($key, $value, $options);
 		return ($value);
 	}
 	/**
 	 * Multiple read.
 	 * @param	array	$keys	List of keys.
-	 * @return	array	Associative array with the keys and their associated values.
+	 * @return	array	Associative array with the keys and their associated values (null for missing keys).
 	 */
 	public function mRead(array $keys) : array {
-		if (!$this->_enabled)
+		if (!$this->_enabled || !$keys)
 			return ([]);
 		$this->connect();
 		$values = $this->_ndb->mget($keys);
 		$result = array_combine($keys, $values);
+		array_walk($result, function(&$value, $key) {
+			if ($value === false)
+				$value = null;
+		});
 		return ($result);
 	}
 	/**
@@ -406,6 +415,11 @@ class Redis extends \Temma\Base\Datasource {
 		if (!$this->_enabled)
 			return (false);
 		$this->connect();
+		// remove key
+		if ($value === null) {
+			$this->remove($key);
+			return (true);
+		}
 		// manage options
 		$timeout = (int)$timeout;
 		if ($timeout > 0)
@@ -416,7 +430,7 @@ class Redis extends \Temma\Base\Datasource {
 	}
 	/**
 	 * Multiple write.
-	 * @param	array	$data		Associative array with keys and their associated values.
+	 * @param	array	$data		Associative array with keys and their associated values. Keys with a null value are removed.
 	 * @param	mixed	$timeout	(optional) Key expiration timeout. 0 by default, to set no expiration.
 	 * @return	int	The number of set data.
 	 */
@@ -424,7 +438,11 @@ class Redis extends \Temma\Base\Datasource {
 		if (!$this->_enabled)
 			return (0);
 		$this->connect();
-		if (!$this->_ndb->mset($data))
+		// remove the keys with a null value
+		$removed = array_keys(array_filter($data, 'is_null'));
+		$this->mRemove($removed);
+		$data = array_diff_key($data, array_flip($removed));
+		if (!$data || !$this->_ndb->mset($data))
 			return (0);
 		// manage timeouts
 		$timeout = (int)$timeout;
@@ -501,27 +519,25 @@ class Redis extends \Temma\Base\Datasource {
 	 * Fetch a key-value pair.
 	 * @param	string	$key			Key.
 	 * @param	mixed	$defaultOrCallback	(optional) Default scalar value or function called if the data is not found.
-	 *						If scalar: the value is written in the local file.
-	 *						If callback: the value returned by the function is stored in the data source, and written in the file.
-	 * @param	mixed	$options		(optional) Options used to store the data returned by the callback.
+	 *						If scalar: the value is returned.
+	 *						If callback: the value returned by the function is stored JSON-encoded in the
+	 *						data source, and returned.
+	 * @param	mixed	$options		(optional) Key expiration timeout used to store the data returned by the callback.
 	 * @return	mixed	The JSON-decoded value associated to the key.
 	 */
 	public function get(string $key, mixed $defaultOrCallback=null, mixed $options=null) : mixed {
-		if (!$this->_enabled)
-			return (null);
-		$this->connect();
-		$value = false;
-		if ($this->_enabled)
+		// fetch the data (a disabled data source behaves like an empty one)
+		if ($this->_enabled) {
+			$this->connect();
 			$value = $this->_ndb->get($key);
-		if ($value !== false)
-			return (json_decode($value, true));
-		if ($defaultOrCallback === null)
-			return (null);
-		$value = $defaultOrCallback;
-		if (is_callable($defaultOrCallback)) {
-			$value = $defaultOrCallback();
-			$this->set($key, $value, $options);
+			if ($value !== false)
+				return (json_decode($value, true));
 		}
+		// manage default value
+		if (!self::_isCallback($defaultOrCallback))
+			return ($defaultOrCallback);
+		$value = $defaultOrCallback();
+		$this->set($key, $value, $options);
 		return ($value);
 	}
 	/**
@@ -530,7 +546,7 @@ class Redis extends \Temma\Base\Datasource {
 	 * @return	array	Associative array with the keys and their JSON-decoded associated values.
 	 */
 	public function mGet(array $keys) : array {
-		if (!$this->_enabled)
+		if (!$this->_enabled || !$keys)
 			return ([]);
 		$this->connect();
 		$values = $this->_ndb->mget($keys);
@@ -539,7 +555,7 @@ class Redis extends \Temma\Base\Datasource {
 			if ($value === false)
 				$value = null;
 			else if (is_string($value))
-				$value = json_decode($value);
+				$value = json_decode($value, true);
 		});
 		return ($result);
 	}
@@ -572,7 +588,7 @@ class Redis extends \Temma\Base\Datasource {
 	}
 	/**
 	 * Multiple set.
-	 * @param	array	$data		Associative array with keys and their associated values.
+	 * @param	array	$data		Associative array with keys and their associated values. Keys with a null value are removed.
 	 * @param	mixed	$timeout	(optional) Key expiration timeout. 0 by default, to set no expiration.
 	 * @return	int	The number of set data.
 	 */
@@ -580,8 +596,12 @@ class Redis extends \Temma\Base\Datasource {
 		if (!$this->_enabled)
 			return (0);
 		$this->connect();
+		// remove the keys with a null value
+		$removed = array_keys(array_filter($data, 'is_null'));
+		$this->mRemove($removed);
+		$data = array_diff_key($data, array_flip($removed));
 		$data = array_map('json_encode', $data);
-		if (!$this->_ndb->mset($data))
+		if (!$data || !$this->_ndb->mset($data))
 			return (0);
 		// manage timeouts
 		$timeout = (int)$timeout;

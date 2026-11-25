@@ -95,7 +95,8 @@ class OpenAiCompatible implements \Temma\Datasources\Ai\Provider {
 	 */
 	public function parseResponse(array $data) : mixed {
 		if (isset($data['error'])) {
-			$msg = $data['error']['message'] ?? 'Unknown error.';
+			// the error may be an object with a message, or a simple string
+			$msg = is_array($data['error']) ? ($data['error']['message'] ?? 'Unknown error.') : (string)$data['error'];
 			throw new \Temma\Exceptions\Database(static::NAME . " API error: $msg", \Temma\Exceptions\Database::FUNDAMENTAL);
 		}
 		return (match ($this->_type) {

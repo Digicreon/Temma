@@ -18,6 +18,8 @@ use \Temma\Base\Log as TµLog;
 abstract class Datasource implements \ArrayAccess, \Countable {
 	/** Defines if the datasource could be accessed or not. */
 	protected bool $_enabled = true;
+	/** True for key-value data sources, where the "$source[] = $data" syntax (without key) is forbidden. */
+	protected bool $_keyValue = false;
 
 	/**
 	 * Meta-factory.
@@ -55,9 +57,9 @@ abstract class Datasource implements \ArrayAccess, \Countable {
 	 * @throws	\Exception	If the given DSN is not correct.
 	 */
 	static public function factory(string $dsn) : \Temma\Base\Datasource {
-		TµLog::log('Temma/Base', 'DEBUG', "Datasource object creation with DSN: '$dsn'.");
+		TµLog::log('Temma/Base', 'DEBUG', "Datasource object creation with DSN: '" . self::_maskDsn($dsn) . "'.");
 		// manage specified data source objects
-		if (preg_match('/\[([^\]]+)\](.*)$/', $dsn, $matches)) {
+		if (preg_match('/^\[([^\]]+)\](.*)$/', $dsn, $matches)) {
 			$object = $matches[1];
 			$dsn = $matches[2];
 			if (is_a($object, '\Temma\Base\Datasource', true)) {
@@ -118,7 +120,7 @@ abstract class Datasource implements \ArrayAccess, \Countable {
 			$dsn = getenv(substr($dsn, 6));
 			return (self::factory($dsn));
 		}
-		throw new \Exception("No valid DSN provided '$dsn'.");
+		throw new \Exception("No valid DSN provided '" . self::_maskDsn($dsn) . "'.");
 	}
 
 	/* ********** CONNECTION ********** */
@@ -229,8 +231,8 @@ abstract class Datasource implements \ArrayAccess, \Countable {
 	 * Squeleton method for a reader method implemented by derived classes.
 	 * @param	string	$key			Key of the data.
 	 * @param	mixed	$defaultOrCallback	(optional) Default scalar value or function called if the data is not found.
-	 *						If scalar: the value is written in the local file.
-	 *						If callback: the value returned by the function is stored in the data source, and written in the file.
+	 *						If scalar: the value is returned.
+	 *						If callback: the value returned by the function is stored in the data source, and returned.
 	 * @param	mixed	$options		(optional) Options used to store the data returned by the callback.
 	 * @return	mixed	The fetched data.
 	 * @throws	\Temma\Exceptions\Database	Always throws an exception.
@@ -263,11 +265,9 @@ abstract class Datasource implements \ArrayAccess, \Countable {
 	 * @throws	\Temma\Exceptions\IO	If the local file is not writable.
 	 */
 	public function copyFrom(string $key, string $localPath, mixed $defaultOrCallback=null, mixed $options=null) : bool {
-		if (!$this->_enabled)
-			return (false);
 		// check if the local path is writable
 		$this->_prepareFileWrite($localPath);
-		// get the file's data
+		// get the file's data (if the data source is disabled, read() behaves like on an empty data source)
 		$data = $this->read($key, $defaultOrCallback, $options);
 		if ($data === null)
 			return (false);
@@ -307,7 +307,7 @@ abstract class Datasource implements \ArrayAccess, \Countable {
 	}
 	/**
 	 * Multiple write.
-	 * @param	array	$data		Associative array with keys and their associated values.
+	 * @param	array	$data		Associative array with keys and their associated values. Keys with a null value are removed.
 	 * @param	mixed	$options	(optional) Options.
 	 * @return	int	The number of written data.
 	 */
@@ -317,6 +317,10 @@ abstract class Datasource implements \ArrayAccess, \Countable {
 		$written = 0;
 		foreach ($data as $key => $value) {
 			try {
+				if ($value === null) {
+					$this->remove($key);
+					continue;
+				}
 				$this->write($key, $value, $options);
 				$written++;
 			} catch (\Exception $e) {
@@ -387,17 +391,23 @@ abstract class Datasource implements \ArrayAccess, \Countable {
 	 * @param	string	$key			Key of the data.
 	 * @param	mixed	$defaultOrCallback	(optional) Default scalar value or function called if the data is not found.
 	 *						If scalar: the value is returned.
-	 *						If callback: the value returned by the function is stored in the data source, and returned.
+	 *						If callback: the value returned by the function is stored JSON-encoded in the
+	 *						data source, and returned.
 	 * @param	mixed	$options		(optional) Options used to store the data returned by the callback.
 	 * @return	mixed	The fetched data.
 	 */
 	public function get(string $key, mixed $defaultOrCallback=null, mixed $options=null) : mixed {
-		if (!$this->_enabled)
-			return (null);
-		$data = $this->read($key, $defaultOrCallback, $options);
-		if (!$data)
-			return ($data);
-		return (json_decode($data, true));
+		// fetch the data (the callback is not given to read(), which would store the raw value)
+		// if the data source is disabled, read() returns null and nothing is stored by set()
+		$data = $this->read($key);
+		if ($data !== null)
+			return (json_decode($data, true));
+		// manage default value
+		if (!self::_isCallback($defaultOrCallback))
+			return ($defaultOrCallback);
+		$value = $defaultOrCallback();
+		$this->set($key, $value, $options);
+		return ($value);
 	}
 	/**
 	 * Multiple get.
@@ -411,7 +421,8 @@ abstract class Datasource implements \ArrayAccess, \Countable {
 		if (!$result)
 			return ($result);
 		array_walk($result, function(&$value, $key) {
-			$value = json_decode($value, true);
+			if (is_string($value))
+				$value = json_decode($value, true);
 		});
 		return ($result);
 	}
@@ -433,15 +444,17 @@ abstract class Datasource implements \ArrayAccess, \Countable {
 	}
 	/**
 	 * Multiple set.
-	 * @param	array	$data		Associative array with keys and their associated values.
+	 * @param	array	$data		Associative array with keys and their associated values. Keys with a null value are removed.
 	 * @param	mixed	$options	(optional) Options (like expiration duration).
-	 * @return	int	The number of set data.
+	 * @return	int	The number of set data (removed keys are not counted).
 	 */
 	public function mSet(array $data, mixed $options=null) : int {
 		if (!$this->_enabled)
 			return (0);
+		// null values are not encoded, so mWrite() removes them
 		array_walk($data, function(&$value, $key) {
-			$value = json_encode($value);
+			if ($value !== null)
+				$value = json_encode($value);
 		});
 		return ($this->mWrite($data, $options));
 	}
@@ -455,33 +468,36 @@ abstract class Datasource implements \ArrayAccess, \Countable {
 	public function count(?string $pattern=null) : int {
 		throw new \Temma\Exceptions\Database("No count() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);
 	}
-	/** 
+	/**
 	 * Add data in source, array-like syntax.
-	 * @param       mixed   $key    Index key.
-	 * @param       mixed   $data   Data value. The data is deleted if the value is null.
+	 * @param	mixed	$key	Index key. Null when no key is given ("$source[] = $data", for message queues).
+	 * @param	mixed	$data	Data value. The data is deleted if the value is null.
+	 * @throws	\Temma\Exceptions\Database	If no key is given on a key-value data source.
 	 */
 	public function offsetSet(mixed $key, mixed $data) : void {
-		$this->set($key, $data);
-	}   
-	/** 
+		if (($key === null) && $this->_keyValue)
+			throw new \Temma\Exceptions\Database('A key is mandatory on a key-value data source.', \Temma\Exceptions\Database::FUNDAMENTAL);
+		$this->set(($key ?? ''), $data);
+	}
+	/**
 	 * Remove data from source, array-like syntax.
-	 * @param       mixed   $key    Index key.
+	 * @param	mixed	$key	Index key.
 	 */
 	public function offsetUnset(mixed $key) : void {
 		$this->remove($key);
-	}   
-	/** 
+	}
+	/**
 	 * Get a data from source, array-like syntax.
-	 * @param       mixed   $key    Index key.
-	 * @return      mixed   The data fetched from the cache, or null.
+	 * @param	mixed	$key	Index key.
+	 * @return	mixed	The data fetched from the cache, or null.
 	 */
 	public function offsetGet(mixed $key) : mixed {
 		return ($this->get($key));
-	}   
+	}
 	/**
 	 * Tell if a file exists in source, array-like syntax.
-	 * @param       mixed   $key    Index key.
-	 * @return      bool    True if the variable is set, false otherwise.
+	 * @param	mixed	$key	Index key.
+	 * @return	bool	True if the variable is set, false otherwise.
 	 */
 	public function offsetExists(mixed $key) : bool {
 		return ($this->isSet($key));
@@ -537,6 +553,49 @@ abstract class Datasource implements \ArrayAccess, \Countable {
 			TµLog::log('Temma/Base', 'INFO', "Unable to write file '$path'.");
 			throw new \Temma\Exceptions\IO("Unable to write file '$path'.", \Temma\Exceptions\IO::UNWRITABLE);
 		}
+	}
+	/**
+	 * Tell if a default value given to a reading method (read(), get(), copyFrom()...) is a callback.
+	 * Strings are never considered as callbacks, because a default value may be the name of a PHP function.
+	 * @param	mixed	$value	The default value or callback.
+	 * @return	bool	True if the value is a callback.
+	 */
+	static protected function _isCallback(mixed $value) : bool {
+		return (!is_string($value) && is_callable($value));
+	}
+	/**
+	 * Check a raw value given as default value, or returned by a callback, to a raw reading method (read(), copyFrom()...).
+	 * Integers and floats are converted to strings.
+	 * @param	mixed	$value	The value.
+	 * @return	?string	The value as a string, or null.
+	 * @throws	\Temma\Exceptions\Database	If the value is not null, a string or a number.
+	 */
+	static protected function _toRawValue(mixed $value) : ?string {
+		if (is_null($value) || is_string($value))
+			return ($value);
+		if (is_int($value) || is_float($value))
+			return ((string)$value);
+		throw new \Temma\Exceptions\Database('A raw value must be a string (' . get_debug_type($value) . ' given).', \Temma\Exceptions\Database::FUNDAMENTAL);
+	}
+	/**
+	 * Mask the credentials and tokens of a DSN, so it can be written in logs and exception messages.
+	 * Only the scheme and the host following an '@' character are kept (e.g. "mysql://***@localhost").
+	 * @param	string	$dsn	The DSN.
+	 * @return	string	The masked DSN.
+	 */
+	static protected function _maskDsn(string $dsn) : string {
+		if (($pos = mb_strpos($dsn, '://')) === false)
+			return ((($pos = mb_strpos($dsn, ':')) === false) ? '***' : (mb_substr($dsn, 0, $pos + 1) . '***'));
+		$scheme = mb_substr($dsn, 0, $pos + 3);
+		// the query string and the fragment are removed before searching the '@' character (they may contain one)
+		$rest = preg_replace('/[?#].*$/s', '', mb_substr($dsn, $pos + 3));
+		if (($at = mb_strrpos($rest, '@')) === false)
+			return ($scheme . '***');
+		// only the host is kept (the path may contain tokens)
+		$host = mb_substr($rest, $at + 1);
+		if (($slash = mb_strpos($host, '/')) !== false)
+			$host = mb_substr($host, 0, $slash);
+		return ($scheme . '***@' . $host);
 	}
 }
 

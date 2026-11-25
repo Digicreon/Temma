@@ -136,11 +136,11 @@ class Ai extends \Temma\Base\Datasource {
 	 * @throws	\Temma\Exceptions\Database	If the DSN is invalid, or if the provider doesn't support the type.
 	 */
 	static public function factory(string $dsn) : \Temma\Datasources\Ai {
-		TµLog::log('Temma/Base', 'DEBUG', "\\Temma\\Datasources\\Ai object creation with DSN: '$dsn'.");
+		TµLog::log('Temma/Base', 'DEBUG', "\\Temma\\Datasources\\Ai object creation with DSN: '" . self::_maskAiDsn($dsn) . "'.");
 		// parse DSN: ai://[type@]provider/model#key or ai://[type@][url_or_class]/model#key
 		if (!preg_match('/^ai:\/\/(?:([a-zA-Z]+)@)?(\[([^\]]+)\]|([^\/]+))\/([^#]+?)(?:#(.*))?$/', $dsn, $matches)) {
-			TµLog::log('Temma/Base', 'WARN', "Invalid AI DSN '$dsn'.");
-			throw new \Temma\Exceptions\Database("Invalid AI DSN '$dsn'.", \Temma\Exceptions\Database::FUNDAMENTAL);
+			TµLog::log('Temma/Base', 'WARN', "Invalid AI DSN '" . self::_maskAiDsn($dsn) . "'.");
+			throw new \Temma\Exceptions\Database("Invalid AI DSN '" . self::_maskAiDsn($dsn) . "'.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		}
 		$typeName = $matches[1] ?: 'chat';
 		$bracket = $matches[3] ?? '';
@@ -219,68 +219,27 @@ class Ai extends \Temma\Base\Datasource {
 	 *						- output (string): Output format (alias or MIME type).
 	 *						- timeout (int): Maximum duration of the request, in seconds (600 by default).
 	 * @return	mixed	The response text, a decoded array (for JSON output), a list of floats (for embeddings),
-	 *			binary data, or the default value if the call fails.
+	 *			binary data, the default value if the call fails, or null if the data source is disabled.
 	 * @throws	\Temma\Exceptions\Database	If the API returns an error and no default value is provided.
 	 * @throws	\Temma\Exceptions\IO		If a file can't be read and no default value is provided.
 	 */
 	public function read(string $prompt, mixed $defaultOrCallback=null, mixed $options=null) : mixed {
 		if (!$this->_enabled)
-			return ($defaultOrCallback);
+			return (null);
 		try {
-			// normalize options (a string is the path to a file)
-			$opts = is_string($options) ? ['attachments' => [['path' => $options]]] : (is_array($options) ? $options : []);
-			// process attachments
-			if (isset($opts['attachments']))
-				$opts['attachments'] = $this->_processAttachments($opts['attachments']);
-			// process message attachments
-			if (isset($opts['messages'])) {
-				foreach ($opts['messages'] as &$msg) {
-					if (isset($msg['attachments']))
-						$msg['attachments'] = $this->_processAttachments($msg['attachments']);
-				}
-				unset($msg);
-			}
-			// resolve output alias
-			if (isset($opts['output']))
-				$opts['output'] = self::OUTPUT_ALIASES[$opts['output']] ?? $opts['output'];
-			// add JSON instruction to system prompt
-			if (($opts['output'] ?? null) === 'application/json') {
-				$jsonInstruction = 'Always respond with valid JSON only, without any additional text, explanation, or markdown formatting.';
-				if (isset($opts['system']))
-					$opts['system'] .= "\n" . $jsonInstruction;
-				else
-					$opts['system'] = $jsonInstruction;
-			}
-			// build request via provider
-			$request = $this->_provider->buildPayload($this->_model, $prompt, $opts);
-			// execute cURL
-			$response = $this->_curlRequest($request, (int)($opts['timeout'] ?? 600));
-			// decode JSON response; other responses are given as received, with their content type
-			$isJson = str_starts_with(mb_strtolower($response['type']), 'application/json');
-			$data = $isJson ? json_decode($response['body'], true) : ['type' => $response['type'], 'content' => $response['body']];
-			if (!is_array($data))
-				throw new \Temma\Exceptions\Database("AI API returned invalid response.", \Temma\Exceptions\Database::FUNDAMENTAL);
-			// parse response via provider (which manages the error messages of the API)
-			$result = ($isJson || $response['code'] < 400) ? $this->_provider->parseResponse($data) : null;
-			// HTTP error not reported by the provider
-			if ($response['code'] >= 400)
-				throw new \Temma\Exceptions\Database("AI API HTTP error {$response['code']}: " . mb_substr($response['body'], 0, 500), \Temma\Exceptions\Database::FUNDAMENTAL);
-			return ($result);
+			return ($this->_request($prompt, $options));
 		} catch (\Exception $e) {
-			TµLog::log('Temma/Base', 'NOTE', "AI API error: " . $e->getMessage());
-			if ($defaultOrCallback !== null)
-				return (is_callable($defaultOrCallback) ? $defaultOrCallback() : $defaultOrCallback);
-			throw $e;
+			return ($this->_fallback($e, $defaultOrCallback));
 		}
 	}
 	/**
 	 * Disabled write.
 	 * @param	string	$key		Not used.
-	 * @param	string	$value		Not used.
+	 * @param	?string	$value		Not used.
 	 * @param	mixed	$options	Not used.
 	 * @throws	\Temma\Exceptions\Database	Always throws an exception.
 	 */
-	public function write(string $key, string $value=null, mixed $options=null) : mixed {
+	public function write(string $key, ?string $value=null, mixed $options=null) : mixed {
 		throw new \Temma\Exceptions\Database("No write() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);
 	}
 
@@ -290,17 +249,49 @@ class Ai extends \Temma\Base\Datasource {
 	 * Activates JSON output mode on the LLM so that the response is always valid JSON,
 	 * and returns a decoded PHP array.
 	 * @param	string	$prompt			User prompt.
-	 * @param	mixed	$defaultOrCallback	(optional) Default value returned if the API call fails.
+	 * @param	mixed	$defaultOrCallback	(optional) Default value returned (as is, it is not JSON-decoded) if the API
+	 *						call fails or if the response is not valid JSON, or callback whose returned
+	 *						value is used as fallback.
 	 * @param	mixed	$options		(optional) Options (see read()).
-	 * @return	mixed	The decoded response (array or scalar).
+	 * @return	mixed	The decoded response (array or scalar), the default value if the call fails, or null if the
+	 *			data source is disabled.
+	 * @throws	\Temma\Exceptions\Database	If the API returns an error or an invalid JSON response, and no default
+	 *						value is provided.
+	 * @throws	\Temma\Exceptions\IO		If a file can't be read and no default value is provided.
 	 */
 	public function get(string $prompt, mixed $defaultOrCallback=null, mixed $options=null) : mixed {
+		if (!$this->_enabled)
+			return (null);
 		$opts = is_string($options) ? ['attachments' => [['path' => $options]]] : (is_array($options) ? $options : []);
 		if (!isset($opts['output']))
 			$opts['output'] = 'json';
-		$result = $this->read($prompt, $defaultOrCallback, $opts);
-		if (is_string($result))
-			$result = json_decode($result, true);
+		try {
+			$result = $this->_request($prompt, $opts);
+			if (is_string($result)) {
+				// remove the Markdown code block sometimes added by the LLMs around the JSON stream
+				if (preg_match('/^\s*```(?:json)?\s*(.*?)\s*```\s*$/is', $result, $matches))
+					$result = $matches[1];
+				$result = json_decode($result, true);
+				if (json_last_error() !== JSON_ERROR_NONE)
+					throw new \Temma\Exceptions\Database('AI API returned invalid JSON: ' . json_last_error_msg(), \Temma\Exceptions\Database::FUNDAMENTAL);
+			}
+			return ($result);
+		} catch (\Exception $e) {
+			return ($this->_fallback($e, $defaultOrCallback));
+		}
+	}
+	/**
+	 * Send several prompts to the LLM, and return the responses as structured data (see get()).
+	 * @param	array	$prompts	List of prompts.
+	 * @return	array	Associative array with the prompts and their decoded responses.
+	 * @throws	\Temma\Exceptions\Database	If the API returns an error or an invalid JSON response.
+	 */
+	public function mGet(array $prompts) : array {
+		if (!$this->_enabled)
+			return ([]);
+		$result = [];
+		foreach ($prompts as $prompt)
+			$result[$prompt] = $this->get($prompt);
 		return ($result);
 	}
 	/**
@@ -336,6 +327,69 @@ class Ai extends \Temma\Base\Datasource {
 	}
 
 	/* ********** PRIVATE METHODS ********** */
+	/**
+	 * Send a prompt to the AI service and return the response.
+	 * @param	string	$prompt		User prompt.
+	 * @param	mixed	$options	Path to a file to send (string), or associative array of options (see read()).
+	 * @return	mixed	The response.
+	 * @throws	\Temma\Exceptions\Database	If the API returns an error.
+	 * @throws	\Temma\Exceptions\IO		If a file can't be read.
+	 */
+	private function _request(string $prompt, mixed $options) : mixed {
+		// normalize options (a string is the path to a file)
+		$opts = is_string($options) ? ['attachments' => [['path' => $options]]] : (is_array($options) ? $options : []);
+		// process attachments
+		if (isset($opts['attachments']))
+			$opts['attachments'] = $this->_processAttachments($opts['attachments']);
+		// process message attachments
+		if (isset($opts['messages'])) {
+			foreach ($opts['messages'] as &$msg) {
+				if (isset($msg['attachments']))
+					$msg['attachments'] = $this->_processAttachments($msg['attachments']);
+			}
+			unset($msg);
+		}
+		// resolve output alias
+		if (isset($opts['output']))
+			$opts['output'] = self::OUTPUT_ALIASES[$opts['output']] ?? $opts['output'];
+		// add JSON instruction to system prompt
+		if (($opts['output'] ?? null) === 'application/json') {
+			$jsonInstruction = 'Always respond with valid JSON only, without any additional text, explanation, or markdown formatting.';
+			if (isset($opts['system']))
+				$opts['system'] .= "\n" . $jsonInstruction;
+			else
+				$opts['system'] = $jsonInstruction;
+		}
+		// build request via provider
+		$request = $this->_provider->buildPayload($this->_model, $prompt, $opts);
+		// execute cURL
+		$response = $this->_curlRequest($request, (int)($opts['timeout'] ?? 600));
+		// decode JSON response; other responses are given as received, with their content type
+		$isJson = str_starts_with(mb_strtolower($response['type']), 'application/json');
+		$data = $isJson ? json_decode($response['body'], true) : ['type' => $response['type'], 'content' => $response['body']];
+		// parse response via provider (which manages the error messages of the API)
+		$result = (is_array($data) && ($isJson || ($response['code'] < 400))) ? $this->_provider->parseResponse($data) : null;
+		// HTTP error not reported by the provider
+		if ($response['code'] >= 400)
+			throw new \Temma\Exceptions\Database("AI API HTTP error {$response['code']}: " . mb_substr($response['body'], 0, 500), \Temma\Exceptions\Database::FUNDAMENTAL);
+		if (!is_array($data))
+			throw new \Temma\Exceptions\Database('AI API returned invalid response.', \Temma\Exceptions\Database::FUNDAMENTAL);
+		return ($result);
+	}
+	/**
+	 * Manage an error of the AI service: return the default value, or the value returned by the callback;
+	 * throw the exception if there is no default value.
+	 * @param	\Exception	$error			The error.
+	 * @param	mixed		$defaultOrCallback	Default value, or callback whose returned value is used as fallback.
+	 * @return	mixed	The default value, or the value returned by the callback.
+	 * @throws	\Exception	The given error, if there is no default value.
+	 */
+	private function _fallback(\Exception $error, mixed $defaultOrCallback) : mixed {
+		TµLog::log('Temma/Base', 'NOTE', 'AI API error: ' . $error->getMessage());
+		if ($defaultOrCallback === null)
+			throw $error;
+		return (self::_isCallback($defaultOrCallback) ? $defaultOrCallback() : $defaultOrCallback);
+	}
 	/**
 	 * Process a list of attachments into a normalized format.
 	 * @param	array	$attachments	List of attachments.
@@ -429,5 +483,27 @@ class Ai extends \Temma\Base\Datasource {
 		];
 		curl_close($ch);
 		return ($result);
+	}
+	/**
+	 * Mask the API key of a DSN (and the credentials and query string of a URL given between brackets), so it
+	 * can be written in logs and exception messages.
+	 * The API key may be given after a '#' character (ai://provider/model#KEY), or as the last segment of the path
+	 * in the old format (ai://provider/model/KEY). In this last case, a DSN without key whose model name contains
+	 * a slash (ai://openrouter/vendor/model) gets its last segment masked too.
+	 * @param	string	$dsn	The DSN.
+	 * @return	string	The masked DSN.
+	 */
+	static private function _maskAiDsn(string $dsn) : string {
+		if (str_contains($dsn, '#')) {
+			// API key after the '#' character
+			$dsn = preg_replace('/#.*$/s', '#***', $dsn);
+		} else {
+			// old format: API key as the last segment of the path (after the provider and the model)
+			$dsn = preg_replace('/^(ai:\/\/(?:[a-zA-Z]+@)?(?:\[[^\]]*\]|[^\/\[]+)\/.+\/)[^\/]+$/s', '$1***', $dsn);
+		}
+		// credentials of a URL given between brackets
+		$dsn = preg_replace('/^(ai:\/\/(?:[a-zA-Z]+@)?\[[a-zA-Z]+:\/\/)[^\/\]]*@/', '$1***@', $dsn);
+		// query string of a URL given between brackets
+		return (preg_replace('/^(ai:\/\/(?:[a-zA-Z]+@)?\[[^\]?]*\?)[^\]]*/', '$1***', $dsn));
 	}
 }

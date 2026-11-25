@@ -188,7 +188,8 @@ class AsynkDao implements \Temma\Base\Loadable {
 	}
 	/**
 	 * Returns the next task to process.
-	 * For a Beanstalkd transport, to function will block until a message is available.
+	 * For a Beanstalkd transport, the function waits for a message during 20 seconds at most;
+	 * for an SQS transport, during the long polling duration defined in the DSN (20 seconds at most).
 	 * @return	?array	Associative array or null.
 	 */
 	public function getNextTask() : ?array {

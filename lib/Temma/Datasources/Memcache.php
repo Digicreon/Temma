@@ -36,6 +36,12 @@ use \Temma\Base\Log as TµLog;
  * $cache->set('variable name', null);
  * </code>
  *
+ * Data are stored as PHP values (serialized by the Memcached extension), not JSON-encoded:
+ * get() and read() return the same values, but read() throws an exception if the value is not a string.
+ *
+ * When the datasource is disabled, it behaves like an always-empty cache: read() and get() return the default value
+ * (or call the callback and return its result), and nothing is stored.
+ *
  * Connection using Unix socket:
  * <tt>memcache:///var/run/memcached.sock:0</tt>
  */
@@ -44,6 +50,8 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 	const PREFIX_SALT_PREFIX = '__temma_salt__|';
 	/** Constant : Default Memcache port number. */
 	const DEFAULT_MEMCACHE_PORT = 11211;
+	/** Key-value datasource: data can't be added without key ("$cache[] = $data" throws an exception). */
+	protected bool $_keyValue = true;
 	/** Server connection configuration list. */
 	protected array $_servers;
 	/** Connection object to the Memcache server. */
@@ -65,7 +73,7 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 	static public function factory(string $dsn) : \Temma\Datasources\Memcache {
 		if (!str_starts_with($dsn, 'memcache://') ||
 		    !($servers = mb_substr($dsn, mb_strlen('memcache://')))) {
-			throw new \Temma\Exceptions\Database("The DSN '$dsn' is not valid.", \Temma\Exceptions\Database::FUNDAMENTAL);
+			throw new \Temma\Exceptions\Database("The DSN '" . self::_maskDsn($dsn) . "' is not valid.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		}
 		$chunks = explode('#', $servers);
 		$servers = explode(';', $chunks[0]);
@@ -78,27 +86,35 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 	 * @param	array	$servers	List of server configuration data.
 	 * @param	?string	$superPrefix	(optional) Super-prefix, used to separate cache depending on virtual hosts.
 	 *					Use the current hostname if empty.
-	 * @throws	\Temma\Exceptions\Database	If the given server configuration is wrong or if the 'memcached' extension is not loaded.
+	 * @throws	\Temma\Exceptions\Database	If no server is given or if the 'memcached' extension is not loaded.
 	 */
 	public function __construct(array $servers, ?string $superPrefix=null) {
 		if (!extension_loaded('memcached')) {
 			throw new \Temma\Exceptions\Database("The 'memcached' PHP extension is not loaded.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		}
 		$superPrefix ??= $_SERVER['HTTP_HOST'] ?? '';
-		$this->_superPrefix = $superPrefix ? (hash('crc32', $superPrefix) . ']') : '';
-		foreach ($servers as &$server) {
-			if (!$server || is_array($server))
+		$this->_superPrefix = ($superPrefix !== '') ? (hash('crc32', $superPrefix) . ']') : '';
+		$this->_servers = [];
+		foreach ($servers as $server) {
+			if (is_array($server)) {
+				$this->_servers[] = $server;
+				continue;
+			}
+			if (!is_string($server) || $server === '')
 				continue;
 			// check port number
-			if (str_contains($server, ':'))
+			if (str_contains($server, ':')) {
 				$server = explode(':', $server);
-			else
+				$server[1] = (int)$server[1];
+			} else
 				$server = [$server, self::DEFAULT_MEMCACHE_PORT];
 			// check Unix socket
 			if (str_contains($server[0], DIRECTORY_SEPARATOR))
 				$server[1] = 0;
+			$this->_servers[] = $server;
 		}
-		$this->_servers = $servers;
+		if (!$this->_servers)
+			throw new \Temma\Exceptions\Database('No Memcache server defined.', \Temma\Exceptions\Database::FUNDAMENTAL);
 	}
 
 	/* ********** CONNECTION ********** */
@@ -121,11 +137,11 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 		unset($this->_memcache);
 		$this->_memcache = new \Memcached();
 		$this->_memcache->setOption(\Memcached::OPT_COMPRESSION, true);
-		if ((count($this->_servers) == 1 && !$this->_memcache->addServer($this->_servers[0][0], $this->_servers[0][1])) ||
-		    (count($this->_servers) > 1 && !$this->_memcache->addServers($this->_servers))) {
+		if (((count($this->_servers) == 1) && !$this->_memcache->addServer($this->_servers[0][0], $this->_servers[0][1])) ||
+		    ((count($this->_servers) > 1) && !$this->_memcache->addServers($this->_servers))) {
 			$this->_memcache = null;
 			$this->_enabled = false;
-			throw new \Temma\Exceptions\Database("Unable to connect to Memcache server.", \Temma\Exceptions\Database::CONNECTION);
+			throw new \Temma\Exceptions\Database('Unable to connect to Memcache server.', \Temma\Exceptions\Database::CONNECTION);
 		}
 	}
 	/** Disconnection. */
@@ -159,7 +175,7 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 	 * @return	\Temma\Datasources\Memcache	The current object.
 	 */
 	public function setPrefix(string $prefix='') : \Temma\Datasources\Memcache {
-		$this->_prefix = (empty($prefix) || !is_string($prefix)) ? '' : "|$prefix|";
+		$this->_prefix = ($prefix === '') ? '' : "|$prefix|";
 		return ($this);
 	}
 	/**
@@ -167,15 +183,15 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 	 * @return	string	The current prefix string.
 	 */
 	public function getPrefix() : string {
-		if (empty($this->_prefix))
+		if ($this->_prefix === '')
 			return ('');
-		$res = trim($this->_prefix, "|");
-		return ($res);
+		return (mb_substr($this->_prefix, 1, -1));
 	}
 
 	/* ********** ARRAY-LIKE REQUESTS ********** */
 	/**
-	 * Return the number of keys.
+	 * Return the number of keys stored on the servers (all prefixes included).
+	 * @param	?string	$pattern	(optional) Not used.
 	 * @return	int	The number of keys.
 	 */
 	public function count(?string $pattern=null) : int {
@@ -193,21 +209,14 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 	/**
 	 * Tell if a variable is set in cache.
 	 * @param	string	$key	Index key.
-	 * @return	bool	True if the variable is set, false otherwise.
+	 * @return	bool	True if the variable is set, false otherwise (or if the server is not reachable).
 	 */
 	public function isSet(string $key) : bool {
-		if (empty($key) || !$this->_enabled)
+		if ($key === '' || !$this->_enabled)
 			return (false);
-		$this->connect();
-		$origPrefix = $this->_prefix;
-		$origKey = $key;
-		$key = $this->_getSaltedPrefix() . $key;
-		if ($this->_memcache->get($key) === false) {
-			$resultCode = $this->_memcache->getResultCode();
-			if ($resultCode == \Memcached::RES_NOTFOUND || $resultCode == 47)
-				return (false);
-		}
-		return (true);
+		$found = false;
+		$this->_fetch($key, $found);
+		return ($found);
 	}
 	/**
 	 * Remove a cache variable.
@@ -225,25 +234,25 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 	 * @param	array	$keys	List of keys.
 	 */
 	public function mRemove(array $keys) : void {
-		if (!$this->_enabled)
+		if (!$this->_enabled || !$keys)
 			return;
 		$this->connect();
-		array_walk($keys, function(&$value, $key) {
-			$value = $this->_getSaltedPrefix() . $key;
-		});
-		$this->_memcache->deleteMulti($keys);
+		$saltedPrefix = $this->_getSaltedPrefix();
+		$saltedKeys = [];
+		foreach ($keys as $key)
+			$saltedKeys[] = $saltedPrefix . $key;
+		$this->_memcache->deleteMulti($saltedKeys);
 	}
 	/**
-	 * Remove all cache variables matching a given prefix.
+	 * Remove all cache variables of a group (stored while the given prefix was set using setPrefix()).
+	 * The variables are not deleted, the group's salt is changed so they can't be reached anymore.
 	 * @param	string	$prefix	Prefix string. Nothing will be removed if this parameter is empty.
 	 */
 	public function clear(string $prefix) : void {
-		if (!$this->_enabled || empty($prefix))
+		if (!$this->_enabled || $prefix === '')
 			return;
 		$this->connect();
-		$saltKey = $this->_superPrefix . self::PREFIX_SALT_PREFIX . $prefix;
-		$salt = substr(hash('md5', time() . mt_rand()), 0, 8);
-		$this->_memcache->set($saltKey, $salt, 0);
+		$this->_memcache->set($this->_getSaltKey("|$prefix|"), bin2hex(random_bytes(4)), 0);
 	}
 	/**
 	 * Flush all cache variables.
@@ -257,27 +266,40 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 
 	/* ********** RAW REQUESTS ********** */
 	/**
-	 * Read a data from cache.
+	 * Read a string data from cache.
+	 * If the datasource is disabled, the default value is returned (or the callback is called, and its value is returned).
 	 * @param	string	$key			Index key.
-	 * @param       mixed   $defaultOrCallback      (optional) Default scalar value or function called if the data is not found.
-	 *						If scalar: the value is written in the local file.
-	 *						If callback: the value returned by the function is stored in the data source, and written in the file.
+	 * @param	mixed	$defaultOrCallback	(optional) Default scalar value or function called if the data is not found.
+	 *						If scalar: the value is returned (numbers are converted to strings).
+	 *						If callback: the value returned by the function (a string, a number or null)
+	 *						is stored in the cache (unless it is null), and returned.
 	 * @param	mixed	$expire			(optional) Expiration duration, in seconds. If it is set to zero (or if it's not given),
-	 *						it will be set to 24 hours. If it is set to -1 or a value greater than 2592000 (30 days),
-	 *						it will be set to 30 days. This parameter is used only if the '$callback' parameter is given.
-	 * @return	?string	The data fetched from the cache (and returned by the callback if needed), or null.
-	 * @throws	\Temma\Exceptions\Database	If the data is not a string.
+	 *						it will be set to the default expiration (24 hours). If it is set to -1 or a value greater
+	 *						than 2592000 (30 days), it will be set to 30 days. Only used if a callback is given.
+	 * @return	?string	The data fetched from the cache (or the default value), or null.
+	 * @throws	\Temma\Exceptions\Database	If the stored data, the default value or the callback's returned value is not a string.
 	 */
 	public function read(string $key, mixed $defaultOrCallback=null, mixed $expire=0) : ?string {
-		$data = $this->get($key, $defaultOrCallback, $expire);
-		if (is_string($data) || $data === null)
+		// fetch the data
+		$found = false;
+		$data = $this->_fetch($key, $found);
+		if ($found) {
+			if (!is_string($data))
+				throw new \Temma\Exceptions\Database("Data '$key' is not of type string.", \Temma\Exceptions\Database::TYPE);
 			return ($data);
-		throw new \Temma\Exceptions\Database("Data '$key' is not of type string.", \Temma\Exceptions\Database::TYPE);
+		}
+		// manage default value
+		if (!self::_isCallback($defaultOrCallback))
+			return (self::_toRawValue($defaultOrCallback));
+		$value = self::_toRawValue($defaultOrCallback());
+		if ($value !== null)
+			$this->set($key, $value, $expire);
+		return ($value);
 	}
-	/*
-	 * Multiple read.
+	/**
+	 * Multiple read. Same as mGet(), the data are not converted.
 	 * @param	array	$keys	List of keys.
-	 * @return	array	Associative array with the keys and their associated values.
+	 * @return	array	Associative array with the keys and their associated values (null for keys not found).
 	 */
 	public function mRead(array $keys) : array {
 		return ($this->mGet($keys));
@@ -285,22 +307,22 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 	/**
 	 * Add data in cache.
 	 * @param	string	$key		Index key.
-	 * @param	string	$value		(optional) Data value. The data is deleted if the value is not given or if it is null.
+	 * @param	?string	$value		(optional) Data value. The data is deleted if the value is not given or if it is null.
 	 * @param	mixed	$options	(optional) Expiration duration, in seconds. If it is set to zero (or if it's not given),
-	 *					it will be set to 24 hours. If it is set to -1 or a value greater than 2592000 (30 days),
-	 *					it will be set to 30 days.
-	 * @return	bool	Always true.
+	 *					it will be set to the default expiration (24 hours). If it is set to -1 or a value greater
+	 *					than 2592000 (30 days), it will be set to 30 days.
+	 * @return	bool	True, or false if the datasource is disabled.
 	 */
-	public function write(string $key, string $value=null, mixed $options=0) : bool {
+	public function write(string $key, ?string $value=null, mixed $options=0) : bool {
 		return ($this->set($key, $value, $options));
 	}
 	/**
-	 * Multiple write.
-	 * @param	array	$data	Associative array with keys and their associated values.
+	 * Multiple write. Same as mSet(), the data are not converted.
+	 * @param	array	$data	Associative array with keys and their associated values. Keys associated to null are removed.
 	 * @param	mixed	$expire	(optional) Expiration duration, in seconds. If it is set to zero (or if it's not given),
-	 *				it will be set to 24 hours. If it is set to -1 or a value greater than 2592000 (30 days),
-	 *				it will be set to 30 days.
-	 * @return	int	The number of written data.
+	 *				it will be set to the default expiration (24 hours). If it is set to -1 or a value greater
+	 *				than 2592000 (30 days), it will be set to 30 days.
+	 * @return	int	The number of written data (removed keys are not counted).
 	 */
 	public function mWrite(array $data, mixed $expire=0) : int {
 		return ($this->mSet($data, $expire));
@@ -318,67 +340,64 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 	 * @throws	\Temma\Exceptions\Database	Always throws an exception.
 	 */
 	public function search(string $pattern, bool $getValues=false, null|bool|string|array $sort=null, int $offset=0, int $limit=0) : array {
-		throw new \Temma\Exceptions\Database("No search() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);
+		throw new \Temma\Exceptions\Database('No search() method on this object.', \Temma\Exceptions\Database::FUNDAMENTAL);
 	}
 	/**
 	 * Get a data from cache.
+	 * If the datasource is disabled, the default value is returned (or the callback is called, and its value is returned).
 	 * @param	string	$key			Index key.
-	 * @param       mixed   $defaultOrCallback      (optional) Default scalar value or function called if the data is not found.
-	 *						If scalar: the value is written in the local file.
-	 *						If callback: the value returned by the function is stored in the data source, and written in the file.
+	 * @param	mixed	$defaultOrCallback	(optional) Default value or function called if the data is not found.
+	 *						If it is not a callback: the value is returned.
+	 *						If callback: the value returned by the function is stored in the cache
+	 *						(unless it is null), and returned.
 	 * @param	mixed	$expire			(optional) Expiration duration, in seconds. If it is set to zero (or if it's not given),
-	 *						it will be set to 24 hours. If it is set to -1 or a value greater than 2592000 (30 days),
-	 *						it will be set to 30 days. This parameter is used only if the '$callback' parameter is given.
-	 * @return	mixed	The data fetched from the cache (and returned by the callback if needed), or null.
+	 *						it will be set to the default expiration (24 hours). If it is set to -1 or a value greater
+	 *						than 2592000 (30 days), it will be set to 30 days. Only used if a callback is given.
+	 * @return	mixed	The data fetched from the cache (or the default value), or null.
 	 */
 	public function get(string $key, mixed $defaultOrCallback=null, mixed $expire=0) : mixed {
-		if ($this->_enabled)
-			$this->connect();
-		$origPrefix = $this->_prefix;
-		$origKey = $key;
-		$key = $this->_getSaltedPrefix() . $key;
-		$data = null;
-		if ($this->_enabled && $this->_memcache) {
-			$data = $this->_memcache->get($key);
-			if ($data === false && $this->_memcache->getResultCode() != \Memcached::RES_SUCCESS)
-				$data = null;
-		}
-		if ($data)
+		// fetch the data
+		$found = false;
+		$data = $this->_fetch($key, $found);
+		if ($found)
 			return ($data);
-		$value = $defaultOrCallback;
-		if (is_callable($defaultOrCallback)) {
-			$value = $defaultOrCallback();
-			$this->_prefix = $origPrefix;
-			$this->set($origKey, $value, $expire);
-		}
+		// manage default value
+		if (!self::_isCallback($defaultOrCallback))
+			return ($defaultOrCallback);
+		$value = $defaultOrCallback();
+		if ($value !== null)
+			$this->set($key, $value, $expire);
 		return ($value);
 	}
-	/*
+	/**
 	 * Multiple get.
 	 * @param	array	$keys	List of keys.
-	 * @return	array	Associative array with the keys and their associated values.
+	 * @return	array	Associative array with the keys and their associated values (null for keys not found).
 	 */
 	public function mGet(array $keys) : array {
-		if (!$this->_enabled)
+		if (!$this->_enabled || !$keys)
 			return ([]);
 		$this->connect();
 		$saltedPrefix = $this->_getSaltedPrefix();
-		array_walk($keys, function(&$value, $key) use ($saltedPrefix) {
-			$value = $saltedPrefix . $value;
-		});
-		$data = $this->_memcache->getMulti($keys);
-		if ($data === false && $this->_memcache->getResultCode() != \Memcached::RES_SUCCESS)
+		$saltedKeys = [];
+		foreach ($keys as $key)
+			$saltedKeys[] = $saltedPrefix . $key;
+		$data = $this->_memcache->getMulti($saltedKeys);
+		if (!is_array($data))
 			$data = [];
-		return ($data);
+		$result = [];
+		foreach ($keys as $key)
+			$result[$key] = $data[$saltedPrefix . $key] ?? null;
+		return ($result);
 	}
 	/**
 	 * Add data in cache.
 	 * @param	string	$key	Index key.
 	 * @param	mixed	$data	(optional) Data value. The data is deleted if the value is not given or if it is null.
 	 * @param	mixed	$expire	(optional) Expiration duration, in seconds. If it is set to zero (or if it's not given),
-	 *				it will be set to 24 hours. If it is set to -1 or a value greater than 2592000 (30 days),
-	 *				it will be set to 30 days.
-	 * @return	bool	Always true.
+	 *				it will be set to the default expiration (24 hours). If it is set to -1 or a value greater
+	 *				than 2592000 (30 days), it will be set to 30 days.
+	 * @return	bool	True, or false if the datasource is disabled.
 	 */
 	public function set(string $key, mixed $data=null, mixed $expire=0) : bool {
 		if (!$this->_enabled)
@@ -391,43 +410,89 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 		}
 		// add data to cache
 		$key = $this->_getSaltedPrefix() . $key;
-		$expire = (!is_numeric($expire) || !$expire) ? $this->_defaultExpiration : $expire;
-		$expire = ($expire == -1 || $expire > 2592000) ? 2592000 : $expire;
-		$this->_memcache->set($key, $data, $expire);
+		$this->_memcache->set($key, $data, $this->_getExpiration($expire));
 		return (true);
 	}
 	/**
 	 * Multiple set.
-	 * @param	array	$data	Associative array with keys and their associated values.
-	 * @param	mixed	$expire	(optional) Options (like expiration duration).
-	 * @return	int	The number of set data.
+	 * @param	array	$data	Associative array with keys and their associated values. Keys associated to null are removed.
+	 * @param	mixed	$expire	(optional) Expiration duration, in seconds. If it is set to zero (or if it's not given),
+	 *				it will be set to the default expiration (24 hours). If it is set to -1 or a value greater
+	 *				than 2592000 (30 days), it will be set to 30 days.
+	 * @return	int	The number of written data (removed keys are not counted).
 	 */
 	public function mSet(array $data, mixed $expire=0) : int {
-		if (!$this->_enabled)
+		if (!$this->_enabled || !$data)
 			return (0);
 		$this->connect();
-		$values = [];
 		$saltedPrefix = $this->_getSaltedPrefix();
+		$values = [];
+		$removed = [];
 		foreach ($data as $key => $value) {
-			$key = $saltedPrefix . $key;
-			$values[$key] = $value;
+			if (is_null($value))
+				$removed[] = $saltedPrefix . $key;
+			else
+				$values[$saltedPrefix . $key] = $value;
 		}
-		if ($this->_memcache->setMulti($values, $expire))
-			return (count($values));
-		return (0);
+		if ($removed)
+			$this->_memcache->deleteMulti($removed);
+		if (!$values || !$this->_memcache->setMulti($values, $this->_getExpiration($expire)))
+			return (0);
+		return (count($values));
 	}
 
 	/* ********** PRIVATE METHODS ********** */
+	/**
+	 * Fetch a data from the cache.
+	 * @param	string	$key	Index key.
+	 * @param	bool	$found	Set to true if the data was found (even if it is a "falsy" value), false otherwise
+	 *				(not found, server not reachable or datasource disabled).
+	 * @return	mixed	The fetched data, or null.
+	 */
+	protected function _fetch(string $key, bool &$found) : mixed {
+		$found = false;
+		if (!$this->_enabled)
+			return (null);
+		$this->connect();
+		$data = $this->_memcache->get($this->_getSaltedPrefix() . $key);
+		// Memcached returns false if the data was not found; the result code distinguishes it from a stored false value
+		if ($this->_memcache->getResultCode() != \Memcached::RES_SUCCESS)
+			return (null);
+		$found = true;
+		return ($data);
+	}
+	/**
+	 * Compute the expiration duration of a data.
+	 * @param	mixed	$expire	Expiration duration, in seconds. If it is not numeric or set to zero, the default expiration
+	 *				is used. If it is set to -1 or a value greater than 2592000 (30 days), it is set to 30 days.
+	 * @return	int	The expiration duration.
+	 */
+	protected function _getExpiration(mixed $expire) : int {
+		$expire = is_numeric($expire) ? (int)$expire : 0;
+		if (!$expire)
+			$expire = $this->_defaultExpiration;
+		if ($expire == -1 || $expire > 2592000)
+			$expire = 2592000;
+		return ($expire);
+	}
+	/**
+	 * Returns the key of the variable which contains the salt of a group prefix.
+	 * @param	string	$prefix	Group prefix, as stored in the $_prefix attribute ("|prefix|").
+	 * @return	string	The key of the salt variable.
+	 */
+	protected function _getSaltKey(string $prefix) : string {
+		return ($this->_superPrefix . self::PREFIX_SALT_PREFIX . $prefix);
+	}
 	/**
 	 * Returns a salted prefix.
 	 * @return	string	The generated salted prefix.
 	 */
 	protected function _getSaltedPrefix() : string {
 		// prefix management
-		if (empty($this->_prefix))
+		if ($this->_prefix === '')
 			return ($this->_superPrefix);
 		// salt fetching
-		$saltKey = $this->_superPrefix . self::PREFIX_SALT_PREFIX . $this->_prefix;
+		$saltKey = $this->_getSaltKey($this->_prefix);
 		if ($this->_enabled && $this->_memcache)
 			$salt = $this->_memcache->get($saltKey);
 		// salt generation if needed
@@ -439,4 +504,3 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 		return ($this->_superPrefix . $salt . $this->_prefix);
 	}
 }
-

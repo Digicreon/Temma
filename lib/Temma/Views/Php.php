@@ -75,7 +75,10 @@ class Php extends \Temma\Web\View {
 		if ($this->_isCacheable && !empty($out) && ($dataSource = $this->_config->xtra('temma-cache', 'source')) &&
 		    isset($this->_dataSources[$dataSource]) && ($cache = $this->_dataSources[$dataSource])) {
 			$cacheVarName = $_SERVER['HTTP_HOST'] . ':' . $_SERVER['REQUEST_URI'];
-			$cache->setPrefix('temma-cache')->set($cacheVarName, $out)->setPrefix();
+			// set() doesn't return the data source object (Memcache returns a boolean), so the calls are not chained
+			$cache->setPrefix('temma-cache');
+			$cache->set($cacheVarName, $out);
+			$cache->setPrefix();
 		}
 		// write the page
 		print($out);

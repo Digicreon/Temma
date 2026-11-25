@@ -26,14 +26,19 @@ use \Temma\Base\Log as TµLog;
  * $sock[''] = $data;
  * $sock->write('', $data);
  *
- * // read a message
+ * // read a line
  * $line = $sock[''];
- * $message = $bean->read('');
+ * $line = $sock->get('');
+ * // read raw data
+ * $data = $sock->read('');
  *
  * // close the connection
  * unset($sock['']);
- * $bean->remove('');
+ * $sock->remove('');
  * </code>
+ *
+ * DSN syntax: <tt>TYPE://HOST:PORT#TIMEOUT</tt> (TYPE is one of "tcp", "udp", "ssl", "sslv2", "sslv3", "tls"; the
+ * optional TIMEOUT is the connection timeout in seconds), or <tt>unix:///path/to/socket</tt>.
  */
 class Socket extends \Temma\Base\Datasource {
 	/** Constant: Socket prefixes. */
@@ -44,7 +49,7 @@ class Socket extends \Temma\Base\Datasource {
 	private string $_host;
 	/** Port. */
 	private ?int $_port;
-	/** Connection timeout. */
+	/** Connection timeout, in seconds (null to use the "default_socket_timeout" PHP setting). */
 	private ?int $_connectionTimeout;
 	/** Socket. */
 	private $_sock = null;
@@ -57,28 +62,32 @@ class Socket extends \Temma\Base\Datasource {
 	 * @throws	\Temma\Exceptions\Database	If the DSN is invalid.
 	 */
 	static public function factory(string $dsn) : \Temma\Datasources\Socket {
-		TµLog::log('Temma/Base', 'DEBUG', "\\Temma\\Datasources\\Socket object creation with DSN: '$dsn'.");
-		$type = null;
-		$host = null;
+		$maskedDsn = self::_maskDsn($dsn);
+		TµLog::log('Temma/Base', 'DEBUG', "\\Temma\\Datasources\\Socket object creation with DSN: '$maskedDsn'.");
 		$port = null;
 		$timeout = null;
 		if (str_starts_with($dsn, 'unix://')) {
 			$type = 'unix';
 			$host = mb_substr($dsn, mb_strlen('unix://'));
-		} else if (preg_match('/^([^:]+):\/\/([^\/:]+):?(\d*)#?(\d*)$/', $dsn, $matches)) {
+		} else if (preg_match('/^([^:]+):\/\/([^\/:#]+)(?::(\d*))?(?:#(\d*))?$/', $dsn, $matches)) {
 			$type = $matches[1];
 			$host = $matches[2];
-			$port = isset($matches[3]) ? intval($matches[3]) : null;
-			$timeout = isset($matches[4]) ? intval($matches[4]) : null;
+			$port = (($matches[3] ?? '') !== '') ? intval($matches[3]) : null;
+			$timeout = (($matches[4] ?? '') !== '') ? intval($matches[4]) : null;
+		} else {
+			TµLog::log('Temma/Base', 'WARN', "Invalid socket DSN '$maskedDsn'.");
+			throw new \Temma\Exceptions\Database("Invalid socket DSN '$maskedDsn'.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		}
+		if ($host === '')
+			throw new \Temma\Exceptions\Database("Invalid socket DSN '$maskedDsn'.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		return (new self($type, $host, $port, $timeout));
 	}
 	/**
 	 * Constructor.
 	 * @param	string	$type		Socket type.
 	 * @param	string	$host		Host name or IP address.
-	 * @param	?int	$port		Port number.
-	 * @param	?int	$timeout	Connection timeout.
+	 * @param	?int	$port		Port number (null for Unix sockets).
+	 * @param	?int	$timeout	Connection timeout in seconds (null to use the "default_socket_timeout" PHP setting).
 	 * @throws	\Temma\Exceptions\Database	If the socket type is invalid.
 	 */
 	public function __construct(string $type, string $host, ?int $port, ?int $timeout) {
@@ -94,23 +103,30 @@ class Socket extends \Temma\Base\Datasource {
 	/* ********** CONNECTION ********** */
 	/**
 	 * Creation of the client socket.
-	 * @throws      \Exception      If an error occured.
+	 * @throws	\Temma\Exceptions\Database	If the connection failed.
 	 */
 	public function connect() : void {
 		if (!$this->_enabled || $this->_sock)
 			return;
 		$this->reconnect();
 	}
-	/** Reconnect. */
+	/**
+	 * Reconnect.
+	 * @throws	\Temma\Exceptions\Database	If the connection failed.
+	 */
 	public function reconnect() : void {
 		if (!$this->_enabled)
 			return;
 		$this->disconnect();
 		$host = $this->_type . '://' . $this->_host;
-		$null = null;
-		$this->_sock = fsockopen($host, $this->_port, $null, $null, $this->_connectionTimeout);
-		if (!$this->_sock)
-			throw new \Exception("Unable to open socket.");
+		$errorCode = 0;
+		$errorMessage = '';
+		$this->_sock = @fsockopen($host, $this->_port, $errorCode, $errorMessage, $this->_connectionTimeout);
+		if (!$this->_sock) {
+			$this->_sock = null;
+			TµLog::log('Temma/Base', 'WARN', "Unable to open socket '$host' ($errorCode: $errorMessage).");
+			throw new \Temma\Exceptions\Database("Unable to open socket '$host' ($errorMessage).", \Temma\Exceptions\Database::CONNECTION);
+		}
 	}
 	/** Disconnection. */
 	public function disconnect() : void {
@@ -136,7 +152,7 @@ class Socket extends \Temma\Base\Datasource {
 	 * @throws	\Temma\Exceptions\Database	Always throws an exception.
 	 */
 	public function mRemove(array $keys) : void {
-		throw new \Temma\Exceptions\Database("No mRemove() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);
+		throw new \Temma\Exceptions\Database('No mRemove() method on this object.', \Temma\Exceptions\Database::FUNDAMENTAL);
 	}
 	/**
 	 * Disable clear().
@@ -144,20 +160,21 @@ class Socket extends \Temma\Base\Datasource {
 	 * @throws	\Temma\Exceptions\Database	Always throws an exception.
 	 */
 	public function clear(string $pattern) : void {
-		throw new \Temma\Exceptions\Database("No clear() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);
+		throw new \Temma\Exceptions\Database('No clear() method on this object.', \Temma\Exceptions\Database::FUNDAMENTAL);
 	}
 
 	/* ********** RAW REQUESTS ********** */
 	/**
 	 * Read data from the socket.
 	 * @param	string			$key			Not used, should be an empty string.
-	 * @param       mixed   		$defaultOrCallback      (optional) Not used.
+	 * @param	mixed			$defaultOrCallback	(optional) Not used.
 	 * @param	null|bool|int|array	$options		(optional) Options. Can be a bool, an int or an array.
 	 *								- bool: false for non blocking reading (defaults to true).
 	 *								- int: Reading timeout in seconds.
 	 *								- array: associative array with the 'blocking' and 'timeout' keys.
-	 * @return	?string	The raw data, or null if the connection was closed.
-	 * @throws	\Exception	If an error occured.
+	 * @return	?string	The raw data, or null if the connection was closed (and all data were read) or if it timed out.
+	 *			In non-blocking mode, an empty string is returned if no data is available.
+	 * @throws	\Temma\Exceptions\Database	If the connection failed.
 	 */
 	public function read(string $key, mixed $defaultOrCallback=null, mixed $options=null) : ?string {
 		if (!$this->_enabled)
@@ -178,16 +195,18 @@ class Socket extends \Temma\Base\Datasource {
 			stream_set_timeout($this->_sock, $options['timeout']);
 		// wait for the first bytes
 		$s = fread($this->_sock, 4096);
-		// quit if it timed out
-		if (stream_get_meta_data($this->_sock)['timed_out'])
-			return (null);
-		// quit if the connection was closed
-		if (feof($this->_sock))
-			return (null);
-		// non blocking mode: read as long as there are more bytes
+		if ($s === false)
+			$s = '';
+		if ($s === '') {
+			// quit if it timed out or if the connection was closed
+			if (stream_get_meta_data($this->_sock)['timed_out'] || feof($this->_sock))
+				return (null);
+			return ($s);
+		}
+		// blocking mode: read without blocking as long as there are more bytes available
 		if (!$nonBlocking) {
 			stream_set_blocking($this->_sock, false);
-			while (($buff = fread($this->_sock, 4096)))
+			while ((($buff = fread($this->_sock, 4096)) !== false) && $buff !== '')
 				$s .= $buff;
 			// back to blocking mode
 			stream_set_blocking($this->_sock, true);
@@ -200,7 +219,7 @@ class Socket extends \Temma\Base\Datasource {
 	 * @throws	\Temma\Exceptions\Database	Always throws an exception.
 	 */
 	public function mRead(array $keys) : array {
-		throw new \Temma\Exceptions\Database("No mRead() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);
+		throw new \Temma\Exceptions\Database('No mRead() method on this object.', \Temma\Exceptions\Database::FUNDAMENTAL);
 	}
 	/**
 	 * Disabled multiple copyFrom.
@@ -209,22 +228,58 @@ class Socket extends \Temma\Base\Datasource {
 	 * @throws	\Temma\Exceptions\Database	Always throws an exception.
 	 */
 	public function mCopyFrom(array $keys) : int {
-		throw new \Temma\Exceptions\Database("No mCopyFrom() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);
+		throw new \Temma\Exceptions\Database('No mCopyFrom() method on this object.', \Temma\Exceptions\Database::FUNDAMENTAL);
 	}
 	/**
-	 * Send data to a socket.
+	 * Send data to a socket. The socket is set in blocking mode, and the method returns when all the data has been written.
 	 * @param	string	$id		Not used, should be an empty string.
 	 * @param	string	$data		Data.
 	 * @param	mixed	$options	(optional) Not used.
-	 * @return	bool	Always true.
-	 * @throws	\Exception	If an error occured.
+	 * @return	bool	True, or false if the datasource is disabled.
+	 * @throws	\Temma\Exceptions\Database	If the connection failed or if the data couldn't be written.
 	 */
 	public function write(string $id, string $data, mixed $options=null) : mixed {
 		if (!$this->_enabled)
 			return (false);
 		$this->connect();
-		fwrite($this->_sock, $data);
+		// blocking mode (the socket may have been set in non-blocking mode by a previous reading)
+		stream_set_blocking($this->_sock, true);
+		// write the data, as long as some bytes remain (fwrite() may write only a part of the data)
+		$length = mb_strlen($data, 'ascii');
+		$written = 0;
+		while ($written < $length) {
+			$chunk = ($written === 0) ? $data : mb_substr($data, $written, null, 'ascii');
+			$result = @fwrite($this->_sock, $chunk);
+			if (!$result) {
+				TµLog::log('Temma/Base', 'WARN', "Unable to write on socket ($written bytes written out of $length).");
+				throw new \Temma\Exceptions\Database('Unable to write on socket.', \Temma\Exceptions\Database::QUERY);
+			}
+			$written += $result;
+		}
 		return (true);
+	}
+	/**
+	 * Send multiple raw data to the socket, one after the other.
+	 * @param	array	$data		List of raw data (strings; numbers are converted to strings). Null values are ignored
+	 *					(they don't close the connection).
+	 * @param	mixed	$options	(optional) Not used.
+	 * @return	int	The number of written data.
+	 * @throws	\Temma\Exceptions\Database	If a value is not a string or a number (nothing is sent), if the connection
+	 *						failed or if the data couldn't be written.
+	 */
+	public function mWrite(array $data, mixed $options=null) : int {
+		if (!$this->_enabled)
+			return (0);
+		// check the data before sending anything
+		$chunks = [];
+		foreach ($data as $datum) {
+			if (($datum = self::_toRawValue($datum)) !== null)
+				$chunks[] = $datum;
+		}
+		// send the data
+		foreach ($chunks as $chunk)
+			$this->write('', $chunk, $options);
+		return (count($chunks));
 	}
 
 	/* ********** KEY-VALUE REQUESTS ********** */
@@ -239,19 +294,20 @@ class Socket extends \Temma\Base\Datasource {
 	 * @throws	\Temma\Exceptions\Database	Always throws an exception.
 	 */
 	public function search(string $pattern, bool $getValues=false, null|bool|string|array $sort=null, int $offset=0, int $limit=0) : array {
-		throw new \Temma\Exceptions\Database("No search() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);
+		throw new \Temma\Exceptions\Database('No search() method on this object.', \Temma\Exceptions\Database::FUNDAMENTAL);
 	}
 	/**
 	 * Read a line from the socket.
-	 * @param	string	$key			Not used, should be an empty string.
-	 * @param       mixed   $defaultOrCallback      (optional) Not used.
+	 * @param	string			$key			Not used, should be an empty string.
+	 * @param	mixed			$defaultOrCallback	(optional) Not used.
 	 * @param	null|bool|int|array	$options		(optional) Options. Can be a bool, an int or an array.
 	 *								- bool: false for non blocking reading (defaults to true).
 	 *								- int: Reading timeout in seconds.
 	 *								- array: associative array with the 'blocking' and 'timeout' keys.
-	 * @return	?string	Next line read from the socket or null if the connection was closed.
+	 * @return	?string	Next line read from the socket or null if the connection was closed (and all data were read)
+	 *			or if it timed out. In non-blocking mode, an empty string is returned if no line is available.
 	 *			Any CR ("\r") and LF ("\n") characters at the end of the line are removed.
-	 * @throws	\Exception	If an error occured.
+	 * @throws	\Temma\Exceptions\Database	If the connection failed.
 	 */
 	public function get(string $key, mixed $defaultOrCallback=null, mixed $options=null) : ?string {
 		if (!$this->_enabled)
@@ -268,12 +324,12 @@ class Socket extends \Temma\Base\Datasource {
 			stream_set_timeout($this->_sock, (is_int($options) ? $options : $options['timeout']));
 		// read a line
 		$s = fgets($this->_sock);
-		// quit if it timed out
-		if (!$s && stream_get_meta_data($this->_sock)['timed_out'])
-			return (null);
-		// quit if the connection was closed
-		if (!$s && feof($this->_sock))
-			return (null);
+		if ($s === false) {
+			// quit if it timed out or if the connection was closed
+			if (stream_get_meta_data($this->_sock)['timed_out'] || feof($this->_sock))
+				return (null);
+			return ('');
+		}
 		// return
 		$s = rtrim($s, "\r\n");
 		return ($s);
@@ -285,7 +341,7 @@ class Socket extends \Temma\Base\Datasource {
 	 * @throws	\Temma\Exceptions\Database	Always throws an exception.
 	 */
 	public function mGet(array $keys) : array {
-		throw new \Temma\Exceptions\Database("No mGet() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);
+		throw new \Temma\Exceptions\Database('No mGet() method on this object.', \Temma\Exceptions\Database::FUNDAMENTAL);
 	}
 	/**
 	 * Send a line of data to the socket.
@@ -294,14 +350,13 @@ class Socket extends \Temma\Base\Datasource {
 	 * In any case, a CRLF sequence ("\r\n") is added at the end of the data.
 	 * @param	string	$id		Not used, should be an empty string.
 	 * @param	mixed	$data		(optional) Message data. If the data is not a string, it is JSON-encoded.
+	 *					Nothing is sent if the data is null.
 	 * @param	mixed	$options	(optional) Not used.
-	 * @return	bool	Always true.
-	 * @throws	\Exception	If an error occured.
+	 * @return	bool	True if the data was sent, false if the data is null or if the datasource is disabled.
+	 * @throws	\Temma\Exceptions\Database	If the connection failed or if the data couldn't be written.
 	 */
 	public function set(string $id, mixed $data=null, mixed $options=null) : bool {
-		if (!$this->_enabled)
-			return (false);
-		if (!$data)
+		if (!$this->_enabled || is_null($data))
 			return (false);
 		$data = is_string($data) ? $data : json_encode($data);
 		$data = rtrim($data, "\r\n") . "\r\n";
@@ -313,9 +368,10 @@ class Socket extends \Temma\Base\Datasource {
 	 * For each line, if the data is not a string, it is JSON-encoded.
 	 * If the data is a string ending with one or more CR ("\r") or LF ("\n"), they are removed.
 	 * In any case, a CRLF sequence ("\r\n") is added at the end of the data.
-	 * @param	array	$data		Array of data.
+	 * @param	array	$data		Array of data. Null values are not sent.
 	 * @param	mixed	$options	(optional) Not used.
-	 * @return	int	The number of writtent data.
+	 * @return	int	The number of written data.
+	 * @throws	\Temma\Exceptions\Database	If the connection failed or if the data couldn't be written.
 	 */
 	public function mSet(array $data, mixed $options=null) : int {
 		if (!$this->_enabled)
@@ -323,10 +379,9 @@ class Socket extends \Temma\Base\Datasource {
 		$this->connect();
 		$written = 0;
 		foreach ($data as $line) {
-			$this->set('', $line, $options);
-			$written++;
+			if ($this->set('', $line, $options))
+				$written++;
 		}
 		return ($written);
 	}
 }
-

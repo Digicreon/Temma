@@ -3,7 +3,7 @@
 /**
  * Telegram
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2025, Amaury Bouchard
+ * @copyright	© 2025-2026, Amaury Bouchard
  * @link	https://www.temma.net/documentation/datasource-telegram
  */
 
@@ -46,12 +46,12 @@ use \Temma\Base\Log as TµLog;
  * // send a simple text message
  * $tg['123456789'] = 'Text message';
  * $tg->write('@my_channel', 'Text message');
- * $gt->set('@channel_name', 'Text message');
+ * $tg->set('@channel_name', 'Text message');
  *
  * // send a notification formatted with simplified HTML
  * // See https://core.telegram.org/bots/api#html-style
  * $tg['@my_channel'] = 'Text with <i>simple</i> <b>formatting</b>.';
- *
+ * </code>
  */
 class Telegram extends \Temma\Base\Datasource {
 	/** Constant: URL of the Telegram API. */
@@ -67,11 +67,10 @@ class Telegram extends \Temma\Base\Datasource {
 	 * @throws	\Temma\Exceptions\Database	If the DSN is invalid.
 	 */
 	static public function factory(string $dsn) : \Temma\Datasources\Telegram {
-		TµLog::log('Temma/Base', 'DEBUG', "\\Temma\\Datasources\\Telegram object creation with DSN: '$dsn'.");
-		$webhook = null;
+		TµLog::log('Temma/Base', 'DEBUG', "\\Temma\\Datasources\\Telegram object creation with DSN: '" . self::_maskDsn($dsn) . "'.");
 		if (!str_starts_with($dsn, 'telegram://')) {
-			TµLog::log('Temma/Base', 'WARN', "Invalid Telegram DSN '$dsn'.");
-			throw new \Temma\Exceptions\Database("Invalid Telegram DSN '$dsn'.", \Temma\Exceptions\Database::FUNDAMENTAL);
+			TµLog::log('Temma/Base', 'WARN', "Invalid Telegram DSN '" . self::_maskDsn($dsn) . "'.");
+			throw new \Temma\Exceptions\Database("Invalid Telegram DSN '" . self::_maskDsn($dsn) . "'.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		}
 		$dsn = mb_substr($dsn, mb_strlen('telegram://'));
 		return (new self($dsn));
@@ -98,34 +97,32 @@ class Telegram extends \Temma\Base\Datasource {
 	/**
 	 * Send a Telegram notification.
 	 * @param	string	$chatId		Chat ID or channel name.
-	 * @param	string	$text		Text message.
+	 * @param	?string	$text		Text message.
 	 * @param	mixed	$options	Not used.
-	 * @return	bool	Always true.
-	 * @throws	\Exception	If an error occured.
+	 * @return	bool	True if the message was sent, false if the data source is disabled.
+	 * @throws	\Temma\Exceptions\Database	If an error occured.
 	 */
-	public function write(string $chatId, string $text=null, mixed $options=null) : bool {
-		$this->set($chatId, $text, $options);
-		return (true);
+	public function write(string $chatId, ?string $text=null, mixed $options=null) : bool {
+		return ($this->set($chatId, $text, $options));
 	}
 
 	/* ********** KEY-VALUE REQUESTS ********** */
 	/**
 	 * Send a notification to Telegram.
 	 * @param	string	$chatId		Chat ID or channel name.
-	 * @param	string	$message	Text message.
+	 * @param	mixed	$message	Text message (scalar value).
 	 * @param	mixed	$options	Not used.
-	 * @return	bool	Always true.
-	 * @throws	\Exception	If an error occured.
+	 * @return	bool	True if the message was sent, false if the data source is disabled.
+	 * @throws	\Temma\Exceptions\Database	If an error occured.
 	 */
 	public function set(string $chatId, mixed $message=null, mixed $options=null) : bool {
 		if (!$this->_enabled)
 			return (false);
-		$data = [];
 		if (!is_scalar($message))
 			throw new \Temma\Exceptions\Database("Bad Telegram message parameter.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		$message = (string)$message;
 		// send the message
-		$url = sprintf(self::API_URL, $this->_apiToken);
+		$url = sprintf(static::API_URL, $this->_apiToken);
 		$postfields = [
 			'chat_id'                  => $chatId,
 			'text'                     => $message,
@@ -147,18 +144,21 @@ class Telegram extends \Temma\Base\Datasource {
 			curl_close($ch);
 			throw new \Temma\Exceptions\Database("cURL error while sending Telegram message: $error", \Temma\Exceptions\Database::FUNDAMENTAL);
 		}
+		$code = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
 		curl_close($ch);
+		// check the response (the raw response is not written in the message, it could contain the URL with the token)
 		$data = json_decode($response, true);
-		if (!$data['ok']) {
-			throw new \Temma\Exceptions\Database("Telegram API error: " . ($data['description'] ?? 'Unknown error.'), \Temma\Exceptions\Database::FUNDAMENTAL);
-		}
+		if (!is_array($data))
+			throw new \Temma\Exceptions\Database("Invalid Telegram API response (HTTP code $code).", \Temma\Exceptions\Database::FUNDAMENTAL);
+		if (($data['ok'] ?? false) !== true)
+			throw new \Temma\Exceptions\Database('Telegram API error: ' . ($data['description'] ?? "Unknown error (HTTP code $code)."), \Temma\Exceptions\Database::FUNDAMENTAL);
 		return (true);
 	}
 	/**
-	 * Disable mSet().
-	 * @param	array	$data		Associative array with keys (recipients' user key) and their associated values (text messages).
-	 * @param	mixed	$options	(optional) Options.
-	 * @return	int	The number of sent messages.
+	 * Disabled mSet().
+	 * @param	array	$data		Not used.
+	 * @param	mixed	$options	(optional) Not used.
+	 * @throws	\Temma\Exceptions\Database	Always throws an exception.
 	 */
 	public function mSet(array $data, mixed $options=null) : int {
 		throw new \Temma\Exceptions\Database("No mSet() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);

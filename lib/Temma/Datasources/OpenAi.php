@@ -16,7 +16,7 @@ use \Temma\Base\Log as TµLog;
  *
  * This object is used to interact with the OpenAI Chat Completions API.
  *
- * @deprecated	Use \Temma\Datasources\Ai with DSN "ai://openai/MODEL/KEY" instead.
+ * @deprecated	Use \Temma\Datasources\Ai with DSN "ai://openai/MODEL#KEY" instead.
  * @see		\Temma\Datasources\Ai
  *
  * <b>Usage</b>
@@ -61,10 +61,10 @@ class OpenAi extends \Temma\Base\Datasource {
 	 * @throws	\Temma\Exceptions\Database	If the DSN is invalid.
 	 */
 	static public function factory(string $dsn) : \Temma\Datasources\OpenAi {
-		TµLog::log('Temma/Base', 'DEBUG', "\\Temma\\Datasources\\OpenAi object creation with DSN: '$dsn'.");
+		TµLog::log('Temma/Base', 'DEBUG', "\\Temma\\Datasources\\OpenAi object creation with DSN: '" . self::_maskDsn($dsn) . "'.");
 		if (!preg_match('/^openai:\/\/chat\/([^\/]+)\/(.+)$/', $dsn, $matches)) {
-			TµLog::log('Temma/Base', 'WARN', "Invalid OpenAI DSN '$dsn'.");
-			throw new \Temma\Exceptions\Database("Invalid OpenAI DSN '$dsn'.", \Temma\Exceptions\Database::FUNDAMENTAL);
+			TµLog::log('Temma/Base', 'WARN', "Invalid OpenAI DSN '" . self::_maskDsn($dsn) . "'.");
+			throw new \Temma\Exceptions\Database("Invalid OpenAI DSN '" . self::_maskDsn($dsn) . "'.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		}
 		$model = $matches[1];
 		$apiKey = $matches[2];
@@ -101,12 +101,88 @@ class OpenAi extends \Temma\Base\Datasource {
 	 *						- messages (array): Previous messages for multi-turn conversation.
 	 *						- temperature (float): Sampling temperature (0 to 2).
 	 *						- max_tokens (int): Maximum number of tokens in the response.
-	 * @return	mixed	The response text, or the default value if the call fails.
+	 * @return	mixed	The response text, the default value if the call fails, or null if the data source is disabled.
 	 * @throws	\Temma\Exceptions\Database	If the API returns an error and no default value is provided.
 	 */
 	public function read(string $prompt, mixed $defaultOrCallback=null, mixed $options=null) : mixed {
 		if (!$this->_enabled)
-			return ($defaultOrCallback);
+			return (null);
+		try {
+			return ($this->_request($prompt, $options));
+		} catch (\Temma\Exceptions\Database $e) {
+			TµLog::log('Temma/Base', 'NOTE', $e->getMessage());
+			if ($defaultOrCallback === null)
+				throw $e;
+			return (self::_isCallback($defaultOrCallback) ? $defaultOrCallback() : $defaultOrCallback);
+		}
+	}
+	/**
+	 * Disabled write.
+	 * @param	string	$key		Not used.
+	 * @param	?string	$value		Not used.
+	 * @param	mixed	$options	Not used.
+	 * @throws	\Temma\Exceptions\Database	Always throws an exception.
+	 */
+	public function write(string $key, ?string $value=null, mixed $options=null) : mixed {
+		throw new \Temma\Exceptions\Database('No write() method on this object.', \Temma\Exceptions\Database::FUNDAMENTAL);
+	}
+
+	/* ********** KEY-VALUE REQUESTS ********** */
+	/**
+	 * Get a response from the OpenAI Chat Completions API.
+	 * @param	string	$prompt			User prompt.
+	 * @param	mixed	$defaultOrCallback	(optional) Default value returned if the API call fails,
+	 *						or callback whose returned value is used as fallback.
+	 * @param	mixed	$options		(optional) Options (see read()).
+	 * @return	mixed	The response text, the default value if the call fails, or null if the data source is disabled.
+	 * @throws	\Temma\Exceptions\Database	If the API returns an error and no default value is provided.
+	 */
+	public function get(string $prompt, mixed $defaultOrCallback=null, mixed $options=null) : mixed {
+		return ($this->read($prompt, $defaultOrCallback, $options));
+	}
+	/**
+	 * Get responses to several prompts from the OpenAI Chat Completions API (see get()).
+	 * @param	array	$prompts	List of prompts.
+	 * @return	array	Associative array with the prompts and their responses (texts, not JSON-decoded).
+	 * @throws	\Temma\Exceptions\Database	If the API returns an error.
+	 */
+	public function mGet(array $prompts) : array {
+		if (!$this->_enabled)
+			return ([]);
+		$result = [];
+		foreach ($prompts as $prompt)
+			$result[$prompt] = $this->get($prompt);
+		return ($result);
+	}
+	/**
+	 * Disabled set.
+	 * @param	string	$key		Not used.
+	 * @param	mixed	$value		Not used.
+	 * @param	mixed	$options	Not used.
+	 * @throws	\Temma\Exceptions\Database	Always throws an exception.
+	 */
+	public function set(string $key, mixed $value=null, mixed $options=null) : mixed {
+		throw new \Temma\Exceptions\Database('No set() method on this object.', \Temma\Exceptions\Database::FUNDAMENTAL);
+	}
+	/**
+	 * Disabled mSet.
+	 * @param	array	$data		Not used.
+	 * @param	mixed	$options	Not used.
+	 * @throws	\Temma\Exceptions\Database	Always throws an exception.
+	 */
+	public function mSet(array $data, mixed $options=null) : int {
+		throw new \Temma\Exceptions\Database('No mSet() method on this object.', \Temma\Exceptions\Database::FUNDAMENTAL);
+	}
+
+	/* ********** PRIVATE METHODS ********** */
+	/**
+	 * Send a prompt to the OpenAI Chat Completions API.
+	 * @param	string	$prompt		User prompt.
+	 * @param	mixed	$options	Options (see read()).
+	 * @return	?string	The response text.
+	 * @throws	\Temma\Exceptions\Database	If the API call fails or returns an error.
+	 */
+	private function _request(string $prompt, mixed $options) : ?string {
 		// build messages list
 		$messages = [];
 		if (is_array($options)) {
@@ -131,7 +207,7 @@ class OpenAi extends \Temma\Base\Datasource {
 		$json = json_encode($payload);
 		$ch = curl_init();
 		curl_setopt_array($ch, [
-			CURLOPT_URL            => self::API_URL,
+			CURLOPT_URL            => static::API_URL,
 			CURLOPT_POST           => true,
 			CURLOPT_POSTFIELDS     => $json,
 			CURLOPT_RETURNTRANSFER => true,
@@ -147,61 +223,21 @@ class OpenAi extends \Temma\Base\Datasource {
 		if ($response === false) {
 			$error = curl_error($ch);
 			curl_close($ch);
-			if ($defaultOrCallback !== null)
-				return (is_callable($defaultOrCallback) ? $defaultOrCallback() : $defaultOrCallback);
 			throw new \Temma\Exceptions\Database("OpenAI cURL error: $error", \Temma\Exceptions\Database::FUNDAMENTAL);
 		}
+		$code = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
 		curl_close($ch);
 		// decode response
 		$data = json_decode($response, true);
 		if (isset($data['error'])) {
 			$errorMsg = $data['error']['message'] ?? 'Unknown error.';
-			if ($defaultOrCallback !== null)
-				return (is_callable($defaultOrCallback) ? $defaultOrCallback() : $defaultOrCallback);
 			throw new \Temma\Exceptions\Database("OpenAI API error: $errorMsg", \Temma\Exceptions\Database::FUNDAMENTAL);
 		}
-		return ($data['choices'][0]['message']['content'] ?? null);
-	}
-	/**
-	 * Disabled write.
-	 * @param	string	$key		Not used.
-	 * @param	string	$value		Not used.
-	 * @param	mixed	$options	Not used.
-	 * @throws	\Temma\Exceptions\Database	Always throws an exception.
-	 */
-	public function write(string $key, string $value=null, mixed $options=null) : mixed {
-		throw new \Temma\Exceptions\Database("No write() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);
-	}
-
-	/* ********** KEY-VALUE REQUESTS ********** */
-	/**
-	 * Get a response from the OpenAI Chat Completions API.
-	 * @param	string	$prompt			User prompt.
-	 * @param	mixed	$defaultOrCallback	(optional) Default value returned if the API call fails.
-	 * @param	mixed	$options		(optional) Options (see read()).
-	 * @return	mixed	The response text.
-	 */
-	public function get(string $prompt, mixed $defaultOrCallback=null, mixed $options=null) : mixed {
-		return ($this->read($prompt, $defaultOrCallback, $options));
-	}
-	/**
-	 * Disabled set.
-	 * @param	string	$key		Not used.
-	 * @param	mixed	$value		Not used.
-	 * @param	mixed	$options	Not used.
-	 * @throws	\Temma\Exceptions\Database	Always throws an exception.
-	 */
-	public function set(string $key, mixed $value=null, mixed $options=null) : mixed {
-		throw new \Temma\Exceptions\Database("No set() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);
-	}
-	/**
-	 * Disabled mSet.
-	 * @param	array	$data		Not used.
-	 * @param	mixed	$options	Not used.
-	 * @throws	\Temma\Exceptions\Database	Always throws an exception.
-	 */
-	public function mSet(array $data, mixed $options=null) : int {
-		throw new \Temma\Exceptions\Database("No mSet() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);
+		if ($code >= 400)
+			throw new \Temma\Exceptions\Database("OpenAI API HTTP error $code.", \Temma\Exceptions\Database::FUNDAMENTAL);
+		if (!is_array($data))
+			throw new \Temma\Exceptions\Database('OpenAI API returned an invalid response.', \Temma\Exceptions\Database::FUNDAMENTAL);
+		$content = $data['choices'][0]['message']['content'] ?? null;
+		return (is_string($content) ? $content : null);
 	}
 }
-
