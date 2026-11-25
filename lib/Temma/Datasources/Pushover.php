@@ -3,7 +3,7 @@
 /**
  * Pushover
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2023-2024, Amaury Bouchard
+ * @copyright	© 2023-2026, Amaury Bouchard
  * @link	https://www.temma.net/documentation/datasource-pushover
  */
 
@@ -18,7 +18,7 @@ use \Temma\Base\Log as TµLog;
  * The Pushover application must be downloaded and installed (30 days free trial).
  * In order to use it, you must create an account on pushover.net.
  *
- * For API details, please refere to its documentation (https://dev.smsmode.com/http-api/reference/).
+ * For API details, please refer to its documentation (https://pushover.net/api).
  *
  * <b>Usage</b>
  * <code>
@@ -112,9 +112,9 @@ class Pushover extends \Temma\Base\Datasource {
 	 *					- url: URL added under the text message.
 	 *					- urlTitle: Title of the URL (otherwise, the URL will appear as-is).
 	 * @return	bool	Always true.
-	 * @throws	\Exception	If an error occured.
+	 * @throws	\Temma\Exceptions\Database	If an error occured.
 	 */
-	public function write(string $userKey, string $text=null, mixed $options=null) : bool {
+	public function write(string $userKey, ?string $text=null, mixed $options=null) : bool {
 		$curl = curl_init();
 		$post = [
 			'token'   => $this->_appToken,
@@ -149,9 +149,22 @@ class Pushover extends \Temma\Base\Datasource {
 			CURLOPT_POSTFIELDS     => $post,
 			CURLOPT_SAFE_UPLOAD    => true,
 			CURLOPT_RETURNTRANSFER => true,
+			CURLOPT_CONNECTTIMEOUT => 5,
+			CURLOPT_TIMEOUT        => 10,
 		]);
-		curl_exec($curl);
+		$result = curl_exec($curl);
+		if ($result === false) {
+			$error = curl_error($curl);
+			curl_close($curl);
+			throw new \Temma\Exceptions\Database("cURL error while sending Pushover message: $error", \Temma\Exceptions\Database::FUNDAMENTAL);
+		}
 		curl_close($curl);
+		// check the response (status 1 if the message was accepted)
+		$response = json_decode($result, true);
+		if (($response['status'] ?? null) !== 1) {
+			$error = isset($response['errors']) ? implode(' ', (array)$response['errors']) : $result;
+			throw new \Temma\Exceptions\Database("Bad Pushover response '$error'.", \Temma\Exceptions\Database::FUNDAMENTAL);
+		}
 		return (true);
 	}
 
@@ -179,7 +192,7 @@ class Pushover extends \Temma\Base\Datasource {
 	 *					- url: URL added under the text message.
 	 *					- urlTitle: Title of the URL (otherwise, the URL will appear as-is).
 	 * @return	bool	always true.
-	 * @throws	\Exception	If an error occured.
+	 * @throws	\Temma\Exceptions\Database	If an error occured.
 	 */
 	public function set(string $userKey, mixed $text=null, mixed $options=null) : bool {
 		return ($this->write($userKey, $text, $options));

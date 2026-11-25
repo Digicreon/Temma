@@ -387,9 +387,9 @@ class S3 extends \Temma\Base\Datasource {
 		return ($list);
 	}
 	/**
-	 * Get a file from S3.
+	 * Get a file from S3. The raw content of the file is returned (not JSON-decoded).
 	 * @param	string	$s3Path			File path on S3.
-	 * @param       mixed   $defaultOrCallback      (optional) Default scalar value or function called if the data is not found.
+	 * @param	mixed	$defaultOrCallback	(optional) Default scalar value or function called if the data is not found.
 	 *						If scalar: the value is returned.
 	 *						If callback: the value returned by the function is stored in the data source, and returned.
 	 * @param	mixed	$options		(optional) Options used if the file is created.
@@ -414,12 +414,13 @@ class S3 extends \Temma\Base\Datasource {
 			}
 		}
 		// manage default value
-		if (!$defaultOrCallback)
+		if ($defaultOrCallback === null)
 			return (null);
 		$value = $defaultOrCallback;
 		if (is_callable($defaultOrCallback)) {
 			$value = $defaultOrCallback();
-			$this->write($s3Path, $value, $options);
+			if ($value !== null)
+				$this->write($s3Path, $value, $options);
 		}
 		return ($value);
 	}
@@ -427,7 +428,7 @@ class S3 extends \Temma\Base\Datasource {
 	 * Get a file from S3 and write it to a local file.
 	 * @param	string	$s3Path			File path on S3.
 	 * @param	string	$localPath		Local path.
-	 * @param       mixed   $defaultOrCallback      (optional) Default scalar value or function called if the data is not found.
+	 * @param	mixed	$defaultOrCallback	(optional) Default scalar value or function called if the data is not found.
 	 *						If scalar: the value is written in the local file.
 	 *						If callback: the value returned by the function is stored in the data source, and written in the file.
 	 * @param	mixed	$options		(optional) Options used if the file is created.
@@ -452,17 +453,21 @@ class S3 extends \Temma\Base\Datasource {
 				]);
 				return (true);
 			} catch (\Exception $e) {
-				unlink($localPath);
+				if (is_file($localPath))
+					unlink($localPath);
 			}
 		}
 		// manage default value
-		if (!$defaultOrCallback)
+		if ($defaultOrCallback === null)
 			return (false);
 		$value = $defaultOrCallback;
 		if (is_callable($defaultOrCallback)) {
 			$value = $defaultOrCallback();
-			$this->write($s3Path, $value, $options);
+			if ($value !== null)
+				$this->write($s3Path, $value, $options);
 		}
+		if ($value === null)
+			return (false);
 		file_put_contents($localPath, $value);
 		return (true);
 	}
@@ -557,8 +562,9 @@ class S3 extends \Temma\Base\Datasource {
 	 * @param	string	$s3Path			File path on S3.
 	 * @param	mixed	$defaultOrCallback	(optional) Default scalar value or function called if the data is not found.
 	 *						If scalar: the value is returned.
-	 *						If callback: the value returned by the function is stored in the data source, and returned.
-	 * @param	mixed	$options	(optional) If a string: mime type.
+	 *						If callback: the value returned by the function is stored JSON-encoded in the
+	 *						data source, and returned.
+	 * @param	mixed	$options	(optional) Options used if the file is created.
 	 *					If a boolean: true for public access, false for private access.
 	 *					If an array: 'public' (bool).
 	 * @return	mixed	The fetched data.
@@ -566,19 +572,16 @@ class S3 extends \Temma\Base\Datasource {
 	public function get(string $s3Path, mixed $defaultOrCallback=null, mixed $options=null) : mixed {
 		if (!$this->_enabled)
 			return (null);
-		// manage options
-		$public = false;
-		if ($options === true || ($options['public'] ?? null) === true)
-			$public = true;
-		$options = [
-			'public'   => $public,
-			'mimetype' => 'application/json',
-		];
-		// read the data
-		$data = $this->read($s3Path, $defaultOrCallback, $options);
-		if (!$data)
-			return ($data);
-		return (json_decode($data, true));
+		// read the data (the callback is not given to read(), which would store the raw value)
+		$data = $this->read($s3Path);
+		if ($data !== null)
+			return (json_decode($data, true));
+		// manage default value
+		if (!is_callable($defaultOrCallback))
+			return ($defaultOrCallback);
+		$value = $defaultOrCallback();
+		$this->set($s3Path, $value, $options);
+		return ($value);
 	}
 	/**
 	 * Store serialized data in a S3 file.

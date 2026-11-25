@@ -264,17 +264,17 @@ class Redis extends \Temma\Base\Datasource {
 		if (!$this->_enabled)
 			return;
 		$this->connect();
-		$this->_ndb->delete($key);
+		$this->_ndb->del($key);
 	}
 	/**
 	 * Multiple remove.
 	 * @param	array	$keys	List of keys.
 	 */
 	public function mRemove(array $keys) : void {
-		if (!$this->_enabled)
+		if (!$this->_enabled || !$keys)
 			return;
 		$this->connect();
-		$this->_ndb->delete($keys);
+		$this->_ndb->del($keys);
 	}
 	/**
 	 * Remove keys from a pattern.
@@ -284,10 +284,13 @@ class Redis extends \Temma\Base\Datasource {
 		if (!$this->_enabled)
 			return;
 		$this->connect();
+		// SCAN may return an empty batch before the end of the iteration
 		$it = null;
-		while (($keys = $this->_ndb->scan($it, $pattern))) {
-			$this->mRemove($keys);
-		}
+		do {
+			$keys = $this->_ndb->scan($it, $pattern);
+			if ($keys)
+				$this->mRemove($keys);
+		} while ($it > 0);
 	}
 	/**
 	 * Remove all data from Redis.
@@ -355,12 +358,13 @@ class Redis extends \Temma\Base\Datasource {
 		return ($result);
 	}
 	/**
-	 * Fetch a key-value pair.
+	 * Fetch a key-value pair. The raw value is returned (not JSON-decoded).
 	 * @param	string	$key			Key.
 	 * @param	mixed	$defaultOrCallback	(optional) Default scalar value or function called if the data is not found.
-	 *						If scalar: the value is written in the local file.
-	 *						If callback: the value returned by the function is stored in the data source, and written in the file.
-	 * @param	mixed	$options		(optional) Options used to store the data returned by the callback.
+	 *						If scalar: the value is returned.
+	 *						If callback: the value returned by the function (a string) is stored as is in the
+	 *						data source, and returned.
+	 * @param	mixed	$options		(optional) Key expiration timeout used to store the data returned by the callback.
 	 * @return	?string	The value associated to the key.
 	 */
 	public function read(string $key, mixed $defaultOrCallback=null, mixed $options=null) : ?string {
@@ -377,7 +381,8 @@ class Redis extends \Temma\Base\Datasource {
 		$value = $defaultOrCallback;
 		if (is_callable($defaultOrCallback)) {
 			$value = $defaultOrCallback();
-			$this->set($key, $value, $options);
+			if ($value !== null)
+				$this->write($key, $value, $options);
 		}
 		return ($value);
 	}
@@ -387,7 +392,7 @@ class Redis extends \Temma\Base\Datasource {
 	 * @return	array	Associative array with the keys and their associated values.
 	 */
 	public function mRead(array $keys) : array {
-		if (!$this->_enabled)
+		if (!$this->_enabled || !$keys)
 			return ([]);
 		$this->connect();
 		$values = $this->_ndb->mget($keys);
@@ -501,9 +506,10 @@ class Redis extends \Temma\Base\Datasource {
 	 * Fetch a key-value pair.
 	 * @param	string	$key			Key.
 	 * @param	mixed	$defaultOrCallback	(optional) Default scalar value or function called if the data is not found.
-	 *						If scalar: the value is written in the local file.
-	 *						If callback: the value returned by the function is stored in the data source, and written in the file.
-	 * @param	mixed	$options		(optional) Options used to store the data returned by the callback.
+	 *						If scalar: the value is returned.
+	 *						If callback: the value returned by the function is stored JSON-encoded in the
+	 *						data source, and returned.
+	 * @param	mixed	$options		(optional) Key expiration timeout used to store the data returned by the callback.
 	 * @return	mixed	The JSON-decoded value associated to the key.
 	 */
 	public function get(string $key, mixed $defaultOrCallback=null, mixed $options=null) : mixed {
@@ -530,7 +536,7 @@ class Redis extends \Temma\Base\Datasource {
 	 * @return	array	Associative array with the keys and their JSON-decoded associated values.
 	 */
 	public function mGet(array $keys) : array {
-		if (!$this->_enabled)
+		if (!$this->_enabled || !$keys)
 			return ([]);
 		$this->connect();
 		$values = $this->_ndb->mget($keys);
@@ -539,7 +545,7 @@ class Redis extends \Temma\Base\Datasource {
 			if ($value === false)
 				$value = null;
 			else if (is_string($value))
-				$value = json_decode($value);
+				$value = json_decode($value, true);
 		});
 		return ($result);
 	}

@@ -3,7 +3,7 @@
 /**
  * Discord
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2024, Amaury Bouchard
+ * @copyright	© 2024-2026, Amaury Bouchard
  * @link	https://www.temma.net/documentation/datasource-discord
  */
 
@@ -79,7 +79,7 @@ class Discord extends \Temma\Base\Datasource {
 	 * @param	string	$text		Text message.
 	 * @param	mixed	$options	Not used.
 	 * @return	bool	Always true.
-	 * @throws	\Exception	If an error occured.
+	 * @throws	\Temma\Exceptions\Database	If an error occured.
 	 */
 	public function write(string $channel, string $text=null, mixed $options=null) : bool {
 		$this->set($channel, $text, $options);
@@ -111,15 +111,18 @@ class Discord extends \Temma\Base\Datasource {
 		curl_setopt($curl, CURLOPT_POST, true);
 		curl_setopt($curl, CURLOPT_POSTFIELDS, $json);
 		curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-		curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
-		//curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, 3);
+		curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, 5);
+		curl_setopt($curl, CURLOPT_TIMEOUT, 10);
 		curl_setopt($curl, CURLOPT_HTTPHEADER, [
 			'Content-Type: application/json',
 			'Content-Length: ' . mb_strlen($json, 'ascii')
 		]);
 		$result = curl_exec($curl);
-		if ($result === false)
-			throw new \Exception(curl_error($curl));
+		if ($result === false) {
+			$error = curl_error($curl);
+			curl_close($curl);
+			throw new \Temma\Exceptions\Database("cURL error while sending Discord message: $error", \Temma\Exceptions\Database::FUNDAMENTAL);
+		}
 		curl_close($curl);
 		if ($result != '')
 			throw new \Temma\Exceptions\Database("Bad Discord response '$result'.", \Temma\Exceptions\Database::FUNDAMENTAL);

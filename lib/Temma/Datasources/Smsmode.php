@@ -19,7 +19,7 @@ use \Temma\Base\Log as TµLog;
  * API key; you can create it on the smsmode.com user settings page
  * (https://ui.smsmode.com/settings/keys).
  *
- * For API details, please refere to its documentation (https://dev.smsmode.com/http-api/reference/).
+ * For API details, please refer to its documentation (https://dev.smsmode.com/http-api/reference/).
  *
  * <b>Usage</b>
  * <code>
@@ -58,16 +58,14 @@ use \Temma\Base\Log as TµLog;
  * $status = $sms[$msgId];
  * $status = $sms->read($msgId);
  * $status = $sms->get($msgId);
- * if ($status == \Temma\Datasources\Smsmode::STATUS_SUCCESS) {
+ * if ($status == \Temma\Datasources\Smsmode::STATUS_SENT) {
  *     // ...
- * } else if ($status == \Temma\Datasources\Smsmode::STATUS_RECEIVED) {
- *     // ...
- * } else if ($status == \Temma\Datasources\Smsmode::STATUS_RECEIVED) {
+ * } else if ($status == \Temma\Datasources\Smsmode::STATUS_MSG_RECEIVED) {
  *     // ...
  * } else if ($status == \Temma\Datasources\Smsmode::STATUS_GATEWAY_RECEIVED ||
  *            $status == \Temma\Datasources\Smsmode::STATUS_GATEWAY_DELIVERED) {
  *     // ...
- * } else if ($status == \Temma\Datasources\Smsmode::STATUS_INTERNAL_ERROR ||
+ * } else if ($status == \Temma\Datasources\Smsmode::STATUS_MSG_INTERNAL_ERROR ||
  *            $status == \Temma\Datasources\Smsmode::STATUS_DELIVERY_ERROR) {
  *     // ...
  * }
@@ -77,14 +75,14 @@ use \Temma\Base\Log as TµLog;
  *
  * // delete a scheduled message (from its message ID)
  * unset($sms[$msgId]);
- * $sqs->remove($msgId);
+ * $sms->remove($msgId);
  * </code>
  */
 class Smsmode extends \Temma\Base\Datasource {
 	/** URL of smsmode.com API. */
 	const API_URL = 'https://api.smsmode.com/http/1.6/';
 	/** URL of smsmode.com API in Unicode mode. */
-	const API_URL_UNICODE = 'https://api.smsmode.com/http:1.6/';
+	const API_URL_UNICODE = 'https://api.smsmode.com/http/1.6/';
 	/** Request statuses. */
 	const STATUS_SUCCESS = 0;
 	const STATUS_INTERNAL_ERROR = 31;
@@ -140,16 +138,17 @@ class Smsmode extends \Temma\Base\Datasource {
 	/**
 	 * Send a text message.
 	 * @param	string|array	$recipient	Phone number or list of phone numbers.
-	 * @param	string		$text		Text message.
+	 * @param	?string		$text		Text message.
 	 * @param	?string		$sendDate	(optional) Sending date (format 'DDMMYYYY-HH:mm').
 	 * @param	?string		$reference	(optional) Internal reference.
 	 * @return	?string	Message identifier or null if an error occurred.
+	 * @throws	\Temma\Exceptions\Database	If the request to the API failed.
 	 */
-	public function send(string|array $recipient, string $text=null, ?string $sendDate=null, ?string $reference=null) : ?string {
+	public function send(string|array $recipient, ?string $text=null, ?string $sendDate=null, ?string $reference=null) : ?string {
 		if (!$this->_enabled)
 			return (null);
 		// text
-		$text = trim($text);
+		$text = trim($text ?? '');
 		if (!$text)
 			return (null);
 		// unicode
@@ -171,16 +170,15 @@ class Smsmode extends \Temma\Base\Datasource {
 			$params['emetteur'] = $this->_sender;
 		// request
 		$response = $this->_request('sendSMS.do', $params, $unicode);
-		// response
-		if (!preg_match('/^(\d+)(|[^|]+|(.*))?$/', $response, $matches))
+		// response ("code | description | message identifier")
+		if (!preg_match('/^(\d+)\s*\|[^|]*\|\s*(\S+)/', $response, $matches) || $matches[1] !== '0')
 			return (null);
-		if ($matches[1] != '0' || !($matches[3] ?? null))
-			return (null);
-		return ($matches[3]);
+		return ($matches[2]);
 	}
 	/**
 	 * Get the organization's balance.
 	 * @return	?float	Organization's balance, or null if an error occurred.
+	 * @throws	\Temma\Exceptions\Database	If the request to the API failed.
 	 */
 	public function getBalance() : ?float {
 		if (!$this->_enabled)
@@ -195,14 +193,14 @@ class Smsmode extends \Temma\Base\Datasource {
 	/**
 	 * Delete a scheduled message.
 	 * @param	string	$msgId	Message identifier.
-	 * @throws	\Exception	If an error occurred.
+	 * @throws	\Temma\Exceptions\Database	If an error occurred.
 	 */
 	public function remove(string $msgId) : void {
 		if (!$this->_enabled)
 			return;
 		$response = $this->_request('deleteSMS.do', ['smsID' => $msgId]);
 		if (!mb_strlen($response) || $response !== '0')
-			throw new \Exception("Unable to delete text message identified by '$msgId'.");
+			throw new \Temma\Exceptions\Database("Unable to delete text message identified by '$msgId'.", \Temma\Exceptions\Database::FUNDAMENTAL);
 	}
 	/**
 	 * Disabled clear.
@@ -217,9 +215,10 @@ class Smsmode extends \Temma\Base\Datasource {
 	/**
 	 * Reads a message status.
 	 * @param	string	$msgId			Message identifier.
-	 * @param       mixed   $defaultOrCallback      (optional) Not used.
+	 * @param	mixed	$defaultOrCallback	(optional) Not used.
 	 * @param	mixed	$options		(optional) Not used.
 	 * @return	mixed	A status code or null if an error occurred.
+	 * @throws	\Temma\Exceptions\Database	If the request to the API failed.
 	 */
 	public function read(string $msgId, mixed $defaultOrCallback=null, mixed $options=null) : mixed {
 		if (!$this->_enabled)
@@ -237,17 +236,17 @@ class Smsmode extends \Temma\Base\Datasource {
 	/**
 	 * Send a text message. Alias to send() method.
 	 * @param	string	$msisdn		Phone number.
-	 * @param	string	$text		Text message.
+	 * @param	?string	$text		Text message.
 	 * @param	mixed	$options	(optional) Associative array with the 'sendDate' and 'reference' keys.
 	 * @return	string	Message identifier.
-	 * @throws	\Exception	If an error occured.
+	 * @throws	\Temma\Exceptions\Database	If an error occured.
 	 */
-	public function write(string $msisdn, string $text=null, mixed $options=null) : string {
+	public function write(string $msisdn, ?string $text=null, mixed $options=null) : string {
 		$sendDate = $options['sendDate'] ?? null;
 		$reference = $options['reference'] ?? null;
 		$msgId = $this->send($msisdn, $text, $sendDate, $reference);
 		if (!$msgId)
-			throw new \Exception("Unable to send text message to '$msisdn'.");
+			throw new \Temma\Exceptions\Database("Unable to send text message to '$msisdn'.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		return ($msgId);
 	}
 
@@ -268,9 +267,10 @@ class Smsmode extends \Temma\Base\Datasource {
 	/**
 	 * Get a message status. Alias to the read() method.
 	 * @param	string	$msgId			Message identifier.
-	 * @param       mixed   $defaultOrCallback      (optional) Not used.
+	 * @param	mixed	$defaultOrCallback	(optional) Not used.
 	 * @param	mixed	$options		(optional) Not used.
 	 * @return	mixed	A status code or null if an error occurred.
+	 * @throws	\Temma\Exceptions\Database	If the request to the API failed.
 	 */
 	public function get(string $msgId, mixed $defaultOrCallback=null, mixed $options=null) : mixed {
 		return ($this->read($msgId, $defaultOrCallback, $options));
@@ -289,14 +289,14 @@ class Smsmode extends \Temma\Base\Datasource {
 	 * @param	mixed	$text		The text message.
 	 * @param	mixed	$options	(optional) Associative array with 'sendDate' and/or 'reference' keys.
 	 * @return	string	Message identifier.
-	 * @throws	\Exception	If an error occured.
+	 * @throws	\Temma\Exceptions\Database	If an error occured.
 	 */
 	public function set(string $msisdn, mixed $text=null, mixed $options=null) : string {
 		$sendDate = $options['sendDate'] ?? null;
 		$reference = $options['reference'] ?? null;
 		$msgId = $this->send($msisdn, $text, $sendDate, $reference);
 		if (!$msgId)
-			throw new \Exception("Unable to send text message to '$msisdn'.");
+			throw new \Temma\Exceptions\Database("Unable to send text message to '$msisdn'.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		return ($msgId);
 	}
 	/**
@@ -316,14 +316,28 @@ class Smsmode extends \Temma\Base\Datasource {
 	 * @param	array	$parameters	(optional) Associative array with the request parameters.
 	 * @param	bool	$unicode	(optional) True for Unicode base URL. (defaults to false)
 	 * @return	string	The request answer.
+	 * @throws	\Temma\Exceptions\Database	If the request failed.
 	 */
 	private function _request(string $endpoint, array $parameters=[], bool $unicode=false) : string {
-		$url = $unicode ? self::API_URL_UNICODE : self::API_URL;
-		$url .= $endpoint . '?accessToken=' . $this->_apiKey;
+		$url = ($unicode ? self::API_URL_UNICODE : self::API_URL) . $endpoint;
+		$query = '';
 		foreach ($parameters as $param => $value)
-			$url .= "&$param=" . urlencode($value);
-		TµLog::log('Temma/Base', 'DEBUG', "Smsmode request: '$url'.");
-		$result = file_get_contents($url);
+			$query .= "&$param=" . urlencode($value);
+		// the access token is not written in the log
+		TµLog::log('Temma/Base', 'DEBUG', "Smsmode request: '$url?accessToken=***$query'.");
+		$curl = curl_init("$url?accessToken=" . urlencode($this->_apiKey) . $query);
+		curl_setopt_array($curl, [
+			CURLOPT_RETURNTRANSFER => true,
+			CURLOPT_CONNECTTIMEOUT => 5,
+			CURLOPT_TIMEOUT        => 10,
+		]);
+		$result = curl_exec($curl);
+		if ($result === false) {
+			$error = curl_error($curl);
+			curl_close($curl);
+			throw new \Temma\Exceptions\Database("cURL error while calling Smsmode API: $error", \Temma\Exceptions\Database::FUNDAMENTAL);
+		}
+		curl_close($curl);
 		return ($result);
 	}
 }

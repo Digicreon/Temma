@@ -124,7 +124,7 @@ class GoogleChat extends \Temma\Base\Datasource {
 	 * @param	string	$text		Text message.
 	 * @param	mixed	$options	Not used.
 	 * @return	bool	Always true.
-	 * @throws	\Exception	If an error occured.
+	 * @throws	\Temma\Exceptions\Database	If an error occured.
 	 */
 	public function write(string $channel, string $text=null, mixed $options=null) : bool {
 		$this->set($channel, $text, $options);
@@ -138,7 +138,7 @@ class GoogleChat extends \Temma\Base\Datasource {
 	 * @param	string|array	$message	Text message, or an associative array with formatted message data.
 	 * @param	mixed		$options	Not used.
 	 * @return	bool	Always true.
-	 * @throws	\Exception	If an error occured.
+	 * @throws	\Temma\Exceptions\Database	If an error occured.
 	 */
 	public function set(string $channel, mixed $message=null, mixed $options=null) : bool {
 		if (!$this->_enabled)
@@ -225,23 +225,24 @@ class GoogleChat extends \Temma\Base\Datasource {
 		curl_setopt($curl, CURLOPT_POST, true);
 		curl_setopt($curl, CURLOPT_POSTFIELDS, $json);
 		curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-		curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
-		//curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, 3);
+		curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, 5);
+		curl_setopt($curl, CURLOPT_TIMEOUT, 10);
 		curl_setopt($curl, CURLOPT_HTTPHEADER, [
 			'Content-Type: application/json; charset=UTF-8',
 			'Content-Length: ' . mb_strlen($json, 'ascii')
 		]);
 		$result = curl_exec($curl);
-		if ($result === false)
-			throw new \Exception(curl_error($curl));
+		if ($result === false) {
+			$error = curl_error($curl);
+			curl_close($curl);
+			throw new \Temma\Exceptions\Database("cURL error while sending Google Chat message: $error", \Temma\Exceptions\Database::FUNDAMENTAL);
+		}
 		curl_close($curl);
 		$json = json_decode($result, true);
 		if (is_null($json))
 			throw new \Temma\Exceptions\Database("Bad Google Chat response:\n$result", \Temma\Exceptions\Database::FUNDAMENTAL);
-		if (isset($json['error'])) {
-			print("$result\n");
+		if (isset($json['error']))
 			throw new \Temma\Exceptions\Database("Bad Google Chat response '" . $json['error']['message'] . "' (" . $json['error']['code'] . ").", \Temma\Exceptions\Database::FUNDAMENTAL);
-		}
 		return (true);
 	}
 	/**

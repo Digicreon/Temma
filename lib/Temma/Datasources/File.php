@@ -222,7 +222,7 @@ class File extends \Temma\Base\Datasource {
 	/**
 	 * Get a file. The raw content of the file is returned (not JSON-decoded).
 	 * @param	string	$path			File path.
-	 * @param       mixed   $defaultOrCallback      (optional) Default scalar value or function called if the data is not found.
+	 * @param	mixed	$defaultOrCallback	(optional) Default scalar value or function called if the data is not found.
 	 *						If scalar: the value is returned.
 	 *						If callback: the value returned by the function is stored in the data source, and returned.
 	 * @param	mixed	$options		(optional) Umask used if the file is created.
@@ -238,12 +238,13 @@ class File extends \Temma\Base\Datasource {
 			return ($data);
 		}
 		// manage default value
-		if (!$defaultOrCallback)
+		if ($defaultOrCallback === null)
 			return (null);
 		$value = $defaultOrCallback;
 		if (is_callable($defaultOrCallback)) {
 			$value = $defaultOrCallback();
-			$this->write($path, $value, $options);
+			if ($value !== null)
+				$this->write($path, $value, $options);
 		}
 		return ($value);
 	}
@@ -251,7 +252,7 @@ class File extends \Temma\Base\Datasource {
 	 * Get a file and write it to a local file.
 	 * @param	string	$path			File path.
 	 * @param	string	$localPath		Local path.
-	 * @param       mixed   $defaultOrCallback      (optional) Default scalar value or function called if the data is not found.
+	 * @param	mixed	$defaultOrCallback	(optional) Default scalar value or function called if the data is not found.
 	 *						If scalar: the value is written in the local file.
 	 *						If callback: the value returned by the function is stored in the data source, and written in the file.
 	 * @param	mixed	$options		(optional) Permission used if the file is created.
@@ -268,12 +269,13 @@ class File extends \Temma\Base\Datasource {
 		if ($this->_enabled && is_file($fullPath) && is_readable($fullPath) && copy($fullPath, $localPath))
 			return (true);
 		// manage default value
-		if (!$defaultOrCallback)
+		if ($defaultOrCallback === null)
 			return (false);
 		$value = $defaultOrCallback;
 		if (is_callable($defaultOrCallback)) {
 			$value = $defaultOrCallback();
-			$this->write($path, $value, $options);
+			if ($value !== null)
+				$this->write($path, $value, $options);
 		}
 		if ($value === null)
 			return (false);

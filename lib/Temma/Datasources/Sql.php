@@ -95,9 +95,9 @@ use \Temma\Exceptions\Database as TµDatabaseException;
  * For use as a regular datasource, you must create a table named 'TemmaData':
  * <code>
  * CREATE TABLE TemmaData (
- *     key    CHAR(255) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
+ *     `key`  CHAR(255) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
  *     data   LONGTEXT,
- *     PRIMARY KEY (key)
+ *     PRIMARY KEY (`key`)
  * ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
  * </code>
  */
@@ -593,7 +593,7 @@ class Sql extends \Temma\Base\Datasource {
 		$sql = "SELECT COUNT(*) AS cnt
 		        FROM TemmaData";
 		if ($pattern !== null)
-			$sql .= " WHERE key LIKE " . $this->quote("$pattern%");
+			$sql .= " WHERE `key` LIKE " . $this->quote("$pattern%");
 		$res = $this->queryOne($sql);
 		return ($res['cnt']);
 	}
@@ -609,7 +609,7 @@ class Sql extends \Temma\Base\Datasource {
 			return (false);
 		$sql = "SELECT COUNT(*) AS cnt
 		        FROM TemmaData
-		        WHERE key = " . $this->quote($key);
+		        WHERE `key` = " . $this->quote($key);
 		$res = $this->queryOne($sql);
 		return ($res['cnt'] != 0);
 	}
@@ -621,7 +621,7 @@ class Sql extends \Temma\Base\Datasource {
 		if (!$this->_enabled)
 			return;
 		$sql = "DELETE FROM TemmaData
-		        WHERE key = " . $this->quote($key);
+		        WHERE `key` = " . $this->quote($key);
 		$this->exec($sql);
 	}
 	/**
@@ -629,13 +629,13 @@ class Sql extends \Temma\Base\Datasource {
 	 * @param	array	$keys	List of keys to remove.
 	 */
 	public function mRemove(array $keys) : void {
-		if (!$this->_enabled)
+		if (!$this->_enabled || !$keys)
 			return;
 		array_walk($keys, function(&$value, $key) {
 			$value = $this->quote($value);
 		});
 		$sql = "DELETE FROM TemmaData
-		        WHERE key IN (" . implode(', ', $keys) . ")";
+		        WHERE `key` IN (" . implode(', ', $keys) . ")";
 		$this->exec($sql);
 	}
 	/**
@@ -646,7 +646,7 @@ class Sql extends \Temma\Base\Datasource {
 		if (!$this->_enabled)
 			return;
 		$sql = "DELETE FROM TemmaData
-		        WHERE key LIKE " . $this->quote("$prefix%");
+		        WHERE `key` LIKE " . $this->quote("$prefix%");
 		$this->exec($sql);
 	}
 	/**
@@ -666,7 +666,7 @@ class Sql extends \Temma\Base\Datasource {
 	 * @param	bool			$getValues	(optional) True to fetch the associated values. False by default.
 	 * @param	null|bool|string|array	$sort		(optional) Sort criteria:
 	 *							- null: natural order (default).
-	 *							- true: ORDER BY key DESC.
+	 *							- true: ORDER BY `key` DESC.
 	 *							- false: random order (ORDER BY RAND()).
 	 *							- string/array: sort by column. Allowed fields: 'key' and 'data'.
 	 * @param	int			$offset		(optional) Number of items to skip. 0 by default.
@@ -677,13 +677,13 @@ class Sql extends \Temma\Base\Datasource {
 	public function find(string $prefix, bool $getValues=false, null|bool|string|array $sort=null, int $offset=0, int $limit=0) : array {
 		if (!$this->_enabled)
 			return ([]);
-		$sql = "SELECT key";
+		$sql = "SELECT `key`";
 		if ($getValues)
 			$sql .= ", data";
 		$sql .= " FROM TemmaData
-		         WHERE key LIKE " . $this->quote("$prefix%");
+		         WHERE `key` LIKE " . $this->quote("$prefix%");
 		if ($sort === true)
-			$sql .= ' ORDER BY key DESC';
+			$sql .= ' ORDER BY `key` DESC';
 		else if ($sort === false)
 			$sql .= ' ORDER BY RAND()';
 		else if (is_string($sort) || is_array($sort)) {
@@ -693,7 +693,7 @@ class Sql extends \Temma\Base\Datasource {
 			foreach ($criteria as [$field, $direction]) {
 				if (!in_array($field, $allowed, true))
 					throw new \Temma\Exceptions\Database("Unsupported sort field '$field' for Sql datasource (allowed: key, data).", \Temma\Exceptions\Database::FUNDAMENTAL);
-				$parts[] = $field . ' ' . mb_strtoupper($direction);
+				$parts[] = "`$field` " . mb_strtoupper($direction);
 			}
 			if ($parts)
 				$sql .= ' ORDER BY ' . implode(', ', $parts);
@@ -713,16 +713,14 @@ class Sql extends \Temma\Base\Datasource {
 		return ($result);
 	}
 	/**
-	 * Get the value associated to a key in database.
+	 * Get the value associated to a key in database. The raw value is returned (not JSON-decoded).
 	 * @param	string	$key			Key to fetch.
 	 * @param	mixed	$defaultOrCallback	(optional) Default scalar value or function called if the data is not found.
 	 *						If scalar: the value is returned.
-	 *						If callback: the value returned by the function is stored in the database, and returned.
-	 * @param	mixed	$options		(optional) Options used if the key is added in databse.
-	 *						If a string: mime type.
-	 *						If a boolean: true for public access, false for private access.
-	 *						If an array: 'public' (bool) and/or 'mimetype' (string) keys.
-	 * @return	?string	The data fetched from the S3 file, or null.
+	 *						If callback: the value returned by the function (a string) is stored as is in the
+	 *						database, and returned.
+	 * @param	mixed	$options		Not used.
+	 * @return	?string	The data fetched from the database, or null.
 	 * @throws	\Exception	If an error occured.
 	 */
 	public function read(string $key, mixed $defaultOrCallback=null, mixed $options=null) : ?string {
@@ -730,18 +728,19 @@ class Sql extends \Temma\Base\Datasource {
 		if ($this->_enabled) {
 			$sql = "SELECT data
 				FROM TemmaData
-				WHERE key = " . $this->quote($key);
+				WHERE `key` = " . $this->quote($key);
 			$res = $this->queryOne($sql);
-			if (($res['data'] ?? null))
+			if (isset($res['data']))
 				return ($res['data']);
 		}
 		// manage default value
-		if (!$defaultOrCallback)
+		if ($defaultOrCallback === null)
 			return (null);
 		$value = $defaultOrCallback;
 		if (is_callable($defaultOrCallback)) {
 			$value = $defaultOrCallback();
-			$this->set($key, $value, $options);
+			if ($value !== null)
+				$this->write($key, $value, $options);
 		}
 		return ($value);
 	}
@@ -751,14 +750,14 @@ class Sql extends \Temma\Base\Datasource {
 	 * @return	array	Associative array with the keys and their associated values.
 	 */
 	public function mRead(array $keys) : array {
-		if (!$this->_enabled)
+		if (!$this->_enabled || !$keys)
 			return ([]);
 		array_walk($keys, function(&$value, $key) {
 			$value = $this->quote($value);
 		});
-		$sql = "SELECT key, data
+		$sql = "SELECT `key`, data
 			FROM TemmaData
-			WHERE key IN (" . implode(', ', $keys) . ")";
+			WHERE `key` IN (" . implode(', ', $keys) . ")";
 		$data = $this->queryAll($sql);
 		$result = [];
 		foreach ($data as $line)
@@ -776,16 +775,15 @@ class Sql extends \Temma\Base\Datasource {
 	public function write(string $key, mixed $data=null, mixed $options=null) : bool {
 		if (!$this->_enabled)
 			return (false);
-		// remove file
+		// remove key
 		if ($data === null) {
 			$this->remove($key);
 			return (true);
 		}
 		// create or update key
-		$sql = "INSERT INTO TemmaData
-			SET data = " . $this->quote($data) . "
-			WHERE key = " . $this->quote($key) . "
-			ON DUPLICATE KEY UPDATE data = " . $this->quote($data);
+		$sql = "INSERT INTO TemmaData (`key`, data)
+			VALUES (" . $this->quote($key) . ", " . $this->quote($data) . ")
+			ON DUPLICATE KEY UPDATE data = VALUES(data)";
 		$this->exec($sql);
 		return (true);
 	}
@@ -796,15 +794,17 @@ class Sql extends \Temma\Base\Datasource {
 	 * @return	int	The number of set data.
 	 */
 	public function mWrite(array $data, mixed $options=null) : int {
-		if (!$this->_enabled)
+		if (!$this->_enabled || !$data)
 			return (0);
 		$values = [];
 		foreach ($data as $key => $value)
-			$values[] = '(' . $this->quote($key) . ', ' . $this->quote($data) . ')';
-		$sql = "INSERT INTO TemmaData (key, data)
+			$values[] = '(' . $this->quote($key) . ', ' . $this->quote($value) . ')';
+		$sql = "INSERT INTO TemmaData (`key`, data)
 		        VALUES " . implode(', ', $values) . "
 		        ON DUPLICATE KEY UPDATE data = VALUES(data)";
-		return ($this->exec($sql));
+		// exec() would count updated lines twice
+		$this->exec($sql);
+		return (count($data));
 	}
 }
 

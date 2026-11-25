@@ -387,17 +387,24 @@ abstract class Datasource implements \ArrayAccess, \Countable {
 	 * @param	string	$key			Key of the data.
 	 * @param	mixed	$defaultOrCallback	(optional) Default scalar value or function called if the data is not found.
 	 *						If scalar: the value is returned.
-	 *						If callback: the value returned by the function is stored in the data source, and returned.
+	 *						If callback: the value returned by the function is stored JSON-encoded in the
+	 *						data source, and returned.
 	 * @param	mixed	$options		(optional) Options used to store the data returned by the callback.
 	 * @return	mixed	The fetched data.
 	 */
 	public function get(string $key, mixed $defaultOrCallback=null, mixed $options=null) : mixed {
 		if (!$this->_enabled)
 			return (null);
-		$data = $this->read($key, $defaultOrCallback, $options);
-		if (!$data)
-			return ($data);
-		return (json_decode($data, true));
+		// fetch the data (the callback is not given to read(), which would store the raw value)
+		$data = $this->read($key);
+		if ($data !== null)
+			return (json_decode($data, true));
+		// manage default value
+		if (!is_callable($defaultOrCallback))
+			return ($defaultOrCallback);
+		$value = $defaultOrCallback();
+		$this->set($key, $value, $options);
+		return ($value);
 	}
 	/**
 	 * Multiple get.
