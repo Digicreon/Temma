@@ -148,7 +148,11 @@ class Redis extends \Temma\Base\Datasource {
 		$this->_ndb = null;
 		try {
 			$this->_ndb = new \Redis();
-			$this->_ndb->connect($this->_params['host'], (isset($this->_params['port']) ? $this->_params['port'] : null));
+			// no port for a Unix socket
+			if (isset($this->_params['port']))
+				$this->_ndb->connect($this->_params['host'], $this->_params['port']);
+			else
+				$this->_ndb->connect($this->_params['host']);
 			if ($this->_params['base'] != self::DEFAULT_REDIS_BASE && !$this->_ndb->select($this->_params['base']))
 				throw new \Exception("Unable to select dabase '" . $this->_params['base'] . "'.");
 		} catch (\Exception $e) {
@@ -190,10 +194,11 @@ class Redis extends \Temma\Base\Datasource {
 		return (json_decode($data, true));
 	}
 	/**
-	 * Remove and return elements at the beginning of a list.
+	 * Remove the occurrences of an element from a list.
 	 * @param	string	$list		Name of the list.
-	 * @param	int	$count		Number of elements to remove.
-	 * @param	mixed	$element	(optional) Element to remove.
+	 * @param	int	$count		Number of occurrences to remove: from the beginning of the list if positive,
+	 *					from the end if negative, all occurrences if zero.
+	 * @param	mixed	$element	(optional) Element to remove (it is JSON-encoded, like the elements added with lPush()).
 	 * @return	int	The number of removed elements.
 	 */
 	public function lRem(string $list, int $count, mixed $element=null) : int {
@@ -232,6 +237,22 @@ class Redis extends \Temma\Base\Datasource {
 		$this->connect();
 		$result = $this->_ndb->lLen($list);
 		return (($result === false) ? 0 : $result);
+	}
+	/**
+	 * Return elements of a list, without removing them.
+	 * @param	string	$list	Name of the list.
+	 * @param	int	$start	(optional) Index of the first element (0 by default; negative values count from the end of the list).
+	 * @param	int	$stop	(optional) Index of the last element (-1 by default, for the last element of the list).
+	 * @return	array	The list of JSON-decoded elements.
+	 */
+	public function lRange(string $list, int $start=0, int $stop=-1) : array {
+		if (!$this->_enabled)
+			return ([]);
+		$this->connect();
+		$result = $this->_ndb->lRange($list, $start, $stop);
+		if (!is_array($result))
+			return ([]);
+		return (array_map(fn($data) => json_decode($data, true), $result));
 	}
 
 	/* ********** ARRAY-LIKE REQUESTS ********* */

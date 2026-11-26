@@ -4,3 +4,6 @@
 # adapt the path to your projet's root
 * * * * *	root	cd /path/to/project; bin/comma '\Temma\Cli\Asynk\Worker' crontab
 
+# (optional) every hour, put back in the queue the tasks whose processing started more than 2 hours ago
+# (crashed workers); the duration must be greater than the longest processing duration of a task
+#0 * * * *	root	cd /path/to/project; bin/comma AsynkManager/recover --minutes=120

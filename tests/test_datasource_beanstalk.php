@@ -13,7 +13,10 @@
  * - without wait duration, read() and get() wait until a job is available, beyond the duration of a single
  *   reservation request;
  * - bury() puts aside a reserved job, kick() puts buried jobs back in the queue;
- * - Asynk buries the job of a failed task.
+ * - release() puts back a reserved job in the queue (with or without delay);
+ * - stats(), peek() and peekBuried();
+ * - Asynk creates tasks in the queue, buries the job of a failed task, or releases it with a delay if retries are enabled;
+ * - Asynk task management (stats, list, show, retry, remove, purge).
  *
  * The tests using the Pheanstalk library are executed only if it is available (Composer "vendor" directory of
  * the project, or autoloader given in the TEMMA_TEST_AUTOLOAD environment variable). They use a fake Beanstalkd
@@ -79,16 +82,25 @@ function reserveJob(array &$jobs, array $client) : ?string {
 	foreach ($jobs as $id => &$job) {
 		if ($job['ready'] && isset($client['watched'][$job['tube']])) {
 			$job['ready'] = false;
+			$job['reserves']++;
 			return ("RESERVED $id " . mb_strlen($job['data'], 'ascii') . "\r\n" . $job['data'] . "\r\n");
 		}
 	}
 	return (null);
 }
 /**
+ * Return the state of a job of the fake Beanstalkd server.
+ * @param	array	$job	The job.
+ * @return	string	"ready", "delayed", "buried" or "reserved".
+ */
+function jobState(array $job) : string {
+	return ($job['ready'] ? 'ready' : ($job['delayedUntil'] ? 'delayed' : ($job['buried'] ? 'buried' : 'reserved')));
+}
+/**
  * Fake Beanstalkd server, handling the commands used by the data source.
  * Runs until the process is killed, or until its parent process ends.
- * The "reserve-with-timeout" command waits for a job, with an accelerated time (each second of timeout lasts
- * 50 milliseconds). The "reserve" command (without timeout) is not supported.
+ * The "reserve-with-timeout" command waits for a job, and the "release" command delays a job, with an accelerated time
+ * (each second lasts 50 milliseconds). The "reserve" command (without timeout) is not supported.
  * @param	resource	$server		Server socket.
  * @param	int		$parentPid	PID of the parent process.
  */
@@ -101,6 +113,14 @@ function fakeServer($server, int $parentPid) : void {
 		// quit if the parent process has ended
 		if (posix_getppid() !== $parentPid)
 			return;
+		// delayed jobs whose delay is reached are ready
+		foreach ($jobs as &$job) {
+			if ($job['delayedUntil'] && microtime(true) >= $job['delayedUntil']) {
+				$job['delayedUntil'] = null;
+				$job['ready'] = true;
+			}
+		}
+		unset($job);
 		// answer the pending reservations (job available or timeout reached)
 		foreach ($connections as &$client) {
 			if (!isset($client['deadline']))
@@ -153,7 +173,8 @@ function fakeServer($server, int $parentPid) : void {
 					break;
 				case 'put':
 					$data = mb_substr(stream_get_contents($stream, (int)$parts[4] + 2), 0, -2, 'ascii');
-					$jobs[$nextId] = ['tube' => $client['used'], 'data' => $data, 'ready' => true, 'buried' => false];
+					$jobs[$nextId] = ['tube' => $client['used'], 'data' => $data, 'ready' => true, 'buried' => false, 'delayedUntil' => null,
+					                  'reserves' => 0, 'releases' => 0, 'buries' => 0, 'kicks' => 0];
 					$response = "INSERTED $nextId\r\n";
 					$nextId++;
 					break;
@@ -180,11 +201,12 @@ function fakeServer($server, int $parentPid) : void {
 					break;
 				case 'bury':
 					// only a reserved job can be buried
-					if (!isset($jobs[$parts[1]]) || $jobs[$parts[1]]['ready'] || $jobs[$parts[1]]['buried']) {
+					if (!isset($jobs[$parts[1]]) || jobState($jobs[$parts[1]]) != 'reserved') {
 						$response = "NOT_FOUND\r\n";
 						break;
 					}
 					$jobs[$parts[1]]['buried'] = true;
+					$jobs[$parts[1]]['buries']++;
 					$response = "BURIED\r\n";
 					break;
 				case 'kick':
@@ -193,6 +215,7 @@ function fakeServer($server, int $parentPid) : void {
 						if ($kicked < (int)$parts[1] && $job['buried'] && $job['tube'] == $client['used']) {
 							$job['buried'] = false;
 							$job['ready'] = true;
+							$job['kicks']++;
 							$kicked++;
 						}
 					}
@@ -200,23 +223,68 @@ function fakeServer($server, int $parentPid) : void {
 					$response = "KICKED $kicked\r\n";
 					break;
 				case 'kick-job':
-					if (!($jobs[$parts[1]]['buried'] ?? false)) {
+					// buried and delayed jobs can be kicked
+					if (!isset($jobs[$parts[1]]) || !in_array(jobState($jobs[$parts[1]]), ['buried', 'delayed'])) {
 						$response = "NOT_FOUND\r\n";
 						break;
 					}
 					$jobs[$parts[1]]['buried'] = false;
+					$jobs[$parts[1]]['delayedUntil'] = null;
 					$jobs[$parts[1]]['ready'] = true;
+					$jobs[$parts[1]]['kicks']++;
 					$response = "KICKED\r\n";
+					break;
+				case 'release':
+					// only a reserved job can be released
+					if (!isset($jobs[$parts[1]]) || jobState($jobs[$parts[1]]) != 'reserved') {
+						$response = "NOT_FOUND\r\n";
+						break;
+					}
+					$jobs[$parts[1]]['releases']++;
+					$jobs[$parts[1]]['delay'] = (int)$parts[3];
+					if ((int)$parts[3] > 0)
+						$jobs[$parts[1]]['delayedUntil'] = microtime(true) + (int)$parts[3] * 0.05;
+					else
+						$jobs[$parts[1]]['ready'] = true;
+					$response = "RELEASED\r\n";
+					break;
+				case 'stats-job':
+					if (!isset($jobs[$parts[1]])) {
+						$response = "NOT_FOUND\r\n";
+						break;
+					}
+					$job = $jobs[$parts[1]];
+					$stats = "---\nid: {$parts[1]}\ntube: {$job['tube']}\nstate: " . jobState($job) . "\npri: 1024\nage: 0\n" .
+					         'delay: ' . ($job['delay'] ?? 0) . "\nttr: 60\ntime-left: 0\nfile: 0\nreserves: {$job['reserves']}\n" .
+					         "timeouts: 0\nreleases: {$job['releases']}\nburies: {$job['buries']}\nkicks: {$job['kicks']}\n";
+					$response = 'OK ' . mb_strlen($stats, 'ascii') . "\r\n$stats\r\n";
+					break;
+				case 'peek':
+					$response = isset($jobs[$parts[1]]) ?
+					            ("FOUND {$parts[1]} " . mb_strlen($jobs[$parts[1]]['data'], 'ascii') . "\r\n{$jobs[$parts[1]]['data']}\r\n") :
+					            "NOT_FOUND\r\n";
+					break;
+				case 'peek-buried':
+					$response = "NOT_FOUND\r\n";
+					foreach ($jobs as $id => $job) {
+						if ($job['tube'] == $client['used'] && jobState($job) == 'buried') {
+							$response = "FOUND $id " . mb_strlen($job['data'], 'ascii') . "\r\n{$job['data']}\r\n";
+							break;
+						}
+					}
 					break;
 				case 'stats-tube':
 					if (!isset($tubes[$parts[1]])) {
 						$response = "NOT_FOUND\r\n";
 						break;
 					}
-					$ready = count(array_filter($jobs, fn($job) => ($job['tube'] == $parts[1] && $job['ready'])));
-					$buried = count(array_filter($jobs, fn($job) => ($job['tube'] == $parts[1] && $job['buried'])));
-					$stats = "---\nname: {$parts[1]}\ncurrent-jobs-urgent: 0\ncurrent-jobs-ready: $ready\ncurrent-jobs-reserved: 0\n" .
-					         "current-jobs-delayed: 0\ncurrent-jobs-buried: $buried\ntotal-jobs: 0\ncurrent-using: 0\ncurrent-waiting: 0\n" .
+					$states = array_count_values(array_map('jobState', array_filter($jobs, fn($job) => ($job['tube'] == $parts[1]))));
+					$ready = $states['ready'] ?? 0;
+					$reserved = $states['reserved'] ?? 0;
+					$delayed = $states['delayed'] ?? 0;
+					$buried = $states['buried'] ?? 0;
+					$stats = "---\nname: {$parts[1]}\ncurrent-jobs-urgent: 0\ncurrent-jobs-ready: $ready\ncurrent-jobs-reserved: $reserved\n" .
+					         "current-jobs-delayed: $delayed\ncurrent-jobs-buried: $buried\ntotal-jobs: 0\ncurrent-using: 0\ncurrent-waiting: 0\n" .
 					         "current-watching: 0\npause: 0\ncmd-delete: 0\ncmd-pause-tube: 0\npause-time-left: 0\n";
 					$response = 'OK ' . mb_strlen($stats, 'ascii') . "\r\n$stats\r\n";
 					break;
@@ -251,6 +319,8 @@ check('A disabled data source sends and receives nothing, without connection', f
 	return ($bean->read('') === null && $bean->get('') === null && $bean->write('', 'x') === null &&
 	        $bean->set('', 'x') === null && $bean->mWrite(['x']) === 0 && $bean->mSet(['x']) === 0 &&
 	        $bean->count() === 0 && $bean->bury('1') === $bean && $bean->kick() === 0 && $bean->kick('1') === 0 &&
+	        $bean->release('1', 10) === $bean && $bean->stats() === null && $bean->stats('1') === null &&
+	        $bean->peek('1') === null && $bean->peekBuried() === null &&
 	        $bean->copyFrom('', sys_get_temp_dir() . '/temma-beanstalk-test-' . getmypid()) === false &&
 	        !file_exists(sys_get_temp_dir() . '/temma-beanstalk-test-' . getmypid()));
 });
@@ -434,6 +504,114 @@ if (!class_exists('\Pheanstalk\Pheanstalk')) {
 			$message = $bean->get('', null, 0);
 			$bean->remove($message['id']);
 			return ($afterBury === null && $kicked === 1 && $message['id'] === $task['id'] && $message['data']['target'] === 'object');
+		});
+		check('release() puts back a reserved job in the queue, immediately or after a delay', function() use ($bean) {
+			$id = $bean->write('', 'released job');
+			$message = $bean->read('');
+			$released = $bean->release($message['id']);
+			$again = $bean->read('', null, 0);
+			$bean->release($again['id'], 2);
+			$stats = $bean->stats($id);
+			$notYet = $bean->read('', null, 0);
+			$later = $bean->read('', null, 10);
+			$finalStats = $bean->stats($id);
+			$bean->remove($later['id']);
+			return ($released === $bean && $again['id'] === $id && $stats['state'] === 'delayed' && $stats['releases'] === 2 &&
+			        $notYet === null && $later['id'] === $id && $finalStats['state'] === 'reserved' && $finalStats['reserves'] === 3 &&
+			        $bean->stats($id) === null);
+		});
+		check('release() throws an exception if the job is not reserved', function() use ($bean) {
+			$id = $bean->write('', 'ready job');
+			try {
+				$bean->release($id);
+			} catch (\Pheanstalk\Exception\JobNotFoundException $e) {
+				return (true);
+			} finally {
+				$bean->remove($id);
+			}
+			return (false);
+		});
+		check('stats() returns the number of jobs in each state', function() use ($bean) {
+			$before = $bean->stats();
+			$bean->mWrite(['first', 'second', 'third']);
+			$first = $bean->read('');
+			$second = $bean->read('');
+			$bean->bury($second['id']);
+			$stats = $bean->stats();
+			$third = $bean->read('');
+			$bean->remove($first['id']);
+			$bean->remove($second['id']);
+			$bean->remove($third['id']);
+			return ($before === ['ready' => 0, 'reserved' => 0, 'delayed' => 0, 'buried' => 0] &&
+			        $stats === ['ready' => 1, 'reserved' => 1, 'delayed' => 0, 'buried' => 1]);
+		});
+		check('peek() reads a job without reserving it; peekBuried() reads the first buried job', function() use ($bean) {
+			$id = $bean->write('', 'peeked job');
+			$peeked = $bean->peek($id);
+			$noBuried = $bean->peekBuried();
+			$message = $bean->read('');
+			$bean->bury($message['id']);
+			$buried = $bean->peekBuried();
+			$bean->remove($id);
+			return ($peeked === ['id' => $id, 'data' => 'peeked job'] && $noBuried === null && $buried === $peeked &&
+			        $bean->peek($id) === null);
+		});
+		/**
+		 * Create an Asynk DAO using the Beanstalk data source.
+		 * @param	\Temma\Datasources\Beanstalk	$bean		Data source.
+		 * @param	?array				$retries	(optional) Delays between attempts.
+		 * @return	\Temma\Asynk\AsynkDao	The DAO.
+		 */
+		function beanstalkAsynkDao(\Temma\Datasources\Beanstalk $bean, ?array $retries=null) : \Temma\Asynk\AsynkDao {
+			$asynkDao = (new \ReflectionClass('\Temma\Asynk\AsynkDao'))->newInstanceWithoutConstructor();
+			(new \ReflectionProperty($asynkDao, '_transport'))->setValue($asynkDao, $bean);
+			(new \ReflectionProperty($asynkDao, '_transportClass'))->setValue($asynkDao, 'Temma\Datasources\Beanstalk');
+			(new \ReflectionProperty($asynkDao, '_retries'))->setValue($asynkDao, $retries);
+			return ($asynkDao);
+		}
+		check('Asynk creates a task in the queue (without storage)', function() use ($bean) {
+			$asynkDao = beanstalkAsynkDao($bean);
+			$asynkDao->createTask('object', 'method', [1, 'a']);
+			$task = $asynkDao->getNextTask();
+			$asynkDao->removeFetchedTask($task);
+			return ($task['target'] === 'object' && $task['action'] === 'method' && $task['data'] === [1, 'a'] &&
+			        $bean->read('', null, 0) === null);
+		});
+		check('Asynk releases the job of a failed task with a delay, then buries it after the last attempt', function() use ($bean) {
+			$asynkDao = beanstalkAsynkDao($bean, [0, 2]);
+			$bean->set('', ['target' => 'object', 'action' => 'method', 'data' => []]);
+			$task = $asynkDao->getNextTask();
+			$first = $asynkDao->invalidateFetchedTask($task, 'First failure');
+			$task = $asynkDao->getNextTask();
+			$second = $asynkDao->invalidateFetchedTask($task, 'Second failure');
+			$delayed = $asynkDao->getStats();
+			$task = $asynkDao->getNextTask();
+			$third = $asynkDao->invalidateFetchedTask($task, 'Third failure');
+			// no new attempt for PHP errors
+			$bean->set('', ['target' => 'object', 'action' => 'bug', 'data' => []]);
+			$noRetry = $asynkDao->invalidateFetchedTask($asynkDao->getNextTask(), 'Error', false);
+			$stats = $asynkDao->getStats();
+			$purged = $asynkDao->purgeFailedTasks();
+			return ($first === 0 && $second === 2 && $delayed === ['waiting' => 0, 'delayed' => 1, 'processing' => 0, 'failed' => 0] &&
+			        $third === null && $noRetry === null && $stats === ['waiting' => 0, 'delayed' => 0, 'processing' => 0, 'failed' => 2] &&
+			        $purged === 2 && $asynkDao->getStats()['failed'] === 0);
+		});
+		check('Asynk task management: listTasks(), getTask(), retryTask(), removeTask()', function() use ($bean) {
+			$asynkDao = beanstalkAsynkDao($bean);
+			$bean->set('', ['creation' => '2026-01-01T00:00:00+00:00', 'target' => 'object', 'action' => 'method', 'data' => [1]]);
+			$id = $bean->get('')['id'];
+			$bean->bury($id);
+			$list = $asynkDao->listTasks('failed');
+			$task = $asynkDao->getTask($id);
+			$waitingList = $asynkDao->listTasks('waiting');
+			$retried = $asynkDao->retryTask($id);
+			$notFailed = $asynkDao->retryTask($id);
+			$state = $asynkDao->getTask($id)['state'];
+			$removed = $asynkDao->removeTask($id);
+			return (count($list) === 1 && $list[0] === $task && $task['id'] === $id && $task['state'] === 'failed' &&
+			        $task['target'] === 'object' && $task['data'] === [1] && $task['dateCreation'] === '2026-01-01T00:00:00+00:00' &&
+			        $task['attempts'] === 0 && $waitingList === null && $retried && !$notFailed && $state === 'waiting' && $removed &&
+			        !$asynkDao->removeTask($id) && $asynkDao->getTask($id) === null);
 		});
 		check('The datasource can be used after a disconnection', function() use ($bean) {
 			$bean->disconnect();

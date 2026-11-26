@@ -3,7 +3,7 @@
 /**
  * Inetd
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2023-2024, Amaury Bouchard
+ * @copyright	© 2023-2026, Amaury Bouchard
  * @link	https://www.temma.net/documentation/asynk
  */
 
@@ -41,22 +41,10 @@ class Inetd extends \Temma\Web\Controller {
 			TµLog::log('Temma/Asynk', 'WARN', "Unknown task '$taskId'.");
 			exit(1);
 		}
-		// task processing
-		try {
-			$object = $this->_loader[$task['target']];
-			if (!$object)
-				throw new \Exception("Unable to instanciate object '{$task['target']}'.");
-			if (!method_exists($object, $task['action']))
-				throw new \Exception("No method '{$task['action']}' in object '{$task['target']}'.");
-			$method = $task['action'];
-			$object->$method(...$task['data']);
-			// task deletion
-			$this->_asynkDao->removeTaskFromId($task['id']);
-		} catch (\Exception $e) {
-			TµLog::log('Temma/Asynk', 'WARN', "Asynk error: " . $e->getMessage());
-			$this->_asynkDao->setTaskStatusFromId($task['id'], 'error');
+		// task processing (with a MySQL storage, the delayed tasks are processed by the crontab)
+		if (!$this->_asynkDao->executeTask($task))
 			exit(1);
-		}
+		// task deletion
+		$this->_asynkDao->removeTaskFromId($task['id']);
 	}
 }
-

@@ -582,10 +582,15 @@ class Dao {
 		else if ($sort === true)
 			$sortList[] = $this->quoteIdentifier($this->_idField) . ' DESC';
 		else if (is_string($sort)) {
-			if (str_starts_with($sort, '-'))
-				$sortList[] = $this->quoteIdentifier(mb_substr($sort, 1)) . ' DESC';
-			else
-				$sortList[] = $this->quoteIdentifier($sort);
+			$sortType = '';
+			if (str_starts_with($sort, '-')) {
+				$sort = mb_substr($sort, 1);
+				$sortType = ' DESC';
+			}
+			// renamed field: the real field name is used (aliases are not available in UPDATE queries)
+			if (($field = array_search($sort, $this->_fields)) !== false && !is_int($field))
+				$sort = $field;
+			$sortList[] = $this->quoteIdentifier($sort) . $sortType;
 		} else if (is_array($sort)) {
 			foreach ($sort as $key => $value) {
 				$field = is_int($key) ? $value : $key;

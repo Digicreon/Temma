@@ -49,6 +49,15 @@ use \Temma\Base\Log as TµLog;
  * // put back in the queue a buried message, or all buried messages
  * $bean->kick('MESSAGE_ID');
  * $bean->kick();
+ * // put back in the queue a reserved message, to be delivered again in 60 seconds
+ * $bean->release('MESSAGE_ID', 60);
+ *
+ * // statistics of the tube (number of ready, reserved, delayed and buried messages), or of a message
+ * $stats = $bean->stats();
+ * $stats = $bean->stats('MESSAGE_ID');
+ * // read a message without reserving it, or the first buried message
+ * $message = $bean->peek('MESSAGE_ID');
+ * $message = $bean->peekBuried();
  *
  * // send several messages (null values are ignored)
  * $bean->mSet([$data1, $data2]);
@@ -196,6 +205,113 @@ class Beanstalk extends \Temma\Base\Datasource {
 			return (0);
 		$this->_pheanstalk->useTube(new \Pheanstalk\Values\TubeName($this->_tube));
 		return ($this->_pheanstalk->kick($stats->currentJobsBuried));
+	}
+	/**
+	 * Put a reserved job back in the queue, optionally with a delay before it is delivered again.
+	 * Useful to process again a job whose processing has failed, after a while.
+	 * The job must have been reserved (with read() or get()) by this object, without disconnection since.
+	 * @param	string	$id	Job identifier.
+	 * @param	int	$delay	(optional) Number of seconds to wait before the job is delivered again (0 by default).
+	 * @return	\Temma\Datasources\Beanstalk	The current object.
+	 * @throws	\Pheanstalk\Exception\JobNotFoundException	If the job doesn't exist or is not reserved by this object.
+	 * @throws	\Exception	If an error occurred.
+	 */
+	public function release(string $id, int $delay=0) : \Temma\Datasources\Beanstalk {
+		if (!$this->_enabled)
+			return ($this);
+		$this->connect();
+		$this->_pheanstalk->release(new \Pheanstalk\Values\JobId($id), \Pheanstalk\Contract\PheanstalkPublisherInterface::DEFAULT_PRIORITY, max(0, $delay));
+		return ($this);
+	}
+	/**
+	 * Return statistics about the tube, or about a job.
+	 * @param	?string	$id	(optional) Job identifier. If null (by default), the statistics of the tube are returned.
+	 * @return	?array	For the tube, an associative array with the keys "ready", "reserved", "delayed" and "buried" (number
+	 *			of jobs in each state; all zero if the tube doesn't exist). For a job, an associative array with
+	 *			the keys "state" ("ready", "reserved", "delayed" or "buried"), "age" (number of seconds since the
+	 *			job's creation), "delay" (delay given when the job was put or released), "timeLeft" (number of
+	 *			seconds before a reserved job is put back in the queue, or before a delayed job is ready),
+	 *			"reserves", "releases", "buries", "kicks" and "timeouts" (number of times the job was reserved,
+	 *			released, buried, kicked, and put back in the queue because its reservation expired), or null if
+	 *			the job doesn't exist. Null if the data source is disabled.
+	 * @throws	\Exception	If an error occurred.
+	 */
+	public function stats(?string $id=null) : ?array {
+		if (!$this->_enabled)
+			return (null);
+		$this->connect();
+		// statistics of a job
+		if ($id !== null) {
+			try {
+				$stats = $this->_pheanstalk->statsJob(new \Pheanstalk\Values\JobId($id));
+			} catch (\Pheanstalk\Exception\JobNotFoundException $e) {
+				return (null);
+			}
+			return ([
+				'state'    => $stats->state->value,
+				'age'      => $stats->age,
+				'delay'    => $stats->delay,
+				'timeLeft' => $stats->timeLeft,
+				'reserves' => $stats->reserves,
+				'releases' => $stats->releases,
+				'buries'   => $stats->buries,
+				'kicks'    => $stats->kicks,
+				'timeouts' => $stats->timeouts,
+			]);
+		}
+		// statistics of the tube
+		try {
+			$stats = $this->_pheanstalk->statsTube(new \Pheanstalk\Values\TubeName($this->_tube));
+		} catch (\Pheanstalk\Exception\TubeNotFoundException $e) {
+			// the tube doesn't exist if no job was ever put in it
+			return (['ready' => 0, 'reserved' => 0, 'delayed' => 0, 'buried' => 0]);
+		}
+		return ([
+			'ready'    => $stats->currentJobsReady,
+			'reserved' => $stats->currentJobsReserved,
+			'delayed'  => $stats->currentJobsDelayed,
+			'buried'   => $stats->currentJobsBuried,
+		]);
+	}
+	/**
+	 * Read a job without reserving it.
+	 * @param	string	$id	Job identifier.
+	 * @return	?array	An associative array with the keys "id" and "data" (raw job data), or null if the job doesn't
+	 *			exist (or if the data source is disabled).
+	 * @throws	\Exception	If an error occurred.
+	 */
+	public function peek(string $id) : ?array {
+		if (!$this->_enabled)
+			return (null);
+		$this->connect();
+		try {
+			$job = $this->_pheanstalk->peek(new \Pheanstalk\Values\JobId($id));
+		} catch (\Pheanstalk\Exception\JobNotFoundException $e) {
+			return (null);
+		}
+		return ([
+			'id'   => $job->getId(),
+			'data' => $job->getData(),
+		]);
+	}
+	/**
+	 * Read the first buried job of the tube, without reserving it.
+	 * @return	?array	An associative array with the keys "id" and "data" (raw job data), or null if there is no buried
+	 *			job (or if the data source is disabled).
+	 * @throws	\Exception	If an error occurred.
+	 */
+	public function peekBuried() : ?array {
+		if (!$this->_enabled)
+			return (null);
+		$this->connect();
+		$this->_pheanstalk->useTube(new \Pheanstalk\Values\TubeName($this->_tube));
+		$job = $this->_pheanstalk->peekBuried();
+		if (!$job)
+			return (null);
+		return ([
+			'id'   => $job->getId(),
+			'data' => $job->getData(),
+		]);
 	}
 
 	/* ********** ARRAY-LIKE REQUESTS ********** */

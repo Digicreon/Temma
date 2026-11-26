@@ -14,7 +14,11 @@
  * - aws.phar is not loaded if the SQS client class is already available;
  * - get() decodes "falsy" payloads ("0", "false", "\"\"");
  * - read() accepts a wait duration of 0 seconds, limits it to 20 seconds, returns null on an empty queue
- *   and doesn't hide errors.
+ *   and doesn't hide errors;
+ * - read() returns the number of receptions of the message;
+ * - changeVisibility() and stats();
+ * - Asynk changes the visibility timeout of the message of a failed task if retries are enabled, and can only count
+ *   the tasks.
  *
  * The AWS SDK (aws.phar) must be in the include path (e.g. in the "lib" directory), otherwise the tests are skipped.
  */
@@ -204,9 +208,10 @@ check('A disabled data source sends and receives nothing', function() {
 	$sqs->disable();
 	$sqs->remove('x');
 	$sqs->flush();
+	$sqs->changeVisibility('x', 10);
 	return ($sqs->read('') === null && $sqs->get('') === null && $sqs->write('', 'x') === null &&
 	        $sqs->set('', 'x') === null && $sqs->mWrite(['x']) === 0 && $sqs->mSet(['x']) === 0 &&
-	        $sqs->count() === 0 && $requests === []);
+	        $sqs->count() === 0 && $sqs->stats() === null && $requests === []);
 });
 check('The AWS SDK is not loaded if the SQS client class already exists', function() {
 	// a separate process, without aws.phar in the include path, where the SQS client class is already defined
@@ -263,6 +268,86 @@ check('remove() uses the receipt handle, and throws a Database exception with an
 		return ($requests[0][0] === 'DeleteMessage' && $requests[0][1]['ReceiptHandle'] === 'handle');
 	}
 	return (false);
+});
+check('read() asks for the number of receptions, and returns it', function() {
+	$requests = [];
+	$sqs = mockedSqs($requests, [
+		['Messages' => [['MessageId' => 'id', 'ReceiptHandle' => 'handle', 'Body' => '{}', 'Attributes' => ['ApproximateReceiveCount' => '3']]]],
+		['Messages' => [['MessageId' => 'id', 'ReceiptHandle' => 'handle', 'Body' => 'raw']]],
+	]);
+	$first = $sqs->get('');
+	$second = $sqs->read('');
+	return ($requests[0][1]['AttributeNames'] === ['ApproximateReceiveCount'] && $first['receiveCount'] === 3 &&
+	        $first['data'] === [] && $second === ['id' => json_encode(['id', 'handle']), 'data' => 'raw', 'receiveCount' => 1]);
+});
+check('changeVisibility() uses the receipt handle and limits the timeout to 12 hours', function() {
+	$requests = [];
+	$sqs = mockedSqs($requests, [[], [], []]);
+	$sqs->changeVisibility(json_encode(['id', 'handle']), 120);
+	$sqs->changeVisibility(json_encode(['id', 'handle']), 86400);
+	$sqs->changeVisibility(json_encode(['id', 'handle']), -5);
+	try {
+		$sqs->changeVisibility('invalid', 10);
+	} catch (\Temma\Exceptions\Database $e) {
+		return ($requests[0][0] === 'ChangeMessageVisibility' && $requests[0][1]['ReceiptHandle'] === 'handle' &&
+		        array_map(fn($request) => $request[1]['VisibilityTimeout'], $requests) === [120, 43200, 0]);
+	}
+	return (false);
+});
+check('stats() returns the approximate number of waiting, in-flight and delayed messages', function() {
+	$requests = [];
+	$sqs = mockedSqs($requests, [['Attributes' => [
+		'ApproximateNumberOfMessages'           => '5',
+		'ApproximateNumberOfMessagesNotVisible' => '2',
+		'ApproximateNumberOfMessagesDelayed'    => '1',
+	]]]);
+	return ($sqs->stats() === ['waiting' => 5, 'inFlight' => 2, 'delayed' => 1] &&
+	        count($requests[0][1]['AttributeNames']) === 3);
+});
+/**
+ * Create an Asynk DAO using an SQS data source.
+ * @param	\Temma\Datasources\Sqs	$sqs		Data source.
+ * @param	?array			$retries	(optional) Delays between attempts.
+ * @return	\Temma\Asynk\AsynkDao	The DAO.
+ */
+function sqsAsynkDao(\Temma\Datasources\Sqs $sqs, ?array $retries=null) : \Temma\Asynk\AsynkDao {
+	$asynkDao = (new \ReflectionClass('\Temma\Asynk\AsynkDao'))->newInstanceWithoutConstructor();
+	(new \ReflectionProperty($asynkDao, '_transport'))->setValue($asynkDao, $sqs);
+	(new \ReflectionProperty($asynkDao, '_transportClass'))->setValue($asynkDao, 'Temma\Datasources\Sqs');
+	(new \ReflectionProperty($asynkDao, '_retries'))->setValue($asynkDao, $retries);
+	return ($asynkDao);
+}
+check('Asynk changes the visibility timeout of a failed task (12 hours at most), until the last attempt', function() {
+	$requests = [];
+	$message = fn($count) => ['Messages' => [['MessageId' => 'id', 'ReceiptHandle' => "handle$count", 'Body' => '{"target":"object","action":"method","data":[]}',
+	                                         'Attributes' => ['ApproximateReceiveCount' => (string)$count]]]];
+	$sqs = mockedSqs($requests, [$message(1), [], $message(2), [], $message(3), $message(4)]);
+	$asynkDao = sqsAsynkDao($sqs, [60, 86400, 120]);
+	$task = $asynkDao->getNextTask();
+	$first = $asynkDao->invalidateFetchedTask($task, 'Failure');
+	$second = $asynkDao->invalidateFetchedTask($asynkDao->getNextTask(), 'Failure');
+	$task = $asynkDao->getNextTask();
+	$noRetry = $asynkDao->invalidateFetchedTask($task, 'Error', false);
+	$last = $asynkDao->invalidateFetchedTask($asynkDao->getNextTask(), 'Failure');
+	$visibility = array_values(array_filter($requests, fn($request) => $request[0] == 'ChangeMessageVisibility'));
+	return ($task['attempts'] === 2 && $task['target'] === 'object' && $first === 60 && $second === 43200 && $noRetry === null && $last === null &&
+	        count($visibility) === 2 && $visibility[0][1]['ReceiptHandle'] === 'handle1' && $visibility[1][1]['VisibilityTimeout'] === 43200);
+});
+check('Asynk can only count the SQS tasks', function() {
+	$requests = [];
+	$sqs = mockedSqs($requests, [['Attributes' => ['ApproximateNumberOfMessages' => '4']]]);
+	$asynkDao = sqsAsynkDao($sqs);
+	if ($asynkDao->getStats() !== ['waiting' => 4, 'delayed' => 0, 'processing' => 0, 'failed' => null] ||
+	    $asynkDao->listTasks() !== null || $asynkDao->listTasks('failed') !== null)
+		return (false);
+	foreach (['getTask', 'retryTask', 'removeTask'] as $method) {
+		try {
+			$asynkDao->$method('id');
+			return (false);
+		} catch (\Temma\Exceptions\Application $e) {
+		}
+	}
+	return (true);
 });
 
 // summary

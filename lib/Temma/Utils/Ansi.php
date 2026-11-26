@@ -461,7 +461,7 @@ class Ansi {
 	 * @return	string	The formatted text.
 	 */
 	static public function bold(?string $text) : string {
-		return ($text ? "\e[1m$text\e[22m" : '');
+		return ((($text ?? '') !== '') ? "\e[1m$text\e[22m" : '');
 	}
 	/**
 	 * "Thin" text.
@@ -469,7 +469,7 @@ class Ansi {
 	 * @return	string	The formatted text.
 	 */
 	static public function faint(?string $text) : string {
-		return ($text ? "\e[2m$text\e[22m" : '');
+		return ((($text ?? '') !== '') ? "\e[2m$text\e[22m" : '');
 	}
 	/**
 	 * Italic text.
@@ -477,7 +477,7 @@ class Ansi {
 	 * @return	string	The formatted text.
 	 */
 	static public function italic(?string $text) : string {
-		return ($text ? "\e[3m$text\e[23m" : '');
+		return ((($text ?? '') !== '') ? "\e[3m$text\e[23m" : '');
 	}
 	/**
 	 * Underlined text.
@@ -485,7 +485,7 @@ class Ansi {
 	 * @return	string	The formatted text.
 	 */
 	static public function underline(?string $text) : string {
-		return ($text ? "\e[4m$text\e[24m" : '');
+		return ((($text ?? '') !== '') ? "\e[4m$text\e[24m" : '');
 	}
 	/**
 	 * Blinking text.
@@ -493,7 +493,7 @@ class Ansi {
 	 * @return	string	The formatted text.
 	 */
 	static public function blink(?string $text) : string {
-		return ($text ? "\e[5m$text\e[25m" : '');
+		return ((($text ?? '') !== '') ? "\e[5m$text\e[25m" : '');
 	}
 	/**
 	 * Reverse video text.
@@ -501,7 +501,7 @@ class Ansi {
 	 * @return	string	The formatted text.
 	 */
 	static public function negative(?string $text) : string {
-		return ($text ? "\e[7m$text\e[27m" : '');
+		return ((($text ?? '') !== '') ? "\e[7m$text\e[27m" : '');
 	}
 	/**
 	 * Striked out text.
@@ -509,7 +509,7 @@ class Ansi {
 	 * @return	string	The formatted text.
 	 */
 	static public function strikeout(?string $text) : string {
-		return ($text ? "\e[9m$text\e[29m" : '');
+		return ((($text ?? '') !== '') ? "\e[9m$text\e[29m" : '');
 	}
 	/**
 	 * Returns the escape sequence that resets all color and formatting.

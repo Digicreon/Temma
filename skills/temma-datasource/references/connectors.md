@@ -7,7 +7,7 @@ Documentation pages: `https://www.temma.net/en/documentation/datasource-<name>`.
 | Connector | DSN | Notes |
 |---|---|---|
 | SQL (`Sql`) | `mysql://user:passwd@host[:port]/base`, `pgsql://...`, `sqlite:/path/to/file.sq3`, also `mysqli`, `mssql`, `oci`, `firebird`... | default DAO source; key-value mode needs a `TemmaData` table (MySQL/MariaDB, PostgreSQL, SQLite); doc: `datasource-sql` |
-| Redis | `redis://host[:port][/db]`, `redis-sock:///path/to/socket[#db]` | TTL via `$options` (seconds); patterns are glob-style (`user:*`); doc: `datasource-redis` |
+| Redis | `redis://host[:port][/db]`, `redis-sock:///path/to/socket[#db]` | TTL via `$options` (seconds); patterns are glob-style (`user:*`); lists: `lPush()`, `rPop()`, `rPopLPush()`, `lRem()`, `lLen()`, `lRange($list, $start, $stop)` (JSON-encoded elements); doc: `datasource-redis` |
 | Memcache | `memcache://host[:port][;host2[:port2]][#superprefix]`, Unix socket `memcache:///path.sock:0` | TTL via `$options`; the super-prefix (hashed) is added to all keys: HTTP_HOST without `#`, none with an empty `#`; doc: `datasource-memcache` |
 
 ## Files and object storage
@@ -21,8 +21,8 @@ Documentation pages: `https://www.temma.net/en/documentation/datasource-<name>`.
 
 | Connector | DSN | Notes |
 |---|---|---|
-| Beanstalk | `beanstalk://host[:port]/tube_name` | needs Pheanstalk 5 (`composer require pda/pheanstalk:^5`); `get('')`/`$bean['']` blocks until a message arrives, `get('', null, N)` waits at most N seconds (0 to 20) and returns null; `touch($id)` extends a reservation, `bury($id)` puts a reserved job aside, `kick($id)` / `kick()` puts one / all buried jobs back (returns the count); doc: `datasource-beanstalk` |
-| SQS | `sqs://ACCESS_KEY:SECRET_KEY@QUEUE_URL[#WAIT]` (QUEUE_URL without `https://`, e.g. `sqs.eu-west-3.amazonaws.com/123456789012/queue_name`) | `#WAIT`: long polling wait, 0 to 20 seconds; needs `lib/aws.phar` (loaded only if the AWS SDK is not already available); doc: `datasource-sqs` |
+| Beanstalk | `beanstalk://host[:port]/tube_name` | needs Pheanstalk 5 (`composer require pda/pheanstalk:^5`); `get('')`/`$bean['']` blocks until a message arrives, `get('', null, N)` waits at most N seconds (0 to 20) and returns null; `touch($id)` extends a reservation, `bury($id)` puts a reserved job aside, `kick($id)` / `kick()` puts one / all buried jobs back (returns the count), `release($id, $delay)` puts a reserved job back in the queue (delivered again after `$delay` seconds); `stats()` returns the number of `ready`/`reserved`/`delayed`/`buried` jobs of the tube, `stats($id)` the state and counters of a job (`releases`, `reserves`...; null if unknown); `peek($id)` / `peekBuried()` read a job / the first buried job without reserving it; doc: `datasource-beanstalk` |
+| SQS | `sqs://ACCESS_KEY:SECRET_KEY@QUEUE_URL[#WAIT]` (QUEUE_URL without `https://`, e.g. `sqs.eu-west-3.amazonaws.com/123456789012/queue_name`) | `#WAIT`: long polling wait, 0 to 20 seconds; needs `lib/aws.phar` (loaded only if the AWS SDK is not already available); received messages also have a `receiveCount` key; `changeVisibility($id, $seconds)` delivers a received message again after the given delay (12 hours at most); `stats()` returns the approximate number of `waiting`, `inFlight` and `delayed` messages; doc: `datasource-sqs` |
 | ZeroMQ | `zmq://TYPE@host:port` (connect), `zmq-bind://TYPE@host:port` (bind); TYPE: `REQ`, `REP`, `PUSH`, `PULL`, `PUB`, `SUB`; several hosts separated by `;` | needs the `zmq` extension; doc: `datasource-zeromq` |
 | Socket | `TYPE://host:port[#TIMEOUT]`, TYPE: `tcp`, `udp`, `ssl`, `tls`, `tlsv1.2`, `tlsv1.3`; IPv6 host between brackets (`tls://[fe80::1]:443#5`); `unix:///path` | `#TIMEOUT`: connection timeout in seconds; doc: `datasource-socket` |
 

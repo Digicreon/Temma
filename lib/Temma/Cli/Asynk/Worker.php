@@ -3,7 +3,7 @@
 /**
  * Cron
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2023-2024, Amaury Bouchard
+ * @copyright	© 2023-2026, Amaury Bouchard
  * @link	https://www.temma.net/documentation/asynk
  */
 
@@ -15,6 +15,9 @@ use \Temma\Base\Log as TµLog;
  * Asynk worker executed by crontab or running as a daemon.
  *
  * This objet fetch waiting tasks, process them and remove them.
+ * When the processing of a task fails, a new attempt is planned if retries are enabled ("retries" key of the "x-asynk"
+ * configuration), except if the failure comes from a PHP error (\Error) or if the target object or method doesn't
+ * exist. Otherwise, the task is put aside (see the AsynkManager command).
  */
 class Worker extends \Temma\Web\Controller {
 	/** Constant: default delay between two loops (in seconds). */
@@ -64,25 +67,9 @@ class Worker extends \Temma\Web\Controller {
 				}
 				break;
 			}
-			// process the task
-			try {
-				$object = $this->_loader[$task['target']];
-				if (!$object)
-					throw new \Exception("Unable to instanciate object '{$task['target']}'.");
-				if (!method_exists($object, $task['action']))
-					throw new \Exception("No method '{$task['action']}' in object '{$task['target']}'.");
-				$method = $task['action'];
-				$object->$method(...$task['data']);
-				// task deletion
+			// process the task, and remove it if the processing was successful
+			if ($this->_asynkDao->executeTask($task))
 				$this->_asynkDao->removeFetchedTask($task);
-			} catch (\Exception $e) {
-				TµLog::log('Temma/Asynk', 'WARN', $e->getMessage());
-				$this->_asynkDao->invalidateFetchedTask($task);
-			} catch (\Error $er) {
-				TµLog::log('Temma/Asynk', 'WARN', $er->getMessage());
-				$this->_asynkDao->invalidateFetchedTask($task);
-			}
 		}
 	}
 }
-

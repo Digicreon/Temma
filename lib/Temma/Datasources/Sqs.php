@@ -39,7 +39,7 @@ if (!class_exists('\Aws\Sqs\SqsClient'))
  * // read a message (null if no message is available)
  * $message = $sqs[''];
  * $message = $sqs->get('');
- * // $message is an associative array with the keys "id" and "data"
+ * // $message is an associative array with the keys "id", "data" and "receiveCount"
  *
  * // read a message, waiting up to 10 seconds (long polling, 20 seconds at most)
  * $message = $sqs->get('', null, 10);
@@ -53,11 +53,19 @@ if (!class_exists('\Aws\Sqs\SqsClient'))
  * // send several messages (null values are ignored)
  * $sqs->mSet([$data1, $data2]);
  * $sqs->mWrite(['raw message 1', 'raw message 2']);
+ *
+ * // deliver again a received message in 60 seconds (visibility timeout, 12 hours at most)
+ * $sqs->changeVisibility('MESSAGE_ID', 60);
+ *
+ * // approximate number of waiting, in-flight and delayed messages
+ * $stats = $sqs->stats();
  * </code>
  */
 class Sqs extends \Temma\Base\Datasource {
 	/** Constant: Maximum long polling wait duration accepted by SQS, in seconds. */
 	const MAX_WAIT_POLLING = 20;
+	/** Constant: Maximum visibility timeout of a message, in seconds (12 hours). */
+	const MAX_VISIBILITY_TIMEOUT = 43200;
 	/** Constant: Connection timeout of the HTTP requests, in seconds. */
 	const CONNECT_TIMEOUT = 10;
 	/** Constant: Timeout of the HTTP requests, in seconds (must be greater than the maximum long polling wait duration). */
@@ -167,6 +175,36 @@ class Sqs extends \Temma\Base\Datasource {
 		}
 		return ((int)($res['Attributes']['ApproximateNumberOfMessages'] ?? 0));
 	}
+	/**
+	 * Return the approximate number of messages in each state.
+	 * @return	?array	An associative array with the keys "waiting" (messages available for retrieval), "inFlight"
+	 *			(messages received but not yet deleted, whose visibility timeout is not reached) and "delayed"
+	 *			(messages not yet available). Null if the data source is disabled.
+	 * @throws	\Temma\Exceptions\Database	If the queue attributes couldn't be fetched.
+	 */
+	public function stats() : ?array {
+		if (!$this->_enabled)
+			return (null);
+		$this->connect();
+		try {
+			$res = $this->_sqsClient->getQueueAttributes([
+				'QueueUrl'       => $this->_url,
+				'AttributeNames' => [
+					'ApproximateNumberOfMessages',
+					'ApproximateNumberOfMessagesNotVisible',
+					'ApproximateNumberOfMessagesDelayed',
+				],
+			]);
+		} catch (\Exception $e) {
+			TµLog::log('Temma/Base', 'INFO', "Unable to get AWS SQS queue attributes. Queue='{$this->_url}'.");
+			throw new \Temma\Exceptions\Database('Unable to get SQS queue attributes.', \Temma\Exceptions\Database::QUERY, $e);
+		}
+		return ([
+			'waiting'  => (int)($res['Attributes']['ApproximateNumberOfMessages'] ?? 0),
+			'inFlight' => (int)($res['Attributes']['ApproximateNumberOfMessagesNotVisible'] ?? 0),
+			'delayed'  => (int)($res['Attributes']['ApproximateNumberOfMessagesDelayed'] ?? 0),
+		]);
+	}
 
 	/* ********** STANDARD REQUESTS ********** */
 	/**
@@ -179,12 +217,7 @@ class Sqs extends \Temma\Base\Datasource {
 		if (!$this->_enabled)
 			return;
 		$this->connect();
-		$idParts = json_decode($id, true);
-		$handle = is_array($idParts) ? ($idParts[1] ?? null) : null;
-		if (!is_string($handle) || $handle === '') {
-			TµLog::log('Temma/Base', 'INFO', "Bad identifier for SQS message ('$id').");
-			throw new \Temma\Exceptions\Database("Bad identifier for SQS message ('$id').", \Temma\Exceptions\Database::QUERY);
-		}
+		$handle = self::_getReceiptHandle($id);
 		try {
 			$this->_sqsClient->deleteMessage([
 				'QueueUrl'      => $this->_url,
@@ -192,6 +225,31 @@ class Sqs extends \Temma\Base\Datasource {
 			]);
 		} catch (\Exception $e) {
 			TµLog::log('Temma/Base', 'INFO', "Unable to remove an AWS SQS message. Queue='{$this->_url}'.");
+			throw $e;
+		}
+	}
+	/**
+	 * Change the visibility timeout of a received message: it will be delivered again when this timeout is reached
+	 * (unless it is deleted before). Useful to process again a message whose processing has failed, after a while.
+	 * @param	string	$id		Message identifier, as returned by read() or get().
+	 * @param	int	$timeout	Number of seconds before the message is delivered again (0 for immediately,
+	 *					limited to 12 hours, counted from now).
+	 * @throws	\Temma\Exceptions\Database	If the identifier is not valid.
+	 * @throws	\Exception	If the visibility timeout couldn't be changed.
+	 */
+	public function changeVisibility(string $id, int $timeout) : void {
+		if (!$this->_enabled)
+			return;
+		$this->connect();
+		$handle = self::_getReceiptHandle($id);
+		try {
+			$this->_sqsClient->changeMessageVisibility([
+				'QueueUrl'          => $this->_url,
+				'ReceiptHandle'     => $handle,
+				'VisibilityTimeout' => max(0, min($timeout, self::MAX_VISIBILITY_TIMEOUT)),
+			]);
+		} catch (\Exception $e) {
+			TµLog::log('Temma/Base', 'INFO', "Unable to change the visibility timeout of an AWS SQS message. Queue='{$this->_url}'.");
 			throw $e;
 		}
 	}
@@ -220,8 +278,9 @@ class Sqs extends \Temma\Base\Datasource {
 	 * @param	mixed	$defaultOrCallback	(optional) Not used.
 	 * @param	mixed	$options		(optional) The number of seconds to wait for a message (long polling, 20 seconds at most).
 	 *						If it is not given (or zero), the wait duration given in the DSN is used.
-	 * @return	?array	An associative array with the keys "id" (temporary message identifier that can be used to delete the message)
-	 *			and "data" (raw message data), or null if there is no message (or if the datasource is disabled).
+	 * @return	?array	An associative array with the keys "id" (temporary message identifier that can be used to delete the message),
+	 *			"data" (raw message data) and "receiveCount" (number of times the message was received, this time
+	 *			included), or null if there is no message (or if the datasource is disabled).
 	 * @throws	\Exception	If the message couldn't be fetched (network error, bad credentials...).
 	 */
 	public function read(string $key, mixed $defaultOrCallback=null, mixed $options=null) : ?array {
@@ -233,6 +292,7 @@ class Sqs extends \Temma\Base\Datasource {
 			$params = [
 				'QueueUrl'            => $this->_url,
 				'MaxNumberOfMessages' => 1,
+				'AttributeNames'      => ['ApproximateReceiveCount'],
 			];
 			if (is_int($options) && $options)
 				$params['WaitTimeSeconds'] = self::_limitWaitPolling($options);
@@ -252,8 +312,9 @@ class Sqs extends \Temma\Base\Datasource {
 			$messages[0]['ReceiptHandle'],
 		];
 		return ([
-			'id'   => json_encode($id),
-			'data' => $messages[0]['Body'],
+			'id'           => json_encode($id),
+			'data'         => $messages[0]['Body'],
+			'receiveCount' => (int)($messages[0]['Attributes']['ApproximateReceiveCount'] ?? 1),
 		]);
 	}
 	/**
@@ -363,8 +424,9 @@ class Sqs extends \Temma\Base\Datasource {
 	 * @param	mixed	$defaultOrCallback	(optional) Not used.
 	 * @param	mixed	$options		(optional) Number of seconds to wait for a message (long polling, 20 seconds at most).
 	 *						If it is not given (or zero), the wait duration given in the DSN is used.
-	 * @return	?array	An associative array with the keys "id" (temporary message identifier that can be used to delete the message)
-	 *			and "data" (JSON-decoded message data), or null if there is no message (or if the datasource is disabled).
+	 * @return	?array	An associative array with the keys "id" (temporary message identifier that can be used to delete the message),
+	 *			"data" (JSON-decoded message data) and "receiveCount" (number of times the message was received, this
+	 *			time included), or null if there is no message (or if the datasource is disabled).
 	 * @throws	\Exception	If the message couldn't be fetched (network error, bad credentials...).
 	 */
 	public function get(string $key, mixed $defaultOrCallback=null, mixed $options=null) : ?array {
@@ -413,6 +475,21 @@ class Sqs extends \Temma\Base\Datasource {
 	}
 
 	/* ********** PRIVATE METHODS ********** */
+	/**
+	 * Extract the receipt handle from a message identifier.
+	 * @param	string	$id	Message identifier, as returned by read() or get().
+	 * @return	string	The receipt handle.
+	 * @throws	\Temma\Exceptions\Database	If the identifier is not valid.
+	 */
+	static private function _getReceiptHandle(string $id) : string {
+		$idParts = json_decode($id, true);
+		$handle = is_array($idParts) ? ($idParts[1] ?? null) : null;
+		if (!is_string($handle) || $handle === '') {
+			TµLog::log('Temma/Base', 'INFO', "Bad identifier for SQS message ('$id').");
+			throw new \Temma\Exceptions\Database("Bad identifier for SQS message ('$id').", \Temma\Exceptions\Database::QUERY);
+		}
+		return ($handle);
+	}
 	/**
 	 * Limit a long polling wait duration to the range accepted by SQS (0 to 20 seconds).
 	 * @param	int	$waitPolling	Wait duration, in seconds.
