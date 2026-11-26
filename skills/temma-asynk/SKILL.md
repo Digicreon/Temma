@@ -39,7 +39,7 @@ Supported combinations, from simplest to most scalable:
 | transport | storage | Execution |
 |---|---|---|
 | (none) | MySQL or Redis | crontab (every minute) or polling workers |
-| socket | MySQL or Redis | xinetd (immediate), crontab as backup |
+| socket | MySQL or Redis | xinetd (immediate), crontab as backup (processes the tasks missed by xinetd and the delayed tasks) |
 | Beanstalk / SQS | (none) | workers (task data inside the queue message: 64 KB max with Beanstalk, 256 KB with SQS) |
 
 Any other combination (e.g. a queue transport with a storage) throws a
@@ -79,12 +79,12 @@ CREATE TABLE Task (
 	dateNextAttempt DATETIME,
 	error           TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
 	PRIMARY KEY (id),
-	INDEX status (status),
+	INDEX status (status, dateNextAttempt),
 	INDEX token (token)
 );
 ```
 
-Database/table/field names are remappable in `x-asynk` (`base`, `table`, `id`, `dateCreation`,
+Without the retry fields, the `status` index only contains `status`. Database/table/field names are remappable in `x-asynk` (`base`, `table`, `id`, `dateCreation`,
 `dateUpdate`, `status`, `token`, `target`, `action`, `data`, `attempts`, `dateNextAttempt`,
 `error`), or a custom DAO can be used (`'dao' => '\MyApp\AsynkDao'`). The `attempts`,
 `dateNextAttempt` and `error` fields are needed only if `retries` is set (even to an empty
@@ -95,15 +95,20 @@ them to an existing table with:
 ALTER TABLE Task
 	ADD attempts TINYINT UNSIGNED NOT NULL DEFAULT 0,
 	ADD dateNextAttempt DATETIME,
-	ADD error TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+	ADD error TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
+	DROP INDEX status,
+	ADD INDEX status (status, dateNextAttempt);
 ```
 
 ## Retries
 
-By default, a failed task is put aside at once. The `retries` key of `x-asynk` lists the
-delays before each new attempt (integers in seconds, or strings with a unit `s`, `m`, `h`,
-`d`); `true` gives the default list `['1m', '2m', '15m', '1h', '4h', '12h', '1d', '2d']`
-(8 new attempts over about 3 days, suited to a temporarily unavailable external service).
+By default, a failed task is put aside at once (except with SQS, see below). The
+`retries` key of `x-asynk` lists the delays before each new attempt (integers in
+seconds, or strings with an optional unit `s`, `m`, `h`, `d`, case-insensitive);
+`true` gives the default list `['1m', '2m', '15m', '1h', '4h', '12h', '1d', '2d']`
+(8 new attempts over about 3.7 days, suited to a temporarily unavailable external
+service); `false` or no key disables retries. An invalid delay throws a
+`\Temma\Exceptions\Framework` (CONFIG) when Asynk is used.
 
 ```php
 'x-asynk' => [
@@ -113,44 +118,70 @@ delays before each new attempt (integers in seconds, or strings with a unit `s`,
 ```
 
 Only exceptions are retried: a PHP error (`\Error`, e.g. a `TypeError`) or an unknown
-target object or method puts the task aside immediately. Behaviour by configuration:
+target object or method puts the task aside immediately (except with SQS). Behavior by
+configuration:
 
 | Configuration | New attempt | Task put aside |
 |---|---|---|
-| MySQL storage | `waiting` status with `dateNextAttempt` (needs the extra fields) | `error` status |
-| Redis queue | `asynk_delayed` list, moved back to `asynk` when due | `asynk_failed` list |
-| Redis + xinetd | not possible (the crontab can't find the tasks) | `error` status in the stored task |
-| Beanstalkd | job released with a delay (attempts counted by Beanstalkd) | job buried |
-| SQS | visibility timeout changed (12 hours at most) | nothing; configure a dead-letter queue in AWS (`maxReceiveCount` = number of retries + 1) |
+| MySQL storage | `waiting` status with `dateNextAttempt` (UTC; needs the extra fields) | `error` status |
+| Redis storage | identifier in the `asynk_delayed` sorted set (score = date of next attempt), moved back to `asynk` when due (checked at most every 10 s by each worker or crontab run) | identifier in the `asynk_failed` list |
+| Beanstalkd | job released with a delay | job buried |
+| SQS | visibility timeout changed (SQS limits it to 12 hours after the reception: longer delays are reduced) | nothing: the message comes back after its visibility timeout; when it was received more than retries + 1 times, it is hidden 12 hours without being processed; configure a dead-letter queue in AWS (`maxReceiveCount` = number of retries + 1) |
 
-With xinetd and a MySQL storage, delayed tasks are processed by the crontab, which must be
-configured. The error message and number of attempts are stored with MySQL (extra fields)
-and Redis; Beanstalkd and SQS only count the attempts.
+With SQS, retries need a recent AWS SDK (3.320 or later; older versions silently ignore
+the `MessageSystemAttributeNames` parameter used to get the number of receptions, so
+the first delay would always be used).
+
+With xinetd (MySQL or Redis storage), delayed tasks are processed by the crontab, which
+must be configured; xinetd ignores a task which is not waiting or whose next attempt date
+is not reached. The error message (`"ExceptionClass: message"`, invalid UTF-8
+characters replaced, truncated to 10,000 bytes) and the number of attempts are stored
+with MySQL (extra fields) and Redis; Beanstalkd and SQS count the attempts themselves.
+
+**Crashes count as attempts** (when `retries` is set): the number of attempts is
+incremented when the processing starts, so a processing interrupted by a crash of the
+worker (fatal error, memory limit, killed process) is counted. MySQL and Redis: see
+`recover` below. Beanstalkd: a job whose reservation expired (Asynk jobs have a time to
+run of 1 hour) or whose worker disconnected is delivered again; if it was reserved more
+times than the number of retries + 1, it is buried without being processed. SQS: the
+receive count includes the crashes. Invalid messages (not a task) are put aside too.
 
 ## Task management: AsynkManager command
 
 ```sh
 bin/comma AsynkManager/stats                  # number of waiting, delayed, processing, failed tasks
-bin/comma AsynkManager/list                   # tasks, the oldest first (20 per state by default)
+bin/comma AsynkManager/list                   # tasks (20 per state by default)
 bin/comma AsynkManager/list/failed            # or --state=failed --limit=50
 bin/comma AsynkManager/show/123               # details: parameters, attempts, last error...
-bin/comma AsynkManager/retry/123              # failed or delayed task back in the queue (attempts reset)
+bin/comma AsynkManager/retry/123              # failed or delayed task back in the queue (attempts reset; notified to xinetd)
 bin/comma AsynkManager/retry/all              # all failed tasks back in the queue
 bin/comma AsynkManager/remove/123             # remove a task permanently
 bin/comma AsynkManager/purge                  # remove all failed tasks
-bin/comma AsynkManager/recover --minutes=120  # requeue tasks processing for more than N minutes (crashed workers; 60 by default)
+bin/comma AsynkManager/recover --minutes=120  # tasks processing for more than N minutes (crashed workers; 60 by default)
 ```
 
-States: `waiting`, `delayed`, `processing`, `failed`. All actions work with MySQL and the
-Redis queue (Redis task identifiers are strings like `1764150000.123456-3fXk9b`).
-Limits: Redis + xinetd can't count nor list tasks; Beanstalkd lists only the first failed
-job and doesn't need `recover` (reservations expire); SQS only supports `stats`
-(approximate). `recover` must use a duration greater than the longest task, otherwise a
-task could be processed twice; it can be run by cron.
+States: `waiting`, `delayed`, `processing`, `failed`. All actions work with MySQL and Redis
+storages, with or without xinetd (Redis task identifiers are strings like
+`1764150000.123456-3fXk9b`). `attempts` is the number of started attempts. Dates are
+displayed in the `YYYY-MM-DD HH:MM:SS` format, in the local time zone. Terminal control
+sequences are removed from the displayed values (they may come from user data).
+`list`: MySQL tasks sorted by identifier, Redis tasks the oldest first in each state.
+`recover`: without `retries`, the tasks are put back in the queue; with `retries`, the
+interrupted processing counts as an attempt (new attempt with the configured delay, or
+task put aside; error message `Processing interrupted (crashed worker?).`); MySQL tasks
+reserved but not started are put back without counting an attempt; the duration must be
+greater than the longest task, otherwise a task could be processed twice; it can be run
+by cron (see `etc/asynk/crontab`).
+Limits: Beanstalkd lists only the first failed job (`list` without state lists it),
+`retry` creates the job again (new identifier, counters reset), a job being processed
+can't be removed, `recover` is not available (Beanstalkd puts back expired
+reservations); SQS only supports `stats` (approximate).
 
 The same operations are available in PHP through `$this->_loader['\Temma\Asynk\AsynkDao']`
 (`getStats()`, `listTasks()`, `getTask()`, `retryTask()`, `retryFailedTasks()`,
-`removeTask()`, `purgeFailedTasks()`, `recoverTasks()`).
+`removeTask()`, `purgeFailedTasks()`, `recoverTasks()`). With SQS, `stats` numbers are
+approximate, a task waiting for a new attempt is counted as `processing` (its visibility
+timeout is not reached), and `delayed` stays at 0.
 
 ## Execution setups
 
@@ -161,7 +192,8 @@ The project skeletons ship ready-to-adapt files in `etc/asynk/`:
 - **xinetd** (immediate execution): declare a socket data source
   (`'sock' => 'tcp://localhost:11137'`) as `transport`, adapt and copy
   `etc/asynk/xinetd` to `/etc/xinetd.d/<name>`; combine with the crontab as a safety
-  net (tasks missed by xinetd are picked up by cron);
+  net (tasks missed by xinetd and delayed tasks are picked up by cron); restrict the
+  access to the port (`only_from`, `bind`, or a firewall);
 - **workers** (background daemons): long-running `bin/comma '\Temma\Cli\Asynk\Worker'`
   processes, one task at a time each; run several in parallel for volume. Keep them
   alive with Supervisor: adapt `etc/asynk/supervisor.conf` (its `command` path and
@@ -172,15 +204,23 @@ The project skeletons ship ready-to-adapt files in `etc/asynk/`:
 
 ## Notes
 
-- Task parameters must be serializable (scalars, arrays); the target object is
+- Task parameters must be JSON-encodable (scalars, arrays), otherwise the asynchronous
+  call throws a `\Temma\Exceptions\Application` (BAD_PARAM); the target object is
   instantiated through the dependency injection component at execution time.
 - Asynk logs under the `Temma/Asynk` log class (see the `temma-log` skill); e.g.
   `'loglevels' => ['Temma/Asynk' => 'NOTE']`.
 - Failed tasks (exception or PHP error) are logged as WARN, then retried or put aside
   (see "Retries"); manage them with the `AsynkManager` command.
-- Redis queue lists: `asynk` (waiting), `asynk_processing`, `asynk_delayed`,
-  `asynk_failed`. Tasks left in `asynk_processing` by a previous Temma version (failed
-  tasks were kept there) are put back in the queue by `AsynkManager/recover`.
+- Redis storage (with or without xinetd): tasks in the `asynk_tasks` hash (identifier =>
+  task); identifiers in the lists `asynk` (waiting), `asynk_processing`, `asynk_failed`
+  and the sorted set `asynk_delayed`; reservations in the `asynk_claims` hash (a task
+  is processed only once, even if its identifier is several times in a list).
+- Upgrade from a previous version: the Redis storage format changed (tasks waiting in
+  Redis must be processed before the upgrade); `AsynkDao::setTaskStatusFromId()` and
+  `removeTaskFromId()` were removed; `invalidateFetchedTask()` returns the delay before
+  the next attempt (`?int`) and takes the error message and a retry flag; with xinetd,
+  `getTaskFromId()` doesn't reserve the task anymore (use `isTaskReady()` and
+  `reserveTask()`).
 
 ## Further reading
 

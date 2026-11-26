@@ -180,6 +180,18 @@ class Redis extends \Temma\Base\Datasource {
 		return ($this->_ndb->lPush($list, $data));
 	}
 	/**
+	 * Add an item at the end of a list.
+	 * @param	string	$list	Name of the list.
+	 * @param	mixed	$data	Data added to the queue (JSON-encoded).
+	 * @return	int	The size of the list.
+	 */
+	public function rPush(string $list, mixed $data) : int {
+		if (!$this->_enabled)
+			return (0);
+		$this->connect();
+		return ((int)$this->_ndb->rPush($list, json_encode($data)));
+	}
+	/**
 	 * Remove and return the last item of a list.
 	 * @param	string	$list	Name of the list.
 	 * @return	mixed	The fetched data, or null.
@@ -253,6 +265,129 @@ class Redis extends \Temma\Base\Datasource {
 		if (!is_array($result))
 			return ([]);
 		return (array_map(fn($data) => json_decode($data, true), $result));
+	}
+	/**
+	 * Add an element to a sorted set, or update its score if it is already in the set.
+	 * @param	string		$set	Name of the sorted set.
+	 * @param	int|float	$score	Score of the element (elements are sorted by score).
+	 * @param	mixed		$data	Element (JSON-encoded).
+	 * @return	int	1 if the element was added, 0 if it was already in the set.
+	 */
+	public function zAdd(string $set, int|float $score, mixed $data) : int {
+		if (!$this->_enabled)
+			return (0);
+		$this->connect();
+		return ((int)$this->_ndb->zAdd($set, $score, json_encode($data)));
+	}
+	/**
+	 * Return the elements of a sorted set whose score is between two values, without removing them.
+	 * @param	string			$set	Name of the sorted set.
+	 * @param	int|float|string	$min	Minimum score (included; '-inf' for no minimum).
+	 * @param	int|float|string	$max	Maximum score (included; '+inf' for no maximum).
+	 * @param	int			$offset	(optional) Number of elements to skip (0 by default; only used if a
+	 *						maximum number of elements is given).
+	 * @param	int			$count	(optional) Maximum number of elements (0 by default, for no limit).
+	 * @return	array	The list of JSON-decoded elements, sorted by score.
+	 */
+	public function zRangeByScore(string $set, int|float|string $min, int|float|string $max, int $offset=0, int $count=0) : array {
+		if (!$this->_enabled)
+			return ([]);
+		$this->connect();
+		$options = $count ? ['limit' => [$offset, $count]] : [];
+		$result = $this->_ndb->zRangeByScore($set, (string)$min, (string)$max, $options);
+		if (!is_array($result))
+			return ([]);
+		return (array_map(fn($data) => json_decode($data, true), $result));
+	}
+	/**
+	 * Remove an element from a sorted set.
+	 * @param	string	$set	Name of the sorted set.
+	 * @param	mixed	$data	Element to remove (it is JSON-encoded, like the elements added with zAdd()).
+	 * @return	int	1 if the element was removed, 0 if it was not in the set.
+	 */
+	public function zRem(string $set, mixed $data) : int {
+		if (!$this->_enabled)
+			return (0);
+		$this->connect();
+		return ((int)$this->_ndb->zRem($set, json_encode($data)));
+	}
+	/**
+	 * Return the number of elements of a sorted set.
+	 * @param	string	$set	Name of the sorted set.
+	 * @return	int	The number of elements.
+	 */
+	public function zCard(string $set) : int {
+		if (!$this->_enabled)
+			return (0);
+		$this->connect();
+		return ((int)$this->_ndb->zCard($set));
+	}
+	/**
+	 * Set the value of a field of a hash.
+	 * @param	string	$hash	Name of the hash.
+	 * @param	string	$field	Name of the field.
+	 * @param	mixed	$data	Value (JSON-encoded).
+	 * @return	int	1 if the field was created, 0 if it was updated.
+	 */
+	public function hSet(string $hash, string $field, mixed $data) : int {
+		if (!$this->_enabled)
+			return (0);
+		$this->connect();
+		return ((int)$this->_ndb->hSet($hash, $field, json_encode($data)));
+	}
+	/**
+	 * Set the value of a field of a hash, only if the field doesn't exist yet (atomic operation).
+	 * @param	string	$hash	Name of the hash.
+	 * @param	string	$field	Name of the field.
+	 * @param	mixed	$data	Value (JSON-encoded).
+	 * @return	bool	True if the field was created, false if it already existed (or if the data source is disabled).
+	 */
+	public function hSetNx(string $hash, string $field, mixed $data) : bool {
+		if (!$this->_enabled)
+			return (false);
+		$this->connect();
+		return ((bool)$this->_ndb->hSetNx($hash, $field, json_encode($data)));
+	}
+	/**
+	 * Return the value of a field of a hash.
+	 * @param	string	$hash	Name of the hash.
+	 * @param	string	$field	Name of the field.
+	 * @return	mixed	The JSON-decoded value, or null if the field doesn't exist.
+	 */
+	public function hGet(string $hash, string $field) : mixed {
+		if (!$this->_enabled)
+			return (null);
+		$this->connect();
+		$result = $this->_ndb->hGet($hash, $field);
+		if (!is_string($result))
+			return (null);
+		return (json_decode($result, true));
+	}
+	/**
+	 * Return all the fields of a hash.
+	 * @param	string	$hash	Name of the hash.
+	 * @return	array	Associative array (field names => JSON-decoded values).
+	 */
+	public function hGetAll(string $hash) : array {
+		if (!$this->_enabled)
+			return ([]);
+		$this->connect();
+		$result = $this->_ndb->hGetAll($hash);
+		if (!is_array($result))
+			return ([]);
+		return (array_map(fn($data) => json_decode($data, true), $result));
+	}
+	/**
+	 * Remove a field of a hash.
+	 * @param	string	$hash	Name of the hash.
+	 * @param	string	$field	Name of the field.
+	 * @return	int	1 if the field was removed, 0 if it didn't exist.
+	 */
+	public function hDel(string $hash, string $field) : int {
+		if (!$this->_enabled)
+			return (0);
+		$this->connect();
+		return ((int)$this->_ndb->hDel($hash, $field));
 	}
 
 	/* ********** ARRAY-LIKE REQUESTS ********* */

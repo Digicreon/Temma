@@ -66,6 +66,11 @@ class Sqs extends \Temma\Base\Datasource {
 	const MAX_WAIT_POLLING = 20;
 	/** Constant: Maximum visibility timeout of a message, in seconds (12 hours). */
 	const MAX_VISIBILITY_TIMEOUT = 43200;
+	/**
+	 * Constant: Safety margin, in seconds, kept when the visibility timeout is limited by the maximum (the maximum is
+	 * counted from the reception of the message).
+	 */
+	const VISIBILITY_TIMEOUT_MARGIN = 60;
 	/** Constant: Connection timeout of the HTTP requests, in seconds. */
 	const CONNECT_TIMEOUT = 10;
 	/** Constant: Timeout of the HTTP requests, in seconds (must be greater than the maximum long polling wait duration). */
@@ -232,26 +237,40 @@ class Sqs extends \Temma\Base\Datasource {
 	 * Change the visibility timeout of a received message: it will be delivered again when this timeout is reached
 	 * (unless it is deleted before). Useful to process again a message whose processing has failed, after a while.
 	 * @param	string	$id		Message identifier, as returned by read() or get().
-	 * @param	int	$timeout	Number of seconds before the message is delivered again (0 for immediately,
-	 *					limited to 12 hours, counted from now).
+	 * @param	int	$timeout	Number of seconds before the message is delivered again, counted from now
+	 *					(0 for immediately). SQS limits the visibility timeout to 12 hours after the
+	 *					reception of the message: the timeout is reduced if needed (with a margin of
+	 *					one minute). If the message was received more than 12 hours ago, nothing is done.
+	 * @return	int	The applied visibility timeout, in seconds (0 if the data source is disabled or if nothing was done).
 	 * @throws	\Temma\Exceptions\Database	If the identifier is not valid.
 	 * @throws	\Exception	If the visibility timeout couldn't be changed.
 	 */
-	public function changeVisibility(string $id, int $timeout) : void {
+	public function changeVisibility(string $id, int $timeout) : int {
 		if (!$this->_enabled)
-			return;
+			return (0);
 		$this->connect();
 		$handle = self::_getReceiptHandle($id);
+		// the maximum is counted from the reception of the message (its date is in the identifier; if it is not
+		// available, the message is considered as just received)
+		$receptionTime = json_decode($id, true)[2] ?? null;
+		$elapsed = is_int($receptionTime) ? max(0, (time() - $receptionTime)) : 0;
+		$maximum = self::MAX_VISIBILITY_TIMEOUT - $elapsed - self::VISIBILITY_TIMEOUT_MARGIN;
+		// the message was received more than 12 hours ago: its receipt handle is not valid anymore, the message will be
+		// delivered again at the end of its current visibility timeout
+		if ($maximum <= 0)
+			return (0);
+		$timeout = max(0, min($timeout, $maximum));
 		try {
 			$this->_sqsClient->changeMessageVisibility([
 				'QueueUrl'          => $this->_url,
 				'ReceiptHandle'     => $handle,
-				'VisibilityTimeout' => max(0, min($timeout, self::MAX_VISIBILITY_TIMEOUT)),
+				'VisibilityTimeout' => $timeout,
 			]);
 		} catch (\Exception $e) {
 			TµLog::log('Temma/Base', 'INFO', "Unable to change the visibility timeout of an AWS SQS message. Queue='{$this->_url}'.");
 			throw $e;
 		}
+		return ($timeout);
 	}
 	/**
 	 * Remove all messages from an SQS queue.
@@ -290,9 +309,9 @@ class Sqs extends \Temma\Base\Datasource {
 		// fetch the message
 		try {
 			$params = [
-				'QueueUrl'            => $this->_url,
-				'MaxNumberOfMessages' => 1,
-				'AttributeNames'      => ['ApproximateReceiveCount'],
+				'QueueUrl'                    => $this->_url,
+				'MaxNumberOfMessages'         => 1,
+				'MessageSystemAttributeNames' => ['ApproximateReceiveCount'],
 			];
 			if (is_int($options) && $options)
 				$params['WaitTimeSeconds'] = self::_limitWaitPolling($options);
@@ -307,9 +326,11 @@ class Sqs extends \Temma\Base\Datasource {
 		$messages = $result->get('Messages');
 		if (!$messages)
 			return (null);
+		// the identifier contains the reception date (used to limit the visibility timeout)
 		$id = [
 			$messages[0]['MessageId'],
 			$messages[0]['ReceiptHandle'],
+			time(),
 		];
 		return ([
 			'id'           => json_encode($id),

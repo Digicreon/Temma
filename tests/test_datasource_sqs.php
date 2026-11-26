@@ -17,8 +17,8 @@
  *   and doesn't hide errors;
  * - read() returns the number of receptions of the message;
  * - changeVisibility() and stats();
- * - Asynk changes the visibility timeout of the message of a failed task if retries are enabled, and can only count
- *   the tasks.
+ * - Asynk changes the visibility timeout of the message of a failed task if retries are enabled, puts aside the messages
+ *   received too many times and the invalid messages, and can only count the tasks.
  *
  * The AWS SDK (aws.phar) must be in the include path (e.g. in the "lib" directory), otherwise the tests are skipped.
  */
@@ -208,7 +208,8 @@ check('A disabled data source sends and receives nothing', function() {
 	$sqs->disable();
 	$sqs->remove('x');
 	$sqs->flush();
-	$sqs->changeVisibility('x', 10);
+	if ($sqs->changeVisibility('x', 10) !== 0)
+		return (false);
 	return ($sqs->read('') === null && $sqs->get('') === null && $sqs->write('', 'x') === null &&
 	        $sqs->set('', 'x') === null && $sqs->mWrite(['x']) === 0 && $sqs->mSet(['x']) === 0 &&
 	        $sqs->count() === 0 && $sqs->stats() === null && $requests === []);
@@ -277,20 +278,30 @@ check('read() asks for the number of receptions, and returns it', function() {
 	]);
 	$first = $sqs->get('');
 	$second = $sqs->read('');
-	return ($requests[0][1]['AttributeNames'] === ['ApproximateReceiveCount'] && $first['receiveCount'] === 3 &&
-	        $first['data'] === [] && $second === ['id' => json_encode(['id', 'handle']), 'data' => 'raw', 'receiveCount' => 1]);
+	$id = json_decode($second['id'], true);
+	return ($requests[0][1]['MessageSystemAttributeNames'] === ['ApproximateReceiveCount'] && $first['receiveCount'] === 3 &&
+	        $first['data'] === [] && $second['data'] === 'raw' && $second['receiveCount'] === 1 &&
+	        $id[0] === 'id' && $id[1] === 'handle' && abs($id[2] - time()) <= 1);
 });
-check('changeVisibility() uses the receipt handle and limits the timeout to 12 hours', function() {
+check('changeVisibility() uses the receipt handle and limits the timeout to 12 hours after the reception (with a margin)', function() {
 	$requests = [];
-	$sqs = mockedSqs($requests, [[], [], []]);
-	$sqs->changeVisibility(json_encode(['id', 'handle']), 120);
+	$sqs = mockedSqs($requests, [[], [], [], [], []]);
+	$applied = $sqs->changeVisibility(json_encode(['id', 'handle', time()]), 120);
+	$sqs->changeVisibility(json_encode(['id', 'handle', time()]), 86400);
+	$sqs->changeVisibility(json_encode(['id', 'handle', time() - 3600]), 86400);
+	// message received more than 12 hours ago: no request
+	$tooLate = $sqs->changeVisibility(json_encode(['id', 'handle', time() - 50000]), 600);
+	// identifier without reception date: considered as just received
 	$sqs->changeVisibility(json_encode(['id', 'handle']), 86400);
-	$sqs->changeVisibility(json_encode(['id', 'handle']), -5);
+	// reception date in the future (clock change): limited to 12 hours
+	$sqs->changeVisibility(json_encode(['id', 'handle', time() + 3600]), 86400);
 	try {
 		$sqs->changeVisibility('invalid', 10);
 	} catch (\Temma\Exceptions\Database $e) {
-		return ($requests[0][0] === 'ChangeMessageVisibility' && $requests[0][1]['ReceiptHandle'] === 'handle' &&
-		        array_map(fn($request) => $request[1]['VisibilityTimeout'], $requests) === [120, 43200, 0]);
+		$timeouts = array_map(fn($request) => $request[1]['VisibilityTimeout'], $requests);
+		return ($applied === 120 && $tooLate === 0 && count($requests) === 5 && $requests[0][0] === 'ChangeMessageVisibility' &&
+		        $requests[0][1]['ReceiptHandle'] === 'handle' && $timeouts[0] === 120 && abs($timeouts[1] - 43140) <= 1 &&
+		        abs($timeouts[2] - 39540) <= 1 && $timeouts[3] === 43140 && $timeouts[4] === 43140);
 	}
 	return (false);
 });
@@ -317,7 +328,7 @@ function sqsAsynkDao(\Temma\Datasources\Sqs $sqs, ?array $retries=null) : \Temma
 	(new \ReflectionProperty($asynkDao, '_retries'))->setValue($asynkDao, $retries);
 	return ($asynkDao);
 }
-check('Asynk changes the visibility timeout of a failed task (12 hours at most), until the last attempt', function() {
+check('Asynk changes the visibility timeout of a failed task (12 hours after the reception at most), until the last attempt', function() {
 	$requests = [];
 	$message = fn($count) => ['Messages' => [['MessageId' => 'id', 'ReceiptHandle' => "handle$count", 'Body' => '{"target":"object","action":"method","data":[]}',
 	                                         'Attributes' => ['ApproximateReceiveCount' => (string)$count]]]];
@@ -330,8 +341,21 @@ check('Asynk changes the visibility timeout of a failed task (12 hours at most),
 	$noRetry = $asynkDao->invalidateFetchedTask($task, 'Error', false);
 	$last = $asynkDao->invalidateFetchedTask($asynkDao->getNextTask(), 'Failure');
 	$visibility = array_values(array_filter($requests, fn($request) => $request[0] == 'ChangeMessageVisibility'));
-	return ($task['attempts'] === 2 && $task['target'] === 'object' && $first === 60 && $second === 43200 && $noRetry === null && $last === null &&
-	        count($visibility) === 2 && $visibility[0][1]['ReceiptHandle'] === 'handle1' && $visibility[1][1]['VisibilityTimeout'] === 43200);
+	return ($task['attempts'] === 3 && $task['target'] === 'object' && $first === 60 && abs($second - 43140) <= 1 && $noRetry === null && $last === null &&
+	        count($visibility) === 2 && $visibility[0][1]['ReceiptHandle'] === 'handle1' && abs($visibility[1][1]['VisibilityTimeout'] - 43140) <= 1);
+});
+check('Asynk puts aside (hidden 12 hours) the messages received too many times and the invalid messages, without processing them', function() {
+	$requests = [];
+	$message = fn($count, $body) => ['Messages' => [['MessageId' => "id$count", 'ReceiptHandle' => "handle$count", 'Body' => $body,
+	                                                 'Attributes' => ['ApproximateReceiveCount' => (string)$count]]]];
+	$valid = '{"target":"object","action":"method","data":[]}';
+	$sqs = mockedSqs($requests, [$message(3, $valid), [], $message(1, 'not JSON'), [], $message(2, $valid)]);
+	$asynkDao = sqsAsynkDao($sqs, [60]);
+	$task = $asynkDao->getNextTask();
+	$visibility = array_values(array_filter($requests, fn($request) => $request[0] == 'ChangeMessageVisibility'));
+	return ($task['attempts'] === 2 && json_decode($task['id'], true)[1] === 'handle2' && count($visibility) === 2 &&
+	        $visibility[0][1]['ReceiptHandle'] === 'handle3' && $visibility[1][1]['ReceiptHandle'] === 'handle1' &&
+	        abs($visibility[0][1]['VisibilityTimeout'] - 43140) <= 1);
 });
 check('Asynk can only count the SQS tasks', function() {
 	$requests = [];

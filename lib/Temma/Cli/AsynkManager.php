@@ -10,6 +10,7 @@
 namespace Temma\Cli;
 
 use \Temma\Utils\Ansi as TµAnsi;
+use \Temma\Utils\Text as TµText;
 
 /**
  * Asynk tasks management CLI controller.
@@ -32,9 +33,9 @@ use \Temma\Utils\Ansi as TµAnsi;
  * </code>
  *
  * Possibilities depend on the configuration:
- * - MySQL storage and Redis queue: all actions are available;
- * - Redis storage with xinetd: tasks can't be counted nor listed;
- * - Beanstalkd: tasks can be counted, but only the first failed task can be listed; "recover" is useless;
+ * - MySQL and Redis storages (with or without xinetd): all actions are available;
+ * - Beanstalkd: tasks can be counted, but only the first failed task can be listed; "recover" is not available
+ *   (Beanstalkd puts back the jobs automatically); "retry" creates the job again, with a new identifier;
  * - SQS: tasks can only be counted (approximately); failed messages are managed by a dead-letter queue in AWS.
  */
 class AsynkManager extends \Temma\Web\Controller {
@@ -51,7 +52,7 @@ class AsynkManager extends \Temma\Web\Controller {
 	/** Init. */
 	public function __wakeup() {
 		try {
-			$this->_asynkDao = $this->_loader['\Temma\Asynk\AsynkDao'];
+			$this->_asynkDao = $this->_loader->get('\Temma\Asynk\AsynkDao');
 		} catch (\Exception $e) {
 			// invalid configuration
 			$this->_error($e->getMessage());
@@ -62,31 +63,29 @@ class AsynkManager extends \Temma\Web\Controller {
 	 */
 	public function stats() {
 		$stats = $this->_call(fn() => $this->_asynkDao->getStats());
-		if ($stats === null)
-			$this->_error('Tasks can\'t be counted with this configuration.');
 		foreach ($stats as $state => $count) {
 			print(TµAnsi::color(self::STATE_COLORS[$state], str_pad($state, 12)) .
-			      ($count === null ? TµAnsi::faint('unknown') : TµAnsi::bold((string)$count)) . "\n");
+			      (($count === null) ? TµAnsi::faint('unknown') : TµAnsi::bold((string)$count)) . "\n");
 		}
 	}
 	/**
-	 * List tasks, the oldest first.
+	 * List tasks (MySQL storage: sorted by identifier; Redis storage: the oldest first; Beanstalkd: only the first failed task).
 	 * @param	?string	$state	(optional) State of the tasks: "waiting", "delayed", "processing" or "failed". All states by default.
 	 * @param	int	$limit	(optional) Maximum number of tasks (for each state). 20 by default.
 	 */
 	public function list(?string $state=null, int $limit=20) {
 		$tasks = $this->_call(fn() => $this->_asynkDao->listTasks($state, $limit));
 		if ($tasks === null)
-			$this->_error('Tasks can\'t be listed with this configuration' . ($state ? " (state '$state')" : '') . '.');
+			$this->_error("Tasks can't be listed with this configuration" . ($state ? " (state '$state')" : '') . '.');
 		if (!$tasks) {
 			print(TµAnsi::faint("No task.\n"));
 			return;
 		}
 		foreach ($tasks as $task) {
-			$line = TµAnsi::bold($task['id'] ?? '-') . ' ' .
+			$line = TµAnsi::bold(self::_clean($task['id'] ?? '-')) . ' ' .
 			        TµAnsi::color(self::STATE_COLORS[$task['state']], $task['state']) . ' ' .
 			        TµAnsi::faint($task['dateCreation'] ?? '') . ' ' .
-			        ($task['target'] ?? '') . '::' . ($task['action'] ?? '') . '()';
+			        self::_clean(($task['target'] ?? '') . '::' . ($task['action'] ?? '') . '()');
 			if ($task['attempts'])
 				$line .= TµAnsi::faint(" attempts: {$task['attempts']}");
 			if ($task['dateNextAttempt'])
@@ -101,7 +100,7 @@ class AsynkManager extends \Temma\Web\Controller {
 	public function show(string $id) {
 		$task = $this->_call(fn() => $this->_asynkDao->getTask($id));
 		if (!$task)
-			$this->_error("Unknown task '$id'.");
+			$this->_error("Unknown task '" . self::_clean($id) . "'.");
 		$labels = [
 			'id'              => 'Identifier',
 			'state'           => 'State',
@@ -109,14 +108,15 @@ class AsynkManager extends \Temma\Web\Controller {
 			'dateStart'       => 'Processing start',
 			'target'          => 'Object',
 			'action'          => 'Method',
-			'attempts'        => 'Failed attempts',
+			'attempts'        => 'Attempts',
 			'dateNextAttempt' => 'Next attempt',
 			'error'           => 'Last error',
 		];
 		foreach ($labels as $key => $label) {
-			if ($task[$key] === null || $task[$key] === '')
+			if (($task[$key] === null) || ($task[$key] === ''))
 				continue;
-			$value = (string)$task[$key];
+			// the values may come from user data: terminal control sequences are removed
+			$value = self::_clean((string)$task[$key]);
 			if ($key == 'state')
 				$value = TµAnsi::color(self::STATE_COLORS[$value], $value);
 			else if ($key == 'error')
@@ -124,11 +124,11 @@ class AsynkManager extends \Temma\Web\Controller {
 			print(TµAnsi::faint(str_pad($label, 18)) . "$value\n");
 		}
 		print(TµAnsi::faint('Parameters') . "\n");
-		print(json_encode($task['data'], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . "\n");
+		print(self::_clean(json_encode($task['data'], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)) . "\n");
 	}
 	/**
 	 * Put back in the queue a failed or delayed task, to process it as soon as possible.
-	 * Its number of attempts is reset.
+	 * Its number of attempts is reset (with Beanstalkd, the job is created again, with a new identifier).
 	 * @param	string	$id	Task identifier, or "all" for all the failed tasks.
 	 */
 	public function retry(string $id) {
@@ -138,7 +138,7 @@ class AsynkManager extends \Temma\Web\Controller {
 			return;
 		}
 		if (!$this->_call(fn() => $this->_asynkDao->retryTask($id)))
-			$this->_error("Task '$id' not found, or not failed nor delayed.");
+			$this->_error("Task '" . self::_clean($id) . "' not found, or not failed nor delayed.");
 		print(TµAnsi::color('green', "Task put back in the queue.\n"));
 	}
 	/**
@@ -147,7 +147,7 @@ class AsynkManager extends \Temma\Web\Controller {
 	 */
 	public function remove(string $id) {
 		if (!$this->_call(fn() => $this->_asynkDao->removeTask($id)))
-			$this->_error("Unknown task '$id'.");
+			$this->_error("Unknown task '" . self::_clean($id) . "'.");
 		print(TµAnsi::color('green', "Task removed.\n"));
 	}
 	/**
@@ -158,20 +158,21 @@ class AsynkManager extends \Temma\Web\Controller {
 		print(TµAnsi::color('green', "$count failed task(s) removed.\n"));
 	}
 	/**
-	 * Put back in the queue the tasks whose processing has started for a long time (their worker has probably crashed).
-	 * Useless with Beanstalkd and SQS, which do it automatically.
+	 * Recover the tasks whose processing has started for a long time (their worker has probably crashed): if retries
+	 * are enabled, a new attempt is planned or the task is put aside; otherwise, the task is put back in the queue.
+	 * Not available with Beanstalkd and SQS, which do it automatically.
 	 * @param	int	$minutes	(optional) Number of minutes since the processing start (60 by default). It must be
 	 *					greater than the maximum processing duration of a task, otherwise a task could
 	 *					be processed twice.
 	 */
 	public function recover(int $minutes=60) {
 		$count = $this->_call(fn() => $this->_asynkDao->recoverTasks($minutes));
-		print(TµAnsi::color('green', "$count task(s) put back in the queue.\n"));
+		print(TµAnsi::color('green', "$count task(s) recovered.\n"));
 	}
 
 	/* ********** PRIVATE METHODS ********** */
 	/**
-	 * Call a function, and display the error message if an Application exception is thrown.
+	 * Call a function, and display the error message if an exception is thrown.
 	 * @param	callable	$function	The function to call.
 	 * @return	mixed	The value returned by the function.
 	 */
@@ -180,6 +181,9 @@ class AsynkManager extends \Temma\Web\Controller {
 			return ($function());
 		} catch (\Temma\Exceptions\Application $e) {
 			$this->_error($e->getMessage());
+		} catch (\Exception $e) {
+			// storage or message queue error
+			$this->_error('Error: ' . get_class($e) . ': ' . $e->getMessage());
 		}
 	}
 	/**
@@ -189,5 +193,17 @@ class AsynkManager extends \Temma\Web\Controller {
 	private function _error(string $message) : never {
 		print(TµAnsi::color('red', $message) . "\n");
 		exit(1);
+	}
+
+	/* ********** PRIVATE STATIC METHODS ********** */
+	/**
+	 * Remove the terminal control sequences and characters (except line feeds and tabulations) from a string which
+	 * may contain user data (task parameters, error messages), so that they can't be interpreted by the terminal.
+	 * @param	string	$text	The text.
+	 * @return	string	The cleaned text.
+	 */
+	static private function _clean(string $text) : string {
+		$text = TµText::ansiToText($text);
+		return (preg_replace('/[\x00-\x08\x0B-\x1F\x7F]|\xC2[\x80-\x9F]/', '?', $text));
 	}
 }

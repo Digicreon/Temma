@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Cron
+ * Worker
  * @author	Amaury Bouchard <amaury@amaury.net>
  * @copyright	© 2023-2026, Amaury Bouchard
  * @link	https://www.temma.net/documentation/asynk
@@ -17,7 +17,10 @@ use \Temma\Base\Log as TµLog;
  * This objet fetch waiting tasks, process them and remove them.
  * When the processing of a task fails, a new attempt is planned if retries are enabled ("retries" key of the "x-asynk"
  * configuration), except if the failure comes from a PHP error (\Error) or if the target object or method doesn't
- * exist. Otherwise, the task is put aside (see the AsynkManager command).
+ * exist. Otherwise, the task is put aside (except with SQS: the message is delivered again after its visibility
+ * timeout). See the AsynkManager command.
+ * If the storage or the message queue can't be reached, an ERROR message is logged; the daemon waits during the loop
+ * delay before continuing, the crontab execution stops.
  */
 class Worker extends \Temma\Web\Controller {
 	/** Constant: default delay between two loops (in seconds). */
@@ -57,19 +60,27 @@ class Worker extends \Temma\Web\Controller {
 			$sleep = $this->_loader->config->xtra('asynk', 'loopDelay', self::DEFAULT_LOOP_DELAY);
 		// loop
 		for (; ; ) {
-			// get next task
-			$task = $this->_asynkDao->getNextTask();
-			// no task found?
-			if (!$task) {
-				if ($infiniteLoop) {
-					sleep($sleep);
-					continue;
+			try {
+				// get next task
+				$task = $this->_asynkDao->getNextTask();
+				// no task found?
+				if (!$task) {
+					if ($infiniteLoop) {
+						sleep($sleep);
+						continue;
+					}
+					break;
 				}
-				break;
+				// process the task, and remove it if the processing was successful
+				if ($this->_asynkDao->executeTask($task))
+					$this->_asynkDao->removeFetchedTask($task);
+			} catch (\Exception $e) {
+				// storage or message queue error (unreachable server, deadlock...)
+				TµLog::log('Temma/Asynk', 'ERROR', 'Asynk worker error: ' . get_class($e) . ': ' . $e->getMessage());
+				if (!$infiniteLoop)
+					break;
+				sleep($sleep);
 			}
-			// process the task, and remove it if the processing was successful
-			if ($this->_asynkDao->executeTask($task))
-				$this->_asynkDao->removeFetchedTask($task);
 		}
 	}
 }

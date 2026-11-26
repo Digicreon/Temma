@@ -8,4 +8,7 @@ service temma_asynk
 	server_args	= nostderr '\Temma\Cli\Asynk\Inetd'
 	protocol	= tcp
 	socket_type	= stream
+	# (recommended) restrict the access to the port (address of the web servers which create the tasks)
+	#only_from	= 127.0.0.1
+	#bind		= 127.0.0.1
 }
