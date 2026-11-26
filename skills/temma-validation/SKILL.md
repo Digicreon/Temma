@@ -47,7 +47,8 @@ make nullable with `?` (`'?bool'`). Type names are case-insensitive (`'NULL|INT'
 (dates).
 
 **Lists with `values`**: `'list; values: int, string'` expects exactly an int then a
-string in strict mode (extra elements are removed in non-strict mode). A trailing `...`
+string in strict mode (in non-strict mode, extra elements are removed and a shorter list
+is accepted). A trailing `...`
 (or `…`) accepts any number of extra elements as is, even in strict mode:
 `'list; values: int, string, ...'` accepts `[1, 'a']` and `[1, 'a', 3.5]`, and strict mode
 rejects `[1]`. `maxLen: 0` only accepts an empty list (strict) or truncates to `[]`.
