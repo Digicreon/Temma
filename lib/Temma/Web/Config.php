@@ -99,6 +99,8 @@ class Config {
 	protected ?string $_includesPath = null;
 	/** Path to the controllers directory. */
 	protected ?string $_controllersPath = null;
+	/** Tell if the controllers directory must be added to the include paths (not for command-line executions). */
+	protected bool $_includeControllers = true;
 	/** Path to the views directory. */
 	protected ?string $_viewsPath = null;
 	/** Path to the templates directory. */
@@ -145,11 +147,15 @@ class Config {
 	/**
 	 * Constructor.
 	 * @param	string	$appPath	Path to the application root directory.
-	 * @param	?array	$attributes	(optional) Initialization attributes. SHOULD BE USED BY THE __set_state() METHOD ONLY.
+	 * @param	?array	$attributes		(optional) Initialization attributes. SHOULD BE USED BY THE __set_state() METHOD ONLY.
+	 * @param	bool	$includeControllers	(optional) False to not add the controllers directory to the include paths
+	 *						(used by the command-line executions, whose controllers are in the "cli" directory).
+	 *						True by default.
 	 * @throws	\Temma\Exceptions\Framework	If the timezone given in the attributes is not valid.
 	 */
-	public function __construct(string $appPath, ?array $attributes=null) {
+	public function __construct(string $appPath, ?array $attributes=null, bool $includeControllers=true) {
 		$this->_appPath = $appPath;
+		$this->_includeControllers = $includeControllers;
 		$this->_etcPath = $this->_appPath . DIRECTORY_SEPARATOR . self::ETC_DIR;
 		$this->_phpPathsToInclude = [$this->_appPath . DIRECTORY_SEPARATOR . self::INCLUDES_DIR];
 		// management of initialization attributes
@@ -251,7 +257,8 @@ class Config {
 		// path to the controllers
 		$controllersPath = $this->_appPath . '/' . self::CONTROLLERS_DIR;
 		if (is_dir($controllersPath)) {
-			$pathsToInclude[] = $controllersPath;
+			if ($this->_includeControllers)
+				$pathsToInclude[] = $controllersPath;
 			$this->_controllersPath = $controllersPath;
 		}
 		// path to the views
@@ -263,7 +270,7 @@ class Config {
 		// include paths defined in the configuration
 		if (isset($ini['includePaths'])) {
 			if (is_string($ini['includePaths']))
-				$ini['includePaths'] = [$ini['includePAths']];
+				$ini['includePaths'] = [$ini['includePaths']];
 			if (is_array($ini['includePaths']))
 				$pathsToInclude = array_merge($pathsToInclude, $ini['includePaths']);
 		}

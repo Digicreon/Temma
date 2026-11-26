@@ -140,7 +140,8 @@ class Comma {
 	}
 	/** Creates the configuration. */
 	private function _manageConfiguration() : void {
-		$this->_config = new \Temma\Web\Config($this->_rootPath);
+		// the controllers directory is not added to the include paths (command-line controllers are in the "cli" directory)
+		$this->_config = new \Temma\Web\Config($this->_rootPath, includeControllers: false);
 		$this->_config->readConfigurationFile($this->_forcedConfigPath);
 
 		/* *** Manage log thresholds. *** */
