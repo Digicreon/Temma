@@ -61,6 +61,7 @@ class SlugValidator implements Validator, JsonSchemaExportable {
 	 * Convert a contract to JSON Schema.
 	 * @param	array	$contract	Contract parameters.
 	 * @return	array	The JSON Schema.
+	 * @throws	\Temma\Exceptions\IO	If the contract is invalid.
 	 */
 	public function toJsonSchema(array $contract) : array {
 		$schema = [

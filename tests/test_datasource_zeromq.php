@@ -5,10 +5,12 @@
  * Validation script for the ZeroMQ data source, using PUSH/PULL pairs of sockets created by the script
  * (on the local interface, with random ports):
  * - invalid DSNs throw a Database exception;
- * - set() and get() send and receive "falsy" values (and null);
+ * - set() and get() send and receive "falsy" values; set() ignores null values;
  * - get() throws a Database exception when the message is not valid JSON;
  * - mWrite() and mSet() accept an empty list;
- * - mSet() sends the data as the parts of a multipart message;
+ * - mSet() sends the data as the parts of a multipart message, and ignores null values;
+ * - mWrite() converts numbers to strings, ignores null values, and rejects other values without sending anything;
+ * - a disabled data source sends and receives nothing;
  * - a connected socket can be used after a reconnection;
  * - a bound socket can be reconnected (and disconnected, then connected again) on the same address,
  *   and can be used afterwards.
@@ -79,12 +81,17 @@ $pullSocket->setSockOpt(\ZMQ::SOCKOPT_RCVTIMEO, 2000);
 $endpoint = $pullSocket->getSockOpt(\ZMQ::SOCKOPT_LAST_ENDPOINT);
 $push = \Temma\Datasources\ZeroMQ::factory('zmq://PUSH@' . mb_substr($endpoint, mb_strlen('tcp://')));
 check('set() and get() send and receive falsy values', function() use ($push, $pull) {
-	foreach ([0, '0', false, '', [], null, ['a' => 1]] as $value) {
+	foreach ([0, '0', false, '', [], ['a' => 1]] as $value) {
 		$push->set('', $value);
 		if ($pull->get('') !== $value)
 			return (false);
 	}
 	return (true);
+});
+check('set() ignores null values', function() use ($push, $pull) {
+	$result = $push->set('', null);
+	$push->set('', 'next');
+	return ($result === false && $pull->get('') === 'next');
 });
 check('get() throws a Database exception when the message is not valid JSON', function() use ($push, $pull) {
 	$push->write('', 'not JSON');
@@ -99,6 +106,31 @@ check('mWrite() and mSet() accept an empty list', fn() => (($push->mWrite([]) ==
 check('mSet() sends the data as the parts of a multipart message', function() use ($push, $pull) {
 	$sent = $push->mSet([1, 'two', ['three']]);
 	return ($sent === 3 && ($pull->get('') === 1) && ($pull->get('') === 'two') && ($pull->get('') === ['three']));
+});
+check('mSet() ignores null values', function() use ($push, $pull) {
+	$sent = $push->mSet([null, 'one', null]);
+	$push->set('', 'next');
+	return ($sent === 1 && $pull->get('') === 'one' && $pull->get('') === 'next');
+});
+check('mWrite() converts numbers to strings and ignores null values', function() use ($push, $pull) {
+	$sent = $push->mWrite([1, null, 2.5, 'three']);
+	return ($sent === 3 && $pull->read('') === '1' && $pull->read('') === '2.5' && $pull->read('') === 'three');
+});
+check('mWrite() rejects values which are not strings or numbers, without sending anything', function() use ($push, $pull) {
+	try {
+		$push->mWrite(['first', ['array']]);
+		return (false);
+	} catch (\Temma\Exceptions\Database $e) {
+	}
+	$push->set('', 'next');
+	return ($pull->get('') === 'next');
+});
+check('A disabled data source sends and receives nothing', function() use ($endpoint) {
+	$zmq = \Temma\Datasources\ZeroMQ::factory('zmq://PUSH@' . mb_substr($endpoint, mb_strlen('tcp://')))->disable();
+	$path = sys_get_temp_dir() . '/temma-zeromq-test-' . getmypid();
+	return ($zmq->read('') === null && $zmq->get('') === null && $zmq->write('', 'x') === false &&
+	        $zmq->set('', 'x') === false && $zmq->mWrite(['x']) === 0 && $zmq->mSet(['x']) === 0 &&
+	        $zmq->copyFrom('', $path) === false && !file_exists($path));
 });
 check('The data source can be used after a reconnection', function() use ($push, $pull) {
 	$push->reconnect();

@@ -560,12 +560,24 @@ class Text {
 		if (!ctype_digit($len))
 			throw new TµIOException("Bad size string format.", TµIOException::BAD_FORMAT);
 		switch ($last) {
-			case 'k': $len *= $base; break;
-			case 'm': $len *= ($base ** 2); break;
-			case 'g': $len *= ($base ** 3); break;
-			case 't': $len *= ($base ** 4); break;
-			case 'p': $len *= ($base ** 5); break;
-			case 'e': $len *= ($base ** 6); break;
+			case 'k':
+				$len *= $base;
+				break;
+			case 'm':
+				$len *= ($base ** 2);
+				break;
+			case 'g':
+				$len *= ($base ** 3);
+				break;
+			case 't':
+				$len *= ($base ** 4);
+				break;
+			case 'p':
+				$len *= ($base ** 5);
+				break;
+			case 'e':
+				$len *= ($base ** 6);
+				break;
 			default: throw new TµIOException("Bad size string format.", TµIOException::BAD_FORMAT);
 		}
 		return ($len);
@@ -603,10 +615,18 @@ class Text {
 				continue;
 			}
 			switch ($code) {
-				case 0: $state = []; break;
-				case 1: $state['bold'] = true; break;
-				case 2: $state['dim'] = true; break;
-				case 3: $state['italic'] = true; break;
+				case 0:
+					$state = [];
+					break;
+				case 1:
+					$state['bold'] = true;
+					break;
+				case 2:
+					$state['dim'] = true;
+					break;
+				case 3:
+					$state['italic'] = true;
+					break;
 				case 4:
 				case 21:
 					if (($sub[1] ?? '') === '0')
@@ -614,17 +634,39 @@ class Text {
 					else
 						$state['underline'] = true;
 					break;
-				case 7: $state['reverse'] = true; break;
-				case 8: $state['hidden'] = true; break;
-				case 9: $state['strike'] = true; break;
-				case 22: unset($state['bold'], $state['dim']); break;
-				case 23: unset($state['italic']); break;
-				case 24: unset($state['underline']); break;
-				case 27: unset($state['reverse']); break;
-				case 28: unset($state['hidden']); break;
-				case 29: unset($state['strike']); break;
-				case 39: unset($state['color']); break;
-				case 49: unset($state['background']); break;
+				case 7:
+					$state['reverse'] = true;
+					break;
+				case 8:
+					$state['hidden'] = true;
+					break;
+				case 9:
+					$state['strike'] = true;
+					break;
+				case 22:
+					unset($state['bold'], $state['dim']);
+					break;
+				case 23:
+					unset($state['italic']);
+					break;
+				case 24:
+					unset($state['underline']);
+					break;
+				case 27:
+					unset($state['reverse']);
+					break;
+				case 28:
+					unset($state['hidden']);
+					break;
+				case 29:
+					unset($state['strike']);
+					break;
+				case 39:
+					unset($state['color']);
+					break;
+				case 49:
+					unset($state['background']);
+					break;
 				default:
 					if ($code >= 30 && $code <= 37)
 						$state['color'] = self::ANSI_PALETTE[$code - 30];

@@ -74,10 +74,11 @@ class DataFilter {
 	}
 	/**
 	 * Register an alias (or multiple aliases).
-	 * @param	string|array	$alias		The alias name, or an associative array of aliases.
-	 * @param	?string		$target		(optional) The target class or contract.
+	 * @param	string|array		$alias		The alias name, or an associative array of aliases.
+	 * @param	null|string|array	$target		(optional) The target class or contract (contract string, or contract array;
+	 *						an array without 'type' key defines the keys of an associative array).
 	 */
-	static public function registerAlias(string|array $alias, ?string $target=null) : void {
+	static public function registerAlias(string|array $alias, null|string|array $target=null) : void {
 		if (is_array($alias))
 			self::$_aliases = array_merge(self::$_aliases, $alias);
 		else
@@ -140,9 +141,9 @@ class DataFilter {
 			$types = explode('|', $contract['type']);
 			// loop on types
 			$types = array_map(function ($type) use (&$addNull, &$hasNull) {
-				$type = trim($type);
+				$type = self::_normalizeType($type);
 				// manage null type
-				if (mb_strtolower($type) == 'null') {
+				if ($type == 'null') {
 					$addNull = false;
 					$hasNull = true;
 				}
@@ -153,7 +154,7 @@ class DataFilter {
 				array_unshift($types, 'null');
 		} else {
 			// type is already an array? (not common but handle it)
-			$types = (array)$contract['type'];
+			$types = array_map(fn($type) => self::_normalizeType($type), (array)$contract['type']);
 			// search for nullable type
 			$contractNullable = in_array('null', $types);
 		}
@@ -185,7 +186,8 @@ class DataFilter {
 						// usage params should override definition, except for 'type' which must remain the definition's type
 						$mergedContract = array_merge($targetArray, $params);
 						$mergedContract['type'] = $targetArray['type'];
-						return (self::process($in, $mergedContract, $strict, true, $output));
+						// the strictness forced at usage ('=' or '~' prefix) applies to the alias
+						return (self::process($in, $mergedContract, $contractStrict, true, $output));
 					}
 				}
 				// get validator
@@ -368,11 +370,11 @@ class DataFilter {
 				$nullable = true;
 				$typeString = mb_substr($typeString, 1);
 			}
-			$types = array_map('trim', explode('|', $typeString));
-			if ($nullable && !in_array('null', array_map('mb_strtolower', $types)))
+			$types = array_map(fn($type) => self::_normalizeType($type), explode('|', $typeString));
+			if ($nullable && !in_array('null', $types))
 				array_unshift($types, 'null');
 		} else {
-			$types = (array)$contract['type'];
+			$types = array_map(fn($type) => self::_normalizeType($type), (array)$contract['type']);
 		}
 		// conversion of each type
 		$schemas = [];
@@ -389,8 +391,6 @@ class DataFilter {
 	 * @throws	\Temma\Exceptions\IO	If the contract is not well formed (BAD_FORMAT).
 	 */
 	static private function _typeToJsonSchema(string $type, array $contract) : array {
-		if (mb_strtolower($type) == 'null')
-			$type = 'null';
 		// check for contract alias
 		if (isset(self::$_aliases[$type])) {
 			$target = self::$_aliases[$type];
@@ -467,18 +467,34 @@ class DataFilter {
 	/**
 	 * Merge JSON Schemas of different types into one schema, if possible
 	 * (most JSON Schema keywords apply to only one type).
+	 * Schemas whose JSON types overlap (e.g. "string" and "email", or "int" and "port")
+	 * can be merged only if they have the same keywords.
 	 * @param	array	$schemas	List of JSON Schemas.
 	 * @return	?array	The merged schema, or null if the schemas can't be merged.
 	 */
 	static private function _mergeJsonSchemas(array $schemas) : ?array {
 		$res = [];
 		$types = [];
+		$merged = []; // list of the merged schemas (their types, and their other keywords)
 		foreach ($schemas as $schema) {
 			if (!isset($schema['type']) || array_key_exists('const', $schema) ||
 			    isset($schema['enum']) || isset($schema['anyOf']))
 				return (null);
-			$types = array_merge($types, (array)$schema['type']);
+			$schemaTypes = (array)$schema['type'];
 			unset($schema['type']);
+			// types overlapping with an already merged type (integers are numbers)
+			foreach ($merged as $mergedSchema) {
+				if (!self::_jsonTypesOverlap($schemaTypes, $mergedSchema['types']))
+					continue;
+				// loose comparison (an integer and a float with the same value are equal)
+				if ($schema != $mergedSchema['keywords'])
+					return (null);
+			}
+			$merged[] = [
+				'types'    => $schemaTypes,
+				'keywords' => $schema,
+			];
+			$types = array_merge($types, $schemaTypes);
 			foreach ($schema as $key => $value) {
 				// loose comparison (an integer and a float with the same value are equal)
 				if (array_key_exists($key, $res) && $res[$key] != $value)
@@ -489,6 +505,17 @@ class DataFilter {
 		$types = array_values(array_unique($types));
 		$res = ['type' => ((count($types) == 1) ? $types[0] : $types)] + $res;
 		return ($res);
+	}
+	/**
+	 * Tell if two lists of JSON types overlap (the "integer" type is a subset of the "number" type).
+	 * @param	array	$types1	First list of JSON types.
+	 * @param	array	$types2	Second list of JSON types.
+	 * @return	bool	True if a value can be of a type of both lists.
+	 */
+	static private function _jsonTypesOverlap(array $types1, array $types2) : bool {
+		$types1 = array_map(fn($type) => ($type === 'integer') ? 'number' : $type, $types1);
+		$types2 = array_map(fn($type) => ($type === 'integer') ? 'number' : $type, $types2);
+		return (array_intersect($types1, $types2) ? true : false);
 	}
 	/**
 	 * Add annotations (title, description, default value, examples) to a JSON Schema.
@@ -513,6 +540,8 @@ class DataFilter {
 	}
 	/**
 	 * Give the right JSON type to a default value or an example (they are strings in string contracts).
+	 * For a union of schemas ('anyOf'), the value is typed by the first sub-schema which converts it to a null,
+	 * boolean or number value (respecting its 'const' or 'enum' keyword); otherwise it stays a string.
 	 * @param	mixed	$default	The default value.
 	 * @param	array	$schema		The JSON Schema.
 	 * @return	mixed	The typed default value.
@@ -520,6 +549,23 @@ class DataFilter {
 	static private function _typeJsonSchemaDefault(mixed $default, array $schema) : mixed {
 		if (!is_string($default))
 			return ($default);
+		if (!isset($schema['type']) && isset($schema['anyOf']) && is_array($schema['anyOf'])) {
+			foreach ($schema['anyOf'] as $subSchema) {
+				if (!is_array($subSchema))
+					continue;
+				$typed = self::_typeJsonSchemaDefault($default, $subSchema);
+				// the value stays a string: try the next sub-schema
+				if ($typed === $default)
+					continue;
+				// the typed value must respect the constant or the enumeration of the sub-schema
+				if (array_key_exists('const', $subSchema) && $typed !== $subSchema['const'])
+					continue;
+				if (isset($subSchema['enum']) && !in_array($typed, $subSchema['enum'], true))
+					continue;
+				return ($typed);
+			}
+			return ($default);
+		}
 		$types = (array)($schema['type'] ?? []);
 		if (in_array('null', $types) && $default === 'null')
 			return (null);
@@ -531,5 +577,18 @@ class DataFilter {
 			return ((float)$default);
 		return ($default);
 	}
+	/**
+	 * Normalize a type name: trim it, and convert it to lowercase if it is the lowercase
+	 * version of a known alias (type names are case-insensitive, unlike class names).
+	 * @param	mixed	$type	The type name (alias or class name).
+	 * @return	mixed	The normalized type name (or the given value if it is not a string).
+	 */
+	static private function _normalizeType(mixed $type) : mixed {
+		if (!is_string($type))
+			return ($type);
+		$type = trim($type);
+		if (!isset(self::$_aliases[$type]) && isset(self::$_aliases[mb_strtolower($type)]))
+			$type = mb_strtolower($type);
+		return ($type);
+	}
 }
-

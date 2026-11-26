@@ -7,10 +7,13 @@
  * - mGet()/mRead() return the user keys, with null for missing keys;
  * - mRemove() removes the given keys; clear() invalidates a group of keys;
  * - mSet()/mWrite() store data with an expiration, remove the keys associated to null, and return the number
- *   of written data (removed keys are not counted);
+ *   of written data (removed keys are not counted); mWrite() converts numbers to strings and skips the other
+ *   non-string values;
  * - isSet() returns false when the server is not reachable;
  * - a string default value is never called as a function;
- * - a disabled datasource behaves like an always-empty cache (default value or callback result returned, nothing stored).
+ * - a disabled datasource behaves like an always-empty cache (default value or callback result returned, mGet() and
+ *   mRead() return null for each key, nothing stored);
+ * - the super-prefix of the DSN.
  *
  * The tests which don't need a server use an unreachable server (127.0.0.1:1).
  * The other tests are executed only if a Memcache DSN is given in the TEMMA_TEST_MEMCACHE environment variable
@@ -100,7 +103,15 @@ check('A disabled datasource returns the default value, or the result of the cal
 	return (($disabled->read('key', 'default') === 'default') && ($disabled->read('key', fn() => 'callback') === 'callback') &&
 	        ($disabled->get('key', 0) === 0) && ($disabled->get('key', fn() => ['a' => 1]) === ['a' => 1]) &&
 	        ($disabled->set('key', 'value') === false) && ($disabled->mSet(['key' => 'value']) === 0) &&
-	        ($disabled->mWrite(['key' => 'value']) === 0));
+	        ($disabled->mWrite(['key' => 'value']) === 0) && ($disabled->write('key', 'value') === false) &&
+	        ($disabled->mGet(['a', 'b']) === ['a' => null, 'b' => null]) && ($disabled->mRead(['a']) === ['a' => null]) &&
+	        ($disabled->mGet([]) === []) && ($disabled->isSet('key') === false) && (count($disabled) === 0));
+});
+check('The super-prefix of the DSN is hashed; an empty super-prefix disables it', function() {
+	$withPrefix = \Temma\Datasources\Memcache::factory('memcache://127.0.0.1:1#my-app');
+	$emptyPrefix = \Temma\Datasources\Memcache::factory('memcache://127.0.0.1:1#');
+	return ((property($withPrefix, '_superPrefix') === hash('crc32', 'my-app') . ']') &&
+	        (property($emptyPrefix, '_superPrefix') === ''));
 });
 check('A DSN without server throws a Database exception', function() {
 	try {
@@ -209,6 +220,11 @@ if (!$dsn) {
 			        !$cache->isSet("{$prefix}w1") && !$cache->isSet("{$prefix}w2") && !$cache->isSet("{$prefix}w5") &&
 			        ($cache->get("{$prefix}w3") === 'three') && ($cache->get("{$prefix}w4") === 'four'));
 		});
+		check('mWrite() converts numbers to strings, and skips the other non-string values', function() use ($cache, $prefix) {
+			$written = $cache->mWrite(["{$prefix}c1" => 12, "{$prefix}c2" => ['a'], "{$prefix}c3" => true, "{$prefix}c4" => 'ok']);
+			return ($written === 2 && $cache->read("{$prefix}c1") === '12' && $cache->read("{$prefix}c4") === 'ok' &&
+			        !$cache->isSet("{$prefix}c2") && !$cache->isSet("{$prefix}c3"));
+		});
 		check('mRemove() removes the given keys (not their indexes)', function() use ($cache, $prefix) {
 			$cache->setPrefix("{$prefix}keys");
 			$cache->set('0', 'zero');
@@ -256,7 +272,7 @@ if (!$dsn) {
 	} finally {
 		// keys created without group
 		$cache->setPrefix();
-		$keys = ['read-cb', 'read-default', 'get-null', 'disabled', 'a', 'b', 'c', 'w1', 'w2', 'w3', 'w4', 'w5',
+		$keys = ['read-cb', 'read-default', 'get-null', 'disabled', 'a', 'b', 'c', 'w1', 'w2', 'w3', 'w4', 'w5', 'c1', 'c4',
 		         'outside', 'exp1', 'exp2', 'exp3'];
 		foreach ($falsy as $name => $value)
 			$keys[] = "falsy-$name";

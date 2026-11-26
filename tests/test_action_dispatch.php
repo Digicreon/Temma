@@ -10,7 +10,7 @@
  *   (they were reachable, allowing an open redirect through "/controller/_redirect/<url>");
  * - the root action, the default action (__call) and the proxy action (__proxy) keep working;
  * - errors raised by an action give a 500 error, HTTP exceptions keep their code, and URL parameters
- *   which don't match the action's signature give a 404 error.
+ *   which don't match the action's signature give a 404 error (also through a nested sub-process).
  */
 
 require_once(__DIR__ . '/../lib/Temma/Base/Autoload.php');
@@ -69,6 +69,9 @@ $classes = [
 			public function internalType() { strlen([]); }
 			public function internalCount() { $this->helper(); }
 			public function helper(int $a) { }
+			public function nestedType() { $this->_subProcess('Failing', 'show', ['abc']); }
+			public function nestedCount() { $this->_subProcess('Failing', 'show', []); }
+			public function nestedOk() { $this->_subProcess('Failing', 'show', ['7']); }
 		}
 		EOT,
 	// controller whose init method throws an HTTP exception
@@ -155,6 +158,9 @@ check("database exception gives a 500", trace('/failing/database') === 'http:500
 check("HTTP exception keeps its code", trace('/failing/forbidden') === 'http:403');
 check("type error inside the action gives a 500", trace('/failing/internalType') === 'http:500');
 check("argument count error inside the action gives a 500", trace('/failing/internalCount') === 'http:500');
+check("nested sub-process with valid parameters", trace('/failing/nestedOk') === 'show:7');
+check("nested sub-process with a parameter of the wrong type gives a 404", trace('/failing/nestedType') === 'http:404');
+check("nested sub-process with a missing parameter gives a 404", trace('/failing/nestedCount') === 'http:404');
 check("HTTP exception thrown by __wakeup() keeps its code", trace('/guarded/hello') === 'http:401');
 
 print("\n" . TµAnsi::bold("Proxy action: the dispatch is up to the proxy\n"));

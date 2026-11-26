@@ -6,27 +6,27 @@ Documentation pages: `https://www.temma.net/en/documentation/datasource-<name>`.
 
 | Connector | DSN | Notes |
 |---|---|---|
-| SQL (`Sql`) | `mysql://user:passwd@host[:port]/base`, `pgsql://...`, `sqlite:/path/to/file.sq3`, also `mysqli`, `mssql`, `oci`, `firebird`... | default DAO source; doc: `datasource-sql` |
-| Redis | `redis://host[:port][/db]`, `redis-sock:///path/to/socket` | TTL via `$options` (seconds); doc: `datasource-redis` |
-| Memcache | `memcache://host[:port]`, multiple servers separated by `;` | TTL via `$options`; doc: `datasource-memcache` |
+| SQL (`Sql`) | `mysql://user:passwd@host[:port]/base`, `pgsql://...`, `sqlite:/path/to/file.sq3`, also `mysqli`, `mssql`, `oci`, `firebird`... | default DAO source; key-value mode needs a `TemmaData` table (MySQL/MariaDB, PostgreSQL, SQLite); doc: `datasource-sql` |
+| Redis | `redis://host[:port][/db]`, `redis-sock:///path/to/socket[#db]` | TTL via `$options` (seconds); patterns are glob-style (`user:*`); doc: `datasource-redis` |
+| Memcache | `memcache://host[:port][;host2[:port2]][#superprefix]`, Unix socket `memcache:///path.sock:0` | TTL via `$options`; the super-prefix (hashed) is added to all keys: HTTP_HOST without `#`, none with an empty `#`; doc: `datasource-memcache` |
 
 ## Files and object storage
 
 | Connector | DSN | Notes |
 |---|---|---|
-| File | `file:///path/to/dir`, `file://0007/path/to/dir` (umask) | keys are relative file paths; recursive search like on S3 (`*` also matches `/`, only files are returned); doc: `datasource-file` |
-| S3 | `s3://ACCESS_KEY:SECRET_KEY@REGION/BUCKET[:private]` | `$options` for ACL/mimetype; doc: `datasource-s3` |
+| File | `file:///path/to/dir`, `file://0007/path/to/dir` (umask) | keys are relative file paths (`..` segments and null bytes rejected with an IO exception); recursive search like on S3 (`*` also matches `/`, only files are returned, hidden files skipped); doc: `datasource-file` |
+| S3 | `s3://ACCESS_KEY:SECRET_KEY@REGION/BUCKET[:public\|:private]` (private by default) | needs `lib/aws.phar` (loaded only if the AWS SDK is not already available); `$options` for ACL/mimetype; doc: `datasource-s3` |
 
 ## Queues and sockets
 
 | Connector | DSN | Notes |
 |---|---|---|
-| Beanstalk | `beanstalk://host[:port]/tube_name` | doc: `datasource-beanstalk` |
-| SQS | `sqs://ACCESS_KEY:SECRET_KEY@QUEUE_URL` | doc: `datasource-sqs` |
-| ZeroMQ | `zmq://...` (connect), `zmq-bind://...` (bind) | doc: `datasource-zeromq` |
-| Socket | `tcp://host:port`, `udp://`, `ssl://`, `tls://`, `unix:///path` | doc: `datasource-socket` |
+| Beanstalk | `beanstalk://host[:port]/tube_name` | needs Pheanstalk 5 (`composer require pda/pheanstalk:^5`); `get('')`/`$bean['']` blocks until a message arrives, `get('', null, N)` waits at most N seconds (0 to 20) and returns null; `touch($id)` extends a reservation, `bury($id)` puts a reserved job aside, `kick($id)` / `kick()` puts one / all buried jobs back (returns the count); doc: `datasource-beanstalk` |
+| SQS | `sqs://ACCESS_KEY:SECRET_KEY@QUEUE_URL[#WAIT]` (QUEUE_URL without `https://`, e.g. `sqs.eu-west-3.amazonaws.com/123456789012/queue_name`) | `#WAIT`: long polling wait, 0 to 20 seconds; needs `lib/aws.phar` (loaded only if the AWS SDK is not already available); doc: `datasource-sqs` |
+| ZeroMQ | `zmq://TYPE@host:port` (connect), `zmq-bind://TYPE@host:port` (bind); TYPE: `REQ`, `REP`, `PUSH`, `PULL`, `PUB`, `SUB`; several hosts separated by `;` | needs the `zmq` extension; doc: `datasource-zeromq` |
+| Socket | `TYPE://host:port[#TIMEOUT]`, TYPE: `tcp`, `udp`, `ssl`, `tls`, `tlsv1.2`, `tlsv1.3`; IPv6 host between brackets (`tls://[fe80::1]:443#5`); `unix:///path` | `#TIMEOUT`: connection timeout in seconds; doc: `datasource-socket` |
 
-## Messaging and notifications (write-only)
+## Messaging and notifications
 
 | Connector | DSN | Notes |
 |---|---|---|
@@ -35,14 +35,14 @@ Documentation pages: `https://www.temma.net/en/documentation/datasource-<name>`.
 | Google Chat | `googlechat://chat.googleapis.com/v1/spaces/XXX/messages?key=YYY&token=ZZZ` | doc: `datasource-googlechat` |
 | Telegram | `telegram://API_TOKEN` (chat identifier given as the key when sending) | doc: `datasource-telegram` |
 | Pushover | `pushover://APP_TOKEN` | doc: `datasource-pushover` |
-| Smsmode | `smsmode://API_KEY`, `smsmode://SENDER_NAME:API_KEY` | doc: `datasource-smsmode` |
+| Smsmode | `smsmode://API_KEY`, `smsmode://SENDER_NAME:API_KEY` (sender: `[a-zA-Z0-9]`, 11 characters at most) | sending returns the message ID; `read($msgId)` returns its delivery status; doc: `datasource-smsmode` |
 | SMTP | `smtp://[user:pass@]host[:port]`, `smtp+tls://...` (STARTTLS, port 587), `smtps://...` (implicit TLS, port 465) | email transport (see the `temma-email` skill); doc: `datasource-smtp` |
 
 ## AI
 
 | Connector | DSN | Notes |
 |---|---|---|
-| AI (unified LLM) | `ai://[type@]provider/model#API_KEY` (e.g. `ai://openai/gpt-4o#sk-XXX`, `ai://transcript@ovh/whisper-large-v3`; type: `chat` by default, `transcript` or `embedding`; see the `temma-ai` skill) | doc: `datasource-ai` |
+| AI (unified LLM) | `ai://PROVIDER/MODEL#API_KEY`, `ai://[ENDPOINT_URL]/MODEL#API_KEY` (generic OpenAI-compatible endpoint, URL starting with `http://` or `https://`), `ai://[\Vendor\ProviderClass]/MODEL#API_KEY` (custom provider); the brackets are literal. Optional `TYPE@` prefix right after `ai://` (`chat` by default, `transcript` or `embedding`). `#API_KEY` is optional; MODEL is everything up to `#` and may contain `/` and `:`. E.g. `ai://openai/gpt-4o#sk-XXX`, `ai://transcript@ovh/whisper-large-v3` | see the `temma-ai` skill; doc: `datasource-ai` |
 
 ## Special
 

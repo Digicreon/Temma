@@ -11,7 +11,9 @@ namespace Temma\Datasources;
 
 use \Temma\Base\Log as TµLog;
 
-require_once('aws.phar');
+// the AWS SDK is loaded only if it is not already available (Composer, other data source...)
+if (!class_exists('\Aws\Sqs\SqsClient'))
+	require_once('aws.phar');
 
 /**
  * Amazon SQS management object.
@@ -34,16 +36,23 @@ require_once('aws.phar');
  * $sqs[''] = $data;
  * $sqs->set('', $data);
  *
- * // read a message
+ * // read a message (null if no message is available)
  * $message = $sqs[''];
  * $message = $sqs->get('');
  * // $message is an associative array with the keys "id" and "data"
+ *
+ * // read a message, waiting up to 10 seconds (long polling, 20 seconds at most)
+ * $message = $sqs->get('', null, 10);
  *
  * // remove a message from queue
  * unset($sqs['MESSAGE_ID']);
  * $sqs['MESSAGE_ID'] = null;
  * $sqs->set('MESSAGE_ID', null);
  * $sqs->remove('MESSAGE_ID');
+ *
+ * // send several messages (null values are ignored)
+ * $sqs->mSet([$data1, $data2]);
+ * $sqs->mWrite(['raw message 1', 'raw message 2']);
  * </code>
  */
 class Sqs extends \Temma\Base\Datasource {
@@ -391,6 +400,16 @@ class Sqs extends \Temma\Base\Datasource {
 			return (null);
 		}
 		return ($this->write($id, json_encode($data), $options));
+	}
+	/**
+	 * Add multiple messages in SQS. Each message is JSON-encoded.
+	 * @param	array	$data		List of message data. Null values are ignored (no message is removed).
+	 * @param	mixed	$options	(optional) Not used.
+	 * @return	int	The number of sent messages (0 if the datasource is disabled).
+	 * @throws	\Exception	If a batch couldn't be sent (the previous batches have been sent).
+	 */
+	public function mSet(array $data, mixed $options=null) : int {
+		return (parent::mSet($data, $options));
 	}
 
 	/* ********** PRIVATE METHODS ********** */

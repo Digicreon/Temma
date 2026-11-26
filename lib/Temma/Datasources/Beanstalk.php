@@ -30,11 +30,12 @@ use \Temma\Base\Log as TµLog;
  * $bean[''] = $data;
  * $bean->set('', $data);
  *
- * // read a message (wait up to 20 seconds; null is returned if no message is available)
+ * // read a message (wait as long as necessary, until a message is available)
  * $message = $bean[''];
  * $message = $bean->get('');
  * // $message is an associative array with the keys "id" (job identifier) and "data"
- * // read a message, waiting up to 5 seconds (0 to return immediately)
+ * // read a message, waiting up to 5 seconds (0 to return immediately, 20 seconds at most);
+ * // null is returned if no message is available in time
  * $message = $bean->get('', null, 5);
  *
  * // remove a message from queue
@@ -42,12 +43,25 @@ use \Temma\Base\Log as TµLog;
  * $bean['MESSAGE_ID'] = null;
  * $bean->set('MESSAGE_ID', null);
  * $bean->remove('MESSAGE_ID');
+ *
+ * // put aside a message whose processing has failed (it is not delivered anymore)
+ * $bean->bury('MESSAGE_ID');
+ * // put back in the queue a buried message, or all buried messages
+ * $bean->kick('MESSAGE_ID');
+ * $bean->kick();
+ *
+ * // send several messages (null values are ignored)
+ * $bean->mSet([$data1, $data2]);
+ * $bean->mWrite(['raw message 1', 'raw message 2']);
  * </code>
  */
 class Beanstalk extends \Temma\Base\Datasource {
 	/** Constant: Default Beanstalkd port number. */
 	const DEFAULT_BEANSTALK_PORT = 11300;
-	/** Constant: Maximum (and default) wait duration of read() and get(), in seconds. */
+	/**
+	 * Constant: Maximum wait duration of a single reservation request, in seconds. It is also the maximum wait
+	 * duration that can be given to read() and get(); without wait duration, they send reservation requests in loop.
+	 */
 	const MAX_RESERVE_TIMEOUT = 20;
 	/** Constant: Reception timeout of the connection, in seconds (must be greater than the maximum wait duration). */
 	const RECEIVE_TIMEOUT = 30;
@@ -136,6 +150,53 @@ class Beanstalk extends \Temma\Base\Datasource {
 		$this->_pheanstalk->touch(new \Pheanstalk\Values\JobId($id));
 		return ($this);
 	}
+	/**
+	 * Bury a job: it is kept by Beanstalkd, but it is not delivered anymore until it is kicked (see kick()).
+	 * Useful to put aside a job whose processing has failed, instead of removing it.
+	 * The job must have been reserved (with read() or get()) by this object, without disconnection since.
+	 * @param	string	$id	Job identifier.
+	 * @return	\Temma\Datasources\Beanstalk	The current object.
+	 * @throws	\Pheanstalk\Exception\JobNotFoundException	If the job doesn't exist or is not reserved by this object.
+	 * @throws	\Exception	If an error occurred.
+	 */
+	public function bury(string $id) : \Temma\Datasources\Beanstalk {
+		if (!$this->_enabled)
+			return ($this);
+		$this->connect();
+		$this->_pheanstalk->bury(new \Pheanstalk\Values\JobId($id));
+		return ($this);
+	}
+	/**
+	 * Put buried jobs back in the queue: they are delivered again by read() and get().
+	 * @param	?string	$id	(optional) Identifier of the job to kick. If null (by default), all buried jobs of the tube are kicked.
+	 * @return	int	The number of kicked jobs (0 if the given job doesn't exist or is not buried, or if the datasource is disabled).
+	 * @throws	\Exception	If an error occurred.
+	 */
+	public function kick(?string $id=null) : int {
+		if (!$this->_enabled)
+			return (0);
+		$this->connect();
+		// kick the given job
+		if ($id !== null) {
+			try {
+				$this->_pheanstalk->kickJob(new \Pheanstalk\Values\JobId($id));
+			} catch (\Pheanstalk\Exception\JobNotFoundException $e) {
+				return (0);
+			}
+			return (1);
+		}
+		// kick all the buried jobs of the tube (if there is no buried job, the "kick" command would kick delayed jobs)
+		try {
+			$stats = $this->_pheanstalk->statsTube(new \Pheanstalk\Values\TubeName($this->_tube));
+		} catch (\Pheanstalk\Exception\TubeNotFoundException $e) {
+			// the tube doesn't exist if no job was ever put in it
+			return (0);
+		}
+		if (!$stats->currentJobsBuried)
+			return (0);
+		$this->_pheanstalk->useTube(new \Pheanstalk\Values\TubeName($this->_tube));
+		return ($this->_pheanstalk->kick($stats->currentJobsBuried));
+	}
 
 	/* ********** ARRAY-LIKE REQUESTS ********** */
 	/**
@@ -180,11 +241,14 @@ class Beanstalk extends \Temma\Base\Datasource {
 
 	/* ********** RAW REQUESTS ********** */
 	/**
-	 * Get a message from Beanstalkd. Wait until a message is available, for 20 seconds at most.
+	 * Get a message from Beanstalkd.
+	 * Without wait duration, the method waits as long as necessary, until a message is available (it is returned as
+	 * soon as it is available). With a wait duration, null is returned if no message is available in time.
 	 * @param	string	$key			Not used, should be an empty string.
 	 * @param	mixed	$defaultOrCallback	(optional) Not used.
-	 * @param	mixed	$options		(optional) Number of seconds to wait for a message (0 to return immediately;
-	 *						20 seconds at most, which is the default).
+	 * @param	mixed	$options		(optional) Number of seconds to wait for a message (0 to return immediately,
+	 *						20 seconds at most). If it is not an integer (null by default), the method
+	 *						waits until a message is available.
 	 * @return	?array	An associative array with the keys "id" (job identifier, used to remove the message) and "data"
 	 *			(raw message data), or null if no message was available in time (or if the datasource is disabled).
 	 * @throws	\Exception	If an error occurred.
@@ -198,13 +262,22 @@ class Beanstalk extends \Temma\Base\Datasource {
 		if ($this->_tube != 'default')
 			$this->_pheanstalk->ignore(new \Pheanstalk\Values\TubeName('default'));
 		// fetch the message
-		$timeout = is_int($options) ? max(0, min($options, self::MAX_RESERVE_TIMEOUT)) : self::MAX_RESERVE_TIMEOUT;
-		try {
-			$job = $this->_pheanstalk->reserveWithTimeout($timeout);
-		} catch (\Pheanstalk\Exception\DeadlineSoonException $e) {
-			// a job reserved by this client must be processed (or touched) soon
-			return (null);
-		}
+		// without wait duration, reservation requests are sent in loop until a message is available (a single request
+		// without timeout can't be used, the connection would time out if no message is available for a long time)
+		$blocking = !is_int($options);
+		$timeout = $blocking ? self::MAX_RESERVE_TIMEOUT : max(0, min($options, self::MAX_RESERVE_TIMEOUT));
+		do {
+			try {
+				$job = $this->_pheanstalk->reserveWithTimeout($timeout);
+			} catch (\Pheanstalk\Exception\DeadlineSoonException $e) {
+				// a job reserved by this client must be processed (or touched) soon
+				if (!$blocking)
+					return (null);
+				// blocking mode: wait for the job to be released (or deleted) before trying again
+				$job = null;
+				sleep(1);
+			}
+		} while (!$job && $blocking);
 		if (!$job)
 			return (null);
 		return ([
@@ -289,11 +362,14 @@ class Beanstalk extends \Temma\Base\Datasource {
 		throw new \Temma\Exceptions\Database('No search() method on this object.', \Temma\Exceptions\Database::FUNDAMENTAL);
 	}
 	/**
-	 * Get a message from Beanstalkd. Wait until a message is available, for 20 seconds at most.
+	 * Get a message from Beanstalkd.
+	 * Without wait duration, the method waits as long as necessary, until a message is available (it is returned as
+	 * soon as it is available). With a wait duration, null is returned if no message is available in time.
 	 * @param	string	$key			Not used, should be an empty string.
 	 * @param	mixed	$defaultOrCallback	(optional) Not used.
-	 * @param	mixed	$options		(optional) Number of seconds to wait for a message (0 to return immediately;
-	 *						20 seconds at most, which is the default).
+	 * @param	mixed	$options		(optional) Number of seconds to wait for a message (0 to return immediately,
+	 *						20 seconds at most). If it is not an integer (null by default), the method
+	 *						waits until a message is available.
 	 * @return	?array	An associative array with the keys "id" (job identifier, used to remove the message) and "data"
 	 *			(JSON-decoded message data), or null if no message was available in time (or if the datasource is disabled).
 	 * @throws	\Exception	If an error occurred.
@@ -331,5 +407,15 @@ class Beanstalk extends \Temma\Base\Datasource {
 			return (null);
 		}
 		return ($this->write($id, json_encode($data), $options));
+	}
+	/**
+	 * Add multiple messages in Beanstalkd. Each message is JSON-encoded.
+	 * @param	array	$data		List of message data. Null values are ignored (no message is removed).
+	 * @param	mixed	$options	(optional) Not used.
+	 * @return	int	The number of sent messages (0 if the datasource is disabled).
+	 * @throws	\Exception	If an error occurred (the previous messages have been sent).
+	 */
+	public function mSet(array $data, mixed $options=null) : int {
+		return (parent::mSet($data, $options));
 	}
 }

@@ -53,7 +53,12 @@ use the dedicated skill mentioned for details.
 
 ## 5. Sessions → `temma-auth`
 
-- Session cookies: check the `sessionSecure` configuration on HTTPS sites.
+- Session cookies are `HttpOnly`, `SameSite=Lax`, and `Secure` when PHP receives HTTPS.
+  When TLS terminates upstream (reverse proxy, load balancer), set `sessionSecure: true`.
+- `cookieDomain`: unset, sessions stored in a data source share the cookie with the last two
+  labels of the host (`www.example.com` gives `example.com`); on multi-level public suffixes
+  (`example.co.uk`) set it explicitly, or set it empty/false for a host-only cookie. Native
+  PHP sessions are host-only unless `cookieDomain` is set.
 - Never store secrets client-side; the Temma session lives server-side, keyed by cookie.
 - After privilege changes (login/logout), make sure stale session data is removed.
 

@@ -56,6 +56,7 @@ class Response implements \ArrayAccess {
 	 * @param	?string		$url		(optional) Redirection URL, or null to remove the redirection.
 	 * @param	bool|int	$code		(optional) Redirection code (301, 302, 303, 307, 308...). 302 by default.
 	 *						For backward compatibility, true means 301 and false means 302.
+	 *						If the code is not a redirection code (3xx), the framework sends a 302 redirection.
 	 * @param	bool		$referer	(optional) True to use the HTTP REFERER as redirection URL, with $url as fallback.
 	 *						False by default.
 	 */
@@ -90,7 +91,7 @@ class Response implements \ArrayAccess {
 	/**
 	 * Define the view name.
 	 * @param	null|false|string	$view	(optional) The view name.
-	 *					Set to null of leave empty to use the default view defined in the 'temma.json' configuration file.
+	 *					Set to null or leave empty to use the default view defined in the 'temma.json' configuration file.
 	 *					Set to false to disable the processing of the view.
 	 */
 	public function setView(null|false|string $view=null) : void {
@@ -232,7 +233,8 @@ class Response implements \ArrayAccess {
 	}
 	/**
 	 * Returns the HTTP return code.
-	 * @return	int	The HTTP return code (200 by default; 301 or 302 after a redirection).
+	 * @return	int	The HTTP return code (200 by default; the redirection code, like 301, 302, 303 or 307,
+	 *			after a redirection).
 	 */
 	public function getHttpCode() : int {
 		return ($this->_httpCode);

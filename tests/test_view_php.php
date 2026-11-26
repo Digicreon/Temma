@@ -121,6 +121,15 @@ try {
 	$code = $e->getCode();
 }
 check("an '@output' variable which is not an array raises a Framework exception", $code === TµFrameworkException::BAD_OUTPUT);
+foreach ([['Alice', 'Bob'], ['name' => 'Alice', 3 => 'Bob']] as $output) {
+	$code = null;
+	try {
+		render(['@output' => $output]);
+	} catch (TµFrameworkException $e) {
+		$code = $e->getCode();
+	}
+	check("an '@output' variable with integer keys (" . json_encode($output) . ") raises a Framework exception", $code === TµFrameworkException::BAD_OUTPUT);
+}
 
 print("\n" . TµAnsi::bold("Output validation contract\n"));
 $result = render(['name' => 'Alice', 'other' => 2] + $frameworkData,

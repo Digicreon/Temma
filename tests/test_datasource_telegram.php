@@ -147,9 +147,10 @@ check('empty response: exception (no PHP warning)', function() {
 check('non-scalar message: exception', function() {
 	return (exception(fn() => (new TelegramOk('123:TOKEN'))->set('42', ['x'])) instanceof \Temma\Exceptions\Database);
 });
-check('disabled data source: set() and write() return false', function() {
+check('disabled data source: set() and write() return false, mSet() and mWrite() return 0', function() {
 	$telegram = (new TelegramError('123:TOKEN'))->disable();
-	return (($telegram->set('42', 'Hello') === false) && ($telegram->write('42', 'Hello') === false));
+	return (($telegram->set('42', 'Hello') === false) && ($telegram->write('42', 'Hello') === false) &&
+	        $telegram->mSet(['42' => 'Hello']) === 0 && $telegram->mWrite(['42' => 'Hello']) === 0);
 });
 check('token not written in the logs and the exception messages', function() {
 	global $logs;

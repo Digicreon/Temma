@@ -15,7 +15,8 @@ namespace Temma\Attributes;
  *
  * The content type could be a full MIME type, or one of the aliases defined in \Temma\Web\View::MIME_ALIASES
  * ('html', 'xhtml', 'json', 'rss', 'csv', 'calendar').
- * A "text/*" content type without charset information is sent with a "charset=UTF-8" parameter.
+ * A "text/*", "application/rss+xml" or "application/xhtml+xml" content type without charset information
+ * is sent with a "charset=UTF-8" parameter.
  *
  * Examples:
  * - Send all actions of a controller as Markdown:
@@ -69,4 +70,3 @@ class ContentType extends \Temma\Web\Attribute {
 		$this->_contentType($this->contentType);
 	}
 }
-

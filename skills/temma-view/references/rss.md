@@ -15,12 +15,15 @@ class Feed extends \Temma\Web\Controller {
 		$this['category'] = 'Blog';                    // optional (default: Blog)
 		$this['articles'] = [
 			[
-				'title'    => 'Happy new year!',              // mandatory
-				'url'      => 'https://mysite.com/page/23',   // mandatory
-				'pubDate'  => '2026-01-01 00:00:00',          // optional
-				'abstract' => 'Summary...',                   // optional
-				'author'   => 'author@mysite.com',            // optional
-				'guid'     => 'article-23',                   // optional (default: url)
+				'title'      => 'Happy new year!',               // mandatory
+				'url'        => 'https://mysite.com/page/23',    // mandatory
+				'pubDate'    => '2026-01-01 00:00:00',           // optional
+				'abstract'   => 'Summary...',                    // optional
+				'author'     => 'author@mysite.com',             // optional
+				'guid'       => 'article-23',                    // optional (default: url; isPermaLink="true" only for a URL)
+				'image'      => 'https://mysite.com/img/23.png', // optional (enclosure)
+				'imageType'  => 'png',                           // optional: jpg (default), png, gif, webp
+				'categories' => ['news'],                        // optional
 			],
 		];
 		$this->_view('~Rss');

@@ -57,6 +57,9 @@ unset($this->cache['key1']);           // deletion
 count($this->cache);                   // number of elements
 ```
 
+`$source[] = $data` (no key) is reserved for queues and messaging sources; on key-value
+sources (File, Sql, Redis, Memcache, S3) it throws a `\Temma\Exceptions\Database`.
+
 Method form, richer:
 
 - **Serialized data**: `get($key, $defaultOrCallback, $options)`, `mGet($keys)`,
@@ -81,6 +84,43 @@ $user = $this->cache->get("user:$userId", function() use ($userId) {
 });
 ```
 
+Callback and default rules:
+- A non-callable second parameter (any value, even a string matching a PHP function name)
+  is the default value, returned as is and never stored.
+- A callback's result is stored then returned: `get()` stores it JSON-encoded, `read()`
+  stores it raw (it must be a string, a number or `null`, otherwise a Database exception).
+  A callback returning `null` stores nothing.
+- Falsy stored values (`"0"`, `0`, `false`, `""`) are real values, not "missing".
+
+Null values and multiple writes:
+- `set($key, null)` / `$source[$key] = null` removes the key.
+- `mSet()` / `mWrite()`: on key-value sources (File, S3, Sql, Redis, Memcache) a `null` value
+  removes the key; on queues and messaging sources, `null` values are skipped (nothing is
+  removed). In both cases they are not counted in the returned number.
+- `mWrite()` converts numbers to strings and skips other non-string values (arrays, objects,
+  booleans) on key-value sources; a value whose write fails is skipped, the others are
+  written. `mSet()` also skips values that can't be JSON-encoded. Queues (Sqs, Beanstalk,
+  ZeroMQ) throw a Database exception in `mWrite()` if a value is an array or an object.
+- `mCopyFrom()` returns the number of keys actually copied (missing keys are not counted).
+
+Patterns of `find()`/`search()`/`clear()`/`count()` are prefixes or glob masks
+(`user:*`, `images/*`) depending on the source; regular expressions are never used.
+
+## Disabling a source
+
+`disable()` / `enable()` (both return the source) and `isEnabled()`. A disabled key-value
+source behaves like an empty source, and writes are no-ops:
+- `isSet()` false, `count()` 0, `find()`/`search()` `[]`;
+- `read()`/`get()` return the default value or the callback result, which is not stored;
+  `copyFrom()` writes that value to the local file and returns true (false if there is none);
+- `mRead()`/`mGet()` return every requested key associated to `null`; `mCopyFrom()` 0;
+- `write()`/`set()`/`copyTo()` return false; `mWrite()`/`mSet()`/`mCopyTo()` 0;
+- `remove()`/`mRemove()`/`clear()`/`flush()` do nothing.
+
+Disabled queues and messaging sources: sends return false (or null for sources returning
+a message identifier, 0 for counts), reads return null. The `dummy://` source always
+behaves like an empty source.
+
 Not every source implements everything (a queue can't `search()`, a webhook connector is
 write-only); unsupported methods throw a `\Temma\Exceptions\Database` exception.
 
@@ -92,6 +132,17 @@ SQL source (`queryAll()`, `queryOne()`, `exec()`, `quote()`, `prepare()`,
 sends a notification), the AI source (see the `temma-ai` skill), the SMTP source (see the
 `temma-email` skill). Each connector's page details its own methods (links in
 [references/connectors.md](references/connectors.md)).
+
+Two key-value specifics worth knowing:
+- **File**: keys are paths relative to the root directory. Backslashes are directory
+  separators; empty and `.` segments are ignored (`a//./b` is `a/b`). A key or pattern
+  containing a `..` segment or a null byte makes every method throw a
+  `\Temma\Exceptions\IO` (BAD_FORMAT); `mWrite()`/`mCopyFrom()` skip such keys, `mRemove()`
+  throws at the first one (`....` is a normal file name). `find()`/`search()` are recursive,
+  return relative paths and skip hidden files.
+- **Sql** as a key-value store: requires a `TemmaData` table (MySQL/MariaDB, where keys
+  must be ASCII, PostgreSQL or SQLite; see the `datasource-sql` page for the
+  `CREATE TABLE`). Keys are case-sensitive; prefixes are matched literally.
 
 ## Further reading
 

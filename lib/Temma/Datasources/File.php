@@ -58,13 +58,20 @@ use \Temma\Base\Log as TµLog;
  * if ($file->isSet('path/to/file')) { }
  *
  * // search files matching a glob pattern, in the whole sub-tree
- * $list = $file->search('folder/*');
+ * $list = $file->find('folder/*');
+ * // same, with the JSON-decoded content of the files
+ * $list = $file->search('folder/*', true);
  *
  * // remove file
  * unset($file['path/to/file']);
  * $file['path/to/file'] = null;
  * $file->set('path/to/file', null);
+ * $file->remove('path/to/file');
  * </code>
+ *
+ * Paths are relative to the root path. Backslashes are considered as directory separators, and empty or '.'
+ * segments are ignored ('a//./b' is the same file as 'a/b'). A path containing a '..' segment or a null byte
+ * is rejected (an IO exception is thrown), so files outside of the root path can't be reached.
  */
 class File extends \Temma\Base\Datasource {
 	/** Root path. */
@@ -120,6 +127,7 @@ class File extends \Temma\Base\Datasource {
 	 * Tell if a file exists.
 	 * @param	string	$path	Path of the file.
 	 * @return	bool	True if the file exists, false otherwise.
+	 * @throws	\Temma\Exceptions\IO	If the path contains a '..' segment or a null byte.
 	 */
 	public function isSet(string $path) : bool {
 		if (!$this->_enabled)
@@ -131,6 +139,7 @@ class File extends \Temma\Base\Datasource {
 	/**
 	 * Remove a file. Its parent directories are removed if they become empty.
 	 * @param	string	$path	Path of the file.
+	 * @throws	\Temma\Exceptions\IO	If the path contains a '..' segment or a null byte.
 	 */
 	public function remove(string $path) : void {
 		if (!$this->_enabled)
@@ -147,6 +156,7 @@ class File extends \Temma\Base\Datasource {
 	/**
 	 * Remove all files matching a given pattern (see find()).
 	 * @param	string	$pattern	Glob pattern.
+	 * @throws	\Temma\Exceptions\IO	If the pattern contains a '..' segment or a null byte.
 	 */
 	public function clear(string $pattern) : void {
 		foreach ($this->find($pattern) as $path)
@@ -185,6 +195,7 @@ class File extends \Temma\Base\Datasource {
 	 * @return	array	List of file paths relative to the root path, or associative array of path-content pairs.
 	 * @throws	\Exception	If an error occured.
 	 * @throws	\Temma\Exceptions\Database	If $sort is a string or an array.
+	 * @throws	\Temma\Exceptions\IO	If the pattern contains a '..' segment or a null byte.
 	 */
 	public function find(string $pattern, bool $getValues=false, null|bool|string|array $sort=null, int $offset=0, int $limit=0) : array {
 		if (!$this->_enabled)
@@ -229,8 +240,8 @@ class File extends \Temma\Base\Datasource {
 	 *						If callback: the value returned by the function is stored in the data source, and returned.
 	 * @param	mixed	$options		(optional) Permissions used if the file is created.
 	 * @return	?string	The data fetched from the file, or null.
-	 * @throws	\Temma\Exceptions\IO	If the file exists but can't be read.
-	 * @throws	\Temma\Exceptions\Database	If the default value or the value returned by the callback is not a string.
+	 * @throws	\Temma\Exceptions\IO	If the file exists but can't be read, or if the path contains a '..' segment or a null byte.
+	 * @throws	\Temma\Exceptions\Database	If the default value or the value returned by the callback is not a string or a number.
 	 * @throws	\Exception	If an error occured.
 	 */
 	public function read(string $path, mixed $defaultOrCallback=null, mixed $options=null) : ?string {
@@ -258,8 +269,9 @@ class File extends \Temma\Base\Datasource {
 	 *						If scalar: the value is written in the local file.
 	 *						If callback: the value returned by the function is stored in the data source, and written in the file.
 	 * @param	mixed	$options		(optional) Permissions used if the file is created.
-	 * @return	bool	True if the file exists and has been written locally.
-	 * @throws	\Temma\Exceptions\IO	If the destination path is not writable.
+	 * @return	bool	True if the file exists (or if a default value was given) and has been written locally.
+	 * @throws	\Temma\Exceptions\IO	If the destination path is not writable, or if the path contains a '..' segment or a null byte.
+	 * @throws	\Temma\Exceptions\Database	If the default value or the value returned by the callback is not a string or a number.
 	 * @throws	\Exception		If an error occured.
 	 */
 	public function copyFrom(string $path, string $localPath, mixed $defaultOrCallback=null, mixed $options=0) : bool {
@@ -287,9 +299,9 @@ class File extends \Temma\Base\Datasource {
 	 * Create or update a file from a stream of data.
 	 * @param	string	$path		File path.
 	 * @param	string	$data		Data value.
-	 * @param	mixed	$options	(optional) File permissions.
-	 * @return	bool	Always true.
-	 * @throws	\Temma\Exceptions\IO	If the destination path is not writable.
+	 * @param	mixed	$options	(optional) File permissions (integer, or string with octal digits).
+	 * @return	bool	True, or false if the data source is disabled.
+	 * @throws	\Temma\Exceptions\IO	If the destination path is not writable, or if the path contains a '..' segment or a null byte.
 	 * @throws	\Exception		If an error occurs.
 	 */
 	public function write(string $path, string $data, mixed $options=0) : bool {
@@ -326,9 +338,9 @@ class File extends \Temma\Base\Datasource {
 	 * Create or update a file from a local file.
 	 * @param	string	$path		File path.
 	 * @param	string	$localPath	Path to the local file.
-	 * @param	mixed	$options	(optional) File permissions.
-	 * @return	bool	Always true.
-	 * @throws	\Temma\Exceptions\IO	If the destination path is not writable.
+	 * @param	mixed	$options	(optional) File permissions (integer, or string with octal digits).
+	 * @return	bool	True, or false if the data source is disabled.
+	 * @throws	\Temma\Exceptions\IO	If the destination path is not writable, or if the path contains a '..' segment or a null byte.
 	 * @throws	\Exception		If an error occured.
 	 */
 	public function copyTo(string $path, string $localPath, mixed $options=0) : bool {
@@ -361,18 +373,31 @@ class File extends \Temma\Base\Datasource {
 		return (true);
 	}
 
-	/* ********** PRIVATE METHODS ********** */
+	/* ********** PROTECTED METHODS ********** */
 	/**
-	 * Clean a file path.
+	 * Normalize a file path (relative to the root path) and check that it can't reach a file outside of the root path.
+	 * Backslashes are considered as directory separators; empty segments (repeated slashes, leading and trailing
+	 * slashes) and '.' segments are removed.
 	 * @param	string	$path	The path to clean.
-	 * @return	string	The cleaned path.
+	 * @return	string	The cleaned path (without leading and trailing slashes).
+	 * @throws	\Temma\Exceptions\IO	If the path contains a null byte or a '..' segment.
 	 */
 	protected function _cleanPath(string $path) : string {
-		$path = str_replace('../', '', $path);
-		if (str_ends_with($path, '..'))
-			$path = mb_substr($path, 0, -2);
-		$path = trim($path, '/');
-		return ($path);
+		if (str_contains($path, "\0")) {
+			TµLog::log('Temma/Base', 'WARN', "File path containing a null byte.");
+			throw new \Temma\Exceptions\IO("Invalid file path (null byte).", \Temma\Exceptions\IO::BAD_FORMAT);
+		}
+		$segments = [];
+		foreach (preg_split('/[\/\\\\]/', $path) as $segment) {
+			if ($segment === '' || $segment === '.')
+				continue;
+			if ($segment === '..') {
+				TµLog::log('Temma/Base', 'WARN', "File path containing a '..' segment: '$path'.");
+				throw new \Temma\Exceptions\IO("Invalid file path '$path' ('..' segment).", \Temma\Exceptions\IO::BAD_FORMAT);
+			}
+			$segments[] = $segment;
+		}
+		return (implode('/', $segments));
 	}
 }
 

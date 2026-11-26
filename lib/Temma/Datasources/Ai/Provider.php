@@ -42,8 +42,13 @@ interface Provider {
 	public function buildPayload(string $model, string $prompt, array $options) : array;
 	/**
 	 * Parse the API response.
-	 * @param	array	$data	Decoded response if its content type is 'application/json'. Otherwise,
-	 *				associative array with 'type' (content type) and 'content' (raw response) keys.
+	 * This method is also called for the HTTP errors (status code >= 400) whose response is JSON: it should then
+	 * throw an exception with the error message of the API (otherwise, a generic HTTP error exception is thrown,
+	 * and the returned value is ignored).
+	 * For a successful response which is not JSON, returning null means that the response is invalid (an
+	 * exception is then thrown by the data source).
+	 * @param	array	$data	Decoded response if the body is a JSON object or array (whatever its content type).
+	 *				Otherwise, associative array with 'type' (content type) and 'content' (raw response) keys.
 	 * @return	mixed	The response content.
 	 * @throws	\Temma\Exceptions\Database	If the API returned an error.
 	 */

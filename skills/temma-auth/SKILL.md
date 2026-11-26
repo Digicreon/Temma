@@ -129,7 +129,13 @@ the API plugin's key-based authentication (see the `temma-api` skill), and the
 
 ## Sessions
 
-Sessions work out of the box (cookie-based, storage configurable). In controllers and
+Sessions work out of the box (cookie-based, storage configurable). Configuration
+(`application` section): `sessionSource` (data source; PHP native sessions if unset),
+`sessionName` (cookie name, `TemmaSession` by default, also for native sessions),
+`cookieDomain` (unset: host-only for native sessions, last two host labels for data-source
+sessions; empty/false: host-only; string: that domain and its sub-domains), `sessionSecure`
+(force the `Secure` flag, useful behind a TLS-terminating proxy), `sessionDuration`
+(data-source sessions only; ignored for native sessions, which use php.ini). In controllers and
 plugins, `$this->_session` (elsewhere: `$this->_loader->session`) with array-like access:
 
 ```php

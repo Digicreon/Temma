@@ -129,7 +129,11 @@ class BinaryValidator implements Validator, JsonSchemaExportable {
 	 * @return	array	The JSON Schema.
 	 */
 	public function toJsonSchema(array $contract) : array {
-		$schema = ['type' => 'string'];
+		// an empty string is never accepted
+		$schema = [
+			'type'      => 'string',
+			'minLength' => 1,
+		];
 		// MIME type (only if there is one complete type)
 		$mime = $contract['mime'] ?? null;
 		if (is_string($mime))

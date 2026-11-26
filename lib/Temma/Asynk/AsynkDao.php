@@ -188,8 +188,8 @@ class AsynkDao implements \Temma\Base\Loadable {
 	}
 	/**
 	 * Returns the next task to process.
-	 * For a Beanstalkd transport, the function waits for a message during 20 seconds at most;
-	 * for an SQS transport, during the long polling duration defined in the DSN (20 seconds at most).
+	 * For a Beanstalkd transport, the function blocks until a message is available; for an SQS transport,
+	 * it waits during the long polling duration defined in the DSN (20 seconds at most).
 	 * @return	?array	Associative array or null.
 	 */
 	public function getNextTask() : ?array {
@@ -262,10 +262,30 @@ class AsynkDao implements \Temma\Base\Loadable {
 		$this->_storage->lRem(self::REDIS_PROCESSING_QUEUE_NAME, 1, $task);
 	}
 	/**
-	 * Invalidate a task fetched with getNextTask().
+	 * Invalidate a task fetched with getNextTask(), after a processing failure.
+	 * With a MySQL storage, the task gets the "error" status. With a Beanstalkd transport, the job is buried (it is not
+	 * delivered anymore, but it can be put back in the queue with the kick() method of the data source). With an SQS
+	 * transport, the message is delivered again after its visibility timeout (configure a dead-letter queue to put aside
+	 * the failed messages). With a Redis queue, nothing is done.
 	 * @param	array	$task	Task data.
 	 */
 	public function invalidateFetchedTask(array $task) : void {
+		// Beanstalkd transport: the job is buried (kept by Beanstalkd, but not delivered anymore until it is kicked)
+		if ($this->_transport instanceof \Temma\Datasources\Beanstalk) {
+			if (!isset($task['id']))
+				return;
+			try {
+				$this->_transport->bury($task['id']);
+			} catch (\Exception $e) {
+				// the job will be delivered again at the end of its reservation
+				TµLog::log('Temma/Asynk', 'WARN', "Unable to bury the job '{$task['id']}': " . $e->getMessage());
+			}
+			return;
+		}
+		// SQS transport => do nothing (the message is delivered again after its visibility timeout, until the end
+		// of the retention period of the queue; a dead-letter queue can be configured to keep the failed messages)
+		if ($this->_transportClass == 'Temma\Datasources\Sqs')
+			return;
 		if ($this->_dao) {
 			// MySQL storage
 			$this->_dao->update($task['id'], ['status' => 'error']);

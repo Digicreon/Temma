@@ -19,12 +19,18 @@ use \Temma\Base\Log as TµLog;
  * <b>Usage</b>
  * <code>
  * // initialization
- * $sock = \Temma\Datasources\Socket::factory('socket://HOST:PORT');
- * $sock = \Temma\Base\Datasource::factory('socket://HOST:PORT');
+ * $sock = \Temma\Datasources\Socket::factory('tcp://HOST:PORT');
+ * $sock = \Temma\Base\Datasource::factory('tcp://HOST:PORT');
+ * // TLS connection, IPv6 address, connection timeout of 5 seconds
+ * $sock = \Temma\Base\Datasource::factory('tls://[fe80::1]:443#5');
+ * // Unix socket
+ * $sock = \Temma\Base\Datasource::factory('unix:///path/to/socket');
  *
- * // send data to the server
+ * // send a line to the server (JSON-encoded if it is not a string, followed by CRLF)
  * $sock[''] = $data;
- * $sock->write('', $data);
+ * $sock->set('', $data);
+ * // send raw data
+ * $sock->write('', $rawData);
  *
  * // read a line
  * $line = $sock[''];
@@ -37,12 +43,13 @@ use \Temma\Base\Log as TµLog;
  * $sock->remove('');
  * </code>
  *
- * DSN syntax: <tt>TYPE://HOST:PORT#TIMEOUT</tt> (TYPE is one of "tcp", "udp", "ssl", "sslv2", "sslv3", "tls"; the
- * optional TIMEOUT is the connection timeout in seconds), or <tt>unix:///path/to/socket</tt>.
+ * DSN syntax: <tt>TYPE://HOST:PORT#TIMEOUT</tt> (TYPE is one of "tcp", "udp", "ssl", "tls", "tlsv1.2", "tlsv1.3"; HOST
+ * is a host name, an IPv4 address or an IPv6 address between square brackets; the optional TIMEOUT is the connection
+ * timeout in seconds), or <tt>unix:///path/to/socket</tt>.
  */
 class Socket extends \Temma\Base\Datasource {
-	/** Constant: Socket prefixes. */
-	const SOCKET_TYPES = ['tcp', 'udp', 'ssl', 'sslv2', 'sslv3', 'tls', 'unix'];
+	/** Constant: Socket prefixes (PHP stream transports). */
+	const SOCKET_TYPES = ['tcp', 'udp', 'ssl', 'tls', 'tlsv1.2', 'tlsv1.3', 'unix'];
 	/** Socket type. */
 	private string $_type;
 	/** Host. */
@@ -69,7 +76,8 @@ class Socket extends \Temma\Base\Datasource {
 		if (str_starts_with($dsn, 'unix://')) {
 			$type = 'unix';
 			$host = mb_substr($dsn, mb_strlen('unix://'));
-		} else if (preg_match('/^([^:]+):\/\/([^\/:#]+)(?::(\d*))?(?:#(\d*))?$/', $dsn, $matches)) {
+		} else if (preg_match('/^([^:]+):\/\/(\[[0-9a-fA-F:.]+(?:%[^\]]+)?\]|[^\/:#\[\]]+)(?::(\d*))?(?:#(\d*))?$/', $dsn, $matches)) {
+			// the host may be an IPv6 address between square brackets (they are kept, fsockopen() needs them)
 			$type = $matches[1];
 			$host = $matches[2];
 			$port = (($matches[3] ?? '') !== '') ? intval($matches[3]) : null;
@@ -85,7 +93,7 @@ class Socket extends \Temma\Base\Datasource {
 	/**
 	 * Constructor.
 	 * @param	string	$type		Socket type.
-	 * @param	string	$host		Host name or IP address.
+	 * @param	string	$host		Host name, IP address (IPv6 address between square brackets) or socket path (Unix socket).
 	 * @param	?int	$port		Port number (null for Unix sockets).
 	 * @param	?int	$timeout	Connection timeout in seconds (null to use the "default_socket_timeout" PHP setting).
 	 * @throws	\Temma\Exceptions\Database	If the socket type is invalid.
@@ -238,7 +246,7 @@ class Socket extends \Temma\Base\Datasource {
 	 * @return	bool	True, or false if the datasource is disabled.
 	 * @throws	\Temma\Exceptions\Database	If the connection failed or if the data couldn't be written.
 	 */
-	public function write(string $id, string $data, mixed $options=null) : mixed {
+	public function write(string $id, string $data, mixed $options=null) : bool {
 		if (!$this->_enabled)
 			return (false);
 		$this->connect();

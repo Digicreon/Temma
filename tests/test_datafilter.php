@@ -50,6 +50,8 @@ class CategoryValidator implements \Temma\Utils\Validation\Validator {
 	}
 }
 TµDataFilter::registerAlias('category', CategoryValidator::class);
+TµDataFilter::registerAlias('pos', 'int; min: 0');
+TµDataFilter::registerAlias('size', ['width' => 'int', 'height' => 'int']);
 
 // list of tests
 $tests = [
@@ -2330,6 +2332,136 @@ $tests = [
 		'strict' => false,
 		'expect' => 'app',
 	],
+	'alias strictness',
+	[
+		'pos', '12',
+		'strict' => false,
+		'expect' => true,
+		'res' => 12,
+	],
+	[
+		'=pos', '12',
+		'strict' => false,
+		'expect' => 'app',
+	],
+	[
+		'=int; min: 0', '12',
+		'strict' => false,
+		'expect' => 'app',
+	],
+	[
+		'=pos', 12,
+		'strict' => false,
+		'expect' => true,
+		'res' => 12,
+	],
+	[
+		'~pos', '12',
+		'strict' => true,
+		'expect' => true,
+		'res' => 12,
+	],
+	[
+		'size', ['width' => 2, 'height' => 3],
+		'strict' => true,
+		'expect' => true,
+		'res' => ['width' => 2, 'height' => 3],
+	],
+	'case-insensitive types',
+	[
+		'NULL|int', null,
+		'strict' => true,
+		'expect' => true,
+		'res' => null,
+	],
+	[
+		'NULL|Int', 3,
+		'strict' => true,
+		'expect' => true,
+		'res' => 3,
+	],
+	[
+		' Email ', 'test@example.com',
+		'strict' => true,
+		'expect' => true,
+		'res' => 'test@example.com',
+	],
+	[
+		'?Category', 3,
+		'strict' => false,
+		'expect' => true,
+		'res' => ['id' => 3, 'name' => 'Catégorie 1', 'dateCreation' => '2026-02-20 16:49:32'],
+	],
+	[
+		['type' => ['NULL', 'INT']], null,
+		'strict' => true,
+		'expect' => true,
+		'res' => null,
+	],
+	[
+		'CategoryValidator', 3,
+		'strict' => false,
+		'expect' => true,
+		'res' => ['id' => 3, 'name' => 'Catégorie 1', 'dateCreation' => '2026-02-20 16:49:32'],
+	],
+	'list with open values',
+	[
+		'list; values: int, string, ...', [1, 'a'],
+		'strict' => true,
+		'expect' => true,
+		'res' => [1, 'a'],
+	],
+	[
+		'list; values: int, string, ...', [1, 'a', 3.5, true],
+		'strict' => true,
+		'expect' => true,
+		'res' => [1, 'a', 3.5, true],
+	],
+	[
+		'list; values: int, string, ...', [1],
+		'strict' => true,
+		'expect' => 'app',
+	],
+	[
+		'list; values: int, string, ...', ['a', 'b'],
+		'strict' => true,
+		'expect' => 'app',
+	],
+	[
+		'list; values: int, string, ...', ['1', 'a', 'z'],
+		'strict' => false,
+		'expect' => true,
+		'res' => [1, 'a', 'z'],
+		'output' => [1, 'a', 'z'],
+	],
+	[
+		'list; values: int, string', [1, 'a', 'z'],
+		'strict' => false,
+		'expect' => true,
+		'res' => [1, 'a'],
+	],
+	[
+		'list; values: int, string', [1, 'a', 'z'],
+		'strict' => true,
+		'expect' => 'app',
+	],
+	[
+		'list; maxLen: 0', [],
+		'strict' => true,
+		'expect' => true,
+		'res' => [],
+	],
+	[
+		'list; maxLen: 0', [1],
+		'strict' => true,
+		'expect' => 'app',
+	],
+	[
+		'list; maxLen: 0', [1, 2],
+		'strict' => false,
+		'expect' => true,
+		'res' => [],
+	],
 	'description',
 	[
 		'bool; default: false; description: True pour effacer le document.', null,
@@ -2438,7 +2570,7 @@ foreach ($tests as $test) {
 	}
 	print(TµAnsi::faint(sprintf("%02d", $count)) . ' ' .
 	      TµAnsi::color(($status ? 'green' : ($status === false ? 'red' : 'yellow')), ($status ? 'OK' : 'KO')) . ' ' .
-	      TµAnsi::color('blue', "'" . (is_string($contract) ? $contract : (isset($contract['type']) ? $contract['type'] : 'inferred assoc')) . "' ") .
+	      TµAnsi::color('blue', "'" . (is_string($contract) ? $contract : (isset($contract['type']) ? implode('|', (array)$contract['type']) : 'inferred assoc')) . "' ") .
 	      TµAnsi::color('yellow', ($ioE ? 'IOException ' : '') . ($appE ? 'AppException ' : '')) .
 	      TµAnsi::faint($exceptionMsg) .
 	      "\n");

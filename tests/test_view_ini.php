@@ -84,6 +84,8 @@ $result = render(['@output' => null, 'data' => null, 'foo' => 'bar']);
 check("'@output' and 'data' variables set to null are ignored and not used", $result === ['foo' => 'bar']);
 $result = render($frameworkData);
 check("without any application variable, an empty list is used", $result === []);
+$result = renderStream($frameworkData);
+check("without any application variable, an empty INI stream is generated", $result === '');
 
 print("\n" . TµAnsi::bold("Keys starting with underscores\n"));
 $underscoreData = ['_private' => 1, '__flash' => 2, '___triple' => 3, 'name' => 4];

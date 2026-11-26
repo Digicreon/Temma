@@ -155,6 +155,11 @@ check("types are preserved (string, int, float, bool, null)", fn() => roundTrip(
 check("strings looking like other types stay strings", fn() => roundTrip(['s' => ['a' => '28', 'b' => 'true', 'c' => 'null', 'd' => '1.5', 'e' => '', 'f' => 'no']]));
 check("special characters are preserved (quotes, backslashes, dollars, semicolons, line breaks)", fn() => roundTrip(['s' => ['a' => 'say "hi" \\ $x ${y} ; z', 'b' => "line 1\nline 2", 'c' => "tab\t"]]));
 check("third-level lists and associative arrays are preserved", fn() => roundTrip(['s' => ['list' => ['a', 1, true], 'map' => ['x' => 1, 'y' => 'z']]]));
+check("keys and section names with special characters (spaces inside, dots, dashes, '#', '[' in section names) are preserved", fn() => roundTrip([
+	'a b' => 1, 'x.y-z' => 'v', 'key#1' => true,
+	'section one' => ['k k' => 'v', 'list' => ['a', 'b'], 'map' => ['sub key' => 1, 'x=y;z"' => 2, '[a' => 3]],
+	's[e#c;t=i"o\'n' => ['k' => 'v'],
+]));
 check("a Stringable object is encoded as a string", function() {
 	$object = new class implements \Stringable {
 		/**
@@ -207,6 +212,40 @@ check("encoding non-array data, integer first-level keys, objects or infinite fl
 			return (false);
 	}
 	return (true);
+});
+check("keys which can't be read back raise an IO exception (BAD_FORMAT)", function() {
+	$badKeys = ['', ' a', 'a ', "a\tb\t", 'a=b', 'a[b', 'a]b', 'a;b', 'a"b', "a'b", "a\nb", "a\rb", '#a'];
+	foreach ($badKeys as $key) {
+		// first-level key, second-level key, key of a third-level array
+		foreach ([[$key => 1], ['s' => [$key => 1]], ['s' => [$key => [1, 2]]]] as $data) {
+			if (ioExceptionCode(fn() => TµSerializer::encodeIni($data)) !== TµIOException::BAD_FORMAT)
+				return (false);
+		}
+	}
+	return (true);
+});
+check("section names and sub-keys which can't be read back raise an IO exception (BAD_FORMAT)", function() {
+	$badNames = ['', ' a', 'a ', 'a]b', "a\nb", "a\rb"];
+	foreach ($badNames as $name) {
+		// section name, sub-key of a third-level array
+		foreach ([[$name => ['k' => 1]], ['s' => ['k' => [$name => 1]]]] as $data) {
+			if (ioExceptionCode(fn() => TµSerializer::encodeIni($data)) !== TµIOException::BAD_FORMAT)
+				return (false);
+		}
+	}
+	return (true);
+});
+
+print("\n" . TµAnsi::bold("Performance\n"));
+check("decoding 40,000 lines takes less than 1 second (linear time)", function() {
+	$stream = "top=1\n[section]\n";
+	for ($i = 0; $i < 20000; $i++)
+		$stream .= "key$i = $i\nlist[] = \"value $i\"\n";
+	$start = microtime(true);
+	$data = TµSerializer::decodeIni($stream);
+	$duration = microtime(true) - $start;
+	return ($duration < 1 && count($data['section']) == 20001 && count($data['section']['list']) == 20000 &&
+	        $data['top'] === 1 && $data['section']['key19999'] === 19999);
 });
 
 // summary

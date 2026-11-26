@@ -61,9 +61,11 @@ class Session implements \ArrayAccess {
 	private ?int $_duration = null;
 	/**
 	 * Cookie domain name.
-	 * null  = domain is not set, use the default (level 1 domain name of the current host)
-	 * false = domain should not be defined, so the navigator will use the strict host
-	 * other = use the defined value as the cookie domain
+	 * null   = domain is not set: sessions stored in a data source use the level 1 domain name of the current host;
+	 *          native PHP sessions use PHP's configuration ('session.cookie_domain', empty by default, so the
+	 *          cookie is restricted to the current host)
+	 * false  = domain should not be defined, so the browser restricts the cookie to the current host
+	 * string = use the defined value as the cookie domain
 	 */
 	private null|false|string $_domain = null;
 	/** Tell if the cookie must be sent only on HTTPS connections (even if the current connection is not secured). */
@@ -80,13 +82,21 @@ class Session implements \ArrayAccess {
 	 * Factory.
 	 * @param	\Temma\Base\Datasource	$cache		(optional) Cache management object.
 	 * @param	string			$cookieName	(optional) Name of the session cookie. "TEMMA_SESSION" by default.
+	 *							Also used by native PHP sessions, unless the name is not valid for PHP
+	 *							(numeric, or containing one of "=,;.[" or a whitespace): PHP's default
+	 *							name is used in this case.
 	 * @param	int			$duration	(optional) Session duration. One year by default.
 	 *							Only used when sessions are stored in a data source. Native PHP sessions
 	 *							use PHP's configuration.
 	 * @param	null|false|string	$domain		(optional) Cookie domain name. null by default.
-	 *							- null  = domain is not set, use the level 1 domain name of the current host
-	 *							- false = domain show not be defined, so the navigator will use the strict host
-	 *							- other = use the defined value as the cookie domain
+	 *							- null   = domain is not set: sessions stored in a data source use the level 1
+	 *							           domain name of the current host (e.g. "example.com" for
+	 *							           "www.example.com"); native PHP sessions use PHP's configuration
+	 *							           ('session.cookie_domain', empty by default, so the cookie is
+	 *							           restricted to the current host)
+	 *							- false  = domain should not be defined, so the browser restricts the cookie
+	 *							           to the current host (an empty string has the same meaning)
+	 *							- string = use the defined value as the cookie domain
 	 * @param	bool			$secure		(optional) True to send the cookie only on HTTPS connections. False by default
 	 *							(the cookie is secured anyway if the current connection uses HTTPS).
 	 * @return	\Temma\Base\Session	The created instance.
@@ -100,20 +110,30 @@ class Session implements \ArrayAccess {
 	 * Constructor.
 	 * @param	\Temma\Base\Datasource	$cache		(optional) Cache management object.
 	 * @param	?string			$cookieName	(optional) Name of the session cookie. "TEMMA_SESSION" by default.
+	 *							Also used by native PHP sessions, unless the name is not valid for PHP
+	 *							(numeric, or containing one of "=,;.[" or a whitespace): PHP's default
+	 *							name is used in this case.
 	 * @param	?int			$duration	(optional) Session duration. One year by default.
 	 *							Only used when sessions are stored in a data source. Native PHP sessions
 	 *							use PHP's configuration.
 	 * @param	null|false|string	$domain		(optional) Cookie domain name. null by default.
-	 *							- null  = domain is not set, use the level 1 domain name of the current host
-	 *							- false = domain show not be defined, so the navigator will use the strict host
-	 *							- other = use the defined value as the cookie domain
+	 *							- null   = domain is not set: sessions stored in a data source use the level 1
+	 *							           domain name of the current host (e.g. "example.com" for
+	 *							           "www.example.com"); native PHP sessions use PHP's configuration
+	 *							           ('session.cookie_domain', empty by default, so the cookie is
+	 *							           restricted to the current host)
+	 *							- false  = domain should not be defined, so the browser restricts the cookie
+	 *							           to the current host (an empty string has the same meaning)
+	 *							- string = use the defined value as the cookie domain
 	 * @param	bool			$secure		(optional) True to send the cookie only on HTTPS connections. False by default
 	 *							(the cookie is secured anyway if the current connection uses HTTPS).
 	 */
 	private function __construct(?\Temma\Base\Datasource $cache=null, ?string $cookieName=null,
 	                             ?int $duration=null, null|false|string $domain=null, bool $secure=false) {
 		TµLog::log('Temma/Base', 'DEBUG', "Session object creation.");
-		$this->_domain = $domain;
+		$this->_domain = is_string($domain) ? trim($domain) : $domain;
+		if ($this->_domain === '')
+			$this->_domain = false;
 		$this->_secure = $secure;
 		// fetch the cache
 		if (isset($cache) && $cache->isEnabled())
@@ -129,12 +149,16 @@ class Session implements \ArrayAccess {
 			}
 			// cookie parameters (the session duration is the one defined by PHP's configuration, because it is
 			// also used by the garbage collector, which is shared with the other applications)
+			// the cookie domain is set only if it was explicitly configured; if the domain was configured as
+			// empty, the cookie is restricted to the current host; otherwise, PHP's configuration is used
+			// (no level 1 domain computation, which could give a public suffix like "co.uk")
 			$params = session_get_cookie_params();
-			$host = $this->_getCookieDomain();
+			$domain = is_string($this->_domain) ? $this->_domain :
+			          (($this->_domain === false) ? '' : $params['domain']);
 			session_set_cookie_params([
 				'lifetime' => $params['lifetime'],
 				'path'     => $params['path'],
-				'domain'   => ($host === false) ? '' : $host,
+				'domain'   => $domain,
 				'secure'   => $this->_isSecure(),
 				'httponly' => true,
 				'samesite' => 'Lax',
@@ -182,7 +206,7 @@ class Session implements \ArrayAccess {
 		$host = $this->_getCookieDomain();
 		// store the session ID in cookie
 		$oldSessionId = $_COOKIE[$this->_cookieName] ?? null;
-		if (!isset($_COOKIE[$this->_cookieName]) || empty($_COOKIE[$this->_cookieName]) || $this->_sessionId != $oldSessionId && !headers_sent()) {
+		if ((empty($_COOKIE[$this->_cookieName]) || $this->_sessionId != $oldSessionId) && !headers_sent()) {
 			TµLog::log('Temma/Base', 'DEBUG', "Send cookie '{$this->_cookieName}' - '{$this->_sessionId}' - '$timestamp' - '.$host'");
 			$options = [
 				'expires'	=> $timestamp,
@@ -428,7 +452,10 @@ class Session implements \ArrayAccess {
 
 	/* ********** PRIVATE METHODS ********** */
 	/**
-	 * Compute the domain of the session cookie.
+	 * Compute the domain of the session cookie, for sessions stored in a data source.
+	 * If no domain was given, the level 1 domain name of the current host is used (the last two labels of
+	 * the host name, e.g. "example.com" for "www.example.com"). Be careful with multi-level public
+	 * suffixes ("co.uk", "com.br"...): browsers reject such a domain, so it must be configured explicitly.
 	 * @return	false|string	The cookie domain, or false if the cookie must be restricted to the current host.
 	 */
 	private function _getCookieDomain() : false|string {
@@ -439,7 +466,7 @@ class Session implements \ArrayAccess {
 		// no defined domain: use the level 1 domain name of the current host (without port number)
 		$host = preg_replace('/:\d*$/', '', ($_SERVER['HTTP_HOST'] ?? ''));
 		// IP addresses and hosts without dot (like "localhost") can't be extended: the cookie is restricted to the host
-		if (!str_contains($host, '.') || filter_var(trim($host, '[]'), FILTER_VALIDATE_IP) !== false)
+		if (!str_contains($host, '.') || (filter_var(trim($host, '[]'), FILTER_VALIDATE_IP) !== false))
 			return (false);
 		if (preg_match('/([^.]+\.[^.]+)$/', $host, $matches))
 			return ($matches[1]);

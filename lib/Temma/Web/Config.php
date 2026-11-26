@@ -77,11 +77,14 @@ class Config {
 	protected ?int $_sessionDuration = null;
 	/**
 	 * Session's cookie domain name.
-	 * null  = domain is not set, use the default (level 1 domain name of the current host)
-	 * false = domain should not be defined, so the navigator will use the strict host
-	 * other = use the defined value as cookie domain
+	 * null   = 'cookieDomain' is not set in the configuration: sessions stored in a data source use the
+	 *          level 1 domain name of the current host; native PHP sessions use PHP's configuration
+	 *          ('session.cookie_domain', empty by default, so the cookie is restricted to the current host)
+	 * false  = 'cookieDomain' is set to an empty value (empty string, false or null): the cookie domain is not
+	 *          defined, so the browser restricts the cookie to the current host
+	 * string = use the defined value as cookie domain
 	 */
-	protected ?string $_cookieDomain = null;
+	protected null|false|string $_cookieDomain = null;
 	/** Timezone defined in the configuration. */
 	protected ?string $_timezone = null;
 	/** Path to the application root directory. */
@@ -317,12 +320,11 @@ class Config {
 		$this->_sessionDuration = ($ini['application']['sessionDuration'] ?? null) ?: self::SESSION_DURATION;
 		// define session's cookie domain name
 		// if the domain is not defined in the configuration, the variable is set to null
-		// if the domain is set in the configuration, but empty (empty string, false or null), the variable is set to false
+		// if the domain is set in the configuration, but empty (empty string, false or null) or not a string, the variable is set to false
 		// if the domain is set in the configuration and not empty, its value is set in the variable
-		if (array_key_exists('cookieDomain', $ini['application'])) {
-			if (is_string($ini['application']['cookieDomain']))
-				$ini['application']['cookieDomain'] = trim($ini['application']['cookieDomain']);
-			$this->_cookieDomain = $ini['application']['cookieDomain'] ?: false;
+		if (isset($ini['application']) && array_key_exists('cookieDomain', $ini['application'])) {
+			$cookieDomain = is_string($ini['application']['cookieDomain']) ? trim($ini['application']['cookieDomain']) : '';
+			$this->_cookieDomain = ($cookieDomain === '') ? false : $cookieDomain;
 		}
 
 		// definitions
@@ -347,6 +349,8 @@ class Config {
 	}
 	/**
 	 * Getter. Returns any requested configuration value.
+	 * For example, 'cookieDomain' returns null (not configured), false (cookie restricted to the current host)
+	 * or the configured domain name.
 	 * @param	string	$name	Name of the configuration property.
 	 * @return	mixed	The associated value.
 	 */
@@ -360,6 +364,8 @@ class Config {
 	}
 	/**
 	 * Setter. Defines a configuration value.
+	 * For the 'cookieDomain' property, an empty string (or a string containing only spaces) is stored as false
+	 * (cookie restricted to the current host); null means that no domain is configured.
 	 * @param	string	$name	Name of the property to set.
 	 * @param	mixed	$value	Value of the property.
 	 * @throws	\Temma\Exceptions\Framework	If the property is the timezone and its value is not valid.
@@ -368,6 +374,10 @@ class Config {
 		if ($name === 'timezone') {
 			$this->setTimezone($value);
 			return;
+		}
+		if ($name === 'cookieDomain' && is_string($value)) {
+			$value = trim($value);
+			$value = ($value === '') ? false : $value;
 		}
 		if ($this->_executorConfig) {
 			$this->_executorConfig->$name = $value;

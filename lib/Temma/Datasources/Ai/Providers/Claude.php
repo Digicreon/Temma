@@ -87,8 +87,9 @@ class Claude implements \Temma\Datasources\Ai\Provider {
 	}
 	/**
 	 * Parse the API response.
-	 * @param	array	$data	Decoded JSON response.
-	 * @return	?string	The response content.
+	 * @param	array	$data	Decoded JSON response (also for HTTP errors), or associative array with 'type' (content
+	 *				type) and 'content' (raw response) keys if the response is not JSON.
+	 * @return	?string	The response content, or null if it is not found (always the case for a non-JSON response).
 	 * @throws	\Temma\Exceptions\Database	If the API returned an error.
 	 */
 	public function parseResponse(array $data) : ?string {

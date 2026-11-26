@@ -35,16 +35,20 @@ use \Temma\Base\Log as TµLog;
  * // See https://developers.google.com/workspace/chat/format-messages
  * $gchat[''] = 'Text with *simple* _formatting_.';
  *
- * // Send a rich notification, with a title, a subtitle, a pictogram and/or icons, sections and buttons.
- * // Possible icons (in sections) are: AIRPLANE, BOOKMARK, BUS, CAR, HORLOGE, CONFIRMATION_NUMBER_ICON,
- * // DESCRIPTION, DOLLAR, E-MAIL, EVENT_SEAT, FLIGHT_ARRIVAL, FLIGHT_DEPARTURE, HOTEL, HOTEL_ROOM_TYPE,
- * // INVITER, MAP_PIN, MEMBERSHIP, MULTIPLE_PEOPLE, PERSONNE, TÉLÉPHONE, RESTAURANT_ICON, SHOPPING_CART,
- * // STAR, STORE, TICKET, TRAIN, VIDEO_CAMERA, VIDEO_PLAY
+ * // Send a rich notification (card), with a header (title, subtitle and pictogram), sections and buttons.
+ * // All keys are optional, but the message must contain a text, a header or at least one section.
+ * // Possible icons (in sections) are Google Chat built-in icons: AIRPLANE, BOOKMARK, BUS, CAR, CLOCK,
+ * // CONFIRMATION_NUMBER_ICON, DESCRIPTION, DOLLAR, EMAIL, EVENT_SEAT, FLIGHT_ARRIVAL,
+ * // FLIGHT_DEPARTURE, HOTEL, HOTEL_ROOM_TYPE, INVITE, MAP_PIN, MEMBERSHIP, MULTIPLE_PEOPLE, PERSON,
+ * // PHONE, RESTAURANT_ICON, SHOPPING_CART, STAR, STORE, TICKET, TRAIN, VIDEO_CAMERA, VIDEO_PLAY
  * // See https://developers.google.com/workspace/chat/format-messages#builtinicons
  * $gchat[''] = [
+ *     // text displayed above the card (simple formatting, like simple text messages)
+ *     'text'     => 'Text message',
+ *     // card header (Google Chat requires a title when a subtitle or a pictogram is given)
  *     'title'    => 'A title',
  *     'subtitle' => 'A subtitle',
- *     'picto'    => 'https://url of the picto',
+ *     'picto'    => 'https://url_of_the_picto',
  *     // each section may have a title and: a text, an image or a list of buttons
  *     'sections' => [
  *         [
@@ -59,7 +63,7 @@ use \Temma\Base\Log as TµLog;
  *         ],
  *         [
  *             'image' => 'https://url_of_image',
- *             'alt'   => 'Alternate text', // optionnal
+ *             'alt'   => 'Alternate text', // optional
  *         ],
  *         [
  *             'title' => 'Another section',
@@ -71,7 +75,7 @@ use \Temma\Base\Log as TµLog;
  *         ],
  *     ],
  * ];
- * 
+ * </code>
  */
 class GoogleChat extends \Temma\Base\Datasource {
 	/** Webhook URL. */
@@ -134,10 +138,12 @@ class GoogleChat extends \Temma\Base\Datasource {
 	/**
 	 * Send a notification to Google Chat.
 	 * @param	string		$channel	Not used.
-	 * @param	string|array	$message	Text message, or an associative array with formatted message data.
+	 * @param	string|array	$message	Text message, or an associative array with formatted message data ('text',
+	 *						'title', 'subtitle', 'picto' and 'sections' keys, see the class documentation).
 	 * @param	mixed		$options	Not used.
 	 * @return	bool	True if the message was sent, false if the data source is disabled.
-	 * @throws	\Temma\Exceptions\Database	If an error occured.
+	 * @throws	\Temma\Exceptions\Database	If the message is not a string or an array with a text, a header or sections,
+	 *						or if an error occured.
 	 */
 	public function set(string $channel, mixed $message=null, mixed $options=null) : bool {
 		if (!$this->_enabled)
@@ -145,16 +151,20 @@ class GoogleChat extends \Temma\Base\Datasource {
 		$data = [];
 		if (is_string($message))
 			$data['text'] = $message;
-		else if (is_array($message) && is_array($message['sections'] ?? null)) {
+		else if (is_array($message)) {
+			// text displayed with the card
+			if (is_string($message['text'] ?? null) && $message['text'] !== '')
+				$data['text'] = $message['text'];
+			// card header
 			$card = [];
 			if (($message['title'] ?? ''))
-				$card['header'] = ['title' => $message['title']];
-			if (($message['subtitle'] ?? '')) {
-				$card['header'] ??= [];
+				$card['header']['title'] = $message['title'];
+			if (($message['subtitle'] ?? ''))
 				$card['header']['subtitle'] = $message['subtitle'];
-			}
-			$card['sections'] = [];
-			foreach ($message['sections'] as $msgSection) {
+			if (($message['picto'] ?? ''))
+				$card['header']['imageUrl'] = $message['picto'];
+			// card sections
+			foreach ((is_array($message['sections'] ?? null) ? $message['sections'] : []) as $msgSection) {
 				$section = [];
 				if (($msgSection['title'] ?? null))
 					$section['header'] = $msgSection['title'];
@@ -208,14 +218,15 @@ class GoogleChat extends \Temma\Base\Datasource {
 				}
 				$card['sections'][] = $section;
 			}
-			$data = [
-				'cardsV2' => [
+			if ($card) {
+				$data['cardsV2'] = [
 					[
 						'card' => $card,
 					]
-				]
-			];
-		} else
+				];
+			}
+		}
+		if (!$data)
 			throw new \Temma\Exceptions\Database("Bad Google Chat message parameter.", \Temma\Exceptions\Database::FUNDAMENTAL);
 		// send the message
 		$json = json_encode($data);
@@ -248,9 +259,12 @@ class GoogleChat extends \Temma\Base\Datasource {
 	 * Disabled mSet().
 	 * @param	array	$data		Not used.
 	 * @param	mixed	$options	(optional) Not used.
-	 * @throws	\Temma\Exceptions\Database	Always throws an exception.
+	 * @return	int	Always 0 if the datasource is disabled (never returned otherwise).
+	 * @throws	\Temma\Exceptions\Database	Always throws an exception if the datasource is enabled.
 	 */
 	public function mSet(array $data, mixed $options=null) : int {
+		if (!$this->_enabled)
+			return (0);
 		throw new \Temma\Exceptions\Database("No mSet() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);
 	}
 }

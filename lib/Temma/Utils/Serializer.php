@@ -238,9 +238,12 @@ class Serializer {
 	 * scalar values are written as "key=value" lines, and whose array values are written as "key[]=value"
 	 * (or "key[subkey]=value") lines.
 	 * Strings are written between double quotes; booleans, null values and numbers are written without quotes.
+	 * Keys and section names which couldn't be read back are refused: first-level integer keys, empty keys,
+	 * keys starting or ending with spaces, keys containing "=", "[", "]", ";", double quotes, single quotes or
+	 * line breaks, keys starting with "#", section names and sub-keys containing "]" or line breaks.
 	 * @param	mixed	$data	The data to encode (associative array).
 	 * @return	string	The INI stream.
-	 * @throws	\Temma\Exceptions\IO	If the format is not correct.
+	 * @throws	\Temma\Exceptions\IO	If the data can't be encoded (BAD_FORMAT).
 	 */
 	static public function encodeIni(mixed $data) : string {
 		if (!is_array($data))
@@ -250,16 +253,19 @@ class Serializer {
 		// first level
 		foreach ($data as $key1 => $value1) {
 			if (is_int($key1))
-				throw new TµIOException("Unable to encode INI stream.", TµIOException::BAD_FORMAT);
+				throw new TµIOException("Unable to encode INI stream (integer key '$key1').", TµIOException::BAD_FORMAT);
 			// scalar value (written before the sections)
 			if (!is_array($value1)) {
+				self::_checkIniKey($key1, false);
 				$stream .= "$key1=" . self::_encodeIniValue($value1) . "\n";
 				continue;
 			}
 			// section
+			self::_checkIniKey($key1, true);
 			$sections .= "[$key1]\n";
 			// second level
 			foreach ($value1 as $key2 => $value2) {
+				self::_checkIniKey($key2, false);
 				if (!is_array($value2)) {
 					$sections .= "$key2=" . self::_encodeIniValue($value2) . "\n";
 					continue;
@@ -271,6 +277,7 @@ class Serializer {
 						$sections .= $key2 . '[]=';
 						$index3++;
 					} else {
+						self::_checkIniKey($key3, true);
 						$sections .= $key2 . "[$key3]=";
 					}
 					$sections .= self::_encodeIniValue($value3) . "\n";
@@ -396,23 +403,24 @@ class Serializer {
 		throw new TµIOException("Unknown format for file '$path'.", TµIOException::BAD_FORMAT);
 	}
 	/**
-	 * Unserialize PHP fiie.
+	 * Unserialize PHP file.
+	 * The file is included, and must return the data. The PHP warnings and notices raised by the file are not
+	 * intercepted (they are managed by the current error handler).
+	 * Warning: the file is executed. Never use this method on a file coming from an untrusted source.
 	 * @param	string	$path	Path to the PHP file.
 	 * @return	mixed	The decoded data.
-	 * @throws	\Temma\Exceptions\IO	If the file doesn't exist or its format is not correct.
+	 * @throws	\Temma\Exceptions\IO	If the file doesn't exist (NOT_FOUND), can't be read (UNREADABLE),
+	 *					or contains a syntax or execution error (BAD_FORMAT).
 	 */
 	static public function readPhp(string $path) : mixed {
-		set_error_handler(function($errno, $errstr, $errfile, $errline) {
-			throw new \ErrorException($errstr, $errno, 0, $errfile, $errline);
-		});
+		if (!is_file($path))
+			throw new TµIOException("Unable to find PHP file '$path'.", TµIOException::NOT_FOUND);
+		if (!is_readable($path))
+			throw new TµIOException("Unable to read PHP file '$path'.", TµIOException::UNREADABLE);
 		try {
 			$data = include($path);
-		} catch (\ErrorException $ex) {
-			throw new TµIOException("Unable to read PHP file '$path'.", TµIOException::NOT_FOUND);
 		} catch (\Error $err) {
 			throw new TµIOException("Bad syntax in PHP file '$path'.", TµIOException::BAD_FORMAT);
-		} finally {
-			restore_error_handler();
 		}
 		return ($data);
 	}
@@ -482,7 +490,7 @@ class Serializer {
 	 * Unserialize the given stream.
 	 * If only one type is given, the stream is decoded with this format. If several types are given, the format
 	 * is detected:
-	 * - A stream starting with "<?php" is a PHP stream (if the PHP type is accepted).
+	 * - A stream starting with "<?php" (case-insensitive) is a PHP stream (if the PHP type is accepted).
 	 * - A stream starting with "<" is an XML stream (if the XML type is accepted).
 	 * - Otherwise, the other types are tried in the given order: a JSON stream must be valid; an INI stream must
 	 *   be valid and contain at least one "key = value" line; a YAML or NEON stream must be decoded as an array
@@ -517,7 +525,7 @@ class Serializer {
 		if ($start === '')
 			throw new TµIOException("Unable to decode empty stream.", TµIOException::BAD_FORMAT);
 		// PHP stream
-		if (str_starts_with($start, '<?php')) {
+		if (!strncasecmp($start, '<?php', 5)) {
 			if (!in_array(self::PHP, $types))
 				throw new TµIOException("Unable to decode PHP stream, this format is not accepted.", TµIOException::BAD_FORMAT);
 			return (self::decodePhp($stream));
@@ -550,17 +558,17 @@ class Serializer {
 	}
 	/**
 	 * Unserialize PHP stream.
-	 * The stream may start with a "<?php" tag, and must contain a "return" statement.
+	 * The stream may start with a "<?php" tag (case-insensitive), and must contain a "return" statement.
 	 * Warning: the stream is executed. Never use this method on a stream coming from an untrusted source.
 	 * @param	string	$stream	The PHP stream to decode.
 	 * @return	mixed	The decoded data.
 	 * @throws	\Temma\Exceptions\IO	If the format is not correct.
 	 */
 	static public function decodePhp(string $stream) : mixed {
-		$stream = preg_replace('/^(?:\xEF\xBB\xBF)?\s*<\?php\b/', '', $stream, 1);
+		$stream = preg_replace('/^(?:\xEF\xBB\xBF)?\s*<\?php\b/i', '', $stream, 1);
 		try {
 			$data = eval($stream);
-		} catch (\Throwable $t) {
+		} catch (\Throwable $throwable) {
 			throw new TµIOException("Unable to decode PHP stream.", TµIOException::BAD_FORMAT);
 		}
 		return ($data);
@@ -660,8 +668,9 @@ class Serializer {
 	 * Reads the streams generated by encodeXml(), and hand-written XML streams of data:
 	 * - The name of the root element doesn't matter. Comments are ignored, CDATA sections are read as text.
 	 * - An element without child element is a scalar value, converted like a JSON literal ("true", "false",
-	 *   "null" and numbers are converted, any other text is a string), unless it has a "__type" attribute
-	 *   ("string", "int", "float", "bool", "null", "array" or "base64").
+	 *   "null" and numbers are converted, even surrounded by white spaces; any other text is a string, kept with
+	 *   its white spaces), unless it has a "__type" attribute ("string", "int", "float", "bool", "null", "array"
+	 *   or "base64").
 	 * - An element with child elements is an array. A child element is an entry whose key is the element name;
 	 *   "__item" elements are entries with the next automatic index, or with the key given in their "__key"
 	 *   attribute. When all the child elements have the same name, repeated several times, the element is a list;
@@ -755,6 +764,19 @@ class Serializer {
 		throw new TµIOException("Unable to encode INI stream.", TµIOException::BAD_FORMAT);
 	}
 	/**
+	 * Check that a key can be written in an INI stream and read back by the INI decoder.
+	 * @param	int|string	$key		The key.
+	 * @param	bool		$bracketed	True for a key written between brackets (section name, or sub-key
+	 *						of a "key[subkey] = value" line), false for the key of a "key = value" line.
+	 * @throws	\Temma\Exceptions\IO	If the key can't be written (BAD_FORMAT).
+	 */
+	static private function _checkIniKey(int|string $key, bool $bracketed) : void {
+		$key = (string)$key;
+		$forbidden = $bracketed ? '/[\]\r\n]/' : '/[=\[\]"\';\r\n]|^#/';
+		if ($key === '' || trim($key) !== $key || preg_match($forbidden, $key))
+			throw new TµIOException("Unable to encode INI stream (bad key or section name '$key').", TµIOException::BAD_FORMAT);
+	}
+	/**
 	 * Decode an INI stream.
 	 * @param	string	$stream		The INI stream.
 	 * @param	?int	$nbValues	(optional) Reference to a variable which will contain the number of "key = value" lines.
@@ -800,8 +822,11 @@ class Serializer {
 				$value = $matches[4];
 			else
 				$value = self::_decodeScalar(trim($matches[5] ?? ''));
-			// store the value
-			$target = is_null($section) ? $data : $data[$section];
+			// store the value (using a reference, to avoid copying the section on each line)
+			if (is_null($section))
+				$target = &$data;
+			else
+				$target = &$data[$section];
 			if (is_null($index)) {
 				$target[$key] = $value;
 			} else {
@@ -812,10 +837,7 @@ class Serializer {
 				else
 					$target[$key][$index] = $value;
 			}
-			if (is_null($section))
-				$data = $target;
-			else
-				$data[$section] = $target;
+			unset($target);
 		}
 		if ($pos < $length) {
 			$line = substr_count($stream, "\n", 0, $pos) + 1;
@@ -857,7 +879,7 @@ class Serializer {
 				$xml->text(base64_encode($data));
 				return;
 			}
-			if (self::_decodeScalar($data) !== $data)
+			if (self::_decodeXmlText($data) !== $data)
 				$xml->writeAttribute(self::XML_TYPE, 'string');
 			$xml->text($data);
 			return;
@@ -917,6 +939,17 @@ class Serializer {
 		return (preg_match('/^[\x{9}\x{A}\x{D}\x{20}-\x{D7FF}\x{E000}-\x{FFFD}\x{10000}-\x{10FFFF}]*$/u', $text) === 1);
 	}
 	/**
+	 * Convert the text of an XML element without type: the text, without its surrounding white spaces, is
+	 * converted like a JSON literal ("true", "false", "null" and numbers); any other text is returned as is
+	 * (with its white spaces).
+	 * @param	string	$text	The text.
+	 * @return	mixed	The converted value.
+	 */
+	static private function _decodeXmlText(string $text) : mixed {
+		$value = self::_decodeScalar(trim($text, " \t\r\n"));
+		return (is_string($value) ? $text : $value);
+	}
+	/**
 	 * Decode an XML element.
 	 * @param	\DOMElement	$element	The element.
 	 * @return	mixed	The decoded value.
@@ -943,7 +976,7 @@ class Serializer {
 		}
 		// value without type
 		if (is_null($type))
-			return (self::_decodeScalar($text));
+			return (self::_decodeXmlText($text));
 		// typed value
 		if ($type == 'string')
 			return ($text);

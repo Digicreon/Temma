@@ -37,7 +37,7 @@ class ListValidator implements Validator, JsonSchemaExportable {
 		if (!is_array($data))
 			return $this->_processDefault($contract, "Data doesn't respect contract (not a list).", $output);
 		// check size
-		if ($minLen || $maxLen) {
+		if ($minLen || isset($maxLen)) {
 			$count = count($data);
 			if (isset($maxLen) && $count > $maxLen) {
 				if ($strict)
@@ -53,32 +53,43 @@ class ListValidator implements Validator, JsonSchemaExportable {
 				$values = str_getcsv($values, ',', '"', '\\');
 			else if (!is_array($values))
 				throw new TµApplicationException("Bad contract 'values' parameter.", TµApplicationException::API);
+			// list of the contracts of the first elements; '...' at the end accepts any number of extra elements
+			$open = false;
+			$subcontracts = [];
+			foreach (array_values($values) as $value) {
+				if (is_string($value))
+					$value = trim($value);
+				if ($value === '...' || $value === '…') {
+					$open = true;
+					break;
+				}
+				$subcontracts[] = $value;
+			}
 			$truncate = null; // if the list must be truncated: index of the first element to remove
-			$global = false; // if true, the rest of the list will accepted as is
 			foreach ($data as $k => &$v) {
 				if (!is_int($k))
 					return $this->_processDefault($contract, "Data doesn't respect contract (not a list).", $output);
-				if (!array_key_exists($k, $values)) {
+				if (!array_key_exists($k, $subcontracts)) {
+					// extra elements are accepted as is
+					if ($open)
+						break;
 					if ($strict)
-					    return $this->_processDefault($contract, "Data doesn't respect contract (bad number of elements in list).", $output);
+						return $this->_processDefault($contract, "Data doesn't respect contract (bad number of elements in list).", $output);
 					$truncate = $k;
 					break;
 				}
-				$sub = trim($values[$k]);
-				if ($sub == '...') {
-					$global = true;
-					break;
-				}
 				try {
-					$v = TµDataFilter::process($v, $sub, $strict);
-				} catch (TµApplicationException $t) {
+					$v = TµDataFilter::process($v, $subcontracts[$k], $strict);
+				} catch (TµApplicationException $ae) {
 					return $this->_processDefault($contract, "Data doesn't respect contract (bad value for element {$k}).", $output);
 				}
 			}
-			if ($strict && !$global && count($data) != count($values))
-			    return $this->_processDefault($contract, "Data doesn't respect contract (bad number of elements in list).", $output);
+			unset($v);
+			if ($strict && count($data) < count($subcontracts))
+				return $this->_processDefault($contract, "Data doesn't respect contract (bad number of elements in list).", $output);
 			if (!is_null($truncate))
 				$data = array_slice($data, 0, $truncate);
+			$output = $data;
 			return ($data);
 		}
 		if ($subcontract === null) {
@@ -90,10 +101,11 @@ class ListValidator implements Validator, JsonSchemaExportable {
 				return $this->_processDefault($contract, "Data doesn't respect contract (not a list).", $output);
 			try {
 				$v = TµDataFilter::process($v, $subcontract, $strict);
-			} catch (TµApplicationException $t) {
+			} catch (TµApplicationException $ae) {
 				return $this->_processDefault($contract, "Data doesn't respect contract (bad value for element {$k}).", $output);
 			}
 		}
+		unset($v);
 		$output = $data;
 		return ($data);
 	}

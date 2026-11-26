@@ -89,16 +89,19 @@ abstract class View {
 	 * Build the list of HTTP headers to send: the Content-Type header, the generic headers (cache deactivation),
 	 * the default headers defined in the configuration, and the given specific headers.
 	 * The Content-Type header uses the content type defined on the response object if any, or the view's default
-	 * content type otherwise. A "text/*" content type without charset information is completed with a
-	 * "charset=UTF-8" parameter.
+	 * content type otherwise. A "text/*", "application/rss+xml" or "application/xhtml+xml" content type without
+	 * charset information is completed with a "charset=UTF-8" parameter.
 	 * @param	array	$headers	(optional) Array of specific headers that must be sent.
 	 * @return	array	List of header strings.
 	 */
 	public function buildHeaders(?array $headers=null) : array {
 		// content type
 		$contentType = $this->_response?->getContentType() ?? static::CONTENT_TYPE;
-		if (str_starts_with(mb_strtolower($contentType), 'text/') && mb_stripos($contentType, 'charset') === false)
-			$contentType .= '; charset=UTF-8';
+		if (mb_stripos($contentType, 'charset') === false) {
+			$mimeType = mb_strtolower(trim(explode(';', $contentType)[0]));
+			if (str_starts_with($mimeType, 'text/') || in_array($mimeType, ['application/rss+xml', 'application/xhtml+xml']))
+				$contentType .= '; charset=UTF-8';
+		}
 		// generic headers
 		$result = array_merge(["Content-Type: $contentType"], static::GENERIC_HEADERS);
 		// default headers
@@ -136,7 +139,7 @@ abstract class View {
 	 * Variables whose name starts with an underscore are removed (except those starting with two underscores).
 	 * If an output validation contract is defined, data are validated with it.
 	 * @return	array	Associative array of template variables.
-	 * @throws	\Temma\Exceptions\Framework	If data are not an associative array.
+	 * @throws	\Temma\Exceptions\Framework	If data are not an associative array with string keys (BAD_OUTPUT).
 	 * @throws	\Temma\Exceptions\Application	If data don't respect the validation contract.
 	 */
 	protected function _getTemplateData() : array {
@@ -145,7 +148,8 @@ abstract class View {
 		if (is_null($data)) {
 			$data = $this->_response->getData();
 			unset($data['@output']);
-		} else if (!is_array($data)) {
+		} else if (!is_array($data) || array_filter(array_keys($data), 'is_int')) {
+			// template variables must have string names (a list is refused)
 			throw new TµFrameworkException("The '@output' template variable must be an associative array.", TµFrameworkException::BAD_OUTPUT);
 		}
 		// remove private variables

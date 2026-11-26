@@ -51,23 +51,27 @@ Built-in views and the reference file describing each one:
 | `~Php` | all template variables | [references/php.md](references/php.md) |
 
 Data is passed through template variables (`$this['name'] = $value;` in the controller).
-Template-based views (Smarty, PHP) receive all variables not starting with `_`; other
-views read their specific variable (see table). Alternatively, assigning `$this['@output']`
-takes priority: an associative array of template variables for template-based views (an
-exception is raised if it is not an array), or the raw data to serialize for the other views.
+Template-based views (Smarty, PHP) receive all variables not starting with a single `_`
+(`__`-prefixed ones, like flash variables, are passed); other views read their specific
+variable (see table). Alternatively, assigning `$this['@output']` takes priority: an
+associative array of template variables for template-based views (single-`_` keys are
+removed; `\Temma\Exceptions\Framework` code `BAD_OUTPUT` if it is not an array or has
+integer keys), or the raw data to serialize for the other views.
 When neither `@output` nor their specific variable is defined, the JSON and INI views use all
-template variables except `URL`, `CONTROLLER`, `ACTION` and those starting with `_`, and the
-iCal view uses the `name`, `description` and `events` variables. Most non-template views also honor a
+template variables except `URL`, `CONTROLLER`, `ACTION`, `filename`, `jsonDebug` (JSON) and
+those starting with `_`, and the iCal view uses the `name`, `description` and `events` variables. Most non-template views also honor a
 `filename` variable to send the stream as a downloadable attachment.
 
 ## Content type
 
 Each view sends its default `Content-Type` header: `text/html` (Smarty, Php),
-`application/json` (Json), `text/csv` (Csv), `application/rss+xml` (Rss), `text/calendar`
-(ICal), `text/ini` (Ini). Override it with the `_contentType()` method or the
+`application/json` (Json), `text/csv` (Csv), `application/rss+xml; charset=UTF-8` (Rss),
+`text/calendar` (ICal), `text/ini` (Ini). Override it with the `_contentType()` method or the
 `#[TµContentType]` attribute, using a MIME type or an alias (`html`, `xhtml`, `json`, `rss`,
 `csv`, `calendar`); `null` (or the attribute without parameter) restores the view's
-default. A `text/*` content type without charset is sent with `charset=UTF-8`.
+default. A `text/*`, `application/rss+xml` or `application/xhtml+xml` content type without
+charset is sent with `charset=UTF-8`; other types (`application/json`, `image/*`...) are sent
+as given. Custom views set their default type with the `CONTENT_TYPE` constant.
 
 ```php
 use \Temma\Attributes\ContentType as TµContentType;

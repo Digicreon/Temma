@@ -40,6 +40,8 @@ use \Temma\Base\Log as TµLog;
  *     'image'     => file_get_contents('picture.jpg'),
  *     'mimetype'  => 'image/jpeg',
  *     'priority'  => -1,
+ *     'retry'     => 60,    // only with priority 2
+ *     'expire'    => 3600,  // only with priority 2
  *     'ttl'       =>  86400,
  *     'url'       => 'https://www.temma.net/',
  *     'urlTitle'  => 'Temma website',
@@ -107,7 +109,11 @@ class Pushover extends \Temma\Base\Datasource {
 	 *					  -1 = no sound or vibration (still a popup/scrolling notification)
 	 *					   0 = sound, vibration and popup alert
 	 *					   1 = message highlighted in red, bypass user's quiet hours
-	 *					   2 = notification repeated until the user aknowledges it
+	 *					   2 = notification repeated until the user acknowledges it
+	 *					- retry: With priority 2, number of seconds between two repetitions
+	 *					  (30 seconds at least; defaults to 60).
+	 *					- expire: With priority 2, number of seconds during which the notification is
+	 *					  repeated (3 hours at most; defaults to 3600).
 	 *					- ttl: Number of seconds before the message disappear.
 	 *					- url: URL added under the text message.
 	 *					- urlTitle: Title of the URL (otherwise, the URL will appear as-is).
@@ -139,6 +145,11 @@ class Pushover extends \Temma\Base\Datasource {
 		}
 		if (in_array(($options['priority'] ?? 0), [-2, -1, 1, 2]))
 			$post['priority'] = $options['priority'];
+		// emergency priority: the API requires the repetition interval and the repetition duration
+		if (($post['priority'] ?? 0) == 2) {
+			$post['retry'] = max(30, (int)($options['retry'] ?? 60));
+			$post['expire'] = min(10800, max(1, (int)($options['expire'] ?? 3600)));
+		}
 		if (($options['ttl'] ?? null))
 			$post['ttl'] = $options['ttl'];
 		if (($options['url'] ?? null)) {
@@ -147,7 +158,7 @@ class Pushover extends \Temma\Base\Datasource {
 				$post['url_title'] = $options['urlTitle'];
 		}
 		curl_setopt_array($curl, [
-			CURLOPT_URL            => self::API_URL,
+			CURLOPT_URL            => static::API_URL,
 			CURLOPT_POSTFIELDS     => $post,
 			CURLOPT_SAFE_UPLOAD    => true,
 			CURLOPT_RETURNTRANSFER => true,
@@ -190,7 +201,11 @@ class Pushover extends \Temma\Base\Datasource {
 	 *					  -1 = no sound or vibration (still a popup/scrolling notification)
 	 *					   0 = sound, vibration and popup alert
 	 *					   1 = message highlighted in red, bypass user's quiet hours
-	 *					   2 = notification repeated until the user aknowledges it
+	 *					   2 = notification repeated until the user acknowledges it
+	 *					- retry: With priority 2, number of seconds between two repetitions
+	 *					  (30 seconds at least; defaults to 60).
+	 *					- expire: With priority 2, number of seconds during which the notification is
+	 *					  repeated (3 hours at most; defaults to 3600).
 	 *					- ttl: Number of seconds before the message disappear.
 	 *					- url: URL added under the text message.
 	 *					- urlTitle: Title of the URL (otherwise, the URL will appear as-is).

@@ -9,6 +9,9 @@
  * - write(), set() and "$sqs[] = ..." send the message body;
  * - mWrite() accepts an empty list, sends the messages by batches of 10, ignores null values and rejects
  *   values which are not strings or numbers;
+ * - mSet() JSON-encodes the values and ignores null values;
+ * - a disabled data source sends and receives nothing;
+ * - aws.phar is not loaded if the SQS client class is already available;
  * - get() decodes "falsy" payloads ("0", "false", "\"\"");
  * - read() accepts a wait duration of 0 seconds, limits it to 20 seconds, returns null on an empty queue
  *   and doesn't hide errors.
@@ -187,6 +190,32 @@ check('mWrite() rejects values which are not strings or numbers, without sending
 		return ($requests === []);
 	}
 	return (false);
+});
+check('mSet() JSON-encodes the values and ignores null values (no message is removed)', function() {
+	$requests = [];
+	$sqs = mockedSqs($requests, [['Successful' => [['Id' => '0'], ['Id' => '1']]]]);
+	$sent = $sqs->mSet(['first', null, ['x' => 1]]);
+	return ($sent === 2 && (count($requests) === 1) && $requests[0][0] === 'SendMessageBatch' &&
+	        (array_column($requests[0][1]['Entries'], 'MessageBody') === ['"first"', '{"x":1}']));
+});
+check('A disabled data source sends and receives nothing', function() {
+	$requests = [];
+	$sqs = mockedSqs($requests, []);
+	$sqs->disable();
+	$sqs->remove('x');
+	$sqs->flush();
+	return ($sqs->read('') === null && $sqs->get('') === null && $sqs->write('', 'x') === null &&
+	        $sqs->set('', 'x') === null && $sqs->mWrite(['x']) === 0 && $sqs->mSet(['x']) === 0 &&
+	        $sqs->count() === 0 && $requests === []);
+});
+check('The AWS SDK is not loaded if the SQS client class already exists', function() {
+	// a separate process, without aws.phar in the include path, where the SQS client class is already defined
+	$lib = var_export(realpath(__DIR__ . '/../lib'), true);
+	$code = 'namespace Aws\\Sqs { class SqsClient {} } namespace { require(' . $lib . ' . "/Temma/Base/Autoload.php"); ' .
+	        '\\Temma\\Base\\Autoload::autoload(' . $lib . '); ' .
+	        'print(class_exists("\\Temma\\Datasources\\Sqs") ? "ok" : "ko"); }';
+	$output = shell_exec(escapeshellarg(PHP_BINARY) . ' -d include_path=/nonexistent -r ' . escapeshellarg($code) . ' 2>&1');
+	return ($output === 'ok');
 });
 check('get() decodes falsy payloads', function() {
 	$requests = [];

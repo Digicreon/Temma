@@ -254,10 +254,13 @@ class Smsmode extends \Temma\Base\Datasource {
 	 * @param	string	$msisdn		Phone number.
 	 * @param	?string	$text		Text message.
 	 * @param	mixed	$options	(optional) Associative array with the 'sendDate' and 'reference' keys.
-	 * @return	string	Message identifier.
-	 * @throws	\Temma\Exceptions\Database	If an error occured.
+	 * @return	?string	Message identifier (null if the datasource is disabled or if the text is null).
+	 * @throws	\Temma\Exceptions\Database	If the message couldn't be sent (or if the text is empty).
 	 */
-	public function write(string $msisdn, ?string $text=null, mixed $options=null) : string {
+	public function write(string $msisdn, ?string $text=null, mixed $options=null) : ?string {
+		// disabled data source, or no text (nothing to send, no message is removed)
+		if (!$this->_enabled || $text === null)
+			return (null);
 		$sendDate = $options['sendDate'] ?? null;
 		$reference = $options['reference'] ?? null;
 		$msgId = $this->send($msisdn, $text, $sendDate, $reference);
@@ -304,10 +307,13 @@ class Smsmode extends \Temma\Base\Datasource {
 	 * @param	string	$msisdn		The recipient phone number.
 	 * @param	mixed	$text		The text message.
 	 * @param	mixed	$options	(optional) Associative array with 'sendDate' and/or 'reference' keys.
-	 * @return	string	Message identifier.
-	 * @throws	\Temma\Exceptions\Database	If an error occured.
+	 * @return	?string	Message identifier (null if the datasource is disabled or if the text is null).
+	 * @throws	\Temma\Exceptions\Database	If the message couldn't be sent (or if the text is empty).
 	 */
-	public function set(string $msisdn, mixed $text=null, mixed $options=null) : string {
+	public function set(string $msisdn, mixed $text=null, mixed $options=null) : ?string {
+		// disabled data source, or no text (nothing to send, no message is removed)
+		if (!$this->_enabled || $text === null)
+			return (null);
 		$sendDate = $options['sendDate'] ?? null;
 		$reference = $options['reference'] ?? null;
 		$msgId = $this->send($msisdn, $text, $sendDate, $reference);
@@ -316,10 +322,12 @@ class Smsmode extends \Temma\Base\Datasource {
 		return ($msgId);
 	}
 	/**
-	 * Multiple set. Alias to the mWrite() method.
+	 * Multiple set. Alias to the mWrite() method (the texts are not JSON-encoded).
 	 * @param	array	$data		Associative array with keys (phone numbers) and their associated values (text messages).
-	 * @param	mixed	$options	(optional) Options.
-	 * @return	int	The number of sent messages.
+	 *					Null values are ignored (no message is deleted). A message which can't be sent
+	 *					is not counted, and doesn't prevent the other messages from being sent.
+	 * @param	mixed	$options	(optional) Associative array with 'sendDate' and/or 'reference' keys (used for all messages).
+	 * @return	int	The number of sent messages (0 if the datasource is disabled).
 	 */
 	public function mSet(array $data, mixed $options=null) : int {
 		return ($this->mWrite($data, $options));

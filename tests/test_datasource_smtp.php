@@ -10,6 +10,7 @@
  * - addresses containing CR, LF (or other control characters) or angle brackets are rejected (SMTP command injection);
  * - the TLS certificate is verified by default (STARTTLS with a self-signed certificate);
  * - a failed connection (authentication error) is closed;
+ * - a disabled data source sends nothing and throws no exception (mWrite() and mSet() included);
  * - the password of the DSN is not written in the logs and in the exception messages.
  */
 
@@ -360,6 +361,19 @@ check('authentication failure: exception, connection closed', function() use ($p
 	});
 	return ($error instanceof \Temma\Exceptions\Database && str_contains($error->getMessage(), '535') &&
 	        (smtpProp($smtp, '_stream') === null) && in_array('QUIT', $lines));
+});
+
+print("\n" . TµAnsi::bold("Disabled data source\n"));
+check('disabled data source: nothing sent, no exception (write(), set(), mWrite(), mSet())', function() use ($message) {
+	$smtp = TµSmtp::factory('smtp://127.0.0.1:1')->disable();
+	return ($smtp->write('id', $message, ['from' => 'a@x.com', 'recipients' => ['b@y.com']]) === false &&
+	        $smtp->set('id', ['from' => 'a@x.com', 'recipients' => ['b@y.com'], 'message' => $message]) === false &&
+	        $smtp->mWrite([$message]) === 0 && $smtp->mSet([['message' => $message]]) === 0);
+});
+check('enabled data source: mWrite() and mSet() are not available', function() {
+	$smtp = TµSmtp::factory('smtp://127.0.0.1:1');
+	return (exception(fn() => $smtp->mWrite(['x'])) instanceof \Temma\Exceptions\Database &&
+	        exception(fn() => $smtp->mSet([['message' => 'x']])) instanceof \Temma\Exceptions\Database);
 });
 
 print("\n" . TµAnsi::bold("Secrets\n"));

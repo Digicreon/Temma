@@ -101,12 +101,14 @@ class OpenAi extends \Temma\Base\Datasource {
 	 *						- messages (array): Previous messages for multi-turn conversation.
 	 *						- temperature (float): Sampling temperature (0 to 2).
 	 *						- max_tokens (int): Maximum number of tokens in the response.
-	 * @return	mixed	The response text, the default value if the call fails, or null if the data source is disabled.
+	 * @return	mixed	The response text, or the default value (or the value returned by the callback) if the call
+	 *			fails or if the data source is disabled.
 	 * @throws	\Temma\Exceptions\Database	If the API returns an error and no default value is provided.
 	 */
 	public function read(string $prompt, mixed $defaultOrCallback=null, mixed $options=null) : mixed {
+		// a disabled data source behaves like an empty one
 		if (!$this->_enabled)
-			return (null);
+			return (self::_isCallback($defaultOrCallback) ? $defaultOrCallback() : $defaultOrCallback);
 		try {
 			return ($this->_request($prompt, $options));
 		} catch (\Temma\Exceptions\Database $e) {
@@ -134,7 +136,8 @@ class OpenAi extends \Temma\Base\Datasource {
 	 * @param	mixed	$defaultOrCallback	(optional) Default value returned if the API call fails,
 	 *						or callback whose returned value is used as fallback.
 	 * @param	mixed	$options		(optional) Options (see read()).
-	 * @return	mixed	The response text, the default value if the call fails, or null if the data source is disabled.
+	 * @return	mixed	The response text (not JSON-decoded), or the default value (or the value returned by the
+	 *			callback) if the call fails or if the data source is disabled.
 	 * @throws	\Temma\Exceptions\Database	If the API returns an error and no default value is provided.
 	 */
 	public function get(string $prompt, mixed $defaultOrCallback=null, mixed $options=null) : mixed {
@@ -143,12 +146,13 @@ class OpenAi extends \Temma\Base\Datasource {
 	/**
 	 * Get responses to several prompts from the OpenAI Chat Completions API (see get()).
 	 * @param	array	$prompts	List of prompts.
-	 * @return	array	Associative array with the prompts and their responses (texts, not JSON-decoded).
+	 * @return	array	Associative array with the prompts and their responses (texts, not JSON-decoded). If the
+	 *			data source is disabled, all the responses are null.
 	 * @throws	\Temma\Exceptions\Database	If the API returns an error.
 	 */
 	public function mGet(array $prompts) : array {
 		if (!$this->_enabled)
-			return ([]);
+			return (array_fill_keys($prompts, null));
 		$result = [];
 		foreach ($prompts as $prompt)
 			$result[$prompt] = $this->get($prompt);
@@ -180,7 +184,8 @@ class OpenAi extends \Temma\Base\Datasource {
 	 * @param	string	$prompt		User prompt.
 	 * @param	mixed	$options	Options (see read()).
 	 * @return	?string	The response text.
-	 * @throws	\Temma\Exceptions\Database	If the API call fails or returns an error.
+	 * @throws	\Temma\Exceptions\Database	If the request can't be JSON-encoded (e.g. invalid UTF-8 in the prompt),
+	 *						or if the API call fails or returns an error.
 	 */
 	private function _request(string $prompt, mixed $options) : ?string {
 		// build messages list
@@ -205,6 +210,8 @@ class OpenAi extends \Temma\Base\Datasource {
 		}
 		// send request
 		$json = json_encode($payload);
+		if ($json === false)
+			throw new \Temma\Exceptions\Database('Unable to JSON-encode the OpenAI request: ' . json_last_error_msg(), \Temma\Exceptions\Database::FUNDAMENTAL);
 		$ch = curl_init();
 		curl_setopt_array($ch, [
 			CURLOPT_URL            => static::API_URL,
