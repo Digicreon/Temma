@@ -10,7 +10,11 @@
  *   (they were reachable, allowing an open redirect through "/controller/_redirect/<url>");
  * - the root action, the default action (__call) and the proxy action (__proxy) keep working;
  * - errors raised by an action give a 500 error, HTTP exceptions keep their code, and URL parameters
- *   which don't match the action's signature give a 404 error (also through a nested sub-process).
+ *   which don't match the action's signature give a 404 error (also through a nested sub-process);
+ * - controller and action names containing a namespace are refused on the URL (the command-line controllers of
+ *   the framework, like \Temma\Cli\User, were reachable through "/%5CTemma%5CCli%5CUser/...");
+ * - the configuration adds the controllers directory to the include paths, except for the command-line
+ *   executions; a single include path given as a string is used.
  */
 
 require_once(__DIR__ . '/../lib/Temma/Base/Autoload.php');
@@ -162,6 +166,26 @@ check("nested sub-process with valid parameters", trace('/failing/nestedOk') ===
 check("nested sub-process with a parameter of the wrong type gives a 404", trace('/failing/nestedType') === 'http:404');
 check("nested sub-process with a missing parameter gives a 404", trace('/failing/nestedCount') === 'http:404');
 check("HTTP exception thrown by __wakeup() keeps its code", trace('/guarded/hello') === 'http:401');
+
+print("\n" . TµAnsi::bold("Controller names with a namespace are refused\n"));
+check("framework command-line controller (URL-encoded backslashes)", trace('/%5CTemma%5CCli%5CCache/clear') === 'http:404');
+check("framework command-line controller", trace('/\\Temma\\Cli\\User/list') === 'http:404');
+check("application controller with a leading backslash", trace('/\\Direct/hello') === 'http:404');
+check("application controller with a namespace", trace('/Foo\\direct/hello') === 'http:404');
+check("action name with a namespace (used as a controller name by some plugins)", trace('/direct/%5CTemma%5CCli%5CUser') === 'http:404');
+
+print("\n" . TµAnsi::bold("Include paths of the configuration\n"));
+// returns the include paths added by a configuration object
+function configPaths(\Temma\Web\Config $config, array $conf=[]) : array {
+	global $appPath;
+	$config->readConfigurationFile("$appPath/etc/temma.php", $conf);
+	return ((new \ReflectionProperty($config, '_pathsToInclude'))->getValue($config));
+}
+check("the controllers directory is added to the include paths", in_array("$appPath/controllers", configPaths(new \Temma\Web\Config($appPath))));
+check("the controllers directory is not added for the command-line executions",
+      !in_array("$appPath/controllers", configPaths(new \Temma\Web\Config($appPath, includeControllers: false))));
+check("a single include path can be given as a string",
+      in_array('/some/path', configPaths(new \Temma\Web\Config($appPath), ['includePaths' => '/some/path'])));
 
 print("\n" . TµAnsi::bold("Proxy action: the dispatch is up to the proxy\n"));
 check("underscore-prefixed name is given to the proxy", trace('/proxied/_anything') === 'proxy:_anything');

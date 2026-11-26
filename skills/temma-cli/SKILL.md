@@ -65,7 +65,8 @@ or, with positional parameters: `bin/comma User/add "Luke Skywalker" luke@rebell
   DAOs (`$_temmaAutoDao`, `$this->_dao`). The PHPDoc of the controller and its actions
   feeds `bin/comma help`.
 - Differences with web: no routing, no plugins, no views (write to stdout), and
-  `$this->_request` only carries the command-line parameters.
+  `$this->_request` only carries the command-line parameters. The `controllers/`
+  directory is not in the include paths: web controllers can't be executed by Comma.
 
 Options placed **before** the controller name tune Comma itself:
 `bin/comma conf=etc/temma-test.php User/add ...` (alternate configuration file),

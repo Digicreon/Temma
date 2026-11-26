@@ -175,6 +175,12 @@ class Framework {
 		$this->_executorController[self::AUTOIMPORT_VARIABLE] = $this->_config->autoimport;
 
 		/* ********** NAME OF CONTROLLER/ACTION ********** */
+		// the controller and action names given on the URL can't contain a namespace (object names are not accepted
+		// from the URL; namespaced controllers can only be set by the configuration, routes or plugins)
+		if (str_contains(($this->_request->getController() ?? ''), '\\') || str_contains(($this->_request->getAction() ?? ''), '\\')) {
+			TµLog::log('Temma/Web', 'ERROR', "Bad controller or action name on the URL (namespaces are not allowed).");
+			throw new TµHttpException("Bad controller or action name on the URL (namespaces are not allowed).", 404);
+		}
 		$this->_setControllerName();
 		$this->_setActionName();
 

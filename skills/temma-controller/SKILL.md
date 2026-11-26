@@ -19,6 +19,10 @@ A controller must:
    tree under `controllers/` or `lib/`);
 4. define its actions as public methods whose names start with a lowercase letter.
 
+Controller and action names containing a backslash are refused on the URL (404): a
+namespaced controller can't be called directly by its object name; make it reachable
+with the `defaultNamespace` configuration directive or with routes.
+
 ```php
 <?php
 
