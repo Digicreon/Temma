@@ -3,7 +3,7 @@
 /**
  * SqlStatement
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2020-2023, Amaury Bouchard
+ * @copyright	© 2020-2026, Amaury Bouchard
  */
 
 namespace Temma\Datasources;
@@ -56,10 +56,11 @@ class SqlStatement {
 	 * Executes a prepared SQL query and fetch one line of data.
 	 * @param	?array	$parameters	(optional) Array of parameters.
 	 * @param	?string	$valueField	(optional) Name of the field whose value will be returned.
-	 * @return	array	An associative array which contains the line of data.
+	 * @return	mixed	An associative array which contains the line of data (empty array if no line was found).
+	 *			If a field name was given, the value of this field (null if no line was found or if the field doesn't exist).
 	 * @throws	\Temma\Exceptions\Database	If an error occurs.
 	 */
-	public function queryOne(?array $parameters=null, ?string $valueField=null) : array {
+	public function queryOne(?array $parameters=null, ?string $valueField=null) : mixed {
 		if (!$this->_statement->execute($parameters)) {
 			$err = $this->_statement->errorCode();
 			throw new TµDatabaseException($err, TµDatabaseException::QUERY);

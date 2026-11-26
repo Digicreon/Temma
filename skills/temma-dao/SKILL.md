@@ -156,7 +156,9 @@ class ArticleDao extends \Temma\Dao\Dao {
 
 Key SQL data source methods: `queryAll($sql)` (list of rows), `queryOne($sql)` (single
 row or value), `exec($sql)` (write query), `quote($str)` / `quoteNull($str)` (escaping;
-ALWAYS quote interpolated values), `prepare($sql)` (prepared statements, `?` placeholders),
+ALWAYS quote interpolated values), `prepare($sql)` (prepared statements, `?` or `:name`
+placeholders; the statement's `exec($params)`, `queryOne($params, $valueField)` and
+`queryAll($params, $keyField, $valueField)` take the parameters first),
 `transaction(callable)` or `startTransaction()`/`commit()`/`rollback()`, `lastInsertId()`.
 
 ## Cache

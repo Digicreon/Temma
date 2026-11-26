@@ -355,17 +355,17 @@ class Sql extends \Temma\Base\Datasource {
 	}
 	/**
 	 * Escape a character string.
-	 * @param	mixed	$str	The string to escape.
+	 * @param	mixed	$str	The string to escape (false gives '0', null gives an empty string).
 	 * @return	string	The escaped string.
 	 */
 	public function quote(mixed $str) : string {
-		if (!$this->_enabled)
-			return ("'" . str_replace("'", "\\'", $str) . "'");
-		$this->connect();
 		if ($str === false)
 			return ('\'0\'');
 		if ($str === null)
 			return ('\'\'');
+		if (!$this->_enabled)
+			return ("'" . str_replace("'", "\\'", (string)$str) . "'");
+		$this->connect();
 		$str = $this->_db->quote((string)$str);
 		return ($str ?: '');
 	}
@@ -464,7 +464,8 @@ class Sql extends \Temma\Base\Datasource {
 	 * @param	string	$sql		The SQL request.
 	 * @param	?string	$valueField	(optional) Name of the field whose value will be returned.
 	 * @param	?array	$parameters	(optional) Array of parameters.
-	 * @return	mixed	An associative array which contains the line of data, or the value which field's name has been given as parameter.
+	 * @return	mixed	An associative array which contains the line of data (empty array if no line was found).
+	 *			If a field name was given, the value of this field (null if no line was found or if the field doesn't exist).
 	 * @throws	\Temma\Exceptions\Database	If something went wrong.
 	 */
 	public function queryOne(string $sql, ?string $valueField=null, ?array $parameters=null) : mixed {
