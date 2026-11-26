@@ -18,6 +18,12 @@ use \Temma\Exceptions\IO as TµIOException;
 set_error_handler(function(int $errno, string $errstr, string $errfile, int $errline) {
 	throw new \ErrorException($errstr, 0, $errno, $errfile, $errline);
 });
+// temporary directory for the PHP files
+$tmpPath = sys_get_temp_dir() . '/temma-serializer-detection-test-' . getmypid();
+mkdir($tmpPath, 0755, true);
+register_shutdown_function(function() use ($tmpPath) {
+	exec('chmod -R u+rwx ' . escapeshellarg($tmpPath) . '; rm -rf ' . escapeshellarg($tmpPath));
+});
 $hasYaml = extension_loaded('yaml');
 $hasNeon = class_exists('\Nette\Neon\Neon');
 
@@ -134,6 +140,45 @@ check("with the PHP type only, a stream without '<?php' tag is executed", fn() =
 check("a PHP syntax error raises an IO exception (BAD_FORMAT)", function() {
 	return (ioExceptionCode(fn() => TµSerializer::decodePhp('{"a": 1}')) === TµIOException::BAD_FORMAT &&
 	        ioExceptionCode(fn() => TµSerializer::decode("<?php\nreturn [;")) === TµIOException::BAD_FORMAT);
+});
+check("the '<?php' tag is detected whatever its case", function() {
+	return (TµSerializer::decode("<?PHP\nreturn ['a' => 1];") === ['a' => 1] &&
+	        TµSerializer::decode("\xEF\xBB\xBF <?Php\nreturn 2;") === 2 &&
+	        TµSerializer::decodePhp("<?PHP return 3;") === 3 &&
+	        ioExceptionCode(fn() => TµSerializer::decode("<?PHP\nreturn 1;", [TµSerializer::JSON, TµSerializer::XML])) === TµIOException::BAD_FORMAT);
+});
+
+print("\n" . TµAnsi::bold("PHP files\n"));
+check("readPhp() and read() return the data of a PHP file", function() use ($tmpPath) {
+	file_put_contents("$tmpPath/ok.php", "<?php\nreturn ['a' => 1, 'b' => [true, null]];\n");
+	return (TµSerializer::readPhp("$tmpPath/ok.php") === ['a' => 1, 'b' => [true, null]] &&
+	        TµSerializer::read("$tmpPath/ok.php") === ['a' => 1, 'b' => [true, null]]);
+});
+check("reading a missing PHP file raises an IO exception (NOT_FOUND), without PHP warning",
+      fn() => (ioExceptionCode(fn() => TµSerializer::readPhp("$tmpPath/missing.php")) === TµIOException::NOT_FOUND &&
+               ioExceptionCode(fn() => TµSerializer::readPhp($tmpPath)) === TµIOException::NOT_FOUND));
+check("reading an unreadable PHP file raises an IO exception (UNREADABLE), without PHP warning", function() use ($tmpPath) {
+	file_put_contents("$tmpPath/unreadable.php", "<?php\nreturn 1;\n");
+	chmod("$tmpPath/unreadable.php", 0);
+	return (ioExceptionCode(fn() => TµSerializer::readPhp("$tmpPath/unreadable.php")) === TµIOException::UNREADABLE);
+}, (function_exists('posix_geteuid') && posix_geteuid() !== 0));
+check("a PHP file with a syntax error raises an IO exception (BAD_FORMAT)", function() use ($tmpPath) {
+	file_put_contents("$tmpPath/syntax.php", "<?php\nreturn [;\n");
+	return (ioExceptionCode(fn() => TµSerializer::readPhp("$tmpPath/syntax.php")) === TµIOException::BAD_FORMAT);
+});
+check("a valid PHP file which raises a warning returns its data (the warning goes to the current error handler)", function() use ($tmpPath) {
+	file_put_contents("$tmpPath/warning.php", "<?php\n\$a = [];\nreturn ['value' => \$a['undefined'] ?? 1, 'x' => \$a['missing']];\n");
+	$warnings = 0;
+	set_error_handler(function() use (&$warnings) {
+		$warnings++;
+		return (true);
+	});
+	try {
+		$data = TµSerializer::readPhp("$tmpPath/warning.php");
+	} finally {
+		restore_error_handler();
+	}
+	return ($data === ['value' => 1, 'x' => null] && $warnings == 1);
 });
 
 print("\n" . TµAnsi::bold("Single type (no detection)\n"));

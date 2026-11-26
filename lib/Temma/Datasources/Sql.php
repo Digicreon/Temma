@@ -31,8 +31,9 @@ use \Temma\Exceptions\Database as TµDatabaseException;
  * Simple example:
  * <code>
  * try {
- *     // object creation, database connection
- *     $db = new \Temma\Base\Datasource("mysql://user:pwd@localhost/database");
+ *     // object creation (the connection is opened at the first request)
+ *     $db = \Temma\Datasources\Sql::factory('mysql://user:pwd@localhost/database');
+ *     $db = \Temma\Base\Datasource::factory('mysql://user:pwd@localhost/database');
  *     // simple request
  *     $db->exec("DELETE FROM Bar");
  *     // request which fetch one line of data
@@ -43,8 +44,12 @@ use \Temma\Exceptions\Database as TµDatabaseException;
  *     // display results
  *     foreach ($result as $line)
  *         print($line['id'] . " -> " . $line['name'] . "\n");
- * } catch (Exception $e) {
- *     print("Erreur base de données: " . $e->getMessage());
+ *     // request with parameters (prepared query)
+ *     $result = $db->queryAll("SELECT id, name FROM Foo WHERE color = ?", null, null, ['blue']);
+ *     // request which fetch many lines of data, indexed by the 'id' field, with the 'name' field as value
+ *     $names = $db->queryAll("SELECT id, name FROM Foo", 'id', 'name');
+ * } catch (\Exception $e) {
+ *     print("Database error: " . $e->getMessage());
  * }
  * </code>
  *
@@ -52,25 +57,26 @@ use \Temma\Exceptions\Database as TµDatabaseException;
  * <code>
  * // values given in a list
  * $stmt = $db->prepare("UPDATE toto SET color = ? WHERE id = ?");
- * $stmt->execute(['blue', 12]);
+ * $stmt->exec(['blue', 12]);
  * // values given in an associative array
  * $stmt = $db->prepare("UPDATE toto SET color = :color WHERE id = :id");
- * $stmt->execute([':color' => 'blue', ':id' => 12]);
+ * $stmt->exec([':color' => 'blue', ':id' => 12]);
  * // fetch values
  * $stmt = $db->prepare("SELECT * from toto WHERE color = :color");
- * $stmt->execute([':color' => 'blue']);
- * $result = $stmt->fetchAll();
- * $stmt->execute([':color' => 'red']);
- * $result = $stmt->fetchAll();
+ * $result = $stmt->queryAll([':color' => 'blue']);
+ * $result = $stmt->queryAll([':color' => 'red']);
+ * // fetch one line
+ * $stmt = $db->prepare("SELECT * from toto WHERE id = ?");
+ * $line = $stmt->queryOne([12]);
  * </code>
  *
  * Transactional example:
  * <code>
- * // object creation, database connection
- * try { $db = new \Temma\Base\Datasource::factory("mysql://user:pwd@localhost/database"); }
- * catch (Exception $e) { }
+ * // object creation
+ * $db = \Temma\Base\Datasource::factory('mysql://user:pwd@localhost/database');
  * // transactional requests, automatically committed or rolled-back
- * $db->transaction(function($db) use ($userId) {
+ * // (if the function throws an exception, the transaction is rolled back and the exception is not propagated)
+ * $db->transaction(function($db) {
  *     // insertion request
  *     $db->exec("INSERT INTO Foo SET name = 'pouet'");
  *     // bad request, will raise an exception => roll-back
@@ -86,7 +92,7 @@ use \Temma\Exceptions\Database as TµDatabaseException;
  *     $db->exec("INSERT foobar");
  *     // commit of the transaction if everything is fine
  *     $db->commit();
- * } catch (Exception $e) {
+ * } catch (\Exception $e) {
  *     // rollback of the transaction
  *     $db->rollback();
  * }
@@ -254,8 +260,10 @@ class Sql extends \Temma\Base\Datasource {
 
 	/* ********** TRANSACTIONS ********** */
 	/**
-	 * Manage a transaction automatically.
-	 * @param	callable	$callback	Anonymous function.
+	 * Manage a transaction automatically. The transaction is started, then the given function is called.
+	 * If the function throws an exception, the transaction is rolled back (the exception is not propagated);
+	 * otherwise, the transaction is committed.
+	 * @param	callable	$callback	Anonymous function, which receives the current object as parameter.
 	 */
 	public function transaction(callable $callback) : void {
 		TµLog::log('Temma/Base', 'DEBUG', "Starting a transaction.");
@@ -755,12 +763,13 @@ class Sql extends \Temma\Base\Datasource {
 	}
 	/**
 	 * Multiple read.
+	 * If the data source is disabled, every requested key is associated to null (like on an empty data source).
 	 * @param	array	$keys	List of keys.
 	 * @return	array	Associative array with the keys and their associated values (null for missing keys).
 	 */
 	public function mRead(array $keys) : array {
 		if (!$this->_enabled || !$keys)
-			return ([]);
+			return (array_fill_keys($keys, null));
 		$quotedKeys = [];
 		foreach ($keys as $key)
 			$quotedKeys[] = $this->quote($key);
@@ -775,17 +784,20 @@ class Sql extends \Temma\Base\Datasource {
 		return ($result);
 	}
 	/**
-	 * Add or update a key in database.
+	 * Add or update a key in database, with a raw value (not JSON-encoded).
 	 * @param	string	$key		Key to add or update.
-	 * @param	mixed	$data		(optional) Data value. The data is deleted if the value is not given or if it is null.
+	 * @param	mixed	$data		(optional) Data value (a string or a number, converted to string).
+	 *					The data is deleted if the value is not given or if it is null.
 	 * @param	mixed	$options	Not used.
-	 * @return	bool	Always true.
-	 * @throws	\Temma\Exceptions\Database	If the database type doesn't support the key-value mode.
+	 * @return	bool	True, or false if the data source is disabled.
+	 * @throws	\Temma\Exceptions\Database	If the database type doesn't support the key-value mode, or if the value
+	 *						is not null, a string or a number.
 	 * @throws	\Exception	If an error occured.
 	 */
 	public function write(string $key, mixed $data=null, mixed $options=null) : bool {
 		if (!$this->_enabled)
 			return (false);
+		$data = self::_toRawValue($data);
 		// remove key
 		if ($data === null) {
 			$this->remove($key);
@@ -796,8 +808,10 @@ class Sql extends \Temma\Base\Datasource {
 		return (true);
 	}
 	/**
-	 * Multiple write.
-	 * @param	array	$data		Associative array with keys and their associated values. Keys with a null value are removed.
+	 * Multiple write, with raw values (not JSON-encoded).
+	 * Keys with a null value are removed (and not counted). Numbers are converted to strings; other
+	 * non-string values (arrays, objects, booleans) are skipped and not counted.
+	 * @param	array	$data		Associative array with keys and their associated values.
 	 * @param	mixed	$options	Not used.
 	 * @return	int	The number of set data.
 	 * @throws	\Temma\Exceptions\Database	If the database type doesn't support the key-value mode.
@@ -809,6 +823,14 @@ class Sql extends \Temma\Base\Datasource {
 		$removed = array_keys(array_filter($data, 'is_null'));
 		$this->mRemove($removed);
 		$data = array_diff_key($data, array_flip($removed));
+		// convert numbers to strings, skip the other non-string values
+		foreach ($data as $key => $value) {
+			try {
+				$data[$key] = self::_toRawValue($value);
+			} catch (\Temma\Exceptions\Database $e) {
+				unset($data[$key]);
+			}
+		}
 		if (!$data)
 			return (0);
 		// create or update the keys (the number of lines given by exec() counts updated lines twice)

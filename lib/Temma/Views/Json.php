@@ -12,9 +12,9 @@ namespace Temma\Views;
  * View for JSON export.
  *
  * The JSON encoded data is fetched from the "@output" template variable or, if it is not defined,
- * from the "json" template variable. If none of them is defined, all template variables are sent,
- * except "URL", "CONTROLLER", "ACTION", "filename", "jsonDebug" and the variables whose name starts
- * with an underscore.
+ * from the "json" template variable. If none of them is defined, all template variables are sent as
+ * a JSON object (an empty object "{}" if there is no variable), except "URL", "CONTROLLER", "ACTION",
+ * "filename", "jsonDebug" and the variables whose name starts with an underscore.
  * The name of the downloaded file is fetched from the "filename" template variable.
  * To activate the debug mode (user-readable JSON), set the "jsonDebug" template variable to true.
  *
@@ -30,11 +30,17 @@ class Json extends \Temma\Web\View {
 	/** Debug mode. */
 	private bool $_debug = false;
 
-	/** Init. */
+	/**
+	 * Init.
+	 * @throws	\Temma\Exceptions\Application	If data don't respect the output validation contract.
+	 */
 	public function init() : void {
 		$this->_filename = $this->_response->getData('filename');
 		$this->_debug = $this->_response->getData('jsonDebug', false);
 		$this->_data = $this->_getSerializationData('json', ['filename', 'jsonDebug']);
+		// all template variables are sent: no variable gives an empty object
+		if ($this->_data === [] && is_null($this->_response->getData('@output') ?? $this->_response->getData('json')))
+			$this->_data = new \stdClass();
 	}
 	/** Write HTTP headers. */
 	public function sendHeaders(?array $headers=null) : void {

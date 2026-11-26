@@ -13,6 +13,15 @@ use \Temma\Base\Log as TµLog;
 /**
  * Object for data sources management.
  *
+ * A data source can be disabled temporarily (see disable() and enable()). A disabled data source behaves
+ * like an empty one, and writings are ignored:
+ * - isSet() returns false, count() returns 0, find() and search() return an empty array;
+ * - read() and get() return the default value (or call the callback and return its result, without storing it);
+ * - copyFrom() writes the default value (or the callback's result) in the local file, and returns false if there is none;
+ * - mRead() and mGet() associate every requested key to null; mCopyFrom() returns 0;
+ * - write(), set() and copyTo() do nothing and return false (or null if their return type is nullable);
+ * - mWrite(), mSet() and mCopyTo() return 0; remove(), mRemove(), clear() and flush() do nothing.
+ *
  * Must be used in an autoloader-enabled environment.
  */
 abstract class Datasource implements \ArrayAccess, \Countable {
@@ -242,12 +251,13 @@ abstract class Datasource implements \ArrayAccess, \Countable {
 	}
 	/**
 	 * Multiple read.
+	 * If the data source is disabled, every requested key is associated to null (like on an empty data source).
 	 * @param	array	$keys	List of keys.
-	 * @return	array	Associative array with the keys and their associated values.
+	 * @return	array	Associative array with the keys and their associated values (null for missing keys).
 	 */
 	public function mRead(array $keys) : array {
 		if (!$this->_enabled)
-			return ([]);
+			return (array_fill_keys($keys, null));
 		$result = [];
 		foreach ($keys as $key)
 			$result[$key] = $this->read($key);
@@ -278,6 +288,7 @@ abstract class Datasource implements \ArrayAccess, \Countable {
 	}
 	/**
 	 * Multiple copyFrom.
+	 * Missing keys, and keys whose copy raised an exception, are not counted.
 	 * @param	array	$keys	Associative array with keys and the path where their associated data must be written.
 	 * @return	int	The number of written files.
 	 */
@@ -287,8 +298,8 @@ abstract class Datasource implements \ArrayAccess, \Countable {
 		$fetched = 0;
 		foreach ($keys as $key => $path) {
 			try {
-				$this->copyFrom($key, $path);
-				$fetched++;
+				if ($this->copyFrom((string)$key, $path))
+					$fetched++;
 			} catch (\Exception $e) {
 			}
 		}
@@ -303,13 +314,18 @@ abstract class Datasource implements \ArrayAccess, \Countable {
 	 * @throws 	\Temma\Exceptions\Database	Always throws an exception.
 	 */
 	public function write(string $key, string $value, mixed $options=null) : mixed {
-		throw new \Temma\Exceptions\Database("No set() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);
+		throw new \Temma\Exceptions\Database("No write() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);
 	}
 	/**
 	 * Multiple write.
-	 * @param	array	$data		Associative array with keys and their associated values. Keys with a null value are removed.
+	 * - Null values: on key-value data sources, the associated keys are removed; on the other data sources
+	 *   (message queues, messaging services...), they are skipped. In both cases, they are not counted.
+	 * - Numbers are converted to strings. Other non-string values (arrays, objects, booleans) are skipped
+	 *   and not counted.
+	 * - A value whose writing raises an exception is skipped and not counted; the other values are written.
+	 * @param	array	$data		Associative array with keys and their associated values.
 	 * @param	mixed	$options	(optional) Options.
-	 * @return	int	The number of written data.
+	 * @return	int	The number of written data. 0 if the data source is disabled.
 	 */
 	public function mWrite(array $data, mixed $options=null) : int {
 		if (!$this->_enabled)
@@ -318,10 +334,13 @@ abstract class Datasource implements \ArrayAccess, \Countable {
 		foreach ($data as $key => $value) {
 			try {
 				if ($value === null) {
-					$this->remove($key);
+					// null values remove the keys on key-value data sources, and are skipped on the other data sources
+					if ($this->_keyValue)
+						$this->remove((string)$key);
 					continue;
 				}
-				$this->write($key, $value, $options);
+				// numbers are converted to strings, other non-string values raise an exception
+				$this->write((string)$key, self::_toRawValue($value), $options);
 				$written++;
 			} catch (\Exception $e) {
 			}
@@ -333,12 +352,12 @@ abstract class Datasource implements \ArrayAccess, \Countable {
 	 * @param	string	$key		Key of the new data.
 	 * @param	string	$localPath	Path to the local file.
 	 * @param	mixed	$options	(optional) Options (like expiration duration).
-	 * @return	mixed	Implementation-dependent.
+	 * @return	mixed	Implementation-dependent (the value returned by write()). False if the data source is disabled.
 	 * @throws	\Temma\Exceptions\IO	If the local file is not readable.
 	 */
 	public function copyTo(string $key, string $localPath, mixed $options=null) : mixed {
 		if (!$this->_enabled)
-			return ($this);
+			return (false);
 		if (!is_readable($localPath))
 			throw new \Temma\Exceptions\IO("Unable to read file '$localPath'.", \Temma\Exceptions\IO::UNREADABLE);
 		$data = file_get_contents($localPath);
@@ -356,7 +375,7 @@ abstract class Datasource implements \ArrayAccess, \Countable {
 		$put = 0;
 		foreach ($data as $key => $path) {
 			try {
-				$this->copyTo($key, $path, $options);
+				$this->copyTo((string)$key, $path, $options);
 				$put++;
 			} catch (\Exception $e) {
 			}
@@ -411,12 +430,13 @@ abstract class Datasource implements \ArrayAccess, \Countable {
 	}
 	/**
 	 * Multiple get.
+	 * If the data source is disabled, every requested key is associated to null (like on an empty data source).
 	 * @param	array	$keys	List of keys.
-	 * @return	array	Associative array with the keys and their associated values.
+	 * @return	array	Associative array with the keys and their associated values (null for missing keys).
 	 */
 	public function mGet(array $keys) : array {
 		if (!$this->_enabled)
-			return ([]);
+			return (array_fill_keys($keys, null));
 		$result = $this->mRead($keys);
 		if (!$result)
 			return ($result);
@@ -427,15 +447,17 @@ abstract class Datasource implements \ArrayAccess, \Countable {
 		return ($result);
 	}
 	/**
-	 * Squeleton method for a setter method implemented by derived classes.
+	 * Setter method. Derived classes may override it.
+	 * The value is JSON-encoded and written using the write() method.
+	 * If the data source is disabled, nothing is done and false is returned.
 	 * @param	string	$key		Key of the new data.
 	 * @param	mixed	$value		Value of the data. Remove the data if null.
 	 * @param	mixed	$options	(optional) Options (like expiration duration).
-	 * @return	mixed	Implementation-dependent.
+	 * @return	mixed	Implementation-dependent (the value returned by write()). False if the data source is disabled.
 	 */
 	public function set(string $key, mixed $value=null, mixed $options=null) : mixed {
 		if (!$this->_enabled)
-			return ($this);
+			return (false);
 		if (is_null($value)) {
 			$this->remove($key);
 			return (null);
@@ -443,15 +465,18 @@ abstract class Datasource implements \ArrayAccess, \Countable {
 		return ($this->write($key, json_encode($value), $options));
 	}
 	/**
-	 * Multiple set.
-	 * @param	array	$data		Associative array with keys and their associated values. Keys with a null value are removed.
+	 * Multiple set. The values are JSON-encoded, and written using the mWrite() method.
+	 * - Null values: on key-value data sources, the associated keys are removed; on the other data sources
+	 *   (message queues, messaging services...), they are skipped. In both cases, they are not counted.
+	 * - A value whose writing raises an exception (or which can't be JSON-encoded) is skipped and not counted.
+	 * @param	array	$data		Associative array with keys and their associated values.
 	 * @param	mixed	$options	(optional) Options (like expiration duration).
-	 * @return	int	The number of set data (removed keys are not counted).
+	 * @return	int	The number of set data. 0 if the data source is disabled.
 	 */
 	public function mSet(array $data, mixed $options=null) : int {
 		if (!$this->_enabled)
 			return (0);
-		// null values are not encoded, so mWrite() removes them
+		// null values are not encoded, so mWrite() removes them (key-value data sources) or skips them (other data sources)
 		array_walk($data, function(&$value, $key) {
 			if ($value !== null)
 				$value = json_encode($value);

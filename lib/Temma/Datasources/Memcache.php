@@ -16,12 +16,28 @@ use \Temma\Base\Log as TµLog;
  *
  * This object is used to read and write data from a Memcache server.
  *
+ * Connection setting is passed using a DSN string:
+ * <pre>memcache://host[:port][;host2[:port2]...][#superprefix]</pre>
+ * - The default port is 11211. Several servers can be given, separated by semicolons.
+ * - A Unix socket is given by its path, with the port 0: <tt>memcache:///var/run/memcached.sock:0</tt>
+ * - The optional super-prefix (after the '#' character) is added (hashed) to all the keys, to separate the data
+ *   of several applications (or virtual hosts) using the same servers. If it is not given, the current hostname
+ *   (HTTP_HOST) is used, so each virtual host has its own data; if it is empty (DSN ending with '#'), no
+ *   super-prefix is used.
+ * Examples:
+ * <ul>
+ *   <li><tt>memcache://localhost</tt></li>
+ *   <li><tt>memcache://localhost:11211;192.168.0.2:11212</tt></li>
+ *   <li><tt>memcache://localhost#my-application</tt></li>
+ *   <li><tt>memcache:///var/run/memcached.sock:0</tt></li>
+ * </ul>
+ *
  * <b>Usage</b>
  * <code>
  * // init
  * $cache = \Temma\Datasources\Memcache::factory('memcache://localhost');
  * // alternative init
- * $cache = \Temma\Base\DataSource::factory('memcache://localhost');
+ * $cache = \Temma\Base\Datasource::factory('memcache://localhost');
  *
  * // add a variable to cache
  * $cache['variable name'] = $data;
@@ -31,19 +47,27 @@ use \Temma\Base\Log as TµLog;
  * $data = $cache['variable name'];
  * $data = $cache->get('variable name');
  *
+ * // add a variable with a 1 hour expiration (24 hours by default)
+ * $cache->set('variable name', $data, 3600);
+ *
  * // remove variable from cache
  * unset($cache['variable name']);
  * $cache->set('variable name', null);
+ * $cache->remove('variable name');
+ *
+ * // group variables using a prefix, and invalidate the whole group
+ * $cache->setPrefix('group');
+ * $cache->set('variable name', $data);
+ * $cache->setPrefix();
+ * $cache->clear('group');
  * </code>
  *
  * Data are stored as PHP values (serialized by the Memcached extension), not JSON-encoded:
  * get() and read() return the same values, but read() throws an exception if the value is not a string.
+ * write() and mWrite() store strings (numbers are converted to strings).
  *
  * When the datasource is disabled, it behaves like an always-empty cache: read() and get() return the default value
- * (or call the callback and return its result), and nothing is stored.
- *
- * Connection using Unix socket:
- * <tt>memcache:///var/run/memcached.sock:0</tt>
+ * (or call the callback and return its result), mRead() and mGet() return null for each key, and nothing is stored.
  */
 class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 	/** Constant : Prefix of the cache variables which contains the prefix salt. */
@@ -305,7 +329,7 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 		return ($this->mGet($keys));
 	}
 	/**
-	 * Add data in cache.
+	 * Add a string in cache.
 	 * @param	string	$key		Index key.
 	 * @param	?string	$value		(optional) Data value. The data is deleted if the value is not given or if it is null.
 	 * @param	mixed	$options	(optional) Expiration duration, in seconds. If it is set to zero (or if it's not given),
@@ -317,7 +341,8 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 		return ($this->set($key, $value, $options));
 	}
 	/**
-	 * Multiple write. Same as mSet(), the data are not converted.
+	 * Multiple write of strings. Numbers are converted to strings; other values (arrays, objects, booleans)
+	 * are skipped and not counted.
 	 * @param	array	$data	Associative array with keys and their associated values. Keys associated to null are removed.
 	 * @param	mixed	$expire	(optional) Expiration duration, in seconds. If it is set to zero (or if it's not given),
 	 *				it will be set to the default expiration (24 hours). If it is set to -1 or a value greater
@@ -325,6 +350,14 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 	 * @return	int	The number of written data (removed keys are not counted).
 	 */
 	public function mWrite(array $data, mixed $expire=0) : int {
+		// convert numbers to strings, skip the other non-string values
+		foreach ($data as $key => $value) {
+			try {
+				$data[$key] = self::_toRawValue($value);
+			} catch (\Temma\Exceptions\Database $e) {
+				unset($data[$key]);
+			}
+		}
 		return ($this->mSet($data, $expire));
 	}
 
@@ -371,12 +404,13 @@ class Memcache extends \Temma\Base\Datasource implements \ArrayAccess {
 	}
 	/**
 	 * Multiple get.
+	 * If the data source is disabled, every requested key is associated to null (like on an empty cache).
 	 * @param	array	$keys	List of keys.
 	 * @return	array	Associative array with the keys and their associated values (null for keys not found).
 	 */
 	public function mGet(array $keys) : array {
 		if (!$this->_enabled || !$keys)
-			return ([]);
+			return (array_fill_keys($keys, null));
 		$this->connect();
 		$saltedPrefix = $this->_getSaltedPrefix();
 		$saltedKeys = [];

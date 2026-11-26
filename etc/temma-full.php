@@ -23,7 +23,7 @@ return [
 		'rootController'    => 'Homepage',
 		'defaultController' => 'NotFound',
 		'proxyController'   => 'Main',
-		'defaultView'       => '\Temma\Views\SmartyView',
+		'defaultView'       => '\Temma\Views\Smarty',
 		'loader'            => 'MyLoader',
 		'logFile'           => 'log/temma.log',
 		'logManager'        => [ 'ElasticLogManager', 'SentryLogManager' ],

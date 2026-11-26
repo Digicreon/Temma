@@ -3,7 +3,9 @@
 
 /**
  * Validation script for the Socket data source, using a local TCP server created by the script:
- * - DSN parsing (port, connection timeout, invalid DSN);
+ * - DSN parsing (port, connection timeout, IPv6 address between square brackets, socket types, invalid DSN);
+ * - connection to an IPv6 address (skipped if IPv6 is not available on the local interface);
+ * - a disabled data source sends and receives nothing;
  * - a connection failure throws a Database exception;
  * - read() returns the data received before the peer closed the connection, doesn't stop on a "0" chunk,
  *   and returns null when it times out;
@@ -88,8 +90,21 @@ check('The connection timeout is read from the DSN', function() {
 	$sock = \Temma\Datasources\Socket::factory('tls://localhost:443#5');
 	return ((property($sock, '_connectionTimeout') === 5) && (property($sock, '_port') === 443) && (property($sock, '_host') === 'localhost'));
 });
+check('IPv6 addresses between square brackets are accepted', function() {
+	$sock = \Temma\Datasources\Socket::factory('tls://[fe80::1]:443#5');
+	$sock2 = \Temma\Datasources\Socket::factory('tcp://[::1]:80');
+	return (property($sock, '_host') === '[fe80::1]' && property($sock, '_port') === 443 &&
+	        property($sock, '_connectionTimeout') === 5 && property($sock2, '_host') === '[::1]' &&
+	        property($sock2, '_port') === 80);
+});
+check('The tlsv1.2 and tlsv1.3 socket types are accepted', function() {
+	$sock = \Temma\Datasources\Socket::factory('tlsv1.2://localhost:443');
+	$sock2 = \Temma\Datasources\Socket::factory('tlsv1.3://localhost:443');
+	return (property($sock, '_type') === 'tlsv1.2' && property($sock2, '_type') === 'tlsv1.3');
+});
 check('Invalid DSNs throw a Database exception', function() {
-	foreach (['foo', 'tcp://', 'tcp://host:12:34', 'http://localhost:80'] as $dsn) {
+	foreach (['foo', 'tcp://', 'tcp://host:12:34', 'http://localhost:80', 'socket://localhost:80', 'sslv2://localhost:443',
+	          'sslv3://localhost:443', 'tcp://fe80::1:443', 'tcp://[fe80::1:443', 'tcp://[]:443', 'tcp://[host]:443'] as $dsn) {
 		try {
 			\Temma\Datasources\Socket::factory($dsn);
 			return (false);
@@ -107,6 +122,37 @@ check('A connection failure throws a Database exception', function() {
 	}
 	return (false);
 });
+check('A disabled data source sends and receives nothing, without connection', function() {
+	$sock = \Temma\Datasources\Socket::factory('tcp://127.0.0.1:1#1')->disable();
+	$sock->remove('');
+	return ($sock->read('') === null && $sock->get('') === null && $sock->write('', 'x') === false &&
+	        $sock->set('', 'x') === false && $sock->mWrite(['x']) === 0 && $sock->mSet(['x']) === 0);
+});
+check('write() returns true', function() {
+	[$sock, $peer] = connection();
+	$result = $sock->write('', 'data');
+	$received = fread($peer, 100);
+	$sock->disconnect();
+	fclose($peer);
+	return ($result === true && $received === 'data');
+});
+if (($server6 = @stream_socket_server('tcp://[::1]:0'))) {
+	check('Connection to an IPv6 address', function() use ($server6) {
+		$port6 = (int)preg_replace('/^.*:/', '', stream_socket_get_name($server6, false));
+		$sock = \Temma\Datasources\Socket::factory("tcp://[::1]:$port6#2");
+		$sock->set('', 'hello');
+		$peer = stream_socket_accept($server6, 2);
+		$line = fgets($peer);
+		fwrite($peer, "world\r\n");
+		$answer = $sock->get('', null, 2);
+		$sock->disconnect();
+		fclose($peer);
+		return ($line === "hello\r\n" && $answer === 'world');
+	});
+	fclose($server6);
+} else {
+	print(TµAnsi::color('yellow', 'IPv6 is not available on the local interface, IPv6 connection test skipped.') . "\n");
+}
 check('read() returns the data sent before the peer closed the connection, then null', function() {
 	[$sock, $peer] = connection();
 	fwrite($peer, 'hello');

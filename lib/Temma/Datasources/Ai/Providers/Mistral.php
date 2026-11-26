@@ -33,6 +33,24 @@ class Mistral extends OpenAiCompatible {
 		'embedding'  => 'https://api.mistral.ai/v1/embeddings',
 	];
 
+	/**
+	 * Parse the API response.
+	 * Mistral errors may have no "error" key, but a "message" key (string or object), e.g.
+	 * <tt>{"object":"error","message":"...","type":"..."}</tt> or <tt>{"message":"Unauthorized"}</tt>.
+	 * @param	array	$data	Decoded JSON response (also for HTTP errors), or associative array with 'type' (content
+	 *				type) and 'content' (raw response) keys if the response is not JSON.
+	 * @return	mixed	The response content (string for chat and transcript, list of floats for embedding),
+	 *			or null if it is not found (always the case for a non-JSON response).
+	 * @throws	\Temma\Exceptions\Database	If the API returned an error.
+	 */
+	public function parseResponse(array $data) : mixed {
+		if (!isset($data['error']) && isset($data['message'])) {
+			$msg = is_string($data['message']) ? $data['message'] : json_encode($data['message'], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+			throw new \Temma\Exceptions\Database(static::NAME . ' API error: ' . mb_substr($msg, 0, 500), \Temma\Exceptions\Database::FUNDAMENTAL);
+		}
+		return (parent::parseResponse($data));
+	}
+
 	/* ********** PROTECTED METHODS ********** */
 	/**
 	 * Build the request body of a chat completion.

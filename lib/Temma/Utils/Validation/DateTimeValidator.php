@@ -87,7 +87,8 @@ class DateTimeValidator implements Validator, JsonSchemaExportable {
 	 */
 	public function toJsonSchema(array $contract) : array {
 		$format = $contract['inFormat'] ?? $contract['format'] ?? 'Y-m-d H:i:s';
-		$schema = ['type' => 'string'];
+		// timestamps are accepted too
+		$schema = ['type' => ['string', 'integer']];
 		// standard formats (RFC 3339)
 		if (in_array($format, ['Y-m-d\TH:i:sP', 'Y-m-d\TH:i:sp', 'Y-m-d\TH:i:s.vP', 'Y-m-d\TH:i:s.vp', 'Y-m-d\TH:i:s.uP', 'Y-m-d\TH:i:s.up']))
 			$schema['format'] = 'date-time';

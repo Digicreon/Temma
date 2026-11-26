@@ -16,7 +16,8 @@ class Api extends \Temma\Web\Controller {
 
 - Data variable: `json` (or `@output`, which takes priority). If neither is defined, all
   template variables are sent, except `URL`, `CONTROLLER`, `ACTION`, `filename`, `jsonDebug`
-  and the variables whose name starts with `_`.
+  and the variables whose name starts with `_`; with no such variable, `{}` is sent (an
+  explicitly empty `@output` or `json` array is sent as `[]`).
 - `$this['filename'] = 'export.json';` sends the stream as a downloadable attachment.
 - `$this['jsonDebug'] = true;` pretty-prints the stream (indented, multi-line) instead of
   the default compact single-line output.

@@ -240,18 +240,23 @@ class Registry implements \Iterator, \ArrayAccess {
 	/* ********** DATA IMPORT ********** */
 	/**
 	 * Read an INI file and import its data.
+	 * The file is decoded by the INI parser of the Serializer helper (unquoted values are converted like
+	 * JSON literals: "true", "false", "null" and numbers are converted, any other value is a string).
 	 * @param	string	$path	Path to the INI file.
 	 * @param	string	$key	(optional) Name of the key which associated value will contain the INI data.
-	 *				If this key is not given, the whole INI data will replace all registry data.
+	 *				If this key is not given, the INI data are merged into the registry data.
 	 * @return	\Temma\Utils\Registry	The current object.
-	 * @throws	\Exception	If something went wrong.
+	 * @throws	\Temma\Exceptions\IO	If the file doesn't exist (NOT_FOUND), can't be read (UNREADABLE),
+	 *					or if its format is not correct (BAD_FORMAT).
+	 * @see	\Temma\Utils\Serializer::decodeIni()
 	 */
 	public function readIni(string $path, ?string $key=null) : \Temma\Utils\Registry {
-		// readINI file
-		$result = parse_ini_file($path, true);
-		if ($result === false) {
-			TµLog::log('Temma/Utils', 'WARN', "INI reading error.");
-			throw new \Exception("INI reading error.");
+		// read INI file
+		try {
+			$result = \Temma\Utils\Serializer::readIni($path);
+		} catch (TµIOException $ie) {
+			TµLog::log('Temma/Utils', 'WARN', "INI reading error: " . $ie->getMessage());
+			throw $ie;
 		}
 		// store the INI data
 		if (is_null($key)) {
@@ -263,19 +268,22 @@ class Registry implements \Iterator, \ArrayAccess {
 	}
 	/**
 	 * Read a JSON File and import its data.
+	 * The file is decoded by the JSON decoder of the Serializer helper (comments and trailing commas are allowed).
 	 * @param	string	$path	Path to the JSON file.
 	 * @param	string	$key	(optional) Name of the key which associated value will contain the JSON data.
-	 *				If this key is not given, the whole JSON data will replace all registry data.
+	 *				If this key is not given, the JSON data are merged into the registry data.
 	 * @return	\Temma\Utils\Registry	The current object.
-	 * @throws	\JsonException	If something went wrong.
+	 * @throws	\Temma\Exceptions\IO	If the file doesn't exist (NOT_FOUND), can't be read (UNREADABLE),
+	 *					or if its format is not correct (BAD_FORMAT).
+	 * @see	\Temma\Utils\Serializer::decodeJson()
 	 */
 	public function readJson(string $path, ?string $key=null) : \Temma\Utils\Registry {
 		// read JSON file
 		try {
-			$result = json_decode(file_get_contents($path), true, 512, JSON_THROW_ON_ERROR);
-		} catch (\JsonException $e) {
-			TµLog::log('Temma/Utils', 'WARN', "JSON reading error: " . $e->getMessage());
-			throw $e;
+			$result = \Temma\Utils\Serializer::readJson($path);
+		} catch (TµIOException $ie) {
+			TµLog::log('Temma/Utils', 'WARN', "JSON reading error: " . $ie->getMessage());
+			throw $ie;
 		}
 		// store the JSON data
 		if (is_null($key)) {
@@ -290,20 +298,30 @@ class Registry implements \Iterator, \ArrayAccess {
 	 * @param	string	$path	Path to the XML file.
 	 * @param	string	$key	Name of the key which associated value will contain the XML data.
 	 * @return	\Temma\Utils\Registry	The current object.
-	 * @throws	\Temma\Exceptions\IO	If the XML file can't be read.
+	 * @throws	\Temma\Exceptions\IO	If the XML file doesn't exist (NOT_FOUND), can't be read (UNREADABLE),
+	 *					or if its format is not correct (BAD_FORMAT).
 	 */
 	public function readXml(string $path, string $key) : \Temma\Utils\Registry {
+		// check the file
+		if (!is_file($path)) {
+			TµLog::log('Temma/Utils', 'WARN', "Unable to find XML file '$path'.");
+			throw new TµIOException("Unable to find XML file '$path'.", TµIOException::NOT_FOUND);
+		}
+		if (!is_readable($path)) {
+			TµLog::log('Temma/Utils', 'WARN', "Unable to read XML file '$path'.");
+			throw new TµIOException("Unable to read XML file '$path'.", TµIOException::UNREADABLE);
+		}
 		// read XML file (libxml errors are collected instead of raising PHP warnings)
 		$useErrors = libxml_use_internal_errors(true);
 		try {
-			$xml = is_file($path) ? simplexml_load_file($path) : false;
+			$xml = simplexml_load_file($path);
 		} finally {
 			libxml_clear_errors();
 			libxml_use_internal_errors($useErrors);
 		}
 		if ($xml === false) {
-			TµLog::log('Temma/Utils', 'WARN', "Unable to read XML file '$path'.");
-			throw new TµIOException("Unable to read XML file '$path'.", TµIOException::BAD_FORMAT);
+			TµLog::log('Temma/Utils', 'WARN', "Unable to decode XML file '$path'.");
+			throw new TµIOException("Unable to decode XML file '$path'.", TµIOException::BAD_FORMAT);
 		}
 		// store the XML data
 		$this->set($key, $xml);

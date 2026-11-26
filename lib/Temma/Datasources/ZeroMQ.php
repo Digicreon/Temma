@@ -14,9 +14,35 @@ use \Temma\Base\Log as TµLog;
 /**
  * ZeroMQ connection management object.
  *
- * Connection setting is passed using a DSN string.
+ * To use it, the "zmq" PHP extension must be installed.
+ *
+ * Connection setting is passed using a DSN string: <tt>zmq://TYPE@HOST:PORT</tt> (connected socket) or
+ * <tt>zmq-bind://TYPE@HOST:PORT</tt> (bound socket), where TYPE is one of "REQ", "REP", "PUSH", "PULL", "PUB", "SUB".
+ * Several addresses may be given, separated by semicolons.
  * - Connected socket: `zmq://REQ@127.0.0.1:5000`
  * - Bound socket:     `zmq-bind://REP@*:5000`
+ * - Several servers:  `zmq://PUSH@10.0.0.1:5000;10.0.0.2:5000`
+ *
+ * <b>Usage</b>
+ * <code>
+ * // initialization
+ * $zmq = \Temma\Datasources\ZeroMQ::factory('zmq://PUSH@127.0.0.1:5000');
+ * $zmq = \Temma\Base\Datasource::factory('zmq://PUSH@127.0.0.1:5000');
+ *
+ * // send a JSON-encoded message (null values are ignored)
+ * $zmq[''] = $data;
+ * $zmq->set('', $data);
+ * // send a raw message
+ * $zmq->write('', 'raw message');
+ * // send a multipart message (JSON-encoded parts, or raw parts)
+ * $zmq->mSet([$data1, $data2]);
+ * $zmq->mWrite(['part 1', 'part 2']);
+ *
+ * // receive a message (wait until a message is available)
+ * $data = $zmq[''];
+ * $data = $zmq->get('');
+ * $rawMessage = $zmq->read('');
+ * </code>
  */
 class ZeroMQ extends \Temma\Base\Datasource {
 	/** ZeroMQ socket. */
@@ -159,44 +185,50 @@ class ZeroMQ extends \Temma\Base\Datasource {
 	 * @param	string	$key			Not used, should be an empty string.
 	 * @param	mixed	$defaultOrCallback	(optional) Not used.
 	 * @param	mixed	$options		(optional) Not used.
-	 * @return	string	The received message (empty string if the datasource is disabled).
+	 * @return	?string	The received message (null if the datasource is disabled, or if no message was received
+	 *			before the reception timeout, when the SOCKOPT_RCVTIMEO socket option is set).
 	 * @throws	\ZMQSocketException	If something went wrong.
 	 */
-	public function read(string $key, mixed $defaultOrCallback=null, mixed $options=null) : string {
+	public function read(string $key, mixed $defaultOrCallback=null, mixed $options=null) : ?string {
 		if (!$this->_enabled)
-			return ('');
+			return (null);
 		$this->connect();
+		// recv() returns false if no message was received before the reception timeout
+		/** @var string|false $msg */
 		$msg = $this->_socket->recv();
-		return ($msg);
+		return (($msg === false) ? null : $msg);
 	}
 	/**
 	 * Send a message over a ZeroMQ socket.
 	 * @param	string	$id		Not used, should be an empty string.
 	 * @param	string	$data		Message data.
 	 * @param	mixed	$options	(optional) Not used.
-	 * @return	mixed	Always null.
+	 * @return	bool	True, or false if the datasource is disabled.
 	 * @throws	\ZMQSocketException	If something went wrong.
 	 */
-	public function write(string $id, string $data, mixed $options=null) : mixed {
+	public function write(string $id, string $data, mixed $options=null) : bool {
 		if (!$this->_enabled)
-			return (null);
+			return (false);
 		$this->connect();
 		$this->_socket->send($data);
-		return (null);
+		return (true);
 	}
 	/**
-	 * Multiple write. The strings are sent as the parts of a single multipart message.
-	 * @param	array	$data		List of string messages to send. Values which are not strings are ignored.
+	 * Multiple write. The values are sent as the parts of a single multipart message.
+	 * @param	array	$data		List of raw messages to send (strings; numbers are converted to strings).
+	 *					Null values are ignored.
 	 * @param	mixed	$options	(optional) Not used.
-	 * @return	int	The number of sent strings.
+	 * @return	int	The number of sent parts (0 if the datasource is disabled).
+	 * @throws	\Temma\Exceptions\Database	If a value is not a string or a number (nothing is sent).
 	 * @throws	\ZMQSocketException	If something went wrong.
 	 */
 	public function mWrite(array $data, mixed $options=null) : int {
 		if (!$this->_enabled)
 			return (0);
+		// check the values before sending anything
 		$output = [];
 		foreach ($data as $datum) {
-			if (is_string($datum))
+			if (($datum = self::_toRawValue($datum)) !== null)
 				$output[] = $datum;
 		}
 		if (!$output)
@@ -225,7 +257,7 @@ class ZeroMQ extends \Temma\Base\Datasource {
 	 * @param	string	$key			Not used, should be an empty string.
 	 * @param	mixed	$defaultOrCallback	(optional) Not used.
 	 * @param	mixed	$options		(optional) Not used.
-	 * @return	mixed	The JSON-decoded message.
+	 * @return	mixed	The JSON-decoded message (null if the datasource is disabled, or if no message was received).
 	 * @throws	\Temma\Exceptions\Database	If the message is not valid JSON.
 	 * @throws	\ZMQSocketException	If something went wrong.
 	 */
@@ -233,6 +265,8 @@ class ZeroMQ extends \Temma\Base\Datasource {
 		if (!$this->_enabled)
 			return (null);
 		$message = $this->read('');
+		if ($message === null)
+			return (null);
 		try {
 			return (json_decode($message, true, 512, JSON_THROW_ON_ERROR));
 		} catch (\JsonException $e) {
@@ -243,30 +277,28 @@ class ZeroMQ extends \Temma\Base\Datasource {
 	/**
 	 * Send a JSON-serialized message to a ZeroMQ socket.
 	 * @param	string	$key		Not used, should be an empty string.
-	 * @param	mixed	$data		(optional) Data to send.
+	 * @param	mixed	$data		(optional) Data to send. Nothing is sent if the data is null.
 	 * @param	mixed	$options	(optional) Not used.
-	 * @return	bool	True, or false if the datasource is disabled.
+	 * @return	bool	True if the message was sent, false if the data is null or if the datasource is disabled.
 	 * @throws	\ZMQSocketException	If something went wrong.
 	 */
-	public function set(string $key, mixed $data=null, mixed $options=0) : bool {
-		if (!$this->_enabled)
+	public function set(string $key, mixed $data=null, mixed $options=null) : bool {
+		if (!$this->_enabled || is_null($data))
 			return (false);
-		$this->connect();
-		$json = json_encode($data);
-		$this->write('', $json);
-		return (true);
+		return ($this->write('', json_encode($data)));
 	}
 	/**
 	 * Multiple set. The JSON-encoded data are sent as the parts of a single multipart message.
-	 * @param	array	$data		List of data to send.
-	 * @param	mixed	$timeout	(optional) Not used.
-	 * @return	int	The number of sent data.
+	 * @param	array	$data		List of data to send. Null values are ignored.
+	 * @param	mixed	$options	(optional) Not used.
+	 * @return	int	The number of sent parts (0 if the datasource is disabled).
 	 * @throws	\ZMQSocketException	If something went wrong.
 	 */
-	public function mSet(array $data, mixed $timeout=0) : int {
+	public function mSet(array $data, mixed $options=null) : int {
 		if (!$this->_enabled)
 			return (0);
-		$data = array_map('json_encode', $data);
+		// null values are not encoded, so mWrite() ignores them
+		$data = array_map(fn($datum) => (is_null($datum) ? null : json_encode($datum)), $data);
 		return ($this->mWrite($data));
 	}
 }

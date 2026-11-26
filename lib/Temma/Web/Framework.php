@@ -134,7 +134,7 @@ class Framework {
 			$sessionSource = (isset($this->_config->sessionSource) && isset($this->_dataSources[$this->_config->sessionSource])) ?
 					 $this->_dataSources[$this->_config->sessionSource] : null;
 			if ((!$sessionSource || !$sessionSource->isEnabled()) &&
-			    $this->_config->sessionDuration != \Temma\Web\Config::SESSION_DURATION)
+			    ($this->_config->sessionDuration != \Temma\Web\Config::SESSION_DURATION))
 				TµLog::log('Temma/Web', 'NOTE', "The 'sessionDuration' parameter is ignored with native PHP sessions (no 'sessionSource' defined).");
 			$this->_session = \Temma\Base\Session::factory($sessionSource, $this->_config->sessionName, $this->_config->sessionDuration,
 			                                               $this->_config->cookieDomain, $this->_config->sessionSecure);

@@ -36,55 +36,75 @@ if (!class_exists('\Aws\S3\S3Client')) {
  * $s3 = \Temma\Datasources\S3::factory('s3://ACCESS_KEY:SECRET_KEY@REGION/BUCKET:public');
  * $s3 = \Temma\Base\Datasource::factory('s3://ACCESS_KEY:SECRET_KEY@REGION/BUCKET:public');
  *
- * // add data with private access
+ * // add data with private access (JSON-encoded, the MIME type is always 'application/json')
  * $s3['path/to/s3/file'] = $data;
  * $s3->set('path/to/s3/file', $data);
  *
- * // add data with private access and a specific MIME type
- * $s3->set('path/to/s3/file', $data, 'application/pdf');
- *
- * // add data with public access
+ * // add data with public access (JSON-encoded)
  * $s3->set('path/to/s3/file', $data, true);
+ * $s3->set('path/to/s3/file', $data, ['public' => true]);
  *
- * // add data with public access and a specific MIME type
- * $s3->set('path/to/s3/file', $data, [
+ * // add raw data (written as is), with the access defined in the DSN
+ * // and the default MIME type ('application/octet-stream')
+ * $s3->write('path/to/s3/file', $rawData);
+ *
+ * // add raw data with a specific MIME type
+ * $s3->write('path/to/s3/file', $rawData, 'application/pdf');
+ *
+ * // add raw data with public access and a specific MIME type
+ * $s3->write('path/to/s3/file', $rawData, [
  *     'public'   => true,
  *     'mimetype' => 'application/pdf',
  * ]);
  *
- * // add a file with private access
- * $s3->put('path/to/s3/file', '/path/to/local/file');
+ * // add a local file, with the access defined in the DSN
+ * $s3->copyTo('path/to/s3/file', '/path/to/local/file');
  *
- * // add a file with private access and a specific MIME type
- * $s3->put('path/to/s3/file', '/path/to/local/file', 'application/pdf');
+ * // add a local file with a specific MIME type
+ * $s3->copyTo('path/to/s3/file', '/path/to/local/file', 'application/pdf');
  *
- * // add a file with public access
- * $s3->put('path/to/s3/file', '/path/to/local/file', true);
+ * // add a local file with public access
+ * $s3->copyTo('path/to/s3/file', '/path/to/local/file', true);
  *
- * // add a file with public access and a specific MIME type
- * $s3->put('path/to/s3/file', '/path/to/local/file', $data, [
+ * // add a local file with public access and a specific MIME type
+ * $s3->copyTo('path/to/s3/file', '/path/to/local/file', [
  *     'public'   => true,
  *     'mimetype' => 'application/pdf',
  * ]);
  *
- * // read a file
+ * // read a file (JSON-decoded data)
  * $data = $s3['path/to/s3/file'];
  * $data = $s3->get('path/to/s3/file');
+ *
+ * // read a file (raw content)
+ * $rawData = $s3->read('path/to/s3/file');
+ *
+ * // copy a S3 file to a local file
+ * $s3->copyFrom('path/to/s3/file', '/path/to/local/file');
  *
  * // get a URL to a S3 file (20 minutes validity)
  * $url = $s3->getUrl('path/to/s3/file');
  *
  * // tell if a file exists
- * if (isset($s3['path/to/s3/file')) { }
+ * if (isset($s3['path/to/s3/file'])) { }
  * if ($s3->isSet('path/to/s3/file')) { }
  *
  * // search a list of files with a given prefix
- * $list = $s3->search('prefix/folder');
+ * $list = $s3->find('prefix/folder');
+ * // same, with the JSON-decoded content of the files
+ * $list = $s3->search('prefix/folder', true);
  *
  * // remove file from S3
  * unset($s3['path/to/s3/file']);
  * $s3['path/to/s3/file'] = null;
  * $s3->set('path/to/s3/file', null);
+ * $s3->remove('path/to/s3/file');
+ *
+ * // remove several files
+ * $s3->mRemove(['path/to/file1', 'path/to/file2']);
+ *
+ * // remove all files whose path starts with a prefix
+ * $s3->clear('prefix/folder/');
  * </code>
  */
 class S3 extends \Temma\Base\Datasource {
@@ -212,9 +232,9 @@ class S3 extends \Temma\Base\Datasource {
 
 	/* ********** SPECIAL REQUESTS ********** */
 	/**
-	 * Get a download URL of an S3 file.
+	 * Get a download URL of an S3 file. The URL is valid for 20 minutes.
 	 * @param	string	$s3Path	File path on S3.
-	 * @return	string	The pre-signed URL.
+	 * @return	string	The pre-signed URL. Empty string if the data source is disabled.
 	 * @throws	\Exception 	If an error occured.
 	 */
 	public function getUrl(string $s3Path) : string {
@@ -230,7 +250,7 @@ class S3 extends \Temma\Base\Datasource {
 			$presignedUrl = (string)$request->getUri();
 		} catch (\Exception $e) {
 			TµLog::log('Temma/Base', 'INFO', "Unable to create S3 pre-signed URL. Bucket='{$this->_bucket}'. key='$s3Path'.");
-			$presignedUrl = null;
+			throw $e;
 		}
 		return ($presignedUrl);
 	}
@@ -266,37 +286,49 @@ class S3 extends \Temma\Base\Datasource {
 		}
 	}
 	/**
-	 * Multiple remove.
+	 * Multiple remove. The files are removed by batches of 1000 (one DeleteObjects request per batch).
 	 * @param	array	$s3Paths	List of path to S3 files.
+	 * @throws	\Temma\Exceptions\IO	If some files couldn't be removed (the other files are removed).
+	 * @throws	\Exception	If a request failed.
 	 */
 	public function mRemove(array $s3Paths) : void {
-		if (!$this->_enabled)
+		if (!$this->_enabled || !$s3Paths)
 			return;
 		$this->connect();
-		$objects = [];
-		foreach ($s3Paths as $path) {
-			$objects[] = [
-				'Key' => $path,
-			];
+		$errors = [];
+		// a DeleteObjects request accepts up to 1000 keys
+		foreach (array_chunk(array_values($s3Paths), 1000) as $chunk) {
+			$objects = [];
+			foreach ($chunk as $path)
+				$objects[] = ['Key' => (string)$path];
+			try {
+				$result = $this->_s3Client->deleteObjects([
+					'Bucket' => $this->_bucket,
+					'Delete' => [
+						'Objects' => $objects,
+						'Quiet'   => true,
+					],
+				]);
+			} catch (\Exception $e) {
+				TµLog::log('Temma/Base', 'INFO', "Unable to remove AWS S3 files. Bucket='{$this->_bucket}'.");
+				throw $e;
+			}
+			// in quiet mode, only the errors are returned
+			foreach (($result['Errors'] ?? []) as $error)
+				$errors[] = ($error['Key'] ?? '') . ' (' . ($error['Code'] ?? '') . ')';
 		}
-		try {
-			$this->_s3Client->deleteObject([
-				'Bucket' => $this->_bucket,
-				'Delete' => [
-					'Objects' => $objects,
-				],
-			]);
-		} catch (\Exception $e) {
-			TµLog::log('Temma/Base', 'INFO', "Unable to remove AWS S3 files. Bucket='{$this->_bucket}'.");
-			throw $e;
+		if ($errors) {
+			TµLog::log('Temma/Base', 'INFO', "Unable to remove AWS S3 files. Bucket='{$this->_bucket}'. keys='" . implode("', '", $errors) . "'.");
+			throw new \Temma\Exceptions\IO('Unable to remove ' . count($errors) . ' AWS S3 file(s): ' . implode(', ', $errors) . '.', \Temma\Exceptions\IO::UNWRITABLE);
 		}
 	}
 	/**
 	 * Remove all S3 files matching a given prefix.
-	 * @param	string	$prefix	Prefix string. Nothing will be removed if this parameter is empty.
+	 * @param	string	$prefix	Prefix string. Nothing will be removed if this parameter is empty (use flush() to remove all files).
+	 * @throws	\Exception	If an error occured.
 	 */
 	public function clear(string $prefix) : void {
-		if (!$this->_enabled)
+		if (!$this->_enabled || $prefix === '')
 			return;
 		$this->connect();
 		try {
@@ -308,6 +340,7 @@ class S3 extends \Temma\Base\Datasource {
 	}
 	/**
 	 * Remove all S3 files from a bucket.
+	 * @throws	\Exception	If an error occured.
 	 */
 	public function flush() : void {
 		if (!$this->_enabled)
@@ -317,14 +350,20 @@ class S3 extends \Temma\Base\Datasource {
 			$objects = $this->_s3Client->getIterator('ListObjects', [
 				'Bucket' => $this->_bucket,
 			]);
+			// the files are removed by batches of 1000
+			$keys = [];
 			foreach ($objects as $object) {
-				$this->remove($object['Key']);
+				$keys[] = $object['Key'];
+				if (count($keys) == 1000) {
+					$this->mRemove($keys);
+					$keys = [];
+				}
 			}
+			$this->mRemove($keys);
 		} catch (\Exception $e) {
-			TµLog::log('Temma/Base', 'INFO', "Unable to list files on AWS S3. Bucket='{$this->_bucket}'.");
+			TµLog::log('Temma/Base', 'INFO', "Unable to remove files on AWS S3. Bucket='{$this->_bucket}'.");
 			throw $e;
 		}
-		return;
 	}
 
 	/* ********** RAW REQUESTS ********** */
@@ -403,7 +442,7 @@ class S3 extends \Temma\Base\Datasource {
 	 *						If a boolean: true for public access, false for private access.
 	 *						If an array: 'public' (bool) and/or 'mimetype' (string) keys.
 	 * @return	?string	The data fetched from the S3 file, or null.
-	 * @throws	\Temma\Exceptions\Database	If the default value or the value returned by the callback is not a string.
+	 * @throws	\Temma\Exceptions\Database	If the default value or the value returned by the callback is not a string or a number.
 	 * @throws	\Exception	If an error occured.
 	 */
 	public function read(string $s3Path, mixed $defaultOrCallback=null, mixed $options=null) : ?string {
@@ -416,7 +455,7 @@ class S3 extends \Temma\Base\Datasource {
 					'Key'    => $s3Path,
 				]);
 				if (($result['Body'] ?? null))
-					return ($result['Body']);
+					return ((string)$result['Body']);
 			} catch (\Exception $e) {
 			}
 		}
@@ -439,8 +478,9 @@ class S3 extends \Temma\Base\Datasource {
 	 *						If a string: mime type.
 	 *						If a boolean: true for public access, false for private access.
 	 *						If an array: 'public' (bool) and/or 'mimetype' (string) keys.
-	 * @return	bool	True if the S3 file exists and has been written locally.
+	 * @return	bool	True if the S3 file exists (or if a default value was given) and has been written locally.
 	 * @throws	\Temma\Exceptions\IO	If the destination path is not writable.
+	 * @throws	\Temma\Exceptions\Database	If the default value or the value returned by the callback is not a string or a number.
 	 * @throws	\Exception		If an error occured.
 	 */
 	public function copyFrom(string $s3Path, string $localPath, mixed $defaultOrCallback=null, mixed $options=null) : bool {
@@ -481,7 +521,9 @@ class S3 extends \Temma\Base\Datasource {
 	 * @param	mixed	$options	(optional) If a string: mime type.
 	 *					If a boolean: true for public access, false for private access.
 	 *					If an array: 'public' (bool) and/or 'mimetype' (string) keys.
-	 * @return	bool	Always true.
+	 *					By default, the access defined in the DSN and the 'application/octet-stream'
+	 *					MIME type are used.
+	 * @return	bool	True, or false if the data source is disabled.
 	 * @throws	\Exception	If an error occured.
 	 */
 	public function write(string $s3Path, string $data, mixed $options=null) : bool {
@@ -520,8 +562,10 @@ class S3 extends \Temma\Base\Datasource {
 	 * @param	mixed	$options	(optional) If a string: mime type.
 	 *					If a boolean: true for public access, false for private access.
 	 *					If an array: 'public' (bool) and/or 'mimetype' (string) keys.
-	 * @return	bool	Always true.
-	 * @throws	\Temma\Exceptions\IO		If the destination file is not writeable.
+	 *					By default, the access defined in the DSN and the 'application/octet-stream'
+	 *					MIME type are used.
+	 * @return	bool	True, or false if the data source is disabled.
+	 * @throws	\Temma\Exceptions\IO	If the local file is not readable.
 	 * @throws	\Exception	If an error occured.
 	 */
 	public function copyTo(string $s3Path, string $localPath, mixed $options=null) : bool {
@@ -588,9 +632,10 @@ class S3 extends \Temma\Base\Datasource {
 	 * @param	string	$s3Path		File path on S3.
 	 * @param	mixed	$value		Value of the data. Remove the file if null.
 	 * @param	mixed	$options	(optional) If a boolean: true for public access, false for private access.
-	 *					If an array: 'public' (bool).
+	 *					If an array: 'public' (bool); the 'mimetype' key is ignored.
+	 *					Other values (like a MIME type string) are ignored.
 	 *					By default, the access defined in the DSN is used.
-	 * @return	bool	Always true.
+	 * @return	bool	True, or false if the data source is disabled.
 	 * @throws	\Exception	If an error occured.
 	 */
 	public function set(string $s3Path, mixed $value=null, mixed $options=null) : bool {
@@ -604,10 +649,10 @@ class S3 extends \Temma\Base\Datasource {
 		return (true);
 	}
 	/**
-	 * Multiple set.
+	 * Multiple set. The data are JSON-encoded (MIME type 'application/json'); the files associated to null are removed.
 	 * @param	array	$data		Associative array with file names and their associated contents.
 	 * @param	mixed	$options	(optional) Options (see set() method).
-	 * @return	int	The number of written files.
+	 * @return	int	The number of written files (removed files are not counted).
 	 */
 	public function mSet(array $data, mixed $options=null) : int {
 		if (!$this->_enabled)

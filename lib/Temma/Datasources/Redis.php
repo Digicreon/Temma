@@ -33,26 +33,36 @@ use \Temma\Base\Log as TµLog;
  *     // object creation
  *     $ndb = \Temma\Datasources\Redis::factory('redis://localhost');
  *     $ndb = \Temma\Base\Datasource::factory('redis://localhost');
- *     // insertion of a key-value pair
+ *     // insertion of a key-value pair (the value is JSON-encoded)
  *     $ndb->set('key', 'value');
+ *     $ndb['key'] = 'value';
+ *     // insertion of a key-value pair, with a 1 hour expiration
+ *     $ndb->set('key', 'value', 3600);
  *     // insertion of many key-value pairs
- *     $ndb->set([
+ *     $ndb->mSet([
  *         'key1' => 'val1',
- *         'key2' => 'val2'
+ *         'key2' => 'val2',
  *     ]);
- *     // fetch a value
+ *     // fetch a value (JSON-decoded)
  *     $result = $ndb->get('key');
+ *     $result = $ndb['key'];
  *     print($result);
+ *     // raw values (not JSON-encoded)
+ *     $ndb->write('raw-key', 'raw value');
+ *     $raw = $ndb->read('raw-key');
  *     // remove a key
  *     $ndb->remove('key');
- *     // fetch many values
- *     $result = $ndb->get(['key1', 'key2', 'key3']);
+ *     unset($ndb['key']);
+ *     // fetch many values (null for missing keys)
+ *     $result = $ndb->mGet(['key1', 'key2', 'key3']);
  *     // display results
  *     foreach ($result as $key => $val)
  *         print("$key -> $val\n");
- *     // search values
- *     $result = $ndb->search('ugc:*');
- * } catch (Exception $e) {
+ *     // search keys
+ *     $keys = $ndb->find('ugc:*');
+ *     // search keys and their JSON-decoded values
+ *     $result = $ndb->search('ugc:*', true);
+ * } catch (\Exception $e) {
  *     print("Database error: " . $e->getMessage());
  * }
  * </code>
@@ -259,7 +269,7 @@ class Redis extends \Temma\Base\Datasource {
 		return ($this->_ndb->exists($key) ? true : false);
 	}
 	/**
-	 * Remove one or many key-value pairs.
+	 * Remove a key-value pair.
 	 * @param	string	$key	Key to remove.
 	 */
 	public function remove(string $key) : void {
@@ -388,12 +398,13 @@ class Redis extends \Temma\Base\Datasource {
 	}
 	/**
 	 * Multiple read.
+	 * If the data source is disabled, every requested key is associated to null (like on an empty data source).
 	 * @param	array	$keys	List of keys.
 	 * @return	array	Associative array with the keys and their associated values (null for missing keys).
 	 */
 	public function mRead(array $keys) : array {
 		if (!$this->_enabled || !$keys)
-			return ([]);
+			return (array_fill_keys($keys, null));
 		$this->connect();
 		$values = $this->_ndb->mget($keys);
 		$result = array_combine($keys, $values);
@@ -404,16 +415,18 @@ class Redis extends \Temma\Base\Datasource {
 		return ($result);
 	}
 	/**
-	 * Add a key-value pair. If the given value is null, the key is removed.
+	 * Add a key-value pair, with a raw value (not JSON-encoded). If the given value is null, the key is removed.
 	 * @param	string	$key		Key.
-	 * @param	mixed	$value		(optional) Value associated to the key.
+	 * @param	mixed	$value		(optional) Value associated to the key (a string or a number, converted to string).
 	 * @param	mixed	$timeout	(optional) Key expiration timeout. 0 by default, to set no expiration.
-	 * @return	bool	Always true.
+	 * @return	bool	True, or false if the data source is disabled.
+	 * @throws	\Temma\Exceptions\Database	If the value is not null, a string or a number.
 	 * @throws	\Exception	If something went wrong.
 	 */
-	public function write(string|array $key, mixed $value=null, mixed $timeout=0) : bool {
+	public function write(string $key, mixed $value=null, mixed $timeout=0) : bool {
 		if (!$this->_enabled)
 			return (false);
+		$value = self::_toRawValue($value);
 		$this->connect();
 		// remove key
 		if ($value === null) {
@@ -429,8 +442,10 @@ class Redis extends \Temma\Base\Datasource {
 		return (true);
 	}
 	/**
-	 * Multiple write.
-	 * @param	array	$data		Associative array with keys and their associated values. Keys with a null value are removed.
+	 * Multiple write, with raw values (not JSON-encoded).
+	 * Keys with a null value are removed (and not counted). Numbers are converted to strings; other
+	 * non-string values (arrays, objects, booleans) are skipped and not counted.
+	 * @param	array	$data		Associative array with keys and their associated values.
 	 * @param	mixed	$timeout	(optional) Key expiration timeout. 0 by default, to set no expiration.
 	 * @return	int	The number of set data.
 	 */
@@ -442,6 +457,14 @@ class Redis extends \Temma\Base\Datasource {
 		$removed = array_keys(array_filter($data, 'is_null'));
 		$this->mRemove($removed);
 		$data = array_diff_key($data, array_flip($removed));
+		// convert numbers to strings, skip the other non-string values
+		foreach ($data as $key => $value) {
+			try {
+				$data[$key] = self::_toRawValue($value);
+			} catch (\Temma\Exceptions\Database $e) {
+				unset($data[$key]);
+			}
+		}
 		if (!$data || !$this->_ndb->mset($data))
 			return (0);
 		// manage timeouts
@@ -542,12 +565,13 @@ class Redis extends \Temma\Base\Datasource {
 	}
 	/**
 	 * Multiple get.
+	 * If the data source is disabled, every requested key is associated to null (like on an empty data source).
 	 * @param	array	$keys	List of keys.
-	 * @return	array	Associative array with the keys and their JSON-decoded associated values.
+	 * @return	array	Associative array with the keys and their JSON-decoded associated values (null for missing keys).
 	 */
 	public function mGet(array $keys) : array {
 		if (!$this->_enabled || !$keys)
-			return ([]);
+			return (array_fill_keys($keys, null));
 		$this->connect();
 		$values = $this->_ndb->mget($keys);
 		$result = array_combine($keys, $values);
@@ -560,14 +584,14 @@ class Redis extends \Temma\Base\Datasource {
 		return ($result);
 	}
 	/**
-	 * Add a key-value pair. If the given value is null, the key is removed.
+	 * Add a key-value pair. The value is JSON-encoded. If the given value is null, the key is removed.
 	 * @param	string	$key		Key.
 	 * @param	mixed	$value		(optional) Value associated to the key.
 	 * @param	mixed	$timeout	(optional) Key expiration timeout. 0 by default, to set no expiration.
-	 * @return	bool	Always true.
+	 * @return	bool	True, or false if the data source is disabled.
 	 * @throws	\Exception	If something went wrong.
 	 */
-	public function set(string|array $key, mixed $value=null, mixed $timeout=0) : bool {
+	public function set(string $key, mixed $value=null, mixed $timeout=0) : bool {
 		if (!$this->_enabled)
 			return (false);
 		$this->connect();
@@ -587,8 +611,9 @@ class Redis extends \Temma\Base\Datasource {
 		return (true);
 	}
 	/**
-	 * Multiple set.
-	 * @param	array	$data		Associative array with keys and their associated values. Keys with a null value are removed.
+	 * Multiple set. The values are JSON-encoded.
+	 * @param	array	$data		Associative array with keys and their associated values. Keys with a null value are removed
+	 *					(and not counted).
 	 * @param	mixed	$timeout	(optional) Key expiration timeout. 0 by default, to set no expiration.
 	 * @return	int	The number of set data.
 	 */
@@ -600,7 +625,8 @@ class Redis extends \Temma\Base\Datasource {
 		$removed = array_keys(array_filter($data, 'is_null'));
 		$this->mRemove($removed);
 		$data = array_diff_key($data, array_flip($removed));
-		$data = array_map('json_encode', $data);
+		// values which can't be JSON-encoded are skipped
+		$data = array_filter(array_map('json_encode', $data), fn($value) => ($value !== false));
 		if (!$data || !$this->_ndb->mset($data))
 			return (0);
 		// manage timeouts

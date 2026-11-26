@@ -24,7 +24,10 @@ class Ini extends \Temma\Web\View {
 	/** Name of the downloadable file. */
 	private ?string $_filename = null;
 
-	/** Init. */
+	/**
+	 * Init.
+	 * @throws	\Temma\Exceptions\Application	If data don't respect the output validation contract.
+	 */
 	public function init() : void {
 		$this->_filename = $this->_response->getData('filename');
 		$this->_data = $this->_getSerializationData('data', ['filename']);
@@ -37,7 +40,10 @@ class Ini extends \Temma\Web\View {
 		}
 		parent::sendHeaders($headers);
 	}
-	/** Write body. */
+	/**
+	 * Write body.
+	 * @throws	\Temma\Exceptions\IO	If the data can't be encoded in INI format.
+	 */
 	public function sendBody() : void {
 		print(\Temma\Utils\Serializer::encodeIni($this->_data));
 	}

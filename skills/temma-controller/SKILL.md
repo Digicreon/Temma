@@ -42,13 +42,28 @@ URL parameters are passed as method parameters, in order. Declare them with type
 default values as needed; validate them with a validation contract for anything non-trivial
 (see the `temma-validation` skill).
 
+Only public methods declared by the application, whose name starts with a lowercase letter,
+are actions. Never callable from a URL (404, even when the controller has `__call()`):
+methods starting with `_` (framework helpers like `_redirect()`, magic methods) or with an
+uppercase letter, protected/private methods, and public methods inherited from the
+framework's `Temma\Web\*` classes (`offsetGet()`, `offsetSet()`...).
+
+HTTP errors:
+- 404: unknown controller or action (with no default controller/action to handle it), a
+  method that is not an action, or URL parameters that don't match the action's signature
+  (missing parameter, value not convertible to the declared type);
+- 500: any exception or error raised inside the action, `__wakeup()` or `__sleep()`
+  (including a `TypeError` in the action's own code);
+- a `\Temma\Exceptions\Http` thrown there keeps its code:
+  `throw new \Temma\Exceptions\Http('Forbidden.', 403);`.
+
 ## Special methods
 
 | Method | Role |
 |---|---|
 | `__invoke()` | root action, used when the URL names the controller without an action (`/user`) |
 | `__call(string $name, array $params)` | default action, used when the requested action doesn't exist |
-| `__proxy(string $name, array $params)` | proxy action; when defined, ALWAYS called instead of any action |
+| `__proxy(string $name, array $params)` | proxy action; when defined, ALWAYS called instead of any action, with the raw action name from the URL (even `_redirect` or `offsetSet`): validate it before dispatching |
 | `__wakeup()` | initialization, called before the action (open resources, set common template variables) |
 | `__sleep()` | finalization, called after the action |
 
@@ -97,7 +112,8 @@ value; in an action, return their result: `return $this->_redirect('/login');`
 
 Getters return what was defined so far (by the action, plugins or attributes): `_getView()`,
 `_getTemplate()`, `_getTemplatePrefix()`, `_getContentType()`, `_getHeaders()`,
-`_getRedirect()`, `_getHttpCode()`, `_getHttpError()`.
+`_getRedirect()`, `_getHttpCode()` (200 by default; the redirection code after `_redirect()`),
+`_getHttpError()`.
 
 ## Objects available in a controller
 

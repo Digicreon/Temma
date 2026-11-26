@@ -17,6 +17,9 @@ class Api extends \Temma\Web\Controller {
 
 - Data variable: `data` (or `@output`, which takes priority). If neither is defined, all
   template variables are used, except `URL`, `CONTROLLER`, `ACTION`, `filename` and the
-  variables whose name starts with `_`.
+  variables whose name starts with `_`. No data gives an empty stream.
+- The data must be an associative array of at most 3 levels (first-level scalars are written
+  before the sections), with keys valid in INI; otherwise `\Temma\Exceptions\IO` is raised
+  (see `Serializer::encodeIni()`).
 
 Reference: https://www.temma.net/en/documentation/view-ini

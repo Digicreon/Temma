@@ -9,7 +9,11 @@
  * - set() with a null value removes the job;
  * - mWrite() ignores null values (no job is removed) and rejects values which are not strings or numbers;
  * - read() returns null when no job is available (with a limited wait duration), and only reserves jobs of the
- *   configured tube.
+ *   configured tube;
+ * - without wait duration, read() and get() wait until a job is available, beyond the duration of a single
+ *   reservation request;
+ * - bury() puts aside a reserved job, kick() puts buried jobs back in the queue;
+ * - Asynk buries the job of a failed task.
  *
  * The tests using the Pheanstalk library are executed only if it is available (Composer "vendor" directory of
  * the project, or autoloader given in the TEMMA_TEST_AUTOLOAD environment variable). They use a fake Beanstalkd
@@ -66,9 +70,25 @@ function property(object $object, string $name) : mixed {
 	return ((new \ReflectionProperty($object, $name))->getValue($object));
 }
 /**
+ * Reserve a ready job of the tubes watched by a client of the fake Beanstalkd server.
+ * @param	array	$jobs	List of jobs (modified if a job is reserved).
+ * @param	array	$client	Client connection.
+ * @return	?string	The "RESERVED" response, or null if no job is available.
+ */
+function reserveJob(array &$jobs, array $client) : ?string {
+	foreach ($jobs as $id => &$job) {
+		if ($job['ready'] && isset($client['watched'][$job['tube']])) {
+			$job['ready'] = false;
+			return ("RESERVED $id " . mb_strlen($job['data'], 'ascii') . "\r\n" . $job['data'] . "\r\n");
+		}
+	}
+	return (null);
+}
+/**
  * Fake Beanstalkd server, handling the commands used by the data source.
  * Runs until the process is killed, or until its parent process ends.
- * The "reserve-with-timeout" command never waits, and the "reserve" command (without timeout) is not supported.
+ * The "reserve-with-timeout" command waits for a job, with an accelerated time (each second of timeout lasts
+ * 50 milliseconds). The "reserve" command (without timeout) is not supported.
  * @param	resource	$server		Server socket.
  * @param	int		$parentPid	PID of the parent process.
  */
@@ -81,11 +101,22 @@ function fakeServer($server, int $parentPid) : void {
 		// quit if the parent process has ended
 		if (posix_getppid() !== $parentPid)
 			return;
+		// answer the pending reservations (job available or timeout reached)
+		foreach ($connections as &$client) {
+			if (!isset($client['deadline']))
+				continue;
+			$response = reserveJob($jobs, $client);
+			if ($response === null && microtime(true) < $client['deadline'])
+				continue;
+			unset($client['deadline']);
+			fwrite($client['stream'], ($response ?? "TIMED_OUT\r\n"));
+		}
+		unset($client);
 		// wait for a new connection or a command
 		$read = array_column($connections, 'stream');
 		$read[] = $server;
 		$write = $except = null;
-		if (!stream_select($read, $write, $except, 1))
+		if (!stream_select($read, $write, $except, 0, 20000))
 			continue;
 		foreach ($read as $stream) {
 			if ($stream === $server) {
@@ -122,7 +153,7 @@ function fakeServer($server, int $parentPid) : void {
 					break;
 				case 'put':
 					$data = mb_substr(stream_get_contents($stream, (int)$parts[4] + 2), 0, -2, 'ascii');
-					$jobs[$nextId] = ['tube' => $client['used'], 'data' => $data, 'ready' => true];
+					$jobs[$nextId] = ['tube' => $client['used'], 'data' => $data, 'ready' => true, 'buried' => false];
 					$response = "INSERTED $nextId\r\n";
 					$nextId++;
 					break;
@@ -131,15 +162,14 @@ function fakeServer($server, int $parentPid) : void {
 						$response = "BAD_FORMAT\r\n";
 						break;
 					}
-					$response = "TIMED_OUT\r\n";
-					foreach ($jobs as $id => &$job) {
-						if ($job['ready'] && isset($client['watched'][$job['tube']])) {
-							$job['ready'] = false;
-							$response = "RESERVED $id " . mb_strlen($job['data'], 'ascii') . "\r\n" . $job['data'] . "\r\n";
-							break;
-						}
+					$response = reserveJob($jobs, $client);
+					if ($response === null && (int)$parts[1] > 0) {
+						// no job available: the response is sent when a job is available, or when the timeout is reached
+						$client['deadline'] = microtime(true) + (int)$parts[1] * 0.05;
+						unset($client);
+						continue 2;
 					}
-					unset($job);
+					$response ??= "TIMED_OUT\r\n";
 					break;
 				case 'delete':
 					$response = isset($jobs[$parts[1]]) ? "DELETED\r\n" : "NOT_FOUND\r\n";
@@ -148,14 +178,45 @@ function fakeServer($server, int $parentPid) : void {
 				case 'touch':
 					$response = isset($jobs[$parts[1]]) ? "TOUCHED\r\n" : "NOT_FOUND\r\n";
 					break;
+				case 'bury':
+					// only a reserved job can be buried
+					if (!isset($jobs[$parts[1]]) || $jobs[$parts[1]]['ready'] || $jobs[$parts[1]]['buried']) {
+						$response = "NOT_FOUND\r\n";
+						break;
+					}
+					$jobs[$parts[1]]['buried'] = true;
+					$response = "BURIED\r\n";
+					break;
+				case 'kick':
+					$kicked = 0;
+					foreach ($jobs as &$job) {
+						if ($kicked < (int)$parts[1] && $job['buried'] && $job['tube'] == $client['used']) {
+							$job['buried'] = false;
+							$job['ready'] = true;
+							$kicked++;
+						}
+					}
+					unset($job);
+					$response = "KICKED $kicked\r\n";
+					break;
+				case 'kick-job':
+					if (!($jobs[$parts[1]]['buried'] ?? false)) {
+						$response = "NOT_FOUND\r\n";
+						break;
+					}
+					$jobs[$parts[1]]['buried'] = false;
+					$jobs[$parts[1]]['ready'] = true;
+					$response = "KICKED\r\n";
+					break;
 				case 'stats-tube':
 					if (!isset($tubes[$parts[1]])) {
 						$response = "NOT_FOUND\r\n";
 						break;
 					}
 					$ready = count(array_filter($jobs, fn($job) => ($job['tube'] == $parts[1] && $job['ready'])));
+					$buried = count(array_filter($jobs, fn($job) => ($job['tube'] == $parts[1] && $job['buried'])));
 					$stats = "---\nname: {$parts[1]}\ncurrent-jobs-urgent: 0\ncurrent-jobs-ready: $ready\ncurrent-jobs-reserved: 0\n" .
-					         "current-jobs-delayed: 0\ncurrent-jobs-buried: 0\ntotal-jobs: 0\ncurrent-using: 0\ncurrent-waiting: 0\n" .
+					         "current-jobs-delayed: 0\ncurrent-jobs-buried: $buried\ntotal-jobs: 0\ncurrent-using: 0\ncurrent-waiting: 0\n" .
 					         "current-watching: 0\npause: 0\ncmd-delete: 0\ncmd-pause-tube: 0\npause-time-left: 0\n";
 					$response = 'OK ' . mb_strlen($stats, 'ascii') . "\r\n$stats\r\n";
 					break;
@@ -183,6 +244,15 @@ check('Invalid DSNs throw a Database exception', function() {
 		}
 	}
 	return (true);
+});
+
+check('A disabled data source sends and receives nothing, without connection', function() {
+	$bean = \Temma\Datasources\Beanstalk::factory('beanstalk://127.0.0.1:1/tube')->disable();
+	return ($bean->read('') === null && $bean->get('') === null && $bean->write('', 'x') === null &&
+	        $bean->set('', 'x') === null && $bean->mWrite(['x']) === 0 && $bean->mSet(['x']) === 0 &&
+	        $bean->count() === 0 && $bean->bury('1') === $bean && $bean->kick() === 0 && $bean->kick('1') === 0 &&
+	        $bean->copyFrom('', sys_get_temp_dir() . '/temma-beanstalk-test-' . getmypid()) === false &&
+	        !file_exists(sys_get_temp_dir() . '/temma-beanstalk-test-' . getmypid()));
 });
 
 /* ********** TESTS WITH SERVER ********** */
@@ -232,6 +302,34 @@ if (!class_exists('\Pheanstalk\Pheanstalk')) {
 		check('read() and get() return null when no job is available', function() use ($bean) {
 			return (($bean->read('', null, 0) === null) && ($bean->get('', null, 0) === null));
 		});
+		check('get() with a wait duration returns null when no job is available in time', function() use ($bean) {
+			return ($bean->get('', null, 5) === null);
+		});
+		check('Without wait duration, get() waits until a job is available', function() use ($bean, $dsn) {
+			// a child process sends a job after 2.5 seconds (more than a reservation request on the fake server)
+			$pid = pcntl_fork();
+			if (!$pid) {
+				usleep(2500000);
+				\Temma\Datasources\Beanstalk::factory($dsn)->set('', 'delayed job');
+				exit(0);
+			}
+			// the test is interrupted if get() doesn't return
+			pcntl_async_signals(true);
+			pcntl_signal(SIGALRM, function() {
+				throw new \Exception('get() never returned.');
+			});
+			pcntl_alarm(60);
+			try {
+				$start = microtime(true);
+				$message = $bean->get('');
+				$duration = microtime(true) - $start;
+				$bean->remove($message['id']);
+			} finally {
+				pcntl_alarm(0);
+				pcntl_waitpid($pid, $status);
+			}
+			return ($message['data'] === 'delayed job' && $duration >= 2);
+		});
 		check('read() limits the wait duration to 20 seconds', function() use ($bean) {
 			$bean->set('', 'job');
 			$message = $bean->get('', null, 60);
@@ -268,6 +366,14 @@ if (!class_exists('\Pheanstalk\Pheanstalk')) {
 			return ($sent === 2 && (array_column($messages, 'data') === ['first', 'second', '3']) &&
 			        $messages[0]['id'] === $id);
 		});
+		check('mSet() JSON-encodes the values and ignores null values', function() use ($bean) {
+			$sent = $bean->mSet(['first', null, ['x' => 1]]);
+			$messages = [$bean->get(''), $bean->get('')];
+			foreach ($messages as $message)
+				$bean->remove($message['id']);
+			return ($sent === 2 && array_column($messages, 'data') === ['first', ['x' => 1]] &&
+			        $bean->read('', null, 0) === null);
+		});
 		check('mWrite() rejects values which are not strings or numbers, without sending anything', function() use ($bean) {
 			$before = $bean->count();
 			try {
@@ -276,6 +382,58 @@ if (!class_exists('\Pheanstalk\Pheanstalk')) {
 				return ($bean->count() === $before);
 			}
 			return (false);
+		});
+		check('bury() puts aside a reserved job, kick() puts it back in the queue', function() use ($bean) {
+			$id = $bean->write('', 'failed job');
+			$message = $bean->read('');
+			$buried = $bean->bury($message['id']);
+			$afterBury = [$bean->count(), $bean->read('', null, 0)];
+			$kicked = $bean->kick();
+			$again = $bean->read('', null, 0);
+			$bean->remove($again['id']);
+			return ($buried === $bean && $afterBury === [0, null] && $kicked === 1 &&
+			        $again === ['id' => $id, 'data' => 'failed job'] && $bean->kick() === 0);
+		});
+		check('kick() with an identifier kicks only this job (0 if it is not buried)', function() use ($bean) {
+			$bean->mWrite(['first', 'second']);
+			$first = $bean->read('');
+			$second = $bean->read('');
+			$bean->bury($first['id'])->bury($second['id']);
+			$kicked = $bean->kick($second['id']);
+			$message = $bean->read('', null, 0);
+			$notBuried = $bean->kick($message['id']);
+			$bean->remove($message['id']);
+			$others = $bean->kick();
+			$last = $bean->read('', null, 0);
+			$bean->remove($last['id']);
+			return ($kicked === 1 && $message['data'] === 'second' && $notBuried === 0 && $others === 1 &&
+			        $last['data'] === 'first');
+		});
+		check('bury() throws an exception if the job is not reserved', function() use ($bean) {
+			$id = $bean->write('', 'ready job');
+			try {
+				$bean->bury($id);
+			} catch (\Pheanstalk\Exception\JobNotFoundException $e) {
+				return (true);
+			} finally {
+				$bean->remove($id);
+			}
+			return (false);
+		});
+		check('Asynk buries the job of a failed task (and ignores a burial failure)', function() use ($bean) {
+			$asynkDao = (new \ReflectionClass('\Temma\Asynk\AsynkDao'))->newInstanceWithoutConstructor();
+			(new \ReflectionProperty($asynkDao, '_transport'))->setValue($asynkDao, $bean);
+			(new \ReflectionProperty($asynkDao, '_transportClass'))->setValue($asynkDao, 'Temma\Datasources\Beanstalk');
+			$bean->set('', ['target' => 'object', 'action' => 'method', 'data' => []]);
+			$task = $asynkDao->getNextTask();
+			$asynkDao->invalidateFetchedTask($task);
+			// the job is not reserved anymore: burying it again fails silently
+			$asynkDao->invalidateFetchedTask($task);
+			$afterBury = $bean->read('', null, 0);
+			$kicked = $bean->kick();
+			$message = $bean->get('', null, 0);
+			$bean->remove($message['id']);
+			return ($afterBury === null && $kicked === 1 && $message['id'] === $task['id'] && $message['data']['target'] === 'object');
 		});
 		check('The datasource can be used after a disconnection', function() use ($bean) {
 			$bean->disconnect();

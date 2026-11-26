@@ -28,12 +28,15 @@ class Worker extends \Temma\Web\Controller {
 	}
 	/**
 	 * Loop indefinitely (worker).
+	 * When no task is waiting, the worker sleeps during the loop delay ("loopDelay" key of the "x-asynk" configuration),
+	 * except with a Beanstalkd transport: the worker waits for the next task, and processes it as soon as it is available.
 	 */
 	public function __invoke() {
 		$this->_process(true);
 	}
 	/**
 	 * Loop as long as there are waiting tasks (crontab).
+	 * Not suitable for a Beanstalkd transport: the worker waits for new tasks, so this method never ends.
 	 */
 	public function crontab() {
 		$this->_process(false);

@@ -5,7 +5,9 @@
  * Validation script for the management of local files by data sources:
  * - copyFrom() of the base class and of the File data source (the local file was rejected when it didn't exist yet);
  * - File data source: DSN parsing, umask, creation of files and directories by write() and copyTo(),
- *   files management like S3 (recursive search, only files, empty directories removed).
+ *   files management like S3 (recursive search, only files, empty directories removed);
+ * - File data source: paths normalisation (backslashes, '.' segments, repeated slashes), and rejection of the paths
+ *   which could reach a file outside of the root path ('..' segments, null bytes) by all the methods.
  */
 
 require_once(__DIR__ . '/../lib/Temma/Base/Autoload.php');
@@ -169,6 +171,47 @@ if (posix_getuid() !== 0) {
 	check("write(): unwritable directory: IO exception",
 	      exception(fn() => \Temma\Datasources\File::factory("file://$tmpPath/readonly")->write('new.txt', 'Data')) instanceof \Temma\Exceptions\IO);
 }
+
+// path traversal
+print("\n" . TµAnsi::bold("File data source: paths\n"));
+file_put_contents("$tmpPath/secret.txt", 'Secret');
+$paths = new \Temma\Datasources\File("$tmpPath/root/paths");
+check("write(): repeated slashes and '.' segments removed",
+      !exception(fn() => $paths->write('/a//b/./c.txt/', 'Data')) && content("$tmpPath/root/paths/a/b/c.txt") === 'Data');
+check("read(), isSet(): backslashes are directory separators",
+      $paths->read('a\\b\\c.txt') === 'Data' && $paths->isSet('.\\a\\b\\c.txt'));
+check("'....' is a regular file name, inside the root path",
+      $paths->read('....//secret.txt') === null && $paths->read('....//....//secret.txt') === null &&
+      !exception(fn() => $paths->write('....//x.txt', 'X')) && content("$tmpPath/root/paths/..../x.txt") === 'X');
+$badPaths = ['../../secret.txt', '..\\..\\secret.txt', 'a/../../../secret.txt', 'a/./../../../secret.txt', '/../../secret.txt',
+             '..', 'a/..', "secret.txt\0.png", '../..//secret.txt'];
+foreach ($badPaths as $badPath) {
+	$label = addcslashes($badPath, "\0");
+	check("'$label': read(), isSet(), find(), search(), get() and count() raise an IO exception",
+	      exception(fn() => $paths->read($badPath)) instanceof \Temma\Exceptions\IO &&
+	      exception(fn() => $paths->isSet($badPath)) instanceof \Temma\Exceptions\IO &&
+	      exception(fn() => $paths->find($badPath)) instanceof \Temma\Exceptions\IO &&
+	      exception(fn() => $paths->search($badPath)) instanceof \Temma\Exceptions\IO &&
+	      exception(fn() => $paths->get($badPath)) instanceof \Temma\Exceptions\IO &&
+	      exception(fn() => $paths->count($badPath)) instanceof \Temma\Exceptions\IO);
+	check("'$label': write(), set(), remove(), clear() raise an IO exception, the outside file is unchanged",
+	      exception(fn() => $paths->write($badPath, 'Hacked')) instanceof \Temma\Exceptions\IO &&
+	      exception(fn() => $paths->set($badPath, 'Hacked')) instanceof \Temma\Exceptions\IO &&
+	      exception(fn() => $paths->remove($badPath)) instanceof \Temma\Exceptions\IO &&
+	      exception(fn() => $paths->clear($badPath)) instanceof \Temma\Exceptions\IO &&
+	      content("$tmpPath/secret.txt") === 'Secret');
+	check("'$label': copyFrom() and copyTo() raise an IO exception, no file copied",
+	      exception(fn() => $paths->copyFrom($badPath, "$tmpPath/stolen.txt")) instanceof \Temma\Exceptions\IO &&
+	      !file_exists("$tmpPath/stolen.txt") &&
+	      exception(fn() => $paths->copyTo(str_replace('secret', 'copied', $badPath), "$tmpPath/root/source.txt")) instanceof \Temma\Exceptions\IO &&
+	      !file_exists("$tmpPath/copied.txt") && !file_exists("$tmpPath/root/copied.txt"));
+}
+check("mWrite() and mCopyFrom() skip the bad paths",
+      $paths->mWrite(['../../secret.txt' => 'Hacked', 'ok.txt' => 'OK']) === 1 && content("$tmpPath/secret.txt") === 'Secret' &&
+      $paths->mCopyFrom(['../../secret.txt' => "$tmpPath/stolen.txt", 'ok.txt' => "$tmpPath/ok-copy.txt"]) === 1 &&
+      !file_exists("$tmpPath/stolen.txt") && content("$tmpPath/ok-copy.txt") === 'OK');
+check("mRemove() stops at the first bad path",
+      exception(fn() => $paths->mRemove(['../../secret.txt'])) instanceof \Temma\Exceptions\IO && is_file("$tmpPath/secret.txt"));
 
 // summary
 print("\n");

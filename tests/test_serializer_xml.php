@@ -233,9 +233,22 @@ check("values are converted like JSON literals, whatever the name of the root el
 	                                           'debug' => false, 'cache' => true, 'domain' => null]);
 });
 check("values which are not JSON literals stay strings (no, off, yes, TRUE, 0123, +5, spaces)", function() {
-	$xml = '<config><a>no</a><b>off</b><c>yes</c><d>TRUE</d><e>0123</e><f>+5</f><g> 12 </g><h></h><i/></config>';
+	$xml = '<config><a>no</a><b>off</b><c>yes</c><d>TRUE</d><e>0123</e><f>+5</f><g> 1 2 </g><h></h><i/><j>  </j></config>';
 	return (TµSerializer::decodeXml($xml) === ['a' => 'no', 'b' => 'off', 'c' => 'yes', 'd' => 'TRUE', 'e' => '0123',
-	                                           'f' => '+5', 'g' => ' 12 ', 'h' => '', 'i' => '']);
+	                                           'f' => '+5', 'g' => ' 1 2 ', 'h' => '', 'i' => '', 'j' => '  ']);
+});
+check("JSON literals surrounded by white spaces are converted", function() {
+	$xml = "<config>\n\t<port>\n\t\t8080\n\t</port>\n\t<debug> true </debug>\n\t<ratio>\t0.5\r\n</ratio>\n\t<none>\nnull\n</none>\n</config>";
+	return (TµSerializer::decodeXml($xml) === ['port' => 8080, 'debug' => true, 'ratio' => 0.5, 'none' => null]);
+});
+check("strings surrounded by white spaces keep them", function() {
+	$xml = "<config><name>\n  Alice\n</name><str __type=\"string\"> 12 </str></config>";
+	return (TµSerializer::decodeXml($xml) === ['name' => "\n  Alice\n", 'str' => ' 12 ']);
+});
+check("strings which look like literals surrounded by white spaces are typed by encodeXml()", function() {
+	$data = ['a' => ' 12 ', 'b' => "\ntrue\n", 'c' => "\tnull", 'd' => ' Alice ', 'e' => ' '];
+	$xml = TµSerializer::encodeXml($data);
+	return (substr_count($xml, '__type="string"') == 3 && TµSerializer::decodeXml($xml) === $data);
 });
 check("nested elements are decoded as associative arrays", function() {
 	$xml = "<?xml version=\"1.0\"?>\n<root>\n\t<db>\n\t\t<host>localhost</host>\n\t\t<user>admin</user>\n\t</db>\n</root>\n";

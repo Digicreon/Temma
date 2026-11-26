@@ -89,8 +89,10 @@ class OpenAiCompatible implements \Temma\Datasources\Ai\Provider {
 	}
 	/**
 	 * Parse the API response.
-	 * @param	array	$data	Decoded JSON response.
-	 * @return	mixed	The response content (string for chat and transcript, list of floats for embedding).
+	 * @param	array	$data	Decoded JSON response (also for HTTP errors), or associative array with 'type' (content
+	 *				type) and 'content' (raw response) keys if the response is not JSON.
+	 * @return	mixed	The response content (string for chat and transcript, list of floats for embedding),
+	 *			or null if it is not found (always the case for a non-JSON response).
 	 * @throws	\Temma\Exceptions\Database	If the API returned an error.
 	 */
 	public function parseResponse(array $data) : mixed {
@@ -154,7 +156,7 @@ class OpenAiCompatible implements \Temma\Datasources\Ai\Provider {
 	protected function _buildTranscriptBody(string $model, string $prompt, array $options) : array {
 		$att = $options['attachments'][0] ?? null;
 		if (!$att)
-			throw new \Temma\Exceptions\Database("No audio file to transcribe.", \Temma\Exceptions\Database::FUNDAMENTAL);
+			throw new \Temma\Exceptions\Database('No audio file to transcribe.', \Temma\Exceptions\Database::FUNDAMENTAL);
 		// the file name extension is used by some services to detect the audio format
 		$name = $att['name'] ?? ('audio.' . $this->_audioFormat($att['mime']));
 		$body = [

@@ -26,7 +26,8 @@ use \Temma\Base\Log as TµLog;
  *         <li>abstract: Short description of the article.</li>
  *         <li>url: URL of the article.</li>
  *         <li>title: Title of the article.</li>
- *         <li>guid: (optional) Unique identifier of the article (use its URL if not defined).</li>
+ *         <li>guid: (optional) Unique identifier of the article (use its URL if not defined). It is declared as a
+ *             permalink only if it is a URL.</li>
  *         <li>author: (optional) Name and email address of the article's author.</li>
  *         <li>pubDate: (optional) Date of publication.</li>
  *         <li>image: (optional) URL of the article's image.</li>
@@ -111,10 +112,13 @@ class Rss extends \Temma\Web\View {
 			print("\t\t<title>" . htmlspecialchars($article['title'], ENT_COMPAT, 'UTF-8') . "</title>\n");
 			print("\t\t<link>" . htmlspecialchars($article['url'], ENT_COMPAT, 'UTF-8') . "</link>\n");
 			// guid
-			if (($article['guid'] ?? false))
-				print("\t\t<guid isPermalink=\"true\">" . htmlspecialchars($article['guid'], ENT_COMPAT, 'UTF-8') . "</guid>\n");
-			else
+			if (($article['guid'] ?? false)) {
+				// the guid is a permalink only if it is a URL
+				$isPermaLink = preg_match('/^https?:\/\//i', $article['guid']) ? 'true' : 'false';
+				print("\t\t<guid isPermaLink=\"$isPermaLink\">" . htmlspecialchars($article['guid'], ENT_COMPAT, 'UTF-8') . "</guid>\n");
+			} else {
 				print("\t\t<guid isPermaLink=\"true\">" . htmlspecialchars($article['url'], ENT_COMPAT, 'UTF-8') . "</guid>\n");
+			}
 			// author
 			if (($article['author'] ?? false)) {
 				print("\t\t<author>" . htmlspecialchars($article['author'], ENT_COMPAT, 'UTF-8') . "</author>\n");

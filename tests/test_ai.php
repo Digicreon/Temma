@@ -6,13 +6,22 @@
  * Starts a local HTTP server (PHP built-in server) that simulates AI services, then checks:
  * - the DSN parsing (type prefix, built-in providers, OpenAI-compatible URL, custom provider class);
  * - the requests built for each type of API (chat, transcript, embedding);
- * - the management of the responses (JSON, raw content, HTTP errors);
+ * - the management of the responses (JSON whatever the content type, raw content, non-JSON responses, HTTP errors);
+ * - the provider-specific behaviours (OpenRouter model names, Ollama JSON mode, OpenAI max_completion_tokens,
+ *   Mistral error messages);
+ * - the invalid prompts (invalid UTF-8) and attachments (directory);
  * - the path to a file given as options;
  * - the default values and callbacks of read() and get() (never JSON-decoded, strings never called as functions);
- * - the disabled data source;
+ * - the disabled data source (behaves like an empty one: default value or callback);
  * - the API keys masked in the logs and exception messages;
  * - the deprecated OpenAi data source (HTTP status and JSON validity checks).
  */
+
+// safety net: no request can reach a real AI service (only the local fake server is reachable)
+putenv('https_proxy=http://127.0.0.1:1');
+putenv('http_proxy=http://127.0.0.1:1');
+putenv('HTTPS_PROXY=http://127.0.0.1:1');
+putenv('no_proxy=127.0.0.1,localhost');
 
 require_once(__DIR__ . '/../lib/Temma/Base/Autoload.php');
 
@@ -44,23 +53,34 @@ file_put_contents("$serverPath/router.php", <<<'EOT'
 	if ($_SERVER['REQUEST_URI'] === '/slow')
 		sleep(3);
 	[$code, $type, $body] = match ($_SERVER['REQUEST_URI']) {
-		'/chat'          => [200, 'application/json; charset=utf-8', json_encode(['choices' => [['message' => ['content' => json_encode($received)]]]])],
-		'/transcript'    => [200, 'application/json', json_encode(['text' => json_encode($received)])],
-		'/embedding'     => [200, 'application/json', json_encode(['data' => [['embedding' => [0.5, -0.25]]]])],
-		'/binary'        => [200, 'audio/mpeg', "\xFF\xFB\x90\x00binary"],
-		'/slow'          => [200, 'application/json', json_encode(['choices' => [['message' => ['content' => 'late']]]])],
-		'/text-error'    => [422, 'text/plain; charset=utf-8', 'Failed to deserialize the JSON body'],
-		'/json-error'    => [401, 'application/json', json_encode(['error' => ['message' => 'Invalid API key']])],
-		'/unknown-error' => [401, 'application/json', json_encode(['detail' => 'Unauthorized'])],
-		'/text'          => [200, 'application/json', json_encode(['choices' => [['message' => ['content' => 'plain text answer']]]])],
-		'/bad-gateway'   => [502, 'application/json', '<html>Bad gateway</html>'],
-		'/openai-ok'     => [200, 'application/json', json_encode(['choices' => [['message' => ['content' => 'Paris']]]])],
-		'/openai-error'  => [500, 'text/html', '<html>Internal error</html>'],
-		'/openai-text'   => [200, 'text/plain', 'not JSON'],
-		default          => [404, 'text/plain', 'Not found'],
+		'/chat'                 => [200, 'application/json; charset=utf-8', json_encode(['choices' => [['message' => ['content' => json_encode($received)]]]])],
+		'/transcript'           => [200, 'application/json', json_encode(['text' => json_encode($received)])],
+		'/embedding'            => [200, 'application/json', json_encode(['data' => [['embedding' => [0.5, -0.25]]]])],
+		'/embedding-as-text'    => [200, 'text/plain', json_encode(['data' => [['embedding' => [0.5, -0.25]]]])],
+		'/binary'               => [200, 'audio/mpeg', "\xFF\xFB\x90\x00binary"],
+		'/slow'                 => [200, 'application/json', json_encode(['choices' => [['message' => ['content' => 'late']]]])],
+		'/text-error'           => [422, 'text/plain; charset=utf-8', 'Failed to deserialize the JSON body'],
+		'/json-error'           => [401, 'application/json', json_encode(['error' => ['message' => 'Invalid API key']])],
+		'/unknown-error'        => [401, 'application/json', json_encode(['detail' => 'Unauthorized'])],
+		'/text'                 => [200, 'application/json', json_encode(['choices' => [['message' => ['content' => 'plain text answer']]]])],
+		'/html'                 => [200, 'text/html; charset=utf-8', '<html>Maintenance</html>'],
+		'/json-as-text'         => [200, 'text/plain', json_encode(['choices' => [['message' => ['content' => '{"city":"Paris"}']]]])],
+		'/json-no-type'         => [200, '', json_encode(['choices' => [['message' => ['content' => '{"city":"Rome"}']]]])],
+		'/text-json-error'      => [401, 'text/plain', json_encode(['error' => ['message' => 'Invalid API key']])],
+		'/mistral-unauthorized' => [401, 'application/json', json_encode(['message' => 'Unauthorized', 'request_id' => 'abc'])],
+		'/mistral-error'        => [400, 'application/json', json_encode(['object' => 'error', 'message' => 'Invalid model: xyz', 'type' => 'invalid_model'])],
+		'/mistral-validation'   => [422, 'application/json', json_encode(['object' => 'error', 'message' => ['detail' => [['msg' => 'Field required']]]])],
+		'/bad-gateway'          => [502, 'application/json', '<html>Bad gateway</html>'],
+		'/openai-ok'            => [200, 'application/json', json_encode(['choices' => [['message' => ['content' => 'Paris']]]])],
+		'/openai-error'         => [500, 'text/html', '<html>Internal error</html>'],
+		'/openai-text'          => [200, 'text/plain', 'not JSON'],
+		default                 => [404, 'text/plain', 'Not found'],
 	};
 	http_response_code($code);
-	header("Content-Type: $type");
+	if ($type)
+		header("Content-Type: $type");
+	else
+		ini_set('default_mimetype', '');
 	print($body);
 	EOT);
 $port = rand(20000, 60000);
@@ -219,6 +239,20 @@ check("Mistral chat: JSON response format",
 $e = exception(fn() => request('ai://transcript@ovh/model'));
 check("transcript without file: exception",
       $e instanceof \Temma\Exceptions\Database && str_contains($e->getMessage(), 'No audio file'));
+$ai = TµAi::factory('ai://openrouter/meta-llama/llama-3.3-70b-instruct:free#KEY');
+$model = (new \ReflectionProperty(TµAi::class, '_model'))->getValue($ai);
+check("OpenRouter: model name with variant suffix sent as is",
+      $model === 'meta-llama/llama-3.3-70b-instruct:free' &&
+      provider($ai)->buildPayload($model, 'Hello', [])['body']['model'] === 'meta-llama/llama-3.3-70b-instruct:free');
+$body = request('ai://ollama/model', 'Hello', ['output' => 'application/json'])['body'];
+check("Ollama chat: JSON mode sent as response_format (OpenAI-compatible endpoint)",
+      ($body['response_format'] ?? null) === ['type' => 'json_object'] && !isset($body['format']));
+$body = request('ai://openai/model', 'Hello', ['max_tokens' => 100])['body'];
+check("OpenAI chat: max_tokens sent as max_completion_tokens",
+      ($body['max_completion_tokens'] ?? null) === 100 && !isset($body['max_tokens']));
+check("other OpenAI-compatible services: max_tokens kept",
+      (request('ai://ovh/model', 'Hello', ['max_tokens' => 100])['body']['max_tokens'] ?? null) === 100 &&
+      (request('ai://[https://example.com/v1/chat/completions]/model', 'Hello', ['max_tokens' => 100])['body']['max_tokens'] ?? null) === 100);
 
 print("\n" . TµAnsi::bold("Requests and responses\n"));
 $received = json_decode(TµAi::factory('ai://[' . BASE_URL . '/chat]/chat-model#KEY')->read('Hello'), true);
@@ -262,6 +296,50 @@ check("missing file: IO exception",
       $e instanceof \Temma\Exceptions\IO);
 check("missing file: default value",
       TµAi::factory('ai://[' . BASE_URL . '/chat]/model')->read('Hello', 'fallback', "$serverPath/missing.wav") === 'fallback');
+$e = exception(fn() => TµAi::factory('ai://[' . BASE_URL . '/chat]/model')->read('Hello', null, ['attachments' => [$serverPath]]));
+check("directory given as a string attachment: IO exception",
+      $e instanceof \Temma\Exceptions\IO && str_contains($e->getMessage(), 'Unable to read file'));
+$e = exception(fn() => TµAi::factory('ai://[' . BASE_URL . '/chat]/model')->read('Hello', null, $serverPath));
+check("directory given as options: IO exception",
+      $e instanceof \Temma\Exceptions\IO);
+$e = exception(fn() => TµAi::factory('ai://[' . BASE_URL . '/chat]/model')->read("Invalid \xC3\x28 UTF-8"));
+check("invalid UTF-8 in the prompt: exception",
+      $e instanceof \Temma\Exceptions\Database && str_contains($e->getMessage(), 'JSON-encode'));
+check("invalid UTF-8 in the prompt: default value",
+      TµAi::factory('ai://[' . BASE_URL . '/chat]/model')->get("Invalid \xC3\x28 UTF-8", 'fallback') === 'fallback');
+$e = exception(fn() => TµAi::factory('ai://[' . BASE_URL . '/text-json-error]/model')->read('Hello'));
+check("HTTP error with JSON response sent as text/plain: provider error message",
+      $e instanceof \Temma\Exceptions\Database && $e->getMessage() === 'OpenAI-compatible API error: Invalid API key');
+foreach (['/mistral-unauthorized' => 'Mistral API error: Unauthorized', '/mistral-error' => 'Mistral API error: Invalid model: xyz'] as $path => $message) {
+	$e = exception(fn() => (new TµAi('\Temma\Datasources\Ai\Providers\Mistral', 'model', 'KEY', BASE_URL . $path))->read('Hello'));
+	check("Mistral error without 'error' key ($path): API message",
+	      $e instanceof \Temma\Exceptions\Database && $e->getMessage() === $message);
+}
+$e = exception(fn() => (new TµAi('\Temma\Datasources\Ai\Providers\Mistral', 'model', 'KEY', BASE_URL . '/mistral-validation'))->read('Hello'));
+check("Mistral error with an object message: message JSON-encoded",
+      $e instanceof \Temma\Exceptions\Database && str_contains($e->getMessage(), 'Mistral API error: {"detail"') &&
+      str_contains($e->getMessage(), 'Field required'));
+check("Mistral successful response: parsed as usual",
+      (new TµAi('\Temma\Datasources\Ai\Providers\Mistral', 'model', 'KEY', BASE_URL . '/text'))->read('Hello') === 'plain text answer');
+
+print("\n" . TµAnsi::bold("Non-JSON responses and content types\n"));
+$e = exception(fn() => TµAi::factory('ai://[' . BASE_URL . '/html]/model')->read('Hello'));
+check("HTML page with status 200: 'invalid response' exception",
+      $e instanceof \Temma\Exceptions\Database && str_contains($e->getMessage(), 'invalid response') &&
+      str_contains($e->getMessage(), 'text/html'));
+check("HTML page with status 200: default value (read() and get())",
+      TµAi::factory('ai://[' . BASE_URL . '/html]/model')->read('Hello', 'fallback') === 'fallback' &&
+      TµAi::factory('ai://[' . BASE_URL . '/html]/model')->get('Hello', 'fallback') === 'fallback');
+check("HTML page with status 200: callback",
+      TµAi::factory('ai://[' . BASE_URL . '/html]/model')->get('Hello', fn() => ['CB']) === ['CB']);
+check("JSON sent as text/plain: read() returns the text",
+      TµAi::factory('ai://[' . BASE_URL . '/json-as-text]/model')->read('Hello') === '{"city":"Paris"}');
+check("JSON sent as text/plain: get() returns the decoded data",
+      TµAi::factory('ai://[' . BASE_URL . '/json-as-text]/model')->get('Hello') === ['city' => 'Paris']);
+check("JSON sent without content type: get() returns the decoded data",
+      TµAi::factory('ai://[' . BASE_URL . '/json-no-type]/model')->get('Hello') === ['city' => 'Rome']);
+check("embedding sent as text/plain: list of floats",
+      TµAi::factory('ai://embedding@[' . BASE_URL . '/embedding-as-text]/model')->read('Text') === [0.5, -0.25]);
 
 print("\n" . TµAnsi::bold("Default values and callbacks\n"));
 $failing = TµAi::factory('ai://[' . BASE_URL . '/text-error]/model');
@@ -290,8 +368,13 @@ $callback = function() use (&$calls) {
 	return ('CB');
 };
 $disabled = TµAi::factory('ai://[' . BASE_URL . '/chat]/model')->disable();
-check('disabled data source: read() and get() return null, without calling the callback',
-      ($disabled->read('Hello', $callback) === null) && ($disabled->get('Hello', 'fallback') === null) && $calls === 0);
+check('disabled data source: read() and get() return the default value or call the callback',
+      ($disabled->read('Hello', $callback) === 'CB') && ($disabled->get('Hello', $callback) === 'CB') && $calls === 2 &&
+      ($disabled->read('Hello', 'fallback') === 'fallback') && ($disabled->get('Hello', 'date') === 'date'));
+check('disabled data source: null without default value',
+      ($disabled->read('Hello') === null) && ($disabled->get('Hello') === null) && ($disabled['Hello'] === null));
+check('disabled data source: mGet() returns null for each prompt',
+      $disabled->mGet(['Hello', 'World']) === ['Hello' => null, 'World' => null]);
 
 print("\n" . TµAnsi::bold("Secrets\n"));
 $logs = [];
@@ -346,8 +429,15 @@ $e = exception(fn() => (new TestOpenAiText('KEY', 'model'))->read('Hello'));
 check('non-JSON response: exception',
       $e instanceof \Temma\Exceptions\Database && str_contains($e->getMessage(), 'invalid response'));
 $calls = 0;
-check('disabled data source: read() returns null, without calling the callback',
-      ((new TestOpenAi('KEY', 'model'))->disable()->read('Hello', $callback) === null) && $calls === 0);
+$disabled = (new TestOpenAi('KEY', 'model'))->disable();
+check('disabled data source: read() and get() return the default value or call the callback',
+      ($disabled->read('Hello', $callback) === 'CB') && ($disabled->get('Hello', 'fallback') === 'fallback') && $calls === 1 &&
+      ($disabled->read('Hello') === null));
+check('disabled data source: mGet() returns null for each prompt',
+      $disabled->mGet(['Hello', 'World']) === ['Hello' => null, 'World' => null]);
+$e = exception(fn() => (new TestOpenAi('KEY', 'model'))->read("Invalid \xC3\x28 UTF-8"));
+check('invalid UTF-8 in the prompt: exception',
+      $e instanceof \Temma\Exceptions\Database && str_contains($e->getMessage(), 'JSON-encode'));
 $logs = [];
 \Temma\Datasources\OpenAi::factory('openai://chat/model/SECRET-KEY-4');
 $e = exception(fn() => \Temma\Datasources\OpenAi::factory('openai://model/SECRET-KEY-5'));

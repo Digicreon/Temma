@@ -72,6 +72,7 @@ class Base64Validator implements Validator, JsonSchemaExportable {
 	 * Convert a contract to JSON Schema.
 	 * @param	array	$contract	Contract parameters.
 	 * @return	array	The JSON Schema.
+	 * @throws	\Temma\Exceptions\IO	If the contract is invalid.
 	 */
 	public function toJsonSchema(array $contract) : array {
 		$schema = [
@@ -87,8 +88,8 @@ class Base64Validator implements Validator, JsonSchemaExportable {
 		// sizes of the decoded data, converted to sizes of the encoded string
 		$minLen = TµText::parseSize($contract['minLen'] ?? null);
 		$maxLen = TµText::parseSize($contract['maxLen'] ?? null);
-		if ($minLen)
-			$schema['minLength'] = (int)ceil($minLen / 3) * 4;
+		// (an empty string is never accepted)
+		$schema['minLength'] = $minLen ? ((int)ceil($minLen / 3) * 4) : 1;
 		if ($maxLen)
 			$schema['maxLength'] = (int)ceil($maxLen / 3) * 4;
 		return ($schema);

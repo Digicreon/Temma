@@ -200,6 +200,14 @@ check("'text/*' content type with charset is left untouched",
       contentTypes(buildHeaders(BaseView::class, 'text/plain; charset=ISO-8859-1')) === ['Content-Type: text/plain; charset=ISO-8859-1']);
 check("charset detection is case-insensitive",
       contentTypes(buildHeaders(BaseView::class, 'TEXT/PLAIN; CHARSET=utf-8')) === ['Content-Type: TEXT/PLAIN; CHARSET=utf-8']);
+check("'rss' alias gets 'charset=UTF-8' (same as the Rss view's default content type)",
+      contentTypes(buildHeaders(BaseView::class, 'rss')) === ['Content-Type: ' . \Temma\Views\Rss::CONTENT_TYPE]);
+check("'xhtml' alias gets 'charset=UTF-8'",
+      contentTypes(buildHeaders(BaseView::class, 'xhtml')) === ['Content-Type: application/xhtml+xml; charset=UTF-8']);
+check("'application/rss+xml' with charset is left untouched",
+      contentTypes(buildHeaders(BaseView::class, 'application/rss+xml; charset=ISO-8859-1')) === ['Content-Type: application/rss+xml; charset=ISO-8859-1']);
+check("other XML types don't get a charset",
+      contentTypes(buildHeaders(BaseView::class, 'application/xml')) === ['Content-Type: application/xml']);
 
 print("\n" . TµAnsi::bold("Views: default content types\n"));
 check("Json view: 'application/json'",

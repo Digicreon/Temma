@@ -11,7 +11,15 @@ namespace Temma\Datasources;
 use \Temma\Base\Log as TµLog;
 
 /**
- * Object use to create a data source that does nothing.
+ * Object used to create a data source that does nothing.
+ * It behaves like an always-empty data source, where writings are ignored (like a disabled data source):
+ * - isSet() returns false, count() returns 0, find() and search() return an empty array;
+ * - read() and get() return the default value (or call the callback and return its result);
+ * - copyFrom() writes the default value (or the callback's result) in the local file, and returns false if there is none;
+ * - mRead() and mGet() associate every requested key to null; mCopyFrom() returns 0;
+ * - write(), set() and copyTo() return false; mWrite(), mSet() and mCopyTo() return 0;
+ * - remove(), mRemove(), clear() and flush() do nothing;
+ * - any other method call returns null.
  */
 class Dummy extends \Temma\Base\Datasource {
 	/**
@@ -32,6 +40,16 @@ class Dummy extends \Temma\Base\Datasource {
 	public function __call(string $name, array $args) /* : null */ {
 		TµLog::log('Temma/Base', 'DEBUG', "Dummy datasource called on method '$name'.");
 		return (null);
+	}
+
+	/* ********** ARRAY-LIKE REQUESTS ********** */
+	/**
+	 * count
+	 * @param	?string	$pattern	(optional) Not used.
+	 * @return	int	Always zero.
+	 */
+	public function count(?string $pattern=null) : int {
+		return (0);
 	}
 
 	/* ********** STANDARD REQUESTS ********** */
@@ -86,8 +104,8 @@ class Dummy extends \Temma\Base\Datasource {
 	 * @param	mixed	$defaultOrCallback	(optional) Default scalar value or function called if the data is not found.
 	 * @param	mixed	$options		(optional) Options used to store the data returned
 	 *						by the callback.
-	 * @return	?string	The data returned by the anonymous function, or null.
-	 * @throws	\Temma\Exceptions\Database	If the default value or the value returned by the callback is not a string.
+	 * @return	?string	The default value or the data returned by the anonymous function, or null.
+	 * @throws	\Temma\Exceptions\Database	If the default value or the value returned by the callback is not a string or a number.
 	 */
 	public function read(string $key, mixed $defaultOrCallback=null, mixed $options=null) : ?string {
 		if (self::_isCallback($defaultOrCallback))
@@ -97,21 +115,28 @@ class Dummy extends \Temma\Base\Datasource {
 	/**
 	 * Multiple read.
 	 * @param	array	$keys	List of keys.
-	 * @return	array	Empty array.
+	 * @return	array	Associative array with the given keys, all associated to null.
 	 */
 	public function mRead(array $keys) : array {
-		return ([]);
+		return (array_fill_keys($keys, null));
 	}
 	/**
-	 * copyFrom
+	 * copyFrom. Writes the default value (or the value returned by the callback) in the local file.
 	 * @param	string	$key			Not used.
-	 * @param	string	$localPath		Not used.
-	 * @param	mixed	$defaultOrCallback	(optional) Not used.
+	 * @param	string	$localPath		Path to the local file.
+	 * @param	mixed	$defaultOrCallback	(optional) Default scalar value or function called to get the data.
 	 * @param	mixed	$options		(optional) Not used.
-	 * @return	bool	Always false.
+	 * @return	bool	True if a default value (or a callback's result) was written in the local file, false otherwise.
+	 * @throws	\Temma\Exceptions\IO		If the local file is not writable.
+	 * @throws	\Temma\Exceptions\Database	If the default value or the value returned by the callback is not a string or a number.
 	 */
 	public function copyFrom(string $key, string $localPath, mixed $defaultOrCallback=null, mixed $options=null) : bool {
-		return (false);
+		$value = $this->read($key, $defaultOrCallback);
+		if ($value === null)
+			return (false);
+		$this->_prepareFileWrite($localPath);
+		file_put_contents($localPath, $value);
+		return (true);
 	}
 	/**
 	 * mCopyFrom
@@ -153,7 +178,7 @@ class Dummy extends \Temma\Base\Datasource {
 	/**
 	 * mCopyTo
 	 * @param	array	$data		Not used.
-	 * @param	mixed	$options        (optional) Not used.
+	 * @param	mixed	$options	(optional) Not used.
 	 * @return	int	Always zero.
 	 */
 	public function mCopyTo(array $data, mixed $options=null) : int {
@@ -178,7 +203,7 @@ class Dummy extends \Temma\Base\Datasource {
 	 * @param	string	$key			Not used.
 	 * @param	mixed	$defaultOrCallback	(optional) Default scalar value or function called if the data is not found.
 	 * @param	mixed	$options		(optional) Not used.
-	 * @return	mixed	The data returned by the anonymous function, or null.
+	 * @return	mixed	The default value or the data returned by the anonymous function, or null.
 	 */
 	public function get(string $key, mixed $defaultOrCallback=null, mixed $options=null) : mixed {
 		TµLog::log('Temma/Base', 'DEBUG', "Dummy datasource get() call.");
@@ -189,10 +214,10 @@ class Dummy extends \Temma\Base\Datasource {
 	/**
 	 * Multiple get.
 	 * @param	array	$keys	List of keys.
-	 * @return	array	Empty array.
+	 * @return	array	Associative array with the given keys, all associated to null.
 	 */
 	public function mGet(array $keys) : array {
-		return ([]);
+		return (array_fill_keys($keys, null));
 	}
 	/**
 	 * set

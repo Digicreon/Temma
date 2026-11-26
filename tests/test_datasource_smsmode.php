@@ -4,7 +4,8 @@
 /**
  * Validation script for the Smsmode data source.
  * Checks that the requests sent to the smsmode HTTP API (version 1.6) use the documented parameters,
- * and that the API responses are correctly interpreted.
+ * that the API responses are correctly interpreted, that mSet()/mWrite() ignore null values, and that a disabled
+ * data source sends nothing without throwing an exception.
  * No request is sent to smsmode: the API calls are captured by a subclass.
  */
 
@@ -125,6 +126,24 @@ check('write() options are given to the API', function() {
 	$sms->write('33611223344', 'Bonjour', ['sendDate' => '31122029-12:50', 'reference' => 'ref']);
 	$params = $sms->requests[0][1];
 	return (($params['date_envoi'] === '31122029-12:50') && ($params['refClient'] === 'ref'));
+});
+
+check('mSet() and mWrite() send the texts as they are, and ignore null values (no message deleted)', function() {
+	$sms = smsmode(['0 | Accepté | abc123', '0 | Accepté | def456', '0 | Accepté | ghi789']);
+	$sent = $sms->mSet(['33611223344' => 'Bonjour', '33622334455' => null]);
+	$sent2 = $sms->mWrite(['33633445566' => 'Salut', 'abc123' => null]);
+	return ($sent === 1 && $sent2 === 1 && count($sms->requests) === 2 &&
+	        array_column($sms->requests, 0) === ['sendSMS.do', 'sendSMS.do'] &&
+	        $sms->requests[0][1]['message'] === 'Bonjour' && $sms->requests[1][1]['numero'] === '33633445566');
+});
+check('A disabled data source sends nothing and throws no exception', function() {
+	$sms = smsmode(['0 | Accepté | abc123']);
+	$sms->disable();
+	$sms->remove('abc');
+	return ($sms->write('33611223344', 'Bonjour') === null && $sms->set('33611223344', 'Bonjour') === null &&
+	        $sms->send('33611223344', 'Bonjour') === null && $sms->mWrite(['33611223344' => 'Bonjour']) === 0 &&
+	        $sms->mSet(['33611223344' => 'Bonjour']) === 0 && $sms->read('abc') === null && $sms->get('abc') === null &&
+	        $sms->getBalance() === null && !$sms->requests);
 });
 
 print(TµAnsi::bold("Smsmode: delivery reports, balance, deletion\n"));

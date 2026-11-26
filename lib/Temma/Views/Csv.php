@@ -11,7 +11,8 @@ namespace Temma\Views;
 /**
  * View for CSV export.
  *
- * The CSV exported data is fetched from the "csv" template variable.
+ * The CSV exported data (a list of lines, each line being a list of values) is fetched from the "@output"
+ * template variable or, if it is not defined, from the "csv" template variable.
  * The name of the downloaded file is fetched from the "filename" template variable.
  */
 class Csv extends \Temma\Web\View {

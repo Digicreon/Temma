@@ -13,17 +13,23 @@ use \Temma\Base\Log as TµLog;
 use \Temma\Exceptions\Application as TµApplicationException;
 
 /**
- * Attribute used to force a redirection on an action (or an all actions of a controller).
+ * Attribute used to force a redirection on an action (or on all actions of a controller).
+ *
+ * The redirection URL is searched in this order: the given URL, the given template variable,
+ * the HTTP REFERER (if the 'referer' parameter is true), and the 'redirect' key of the 'x-security'
+ * extended configuration. If no URL is found, an Application exception is thrown.
+ * The redirection code is 302 by default; the 'code' parameter could be used to set another
+ * redirection code (301, 303, 307, 308...).
  *
  * Examples:
  * - Redirects access to any action of a controller:
  * use \Temma\Attributes\Redirect as TµRedirect;
- * #[TµRedirect['/somewhere/else']
+ * #[TµRedirect('/somewhere/else')]
  * class SomeController extends \Temma\Web\Controller {
  *     ...
  * }
  *
- * - Redirect access to one sepcific action:
+ * - Redirect access to one specific action:
  * use \Temma\Attributes\Redirect as TµRedirect;
  * class SomeController extends \Temma\Web\Controller {
  *     #[TµRedirect('/somewhere/else')]
@@ -35,8 +41,9 @@ use \Temma\Exceptions\Application as TµApplicationException;
  * - Redirect to the URL defined in the 'goRedir' template variable:
  * #[TµRedirect(var: 'goRedir')]
  *
- * - Redirect using the 'redirect' key in the 'x-security' extended configuration:
- * #[TµRedirect(config: true)]
+ * - Redirect using the 'redirect' key in the 'x-security' extended configuration
+ *   (used when no other redirection URL is available):
+ * #[TµRedirect]
  *
  * - Redirect to the HTTP REFERER:
  * #[TµRedirect(referer: true)]
@@ -54,6 +61,7 @@ class Redirect extends \Temma\Web\Attribute {
 	 * @param	?string	$var		(optional) Name of the template variable which contains the redirection URL.
 	 * @param	bool	$referer	(optional) True to use the HTTP REFERER as redirection URL. False by default.
 	 * @param	int	$code		(optional) Redirection code (301, 302, 303, 307, 308...). 302 by default.
+	 *					If the code is not a redirection code (3xx), a 302 redirection is sent.
 	 */
 	public function __construct(
 		protected ?string $url=null,

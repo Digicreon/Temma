@@ -20,8 +20,10 @@ use \Temma\Datasources\Ai\Type as TµAiType;
  * OpenRouter is an API gateway providing access to 300+ models from multiple providers
  * (OpenAI, Anthropic, Google, Meta, etc.) through an OpenAI-compatible API.
  *
- * Model names use the format "provider:model" in the DSN (e.g. "openai:gpt-4o"),
- * which is translated to "provider/model" for the API call.
+ * Model names are given in the DSN as OpenRouter defines them, with the "vendor/model" format,
+ * optionally followed by a variant suffix (e.g. <tt>ai://openrouter/openai/gpt-4o#sk-or-XXX</tt>,
+ * <tt>ai://openrouter/meta-llama/llama-3.3-70b-instruct:free#sk-or-XXX</tt>).
+ * They are sent to the API as is.
  *
  * Supports: text, images, audio, PDF input. JSON structured output.
  *
@@ -48,14 +50,12 @@ class OpenRouter implements \Temma\Datasources\Ai\Provider {
 	}
 	/**
 	 * Build the API request payload.
-	 * @param	string	$model		Model identifier (with ":" separator, e.g. "openai:gpt-4o").
+	 * @param	string	$model		Model identifier, as given by OpenRouter (e.g. "openai/gpt-4o").
 	 * @param	string	$prompt		User prompt.
 	 * @param	array	$options	Normalized options.
 	 * @return	array	Associative array with 'url', 'headers', and 'body' keys.
 	 */
 	public function buildPayload(string $model, string $prompt, array $options) : array {
-		// convert model name separator ("openai:gpt-4o" → "openai/gpt-4o")
-		$model = str_replace(':', '/', $model);
 		// build messages list
 		$messages = [];
 		if (isset($options['system']))
@@ -90,8 +90,9 @@ class OpenRouter implements \Temma\Datasources\Ai\Provider {
 	}
 	/**
 	 * Parse the API response.
-	 * @param	array	$data	Decoded JSON response.
-	 * @return	?string	The response content.
+	 * @param	array	$data	Decoded JSON response (also for HTTP errors), or associative array with 'type' (content
+	 *				type) and 'content' (raw response) keys if the response is not JSON.
+	 * @return	?string	The response content, or null if it is not found (always the case for a non-JSON response).
 	 * @throws	\Temma\Exceptions\Database	If the API returned an error.
 	 */
 	public function parseResponse(array $data) : ?string {

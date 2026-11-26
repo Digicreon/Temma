@@ -60,9 +60,11 @@ class EnumValidator implements Validator, JsonSchemaExportable {
 			throw new TµIOException("Bad contract 'values' parameter.", TµIOException::BAD_FORMAT);
 		if (!$values)
 			throw new TµIOException("Enum without values.", TµIOException::BAD_FORMAT);
+		// the validator only accepts strings (compared to the values with a loose comparison)
+		$values = array_map(fn($value) => is_scalar($value) ? (string)$value : $value, array_values($values));
 		return ([
 			'type' => 'string',
-			'enum' => array_values($values),
+			'enum' => $values,
 		]);
 	}
 	/**

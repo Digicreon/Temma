@@ -45,8 +45,9 @@ class PhoneValidator implements Validator, JsonSchemaExportable {
 	 * @return	array	The JSON Schema.
 	 */
 	public function toJsonSchema(array $contract) : array {
+		// numbers are accepted too
 		return ([
-			'type'    => 'string',
+			'type'    => ['string', 'integer'],
 			'pattern' => '^\+?[0-9 .()-]+$',
 		]);
 	}

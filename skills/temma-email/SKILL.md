@@ -53,7 +53,11 @@ template is never auto-escaped.
 ```
 
 `disabled` and `allowedDomains` are the right way to keep test environments from
-emailing real users. Runtime equivalents: `enable(bool)`, `setAllowedDomains()`,
+emailing real users. With `allowedDomains`, recipients are split (a string may hold
+several comma-separated recipients) and each `to`, `cc` and `bcc` recipient (including
+the configured `cc`/`bcc`) is kept only if it is exactly one address whose domain is in
+the list (case-insensitive). If no `to` recipient remains, nothing is sent, even when
+`cc`/`bcc` recipients remain. Runtime equivalents: `enable(bool)`, `setAllowedDomains()`,
 `setCc()`, `setBcc()`, `setEnvelopeSender()`, `setTransport()`.
 
 ## Transport

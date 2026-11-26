@@ -37,9 +37,9 @@ use \Temma\Base\Log as TµLog;
  *     'attachments' => [
  *         [
  *             'pretext' => 'Text before the attachment',
- *             'text'    => 'Attachment's text content',
+ *             'text'    => 'Text content of the attachment',
  *             'image'   => 'https://site.com/path/to/image.jpg',
- *             'footer'  => 'Attachment's footer text',
+ *             'footer'  => 'Footer text of the attachment',
  *         ],
  *         'Text-only attachment',
  *         'Another text-only attachment',
@@ -48,6 +48,7 @@ use \Temma\Base\Log as TµLog;
  *         ],
  *     ],
  * ];
+ * </code>
  */
 class Slack extends \Temma\Base\Datasource {
 	/** Webhook URL. */
@@ -177,9 +178,12 @@ class Slack extends \Temma\Base\Datasource {
 	 * Disabled mSet().
 	 * @param	array	$data		Not used.
 	 * @param	mixed	$options	(optional) Not used.
-	 * @throws	\Temma\Exceptions\Database	Always throws an exception.
+	 * @return	int	Always 0 if the datasource is disabled (never returned otherwise).
+	 * @throws	\Temma\Exceptions\Database	Always throws an exception if the datasource is enabled.
 	 */
 	public function mSet(array $data, mixed $options=null) : int {
+		if (!$this->_enabled)
+			return (0);
 		throw new \Temma\Exceptions\Database("No mSet() method on this object.", \Temma\Exceptions\Database::FUNDAMENTAL);
 	}
 }

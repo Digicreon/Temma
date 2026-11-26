@@ -33,6 +33,10 @@ function check(string $label, bool $ok) : void {
 }
 // processes the given template variables with the JSON view, and returns the decoded JSON stream
 function render(array $data, null|string|array $contract=null) : mixed {
+	return (json_decode(renderStream($data, $contract), true));
+}
+// processes the given template variables with the JSON view, and returns the JSON stream
+function renderStream(array $data, null|string|array $contract=null) : string {
 	$config = new \Temma\Web\Config(sys_get_temp_dir());
 	$response = new \Temma\Web\Response();
 	$response->setData($data);
@@ -41,8 +45,7 @@ function render(array $data, null|string|array $contract=null) : mixed {
 	$view->init();
 	ob_start();
 	$view->sendBody();
-	$stream = ob_get_clean();
-	return (json_decode($stream, true));
+	return (ob_get_clean());
 }
 // template variables defined by the framework, and private variables
 $frameworkData = [
@@ -77,8 +80,12 @@ check("without '@output' nor 'json', all template variables are sent, without 'f
       $result === ['foo' => 'bar', 'nbr' => 3]);
 $result = render(['@output' => null, 'json' => null, 'foo' => 'bar']);
 check("'@output' and 'json' variables set to null are ignored and not sent", $result === ['foo' => 'bar']);
-$result = render($frameworkData);
-check("without any application variable, an empty list is sent", $result === []);
+$result = renderStream($frameworkData);
+check("without any application variable, an empty object is sent", $result === '{}');
+$result = renderStream(['json' => []]);
+check("an empty 'json' variable is sent as an empty list", $result === '[]');
+$result = renderStream(['@output' => []]);
+check("an empty '@output' variable is sent as an empty list", $result === '[]');
 
 print("\n" . TµAnsi::bold("Keys starting with underscores\n"));
 $underscoreData = ['_private' => 1, '__flash' => 2, '___triple' => 3, 'name' => 4];

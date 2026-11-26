@@ -37,28 +37,42 @@ Two interchangeable forms:
 `slug`, `uuid`, `color`, `phone`; `date`, `time`, `datetime`; `ip`, `ipv4`, `ipv6`,
 `mac`, `port`; `isbn`, `ean`, `hash` (`md5`, `sha1`, `sha256`, `sha512`); `geo`; `enum`,
 `list`, `assoc`; `json`, `binary`, `base64`. Combine with a pipe (`'null|int|string'`),
-make nullable with `?` (`'?bool'`).
+make nullable with `?` (`'?bool'`). Type names are case-insensitive (`'NULL|INT'`,
+`'?Email'`); class names of custom validators keep their case.
 
 **Common parameters**: `default` (fallback on invalid data), `min`/`max`,
-`minLen`/`maxLen` (K/M/G units allowed), `mask` (regex), `values` (for `enum`),
-`contract` (element contract of a `list` or `json`), `keys` (for `assoc`), `mime`
-(for `binary`/`base64`), `format`/`inFormat`/`outFormat` (dates).
+`minLen`/`maxLen` (K/M/G units allowed), `mask` (regex), `values` (for `enum`; for
+`list`, one contract per position), `contract` (element contract of a `list` or `json`),
+`keys` (for `assoc`), `mime` (for `binary`/`base64`), `format`/`inFormat`/`outFormat`
+(dates).
+
+**Lists with `values`**: `'list; values: int, string'` expects exactly an int then a
+string in strict mode (extra elements are removed in non-strict mode). A trailing `...`
+(or `…`) accepts any number of extra elements as is, even in strict mode:
+`'list; values: int, string, ...'` accepts `[1, 'a']` and `[1, 'a', 3.5]`, and strict mode
+rejects `[1]`. `maxLen: 0` only accepts an empty list (strict) or truncates to `[]`.
 
 **Annotations** (no effect on validation, used by the JSON Schema conversion):
 `description`, `title`, `examples`. `'bool; default: false; description: True to delete the document.'`
 or `['type' => 'bool', 'default' => false, 'description' => 'True to delete the document.']`.
 On an associative array contract, the `type` must be explicit
-(`['type' => 'assoc', 'keys' => [...], 'description' => '...']`); otherwise `description`
-would be taken as a key.
+(`['type' => 'assoc', 'keys' => [...], 'description' => '...']`); otherwise `description`,
+`title`, `examples` or `default` would be taken as keys. In a string contract,
+`examples: a, b` is ONE example (`"a, b"`); use the array form for several
+(`'examples' => ['a', 'b']`).
 
 **Quoting in string contracts**: a parameter value containing a semicolon must be
 quoted (`description: "First; second"`). Inside quotes, `\"` is a quote and `\\` a
-backslash; any other backslash sequence is kept as is (`mask: "^\d+;\w*$"`).
+backslash; any other backslash sequence is kept as is (`mask: "^\d+;\w*$"`). Double
+quotes are never part of the value: an unquoted value containing `"` loses its quotes
+(`default: a "b" c` gives `a b c`); to keep one, quote and escape it
+(`default: "say \"hi\""`).
 
 **Strict vs non-strict**: by default validation is non-strict (converts `"42"` to 42,
 clamps out-of-range numbers, truncates long strings). Strict mode requires exact types
 and errors on violations. Control it globally (`$strict` parameter) or per contract with
-a type prefix: `'=int'` (strict), `'~string'` (non-strict).
+a type prefix: `'=int'` (strict), `'~string'` (non-strict). The prefixes also apply to
+named contracts (`'=pos'` with `pos` defined as `'int; min: 0'` is strict).
 
 **Optional keys and wildcard** (in `assoc` contracts and GET/POST contracts): suffix a
 key with `?` to make it optional (`'firstname?' => 'string'`); add `'...'` to accept
@@ -74,9 +88,15 @@ to `list` contracts (`validateParams()`, `Check\Params`), where numeric keys are
 positional.
 
 **Named contracts**: declare reusable contracts in `etc/temma.php` under
-`validationTypes` (`'user' => [...]`, or a custom validator class name), then use their
-name anywhere a contract is expected: `#[TµCheckPost('user')]`,
-`validateInput('user')`, `DataFilter::process($data, 'user')`.
+`validationTypes`: a contract string (`'pos' => 'int; min: 0'`), a contract array (an
+array without `type` describes the keys of an `assoc`), or a custom validator class name
+(`\Temma\Utils\Validation\Validator` implementation). Use their name anywhere a contract
+is expected: `#[TµCheckPost('user')]`, `validateInput('user')`,
+`DataFilter::process($data, 'user')`. A named contract behaves like a type: `'?pos'`,
+`'pos|string'`, `'=pos'`/`'~pos'` (forced strictness), and usage parameters override the
+definition (`'pos; max: 10'`). Names written in lowercase are case-insensitive (`'POS'`).
+Registered programmatically with `DataFilter::registerAlias($name, $contract)` (or an
+array of `name => contract`).
 
 ## Declarative input validation: the Check attributes
 
@@ -141,10 +161,13 @@ $output = null;
 $this->_request->validateInput(['email' => 'email'], 'POST', output: $output);
 ```
 
-Low level, anywhere in the code:
+Low level, anywhere in the code (signature
+`process($in, $contract, $strict=false, $inline=false, &$output=null)`: `$output` is the
+5th parameter, `$inline` is internal and must stay false; pass `output:` by name):
 
 ```php
 $clean = \Temma\Utils\DataFilter::process($data, ['type' => 'list', 'contract' => 'int']);
+$clean = \Temma\Utils\DataFilter::process($data, 'binary; mime: image', output: $output);
 ```
 
 ## Output validation
@@ -162,9 +185,18 @@ The view then validates/filters outgoing data before sending it.
 less precise than Temma's validation (no conversion, no checksum, approximate
 patterns); its goal is to give information to the client. Optional keys (`key?` or
 `'mandatory' => false`) are not listed in `required`; nullable types add `null` to the
-allowed types; `description`, `title`, `default` and `examples` become annotations.
-Custom validators accept any value unless they implement
-`\Temma\Utils\Validation\JsonSchemaExportable`.
+allowed types; `description`, `title`, `default` and `examples` become annotations
+(default and examples are typed from the schema: `'int; default: 20'` gives `20`).
+Multiple types whose JSON types overlap (`string|email`, `int|port`, `date|datetime`)
+become an `anyOf` unless their constraints are identical; others are merged
+(`'string|port'` gives `"type": ["string", "integer"]`). `=`/`~` prefixes are ignored;
+named contracts are expanded. `DataFilter::toJsonSubSchema($contract)` returns the same
+without `$schema` (an empty `\stdClass`, encoded `{}`, when any value is accepted), to
+nest schemas. Custom validators accept any value unless they implement
+`\Temma\Utils\Validation\JsonSchemaExportable` (method
+`toJsonSchema(array $contract) : array`, receiving the contract parameters, with the used
+type in `currentType`; return `[]` for "any value"; annotations, nullable and multiple
+types are handled by DataFilter).
 
 ```php
 $schema = \Temma\Utils\DataFilter::toJsonSchema([

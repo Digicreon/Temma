@@ -18,8 +18,10 @@ use \Temma\Datasources\Ai\Type as TµAiType;
  * It is used internally by \Temma\Datasources\Ai.
  *
  * Ollama runs LLMs locally and exposes an OpenAI-compatible API.
- * Default endpoint: http://localhost:11434/v1/chat/completions
+ * Endpoint: http://localhost:11434/v1/chat/completions
  * No API key is required by default.
+ * For an Ollama server which is not on localhost, use the generic OpenAI-compatible syntax
+ * (e.g. <tt>ai://[http://ollama.example.com:11434/v1/chat/completions]/llama3:70b</tt>).
  *
  * Model names may contain colons for tags (e.g. "llama3:70b", "mistral:latest").
  *
@@ -37,8 +39,8 @@ class Ollama implements \Temma\Datasources\Ai\Provider {
 	/**
 	 * Constructor.
 	 * @param	string		$apiKey		(optional) API key (usually empty for local Ollama, not used).
-	 * @param	string		$endpointUrl	(optional) Endpoint URL (for an Ollama server which is not on localhost).
-	 *					Defaults to the API_URL constant.
+	 * @param	string		$endpointUrl	(optional) Endpoint URL. Defaults to the API_URL constant. Not given by
+	 *					the DSN "ai://ollama/MODEL" (for a remote server, see the class documentation).
 	 * @param	TµAiType	$type		(optional) Type of API. Only chat is supported.
 	 * @throws	\Temma\Exceptions\Database	If the type is not supported.
 	 */
@@ -82,8 +84,9 @@ class Ollama implements \Temma\Datasources\Ai\Provider {
 			$payload['temperature'] = (float)$options['temperature'];
 		if (isset($options['max_tokens']))
 			$payload['max_tokens'] = (int)$options['max_tokens'];
+		// JSON mode (the "format" parameter of the native Ollama API is ignored by the OpenAI-compatible endpoint)
 		if (($options['output'] ?? null) === 'application/json')
-			$payload['format'] = 'json';
+			$payload['response_format'] = ['type' => 'json_object'];
 		return ([
 			'url'     => $this->_apiUrl,
 			'headers' => [],
@@ -92,8 +95,9 @@ class Ollama implements \Temma\Datasources\Ai\Provider {
 	}
 	/**
 	 * Parse the API response.
-	 * @param	array	$data	Decoded JSON response.
-	 * @return	?string	The response content.
+	 * @param	array	$data	Decoded JSON response (also for HTTP errors), or associative array with 'type' (content
+	 *				type) and 'content' (raw response) keys if the response is not JSON.
+	 * @return	?string	The response content, or null if it is not found (always the case for a non-JSON response).
 	 * @throws	\Temma\Exceptions\Database	If the API returned an error.
 	 */
 	public function parseResponse(array $data) : ?string {
