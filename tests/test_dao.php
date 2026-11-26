@@ -233,6 +233,10 @@ check('criteria: escaped field', str_contains($db->lastQuery(), "WHERE `em``ail`
 $daoFields = new \Temma\Dao\Dao($db, null, 'user', 'id', null, ['first_name' => 'firstName', 'age']);
 $daoFields->search();
 check('fields: escaped aliases', str_contains($db->lastQuery(), 'SELECT `first_name` AS `firstName`, `age` FROM `user`'));
+$daoFields->update(null, ['age' => 3], sort: '-firstName', limit: 1);
+check('fields: real field name in the sort string of an update', str_contains($db->lastQuery(), 'ORDER BY `first_name` DESC  LIMIT 1'));
+$daoFields->search(null, 'firstName');
+check('fields: real field name in the sort string of a search', str_contains($db->lastQuery(), 'ORDER BY `first_name`'));
 
 /* ********** SQL DSN PARSING ********** */
 print(TµAnsi::bold("SQL DSN parsing\n"));

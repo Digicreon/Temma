@@ -3,7 +3,7 @@
 /**
  * Inetd
  * @author	Amaury Bouchard <amaury@amaury.net>
- * @copyright	© 2023-2024, Amaury Bouchard
+ * @copyright	© 2023-2026, Amaury Bouchard
  * @link	https://www.temma.net/documentation/asynk
  */
 
@@ -15,7 +15,9 @@ use \Temma\Base\Log as TµLog;
  * Asynk worker executed by inetd super-daemon.
  *
  * This objet expects to receive a task identifier on its standard input.
- * The task is processed and removed.
+ * The task is processed and removed, if it is waiting (a delayed task, or a task already processed by the crontab,
+ * is ignored). If its processing fails, a new attempt is planned (if retries are enabled; the new attempt is
+ * processed by the crontab) or the task is put aside.
  */
 class Inetd extends \Temma\Web\Controller {
 	/** Asynk DAO. */
@@ -26,37 +28,37 @@ class Inetd extends \Temma\Web\Controller {
 		$this->_asynkDao = $this->_loader['\Temma\Asynk\AsynkDao'];
 	}
 	/**
-	 * Get a task identifier on the standard input, process the task and remove it.
+	 * Get a task identifier on the standard input, process the task and remove it (if its processing was successful).
 	 */
 	public function __invoke() {
-		// get task identifier
-		$taskId = trim(fgets(STDIN));
+		// get task identifier (limited length, the identifier comes from the network)
+		$taskId = trim((string)fgets(STDIN, 128));
 		if (!$taskId) {
 			TµLog::log('Temma/Asynk', 'INFO', "Empty task identifier.");
 			exit(0);
 		}
-		// reserve the task, set its status and get it
+		// get the task
 		$task = $this->_asynkDao->getTaskFromId($taskId);
 		if (!$task) {
-			TµLog::log('Temma/Asynk', 'WARN', "Unknown task '$taskId'.");
-			exit(1);
+			// the task may have been processed by the crontab
+			TµLog::log('Temma/Asynk', 'INFO', 'Unknown task ' . json_encode($taskId) . '.');
+			exit(0);
 		}
-		// task processing
-		try {
-			$object = $this->_loader[$task['target']];
-			if (!$object)
-				throw new \Exception("Unable to instanciate object '{$task['target']}'.");
-			if (!method_exists($object, $task['action']))
-				throw new \Exception("No method '{$task['action']}' in object '{$task['target']}'.");
-			$method = $task['action'];
-			$object->$method(...$task['data']);
-			// task deletion
-			$this->_asynkDao->removeTaskFromId($task['id']);
-		} catch (\Exception $e) {
-			TµLog::log('Temma/Asynk', 'WARN', "Asynk error: " . $e->getMessage());
-			$this->_asynkDao->setTaskStatusFromId($task['id'], 'error');
-			exit(1);
+		// delayed task, or task processed by the crontab
+		if (!$this->_asynkDao->isTaskReady($task)) {
+			TµLog::log('Temma/Asynk', 'INFO', "Task '{$task['id']}' not ready to be processed.");
+			exit(0);
 		}
+		// reserve the task
+		$task = $this->_asynkDao->reserveTask($task);
+		if (!$task) {
+			TµLog::log('Temma/Asynk', 'INFO', "Task '$taskId' reserved by another process.");
+			exit(0);
+		}
+		// task processing (the new attempts are processed by the crontab)
+		if (!$this->_asynkDao->executeTask($task))
+			exit(1);
+		// task deletion
+		$this->_asynkDao->removeFetchedTask($task);
 	}
 }
-

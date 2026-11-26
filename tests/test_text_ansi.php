@@ -43,6 +43,8 @@ check("text without sequence", TµText::ansiToText("a < b\nc"), "a < b\nc");
 check("Ansi styles", TµText::ansiToText(TµAnsi::bold('A') . TµAnsi::faint('B') . TµAnsi::italic('C') .
                                         TµAnsi::underline('D') . TµAnsi::blink('E') . TµAnsi::negative('F') .
                                         TµAnsi::strikeout('G') . TµAnsi::resetStyle()), 'ABCDEFG');
+check("Ansi styles of the string '0'", [TµAnsi::bold('0'), TµAnsi::faint('0'), TµAnsi::italic(null), TµAnsi::underline('')],
+      ["\e[1m0\e[22m", "\e[2m0\e[22m", '', '']);
 check("Ansi colors", TµText::ansiToText(TµAnsi::color('red', 'A') . TµAnsi::backColor('blue', 'white', 'B')), 'AB');
 check("Ansi hyperlink (text kept)", TµText::ansiToText(TµAnsi::link('https://temma.net', 'Temma')), 'Temma');
 check("cursor and screen sequences", TµText::ansiToText("\e[2K\rA\e[3A\e[?25l\e[H\e[J\e7B\e8\ecC\e[6n"), "\rABC");

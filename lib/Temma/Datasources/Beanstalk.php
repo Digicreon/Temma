@@ -49,6 +49,15 @@ use \Temma\Base\Log as TµLog;
  * // put back in the queue a buried message, or all buried messages
  * $bean->kick('MESSAGE_ID');
  * $bean->kick();
+ * // put back in the queue a reserved message, to be delivered again in 60 seconds
+ * $bean->release('MESSAGE_ID', 60);
+ *
+ * // statistics of the tube (number of ready, reserved, delayed and buried messages), or of a message
+ * $stats = $bean->stats();
+ * $stats = $bean->stats('MESSAGE_ID');
+ * // read a message without reserving it, or the first buried message
+ * $message = $bean->peek('MESSAGE_ID');
+ * $message = $bean->peekBuried();
  *
  * // send several messages (null values are ignored)
  * $bean->mSet([$data1, $data2]);
@@ -137,6 +146,13 @@ class Beanstalk extends \Temma\Base\Datasource {
 
 	/* ********** SPECIAL REQUESTS ********** */
 	/**
+	 * Return the name of the tube used by the data source.
+	 * @return	string	The tube name.
+	 */
+	public function getTube() : string {
+		return ($this->_tube);
+	}
+	/**
 	 * Tell Beanstalkd that the given job is still processing,
 	 * avoiding to reschedule it.
 	 * @param	string	$id	Job identifier.
@@ -168,8 +184,11 @@ class Beanstalk extends \Temma\Base\Datasource {
 	}
 	/**
 	 * Put buried jobs back in the queue: they are delivered again by read() and get().
-	 * @param	?string	$id	(optional) Identifier of the job to kick. If null (by default), all buried jobs of the tube are kicked.
-	 * @return	int	The number of kicked jobs (0 if the given job doesn't exist or is not buried, or if the datasource is disabled).
+	 * @param	?string	$id	(optional) Identifier of the job to kick; a delayed job (see release()) can also be
+	 *				kicked, it is then ready without waiting for the end of its delay. If null (by default),
+	 *				all buried jobs of the tube are kicked.
+	 * @return	int	The number of kicked jobs (0 if the given job doesn't exist or is not buried nor delayed, or if
+	 *			the datasource is disabled).
 	 * @throws	\Exception	If an error occurred.
 	 */
 	public function kick(?string $id=null) : int {
@@ -178,6 +197,8 @@ class Beanstalk extends \Temma\Base\Datasource {
 		$this->connect();
 		// kick the given job
 		if ($id !== null) {
+			if (!self::isValidId($id))
+				return (0);
 			try {
 				$this->_pheanstalk->kickJob(new \Pheanstalk\Values\JobId($id));
 			} catch (\Pheanstalk\Exception\JobNotFoundException $e) {
@@ -196,6 +217,117 @@ class Beanstalk extends \Temma\Base\Datasource {
 			return (0);
 		$this->_pheanstalk->useTube(new \Pheanstalk\Values\TubeName($this->_tube));
 		return ($this->_pheanstalk->kick($stats->currentJobsBuried));
+	}
+	/**
+	 * Put a reserved job back in the queue, optionally with a delay before it is delivered again.
+	 * Useful to process again a job whose processing has failed, after a while.
+	 * The job must have been reserved (with read() or get()) by this object, without disconnection since.
+	 * @param	string	$id	Job identifier.
+	 * @param	int	$delay	(optional) Number of seconds to wait before the job is delivered again (0 by default).
+	 * @return	\Temma\Datasources\Beanstalk	The current object.
+	 * @throws	\Pheanstalk\Exception\JobNotFoundException	If the job doesn't exist or is not reserved by this object.
+	 * @throws	\Exception	If an error occurred.
+	 */
+	public function release(string $id, int $delay=0) : \Temma\Datasources\Beanstalk {
+		if (!$this->_enabled)
+			return ($this);
+		$this->connect();
+		$this->_pheanstalk->release(new \Pheanstalk\Values\JobId($id), \Pheanstalk\Contract\PheanstalkPublisherInterface::DEFAULT_PRIORITY, max(0, $delay));
+		return ($this);
+	}
+	/**
+	 * Return statistics about the tube, or about a job.
+	 * @param	?string	$id	(optional) Job identifier. If null (by default), the statistics of the tube are returned.
+	 * @return	?array	For the tube, an associative array with the keys "ready", "reserved", "delayed" and "buried" (number
+	 *			of jobs in each state; all zero if the tube doesn't exist). For a job, an associative array with
+	 *			the keys "tube" (name of the job's tube, which may be different from the data source's tube),
+	 *			"state" ("ready", "reserved", "delayed" or "buried"), "age" (number of seconds since the
+	 *			job's creation), "delay" (delay given when the job was put or released), "timeLeft" (number of
+	 *			seconds before a reserved job is put back in the queue, or before a delayed job is ready),
+	 *			"reserves", "releases", "buries", "kicks" and "timeouts" (number of times the job was reserved,
+	 *			released, buried, kicked, and put back in the queue because its reservation expired), or null if
+	 *			the job doesn't exist. Null if the data source is disabled.
+	 * @throws	\Exception	If an error occurred.
+	 */
+	public function stats(?string $id=null) : ?array {
+		if (!$this->_enabled)
+			return (null);
+		$this->connect();
+		// statistics of a job
+		if ($id !== null) {
+			if (!self::isValidId($id))
+				return (null);
+			try {
+				$stats = $this->_pheanstalk->statsJob(new \Pheanstalk\Values\JobId($id));
+			} catch (\Pheanstalk\Exception\JobNotFoundException $e) {
+				return (null);
+			}
+			return ([
+				'tube'     => $stats->tube->value,
+				'state'    => $stats->state->value,
+				'age'      => $stats->age,
+				'delay'    => $stats->delay,
+				'timeLeft' => $stats->timeLeft,
+				'reserves' => $stats->reserves,
+				'releases' => $stats->releases,
+				'buries'   => $stats->buries,
+				'kicks'    => $stats->kicks,
+				'timeouts' => $stats->timeouts,
+			]);
+		}
+		// statistics of the tube
+		try {
+			$stats = $this->_pheanstalk->statsTube(new \Pheanstalk\Values\TubeName($this->_tube));
+		} catch (\Pheanstalk\Exception\TubeNotFoundException $e) {
+			// the tube doesn't exist if no job was ever put in it
+			return (['ready' => 0, 'reserved' => 0, 'delayed' => 0, 'buried' => 0]);
+		}
+		return ([
+			'ready'    => $stats->currentJobsReady,
+			'reserved' => $stats->currentJobsReserved,
+			'delayed'  => $stats->currentJobsDelayed,
+			'buried'   => $stats->currentJobsBuried,
+		]);
+	}
+	/**
+	 * Read a job without reserving it.
+	 * @param	string	$id	Job identifier.
+	 * @return	?array	An associative array with the keys "id" and "data" (raw job data), or null if the job doesn't
+	 *			exist (or if the data source is disabled). The job may belong to another tube.
+	 * @throws	\Exception	If an error occurred.
+	 */
+	public function peek(string $id) : ?array {
+		if (!$this->_enabled || !self::isValidId($id))
+			return (null);
+		$this->connect();
+		try {
+			$job = $this->_pheanstalk->peek(new \Pheanstalk\Values\JobId($id));
+		} catch (\Pheanstalk\Exception\JobNotFoundException $e) {
+			return (null);
+		}
+		return ([
+			'id'   => $job->getId(),
+			'data' => $job->getData(),
+		]);
+	}
+	/**
+	 * Read the first buried job of the tube, without reserving it.
+	 * @return	?array	An associative array with the keys "id" and "data" (raw job data), or null if there is no buried
+	 *			job (or if the data source is disabled).
+	 * @throws	\Exception	If an error occurred.
+	 */
+	public function peekBuried() : ?array {
+		if (!$this->_enabled)
+			return (null);
+		$this->connect();
+		$this->_pheanstalk->useTube(new \Pheanstalk\Values\TubeName($this->_tube));
+		$job = $this->_pheanstalk->peekBuried();
+		if (!$job)
+			return (null);
+		return ([
+			'id'   => $job->getId(),
+			'data' => $job->getData(),
+		]);
 	}
 
 	/* ********** ARRAY-LIKE REQUESTS ********** */
@@ -306,7 +438,10 @@ class Beanstalk extends \Temma\Base\Datasource {
 	 * Add a message in Beanstalkd.
 	 * @param	string	$id		Job identifier, only used if the second parameter is null (remove the message).
 	 * @param	?string	$data		(optional) Message data. The message is removed if the value is not given or if it is null.
-	 * @param	mixed	$options	(optional) Not used.
+	 * @param	mixed	$options	(optional) Associative array with the optional keys "priority" (0 is the most urgent,
+	 *					1024 by default), "delay" (number of seconds before the message is ready, 0 by
+	 *					default) and "ttr" (time to run: number of seconds a worker can keep the message
+	 *					reserved before it is put back in the queue, 60 by default).
 	 * @return	?string	Job identifier (null if the message was removed or if the datasource is disabled).
 	 * @throws	\Exception	If an error occurred.
 	 */
@@ -320,7 +455,13 @@ class Beanstalk extends \Temma\Base\Datasource {
 		$this->connect();
 		// add message
 		$this->_pheanstalk->useTube(new \Pheanstalk\Values\TubeName($this->_tube));
-		$jobId = $this->_pheanstalk->put($data);
+		$options = is_array($options) ? $options : [];
+		$jobId = $this->_pheanstalk->put(
+			$data,
+			(int)($options['priority'] ?? \Pheanstalk\Contract\PheanstalkPublisherInterface::DEFAULT_PRIORITY),
+			max(0, (int)($options['delay'] ?? \Pheanstalk\Contract\PheanstalkPublisherInterface::DEFAULT_DELAY)),
+			max(1, (int)($options['ttr'] ?? \Pheanstalk\Contract\PheanstalkPublisherInterface::DEFAULT_TTR)),
+		);
 		return ($jobId->getId());
 	}
 	/**
@@ -395,7 +536,7 @@ class Beanstalk extends \Temma\Base\Datasource {
 	 * Add a message in Beanstalkd.
 	 * @param	string	$id		Job identifier, only used if the second parameter is null (remove the message).
 	 * @param	mixed	$data		(optional) Message data, JSON-encoded. The message is removed if the value is not given or if it is null.
-	 * @param	mixed	$options	(optional) Not used.
+	 * @param	mixed	$options	(optional) Options of the message (see write()).
 	 * @return	?string	Job identifier (null if the message was removed or if the datasource is disabled).
 	 * @throws	\Exception	If an error occurred.
 	 */
@@ -417,5 +558,15 @@ class Beanstalk extends \Temma\Base\Datasource {
 	 */
 	public function mSet(array $data, mixed $options=null) : int {
 		return (parent::mSet($data, $options));
+	}
+
+	/* ********** TOOLS ********** */
+	/**
+	 * Tell if a string is a valid job identifier (positive integer, 20 digits at most).
+	 * @param	string	$id	The identifier.
+	 * @return	bool	True if the identifier is valid.
+	 */
+	static public function isValidId(string $id) : bool {
+		return (ctype_digit($id) && (strlen($id) <= 20));
 	}
 }

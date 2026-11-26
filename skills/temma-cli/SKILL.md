@@ -75,8 +75,9 @@ logs go to stderr, plus `log/temma.log` if configured).
 Built-in commands: when a controller name doesn't start with a backslash and doesn't
 match a class of the project, it is searched in the `\Temma\Cli` namespace:
 `bin/comma Cache/clear` (cache clearing), `bin/comma User ...` (user management for the
-Auth system), `bin/comma 'Asynk\Worker/crontab'` (async tasks) — a project class with
-the same name takes precedence.
+Auth system), `bin/comma 'Asynk\Worker/crontab'` (async tasks), `bin/comma AsynkManager/stats`
+(async tasks management, see the `temma-asynk` skill); a project class with the same name
+takes precedence.
 
 ## Development server
 
